@@ -1,0 +1,16 @@
+# Phase 2 demo: cold/hot separation.
+# square_sum is pure cold logic -> cacheable (@functools.cache).
+@cold
+def square_sum(N):
+    Σ(i^2, i in [1:N]) => r
+    return r
+
+# greet is hot: it performs I/O (output), so it is dynamic state.
+@hot
+def greet(name):
+    name^0
+    return name
+
+square_sum(100) => total
+total^0
+greet(total)

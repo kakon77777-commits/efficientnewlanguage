@@ -1,0 +1,40 @@
+{
+  "name": "eml",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "EML 2026 — Efficient Meta-Language: a deterministic EML/Py+ -> Python transpiler MVP",
+  "author": "Neo.K (許筌崴) / EveMissLab (一言諾科技有限公司)",
+  "license": "SEE LICENSE IN LICENSE",
+  "packageManager": "pnpm@11.8.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "eml": "tsx packages/cli/src/index.ts",
+    "start": "node scripts/launch.mjs studio",
+    "studio": "node scripts/launch.mjs studio",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.json --noEmit",
+    "demo": "tsx packages/cli/src/index.ts run examples/phase0/sum.eml"
+  },
+  "devDependencies": {
+    "@eml/types": "workspace:*",
+    "@eml/parser": "workspace:*",
+    "@eml/transpiler-python": "workspace:*",
+    "@eml/transpiler-eml": "workspace:*",
+    "@eml/transpiler-cpp": "workspace:*",
+    "@eml/interp": "workspace:*",
+    "@eml/ai-converter": "workspace:*",
+    "@eml/cts-generator": "workspace:*",
+    "@eml/symbols": "workspace:*",
+    "@eml/trace": "workspace:*",
+    "@eml/bug-classifier": "workspace:*",
+    "@types/node": "^24",
+    "tsx": "^4",
+    "typescript": "^5",
+    "vitest": "^3"
+  }
+}

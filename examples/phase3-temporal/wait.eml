@@ -1,0 +1,10 @@
+# Phase 3 demo: a temporal loop that waits for a condition (no busy wait).
+@temporal_loop(max_wait=1, check_interval=0.2, timeout_action="return")
+async def wait_ready(flag):
+    await temporal_wait(flag)
+    return 99
+
+run_temporal(wait_ready, 1) => resolved
+resolved^0
+run_temporal(wait_ready, 0) => timed_out
+timed_out^0

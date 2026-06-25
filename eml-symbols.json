@@ -1,0 +1,135 @@
+{
+  "^0": {
+    "name": "output",
+    "category": "control",
+    "python": "print({value})",
+    "description": "輸出或顯示指定值",
+    "namespace": "core"
+  },
+  "^+": {
+    "name": "init_or_add_assign",
+    "category": "assignment",
+    "python": "{target} = {value} | {target} += {value}",
+    "description": "初始化（首次出現）或加法複合賦值（已宣告）",
+    "namespace": "core"
+  },
+  "^+=": {
+    "name": "add_assign",
+    "category": "assignment",
+    "python": "{target} += {value}",
+    "description": "加法複合賦值",
+    "namespace": "core"
+  },
+  "^-": {
+    "name": "sub_assign",
+    "category": "assignment",
+    "python": "{target} -= {value}",
+    "description": "減法複合賦值",
+    "namespace": "core"
+  },
+  "^*": {
+    "name": "mul_assign",
+    "category": "assignment",
+    "python": "{target} *= {value}",
+    "description": "乘法複合賦值",
+    "namespace": "core"
+  },
+  "^/": {
+    "name": "div_assign",
+    "category": "assignment",
+    "python": "{target} /= {value}",
+    "description": "除法複合賦值",
+    "namespace": "core"
+  },
+  "^T": {
+    "name": "transpose",
+    "category": "linear",
+    "python": "np.transpose({operand})",
+    "description": "矩陣轉置",
+    "namespace": "linear"
+  },
+  "Σ": {
+    "name": "summation",
+    "category": "algebraic",
+    "python": "sum({expr} for {iter} in {range})",
+    "description": "對指定範圍執行求和",
+    "namespace": "core"
+  },
+  "∈": {
+    "name": "in_range",
+    "category": "range",
+    "python": "range({start}, {end_plus_one})",
+    "description": "表示迭代變數屬於某個閉區間",
+    "namespace": "core"
+  },
+  "[:]": {
+    "name": "inclusive_range",
+    "category": "range",
+    "python": "range({start}, {end} + 1)",
+    "description": "閉區間 [a:b]，含上界",
+    "namespace": "core"
+  },
+  "=>": {
+    "name": "bind",
+    "category": "assignment",
+    "python": "{target} = {expr}",
+    "description": "將運算式結果指派給目標",
+    "namespace": "core"
+  },
+  "?:": {
+    "name": "conditional",
+    "category": "conditional",
+    "python": "{consequent} if {test} else {alternate}",
+    "description": "三元條件運算式",
+    "namespace": "core"
+  },
+  "<M>": {
+    "name": "matrix",
+    "category": "matrix",
+    "python": "np.array({data})",
+    "description": "以資料建立矩陣／陣列",
+    "namespace": "linear"
+  },
+  "list^+": {
+    "name": "list_literal",
+    "category": "list",
+    "python": "{target} = [{elements}]",
+    "description": "建立列表並指派",
+    "namespace": "core"
+  },
+  "def": {
+    "name": "function_def",
+    "category": "function",
+    "python": "def {name}({params}): ...",
+    "description": "定義函數",
+    "namespace": "core"
+  },
+  "@cold": {
+    "name": "cold_logic",
+    "category": "temperature",
+    "python": "@functools.cache",
+    "description": "冷邏輯：純函數、可快取、可預編譯、可結晶化",
+    "namespace": "core"
+  },
+  "@hot": {
+    "name": "hot_state",
+    "category": "temperature",
+    "python": "# @hot (dynamic state, not cached)",
+    "description": "熱狀態：含 I/O／副作用／動態狀態，不可任意快取",
+    "namespace": "core"
+  },
+  "@temporal_loop": {
+    "name": "temporal_loop",
+    "category": "temporal",
+    "python": "@temporal_loop(max_wait, check_interval, timeout_action)",
+    "description": "時間迴圈：等待條件成熟，不 busy wait，有 max_wait 與逾時處理",
+    "namespace": "core"
+  },
+  "await": {
+    "name": "await",
+    "category": "temporal",
+    "python": "await {expr}",
+    "description": "等待非同步運算式（時間迴圈內 await temporal_wait）",
+    "namespace": "core"
+  }
+}
