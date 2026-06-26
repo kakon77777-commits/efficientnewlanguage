@@ -1,4 +1,4 @@
-# EML 2026 — Efficient Meta-Language
+# EML 2026 — Efficient New-Language
 
 > A high-density **semantic-overlay** programming layer for humans *and* AI
 > agents. EML is not a replacement language — it is a deterministic, testable
