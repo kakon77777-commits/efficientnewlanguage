@@ -1,0 +1,79 @@
+(* EML / Py+ Grammar — EML-LANG-2026 v1.0 (normative)
+   canonical_domain: efficientnewlanguage.org
+   source: docs/EML-LANG-2026-v1.0.md §3 (single source of truth)
+   status: frozen v1.0 surface (Phase 0-4 parity)
+   note: ASCII canonical form is normative. Unicode display forms (Σ ∈ ⇒ ² ⟨M⟩) are
+         an informative projection the lexer normalizes to ASCII before tokenizing.
+   updated: 2026-06-30
+
+   This grammar extends grammar.md v0.1 with decorator arguments, `async def`, the
+   `await` expression, the `/` overlay operator, and the power operator `^<int>=1>`.
+*)
+
+Program        ::= { Statement Newline? }
+
+Statement      ::= OverlayStatement
+                 | AssignmentStatement
+                 | OutputStatement
+                 | ExpressionStatement
+                 | FunctionDefinition          (* Phase 2 *)
+                 | ReturnStatement             (* Phase 2, function body only *)
+                 | EmptyStatement
+
+(* -- Functions, decorators, temperature, temporal (Phase 2-3) -- *)
+FunctionDefinition ::= { Decorator Newline } [ "async" ] "def" Identifier
+                       "(" [ ParameterList ] ")" ":" Newline Block
+
+Decorator      ::= "@" Identifier [ "(" [ DecoratorArgList ] ")" ]
+DecoratorArgList ::= DecoratorArg { "," DecoratorArg }
+DecoratorArg   ::= Identifier "=" Expression          (* keyword arg *)
+                 | Expression                          (* positional; MUST precede none after a kw arg *)
+
+ParameterList  ::= Identifier { "," Identifier }
+Block          ::= Indent { Statement Newline } Dedent
+ReturnStatement ::= "return" [ Expression ]
+
+(* -- Assignment / overlay / output -- *)
+AssignmentStatement ::= Expression AssignArrow Identifier
+AssignArrow    ::= "=>" | "⇒"
+
+OverlayStatement ::= Identifier OverlaySuffix
+                   | Identifier OverlaySuffix ListLiteral        (* list^+[...] *)
+OverlaySuffix  ::= "^" OverlayOperator OverlayPayload?
+OverlayOperator ::= "+" | "-" | "*" | "/" | "0" | "T"
+OverlayPayload ::= Expression
+
+OutputStatement ::= Identifier "^0"   (* operand must be a bare identifier *)
+
+(* -- Expressions -- *)
+Expression     ::= ConditionalExpression
+ConditionalExpression ::= ComparisonExpression [ "?" Expression ":" Expression ]
+ComparisonExpression  ::= AdditiveExpression [ ComparisonOperator AdditiveExpression ]
+ComparisonOperator    ::= ">" | "<" | ">=" | "<=" | "==" | "!=" | "≥" | "≤" | "≠"
+AdditiveExpression    ::= MultiplicativeExpression { ("+" | "-") MultiplicativeExpression }
+MultiplicativeExpression ::= PowerExpression { ("*" | "/") PowerExpression }
+(* `^Number` (power, Number != 0) and `^T` (transpose) are mutually-exclusive
+   suffixes over a postfix/primary; they do not chain (no `m^T^2`). *)
+PowerExpression ::= PostfixExpression [ ( "^" Number ) | "^T" ]
+PostfixExpression ::= PrimaryExpression { CallSuffix }
+CallSuffix     ::= "(" [ ArgumentList ] ")"            (* call: f(a,b) *)
+                 | "^+" "(" [ ArgumentList ] ")"       (* call-bind: f^+(a,b) (an expression) *)
+PrimaryExpression ::= Identifier
+                    | Number | String
+                    | SumExpression
+                    | MatrixExpression
+                    | ListLiteral
+                    | RangeExpression
+                    | MembershipExpression
+                    | AwaitExpression                 (* Phase 3 *)
+                    | "(" Expression ")"
+
+AwaitExpression ::= "await" PrimaryExpression
+ArgumentList   ::= Expression { "," Expression }
+SumExpression  ::= "Σ" "(" Expression "," IteratorClause ")"
+IteratorClause ::= Identifier InOperator RangeExpression
+InOperator     ::= "in" | "∈"
+RangeExpression ::= "[" Expression ":" Expression "]"   (* inclusive of the upper bound *)
+MembershipExpression ::= Expression InOperator (RangeExpression | Expression)
+MatrixExpression ::= "<M>" "(" Expression ")"
+ListLiteral    ::= "[" [ ArgumentList ] "]"

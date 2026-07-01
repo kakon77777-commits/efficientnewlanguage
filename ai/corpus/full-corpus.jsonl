@@ -1,0 +1,23 @@
+{"type":"project","id":"eml","name":"Efficient New Language","alias":"EML","status":"active","spec":"EML-LANG-2026-v1.0","license":"Apache-2.0","patent":"Taiwan Utility Model M672933 (Taiwan only)","maintainer":"Neo.K / EveMissLab","repository":"https://github.com/kakon77777-commits/efficientnewlanguage","site":"https://efficientnewlanguage.org"}
+{"type":"definition","id":"eml-def","text":"EML is a deterministic semantic-overlay layer: it compresses high-frequency program intent into symbols and transpiles, rule-based and reversibly, to Python. Not a replacement language."}
+{"type":"layer","id":"aicl","name":"AI Ingestion & Capability Layer","sublayers":["Manifest","Corpus","Capability","Governance/Rights"],"root":"ai/"}
+{"type":"invariant","id":"determinism","text":"No LLM in the core EML->Python chain; same input yields same tokens, AST, Python, and trace."}
+{"type":"invariant","id":"round-trip","text":"Python(subset)->EML->Python is a byte-identical fixpoint; the reverse path fails loudly."}
+{"type":"invariant","id":"execution-truth","text":"Interpreter stdout is test-gated to equal CPython's; eml trace --run emits an eml:equiv check."}
+{"type":"pipeline","id":"core","steps":["source","normalize","lex","parse","ast","semantic","emit","python","interpret","trace","roundtrip"]}
+{"type":"forward-only","id":"forward-only","constructs":["def","@cold","@hot","@temporal_loop","async","await","matrix"],"text":"Transpile EML->Python but are not part of the round-trip invariant."}
+{"type":"symbol","sym":"Σ","python":"sum({e} for {i} in {range})","category":"algebraic"}
+{"type":"symbol","sym":"^+","python":"{t} = {v} | {t} += {v}","category":"assignment","note":"two-stage rule"}
+{"type":"symbol","sym":"^0","python":"print({value})","category":"control"}
+{"type":"symbol","sym":"=>","python":"{t} = {expr}","category":"assignment"}
+{"type":"symbol","sym":"[a:b]","python":"range(a, b+1)","category":"range","note":"upper bound inclusive"}
+{"type":"symbol","sym":"?:","python":"{c} if {t} else {a}","category":"conditional"}
+{"type":"symbol","sym":"@cold","python":"@functools.cache","category":"temperature"}
+{"type":"example","id":"001-summation","eml":"N^+100\nΣ(i^2, i in [1:N]) => r\nr^0","python":"N = 100\nr = sum(i**2 for i in range(1, N+1))\nprint(r)","stdout":"338350","roundtrip":true}
+{"type":"spec","id":"grammar","path":"ai/specs/eml-grammar.ebnf","format":"ebnf"}
+{"type":"spec","id":"ast","path":"ai/specs/eml-ast-schema.json","format":"json-schema"}
+{"type":"spec","id":"trace","path":"ai/specs/eml-trace-schema.json","format":"json-schema","proto":"phosphor-jsonl-v1"}
+{"type":"tool","id":"cli","interface":"eml run|transpile|trace|compress|roundtrip|bugs","runtime":"local CLI"}
+{"type":"tool","id":"http","interface":"POST https://efficientnewlanguage.org/ai/tools/{parse,transpile-python,transpile-eml,interpret,trace,roundtrip}","runtime":"hosted bounded worker"}
+{"type":"rights","id":"posture","text":"Apache-2.0, maximally open to AI learning; attribution and citation required; no compensation required.","spectrum":"ai/rights-spectrum.json"}
+{"type":"deprecated","id":"name-meta-language","text":"'Efficient Meta-Language' is a superseded earlier name; canonical is 'Efficient New Language'."}

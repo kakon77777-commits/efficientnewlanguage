@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://efficientnewlanguage.org/ai/specs/eml-trace-schema.json",
+  "title": "EML PHOSPHOR trace event (phosphor-jsonl-v1)",
+  "description": "Schema for ONE EML trace event. An EML trace is JSONL / NDJSON: one JSON object per line, each conforming to this schema. EML emits compile/run/temporal/bug events as the portable PHOSPHOR standard phosphor-jsonl-v1; it has no runtime dependency on PHOSPHOR. Envelope fields are fixed; everything else is arbitrary domain payload. Consumers MUST treat seq/ts/mono/writer as optional (the Python runtime emitter omits them). Aligned with EML-LANG-2026-v1.0 §8 and @eml/trace.",
+  "x-canonical-domain": "efficientnewlanguage.org",
+  "x-ai-layer-version": "0.1.0",
+  "x-proto": "phosphor-jsonl-v1",
+  "x-updated": "2026-06-30",
+  "type": "object",
+  "properties": {
+    "stream": {
+      "type": "string",
+      "description": "App / stream id, e.g. \"eml\"."
+    },
+    "proto": {
+      "const": "phosphor-jsonl-v1",
+      "description": "Protocol tag; always phosphor-jsonl-v1."
+    },
+    "type": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(:[a-z0-9]+)+$",
+      "description": "Namespaced domain:action event type.",
+      "examples": [
+        "eml:compile:error",
+        "eml:run:start",
+        "eml:def",
+        "eml:assign",
+        "eml:augment",
+        "eml:sum",
+        "eml:call",
+        "eml:return",
+        "eml:cache:hit",
+        "eml:cache:miss",
+        "eml:output",
+        "eml:unsupported",
+        "eml:run:incomplete",
+        "eml:run:error",
+        "eml:run:done",
+        "eml:equiv",
+        "eml:python:stdout",
+        "eml:python:exit",
+        "eml:temporal:start",
+        "eml:temporal:wait",
+        "eml:temporal:resolved",
+        "eml:temporal:timeout",
+        "eml:temporal:done",
+        "eml:bug",
+        "eml:bug:summary"
+      ]
+    },
+    "seq": {
+      "type": "integer",
+      "description": "Per-writer monotonic counter (NOT globally unique). Optional."
+    },
+    "ts": {
+      "type": "string",
+      "description": "ISO-8601 timestamp. Optional."
+    },
+    "writer": {
+      "type": "string",
+      "description": "Writer instance id, for cross-writer ordering. Optional."
+    },
+    "mono": {
+      "type": "number",
+      "description": "Per-writer high-resolution tiebreaker for same-ts ordering. Optional."
+    }
+  },
+  "required": ["stream", "proto", "type"],
+  "additionalProperties": true,
+  "x-anomaly-rule": "A consumer's findAnomalies() flags any event with ok === false, a :error or :fail type, or a non-zero code. eml:equiv carries ok:true iff the interpreter's stdout equals the real Python run's stdout (the execution-truth check).",
+  "x-event-payloads": {
+    "eml:run:start": { "statements": "integer" },
+    "eml:assign": { "name": "string", "value": "string", "declares": "boolean" },
+    "eml:augment": { "name": "string", "op": "string (+,-,*,/)", "value": "string (post-op value)" },
+    "eml:sum": { "iterator": "string", "count": "integer", "result": "string" },
+    "eml:def": { "fn": "string", "params": "string[]", "temperature": "cold|hot|neutral", "async": "boolean" },
+    "eml:call": { "fn": "string", "args": "string[]", "temperature": "string" },
+    "eml:return": { "fn": "string", "value": "string" },
+    "eml:cache:hit": { "fn": "string", "args": "string[]" },
+    "eml:cache:miss": { "fn": "string", "args": "string[]" },
+    "eml:output": { "text": "string" },
+    "eml:unsupported": { "construct": "string", "reason": "string" },
+    "eml:compile:error": { "count": "integer", "codes": "string[]" },
+    "eml:run:done": { "ok": "boolean", "outputs": "integer", "anomalies": "integer" },
+    "eml:equiv": { "actual": "string", "expected": "string", "ok": "boolean" }
+  }
+}

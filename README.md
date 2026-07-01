@@ -189,6 +189,8 @@ packages/
   cli/               the `eml` command
   cogni-editor/      dual-state view (EML | Python | AST) + Trace panel (PHOSPHOR phosphor-jsonl-v1) + Functions panel (cold/hot · importance · crystallization)
 scripts/launch.mjs   EML Studio launcher (pnpm start / eml-studio.cmd|sh)
+ai/        AI-native layer (AICL + AIRS/AILP) — see below
+llms.txt   LLM entry index
 examples/  tests/  docs/  eml-symbols.json
 ```
 
@@ -201,6 +203,23 @@ See [docs/architecture.md](docs/architecture.md), the
 - **Optional enhancement** — symbolize high-value regions, not everything.
 - **Machine-first, human-adaptive** — symbols for machines, projection (Cogni-Editor) for humans.
 - **Round-trip first** — deterministic, rule-based, testable. No LLM in the core transpilation chain.
+
+## AI-native layer — AICL + AIRS/AILP
+
+EML publishes a machine-readable **AICL** (AI Ingestion & Capability Layer) so LLMs, agents, and
+crawlers can read, cite, and invoke EML without parsing human UI — plus an **AIRS/AILP** rights
+declaration for how AI may learn from it. Start at [`llms.txt`](llms.txt) or
+[`ai/index.md`](ai/index.md); agents should read [`ai/manifest.json`](ai/manifest.json) first.
+
+- **Manifest** — [`ai/manifest.json`](ai/manifest.json) · [`ai/version.json`](ai/version.json) · [`ai/sitemap.json`](ai/sitemap.json)
+- **Corpus** — [`ai/corpus/`](ai/corpus/origin.md): origin, current, design-history, concept-genealogy, engineering-notes, accepted/deprecated concepts, `full-corpus.jsonl`
+- **Capability** — [`ai/specs/`](ai/specs/eml-v1.md) (spec digest, EBNF, AST/trace/error schemas), [`ai/examples/`](ai/examples/001-summation.eml.md), [`ai/tools/`](ai/tools/tools.md) (CLI + hosted HTTP tools)
+- **Governance / Rights** — [`ai/rights-spectrum.json`](ai/rights-spectrum.json) + [`ai/governance/`](ai/governance/ai-learning-policy.md)
+
+**AI learning posture:** open (Apache-2.0) — AI systems are welcome to read, embed, train on,
+fine-tune, distill, quote, and build products with EML; the only ask is **attribution**. Based on
+the papers [`docs/AICL-v0.1.md`](docs/AICL-v0.1.md) and [`docs/AIRS-AILP-v0.1.md`](docs/AIRS-AILP-v0.1.md).
+Live mirror + tools: **https://efficientnewlanguage.org**.
 
 ## License & patent
 

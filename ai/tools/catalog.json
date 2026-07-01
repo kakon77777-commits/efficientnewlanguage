@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "layer": "aicl-capability",
+  "ai_layer_version": "0.1.0",
+  "eml_lang": "EML-LANG-2026-v1.0",
+  "eml_impl": "0.1.0",
+  "updated": "2026-07-01",
+  "runtimes": {
+    "cli": {
+      "id": "eml-cli",
+      "description": "Local command-line interface (package @eml/cli). Runs the full deterministic pipeline from source.",
+      "invocation": "eml <command> <file> [flags]",
+      "permission": "local execution by the user",
+      "commands": [
+        { "cmd": "eml run f.eml", "desc": "transpile and execute via Python" },
+        { "cmd": "eml transpile f.eml --target cpp", "desc": "EML -> Python, or the C++ prototype" },
+        { "cmd": "eml trace f.eml --run", "desc": "phosphor-jsonl-v1 trace; bakes an interp==python check" },
+        { "cmd": "eml compress f.py", "desc": "reverse: Python (subset) -> EML" },
+        { "cmd": "eml roundtrip f.eml", "desc": "EML -> Py -> EML -> Py fixpoint check" },
+        { "cmd": "eml bugs f.eml --run", "desc": "classify errors (5 levels), mapped to source" }
+      ]
+    },
+    "http": {
+      "id": "eml-hosted",
+      "description": "Bounded HTTP tools hosted at the canonical site; run the same browser-safe packages at the edge.",
+      "base_url": "https://efficientnewlanguage.org",
+      "openapi": "https://efficientnewlanguage.org/ai/tools/openapi.json",
+      "catalog": "https://efficientnewlanguage.org/ai/tools/tool-catalog.json",
+      "permission": "public, bounded, no authentication",
+      "error_schema": "/ai/specs/eml-error-schema.json",
+      "limits": {
+        "max_source_length": 20000,
+        "max_nesting_depth": 256,
+        "max_exponent": 4096,
+        "max_eval_steps": 2000000,
+        "allow_network": false,
+        "allow_filesystem": false,
+        "allow_shell": false,
+        "arbitrary_code_execution": false
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "eml.parse",
+      "version": "0.1.0",
+      "description": "Parse EML source into the normalized AST.",
+      "cli": "eml transpile (AST via --emit ast)",
+      "http": { "method": "POST", "path": "/ai/tools/parse" },
+      "input_schema": { "type": "object", "required": ["source"], "properties": { "source": { "type": "string", "maxLength": 20000 } } },
+      "output_schema": { "result": { "ast": "Program (see ai/specs/eml-ast-schema.json)", "normalized": "string", "tokenCount": "integer" } },
+      "error_schema": "/ai/specs/eml-error-schema.json",
+      "examples": ["ai/examples/001-summation.eml.md"],
+      "permission": "public",
+      "rate_limit": "bounded by edge platform"
+    },
+    {
+      "name": "eml.transpile_python",
+      "version": "0.1.0",
+      "description": "Deterministically transpile EML into Python (no LLM).",
+      "cli": "eml transpile f.eml",
+      "http": { "method": "POST", "path": "/ai/tools/transpile-python" },
+      "input_schema": { "type": "object", "required": ["source"], "properties": { "source": { "type": "string", "maxLength": 20000 } } },
+      "output_schema": { "result": { "python": "string", "imports": "string[]", "metadata": "object" } },
+      "error_schema": "/ai/specs/eml-error-schema.json",
+      "examples": ["ai/examples/000-arithmetic.eml.md"],
+      "permission": "public"
+    },
+    {
+      "name": "eml.transpile_eml",
+      "version": "0.1.0",
+      "description": "Reverse: transpile a supported subset of Python into EML; fails loudly on inexpressible constructs.",
+      "cli": "eml compress f.py",
+      "http": { "method": "POST", "path": "/ai/tools/transpile-eml" },
+      "input_schema": { "type": "object", "required": ["source"], "properties": { "source": { "type": "string", "maxLength": 20000 } } },
+      "output_schema": { "result": { "eml": "string" } },
+      "error_schema": "/ai/specs/eml-error-schema.json",
+      "permission": "public"
+    },
+    {
+      "name": "eml.interpret",
+      "version": "0.1.0",
+      "description": "Execute supported EML in a bounded interpreter whose stdout is gated to equal CPython's.",
+      "cli": "eml run f.eml",
+      "http": { "method": "POST", "path": "/ai/tools/interpret" },
+      "input_schema": { "type": "object", "required": ["source"], "properties": { "source": { "type": "string", "maxLength": 20000 } } },
+      "output_schema": { "result": { "output": "string", "outputLines": "string[]", "unsupported": "string[]", "eventCount": "integer" } },
+      "error_schema": "/ai/specs/eml-error-schema.json",
+      "permission": "public"
+    },
+    {
+      "name": "eml.trace",
+      "version": "0.1.0",
+      "description": "Generate a phosphor-jsonl-v1 trace plus a summary and anomalies.",
+      "cli": "eml trace f.eml --run",
+      "http": { "method": "POST", "path": "/ai/tools/trace" },
+      "input_schema": { "type": "object", "required": ["source"], "properties": { "source": { "type": "string", "maxLength": 20000 } } },
+      "output_schema": { "result": { "jsonl": "string (NDJSON)", "summary": "object", "anomalies": "PhosphorEvent[]" } },
+      "error_schema": "/ai/specs/eml-error-schema.json",
+      "permission": "public"
+    },
+    {
+      "name": "eml.roundtrip",
+      "version": "0.1.0",
+      "description": "Run EML -> Python -> EML -> Python and report whether a byte-identical fixpoint is reached.",
+      "cli": "eml roundtrip f.eml",
+      "http": { "method": "POST", "path": "/ai/tools/roundtrip" },
+      "input_schema": { "type": "object", "required": ["source"], "properties": { "source": { "type": "string", "maxLength": 20000 } } },
+      "output_schema": { "result": { "ok": "boolean", "steps": "object", "message": "string" } },
+      "error_schema": "/ai/specs/eml-error-schema.json",
+      "permission": "public"
+    }
+  ]
+}

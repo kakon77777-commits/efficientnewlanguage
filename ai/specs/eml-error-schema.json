@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://efficientnewlanguage.org/ai/specs/eml-error-schema.json",
+  "title": "EML diagnostics & tool error format",
+  "description": "Structured, machine-readable error formats for EML. Two shapes: (1) Diagnostic — a compile diagnostic from the transpiler; (2) ToolErrorResponse — the JSON body a bounded /ai/tools/* endpoint returns. Diagnostic codes are normative and stable (a code MUST NOT change meaning across v1.x). Aligned with EML-LANG-2026-v1.0 Appendix A and packages/types/src/diagnostics.ts.",
+  "x-canonical-domain": "efficientnewlanguage.org",
+  "x-ai-layer-version": "0.1.0",
+  "x-updated": "2026-06-30",
+  "$defs": {
+    "SourceSpan": {
+      "type": "object",
+      "properties": {
+        "start": { "type": "integer" },
+        "end": { "type": "integer" },
+        "line": { "type": "integer" },
+        "column": { "type": "integer" }
+      },
+      "required": ["start", "end", "line", "column"],
+      "additionalProperties": false
+    },
+    "DiagnosticCode": {
+      "type": "string",
+      "description": "Stable, normative diagnostic code.",
+      "enum": [
+        "E_LEX",
+        "E_PARSE",
+        "E_INTERNAL",
+        "E_RANGE_NONINT",
+        "E_ALIAS_COLLISION",
+        "E_RETURN_OUTSIDE_FN",
+        "E_CPP_UNSUPPORTED",
+        "W_AUG_UNDECLARED",
+        "W_COLD_SIDE_EFFECT",
+        "W_TEMP_CONFLICT",
+        "W_UNKNOWN_DECORATOR",
+        "W_FN_REDECLARED",
+        "W_TEMPORAL_NOT_ASYNC",
+        "W_TEMPORAL_ARG",
+        "W_COLD_ASYNC"
+      ]
+    },
+    "Diagnostic": {
+      "type": "object",
+      "description": "A compile diagnostic. severity 'error' implies the transpile result ok=false.",
+      "properties": {
+        "severity": { "enum": ["error", "warning", "info"] },
+        "code": { "$ref": "#/$defs/DiagnosticCode" },
+        "message": { "type": "string" },
+        "span": { "$ref": "#/$defs/SourceSpan" }
+      },
+      "required": ["severity", "code", "message"]
+    },
+    "BugSeverity": {
+      "type": "string",
+      "description": "Bug-classifier severity (eml bugs). CRITICAL/MAJOR map to ok:false.",
+      "enum": ["CRITICAL", "MAJOR", "MINOR", "TRIVIAL", "COSMETIC"]
+    },
+    "ToolError": {
+      "type": "object",
+      "description": "One error entry in a tool response.",
+      "properties": {
+        "code": { "type": "string", "description": "Diagnostic code or a tool error code, e.g. E_PARSE, E_BAD_REQUEST, E_PAYLOAD_TOO_LARGE, E_METHOD_NOT_ALLOWED, E_RESOURCE_LIMIT, E_INTERNAL." },
+        "message": { "type": "string" },
+        "position": {
+          "type": "object",
+          "properties": {
+            "line": { "type": "integer" },
+            "column": { "type": "integer" }
+          }
+        },
+        "recoverable": { "type": "boolean" }
+      },
+      "required": ["code", "message"]
+    },
+    "ToolErrorResponse": {
+      "type": "object",
+      "description": "Body returned by a bounded /ai/tools/* endpoint when ok=false.",
+      "properties": {
+        "ok": { "const": false },
+        "tool": { "type": "string", "examples": ["eml.parse", "eml.transpile_python", "eml.interpret"] },
+        "version": {
+          "type": "object",
+          "properties": {
+            "eml_lang": { "type": "string" },
+            "eml_impl": { "type": "string" },
+            "ai_layer_version": { "type": "string" },
+            "tool_version": { "type": "string" }
+          }
+        },
+        "input_hash": { "type": "string", "description": "sha256:... of the request source." },
+        "errors": { "type": "array", "items": { "$ref": "#/$defs/ToolError" } },
+        "warnings": { "type": "array", "items": { "$ref": "#/$defs/ToolError" } },
+        "trace_id": { "type": "string", "examples": ["eml-trace-..."] }
+      },
+      "required": ["ok", "tool", "errors"]
+    }
+  },
+  "oneOf": [
+    { "$ref": "#/$defs/Diagnostic" },
+    { "$ref": "#/$defs/ToolErrorResponse" }
+  ]
+}

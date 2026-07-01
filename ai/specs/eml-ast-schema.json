@@ -1,0 +1,317 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://efficientnewlanguage.org/ai/specs/eml-ast-schema.json",
+  "title": "EML normalized AST",
+  "description": "JSON Schema for the EML normalized AST produced by @eml/parser (and resolved by @eml/transpiler-python). Aligned with EML-LANG-2026-v1.0 and packages/types/src/ast.ts. The discriminant field is `type`. Parser-level OverlayAssign nodes are resolved by semantic analysis into Assignment or AugmentedAssign before the Python emitter sees them.",
+  "x-canonical-domain": "efficientnewlanguage.org",
+  "x-ai-layer-version": "0.1.0",
+  "x-updated": "2026-06-30",
+  "$ref": "#/$defs/Program",
+  "$defs": {
+    "SourceSpan": {
+      "type": "object",
+      "properties": {
+        "start": { "type": "integer" },
+        "end": { "type": "integer" },
+        "line": { "type": "integer" },
+        "column": { "type": "integer" }
+      },
+      "required": ["start", "end", "line", "column"],
+      "additionalProperties": false
+    },
+    "Program": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "Program" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "body": { "type": "array", "items": { "$ref": "#/$defs/Statement" } }
+      },
+      "required": ["type", "body"]
+    },
+    "Expression": {
+      "oneOf": [
+        { "$ref": "#/$defs/Identifier" },
+        { "$ref": "#/$defs/NumberLiteral" },
+        { "$ref": "#/$defs/StringLiteral" },
+        { "$ref": "#/$defs/PowerExpression" },
+        { "$ref": "#/$defs/BinaryExpression" },
+        { "$ref": "#/$defs/ComparisonExpression" },
+        { "$ref": "#/$defs/ConditionalExpression" },
+        { "$ref": "#/$defs/RangeExpression" },
+        { "$ref": "#/$defs/SumExpression" },
+        { "$ref": "#/$defs/FunctionCall" },
+        { "$ref": "#/$defs/MatrixExpression" },
+        { "$ref": "#/$defs/TransposeExpression" },
+        { "$ref": "#/$defs/ListLiteral" },
+        { "$ref": "#/$defs/MembershipExpression" },
+        { "$ref": "#/$defs/AwaitExpression" }
+      ]
+    },
+    "Statement": {
+      "oneOf": [
+        { "$ref": "#/$defs/OverlayAssign" },
+        { "$ref": "#/$defs/AssignmentStatement" },
+        { "$ref": "#/$defs/AugmentedAssignStatement" },
+        { "$ref": "#/$defs/OutputStatement" },
+        { "$ref": "#/$defs/ExpressionStatement" },
+        { "$ref": "#/$defs/FunctionDef" },
+        { "$ref": "#/$defs/ReturnStatement" }
+      ]
+    },
+    "Identifier": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "Identifier" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "name": { "type": "string" }
+      },
+      "required": ["type", "name"]
+    },
+    "NumberLiteral": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "NumberLiteral" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "raw": { "type": "string" },
+        "value": { "type": "number" }
+      },
+      "required": ["type", "raw", "value"]
+    },
+    "StringLiteral": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "StringLiteral" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "value": { "type": "string" }
+      },
+      "required": ["type", "value"]
+    },
+    "PowerExpression": {
+      "type": "object",
+      "description": "Exponentiation, e.g. i^2 -> i ** 2.",
+      "properties": {
+        "type": { "const": "Power" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "base": { "$ref": "#/$defs/Expression" },
+        "exponent": { "$ref": "#/$defs/Expression" }
+      },
+      "required": ["type", "base", "exponent"]
+    },
+    "BinaryExpression": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "Binary" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "op": { "enum": ["+", "-", "*", "/"] },
+        "left": { "$ref": "#/$defs/Expression" },
+        "right": { "$ref": "#/$defs/Expression" }
+      },
+      "required": ["type", "op", "left", "right"]
+    },
+    "ComparisonExpression": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "Comparison" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "op": { "enum": [">", "<", ">=", "<=", "==", "!="] },
+        "left": { "$ref": "#/$defs/Expression" },
+        "right": { "$ref": "#/$defs/Expression" }
+      },
+      "required": ["type", "op", "left", "right"]
+    },
+    "ConditionalExpression": {
+      "type": "object",
+      "description": "Ternary, e.g. x > 40 ? A : B -> A if x > 40 else B.",
+      "properties": {
+        "type": { "const": "Conditional" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "test": { "$ref": "#/$defs/Expression" },
+        "consequent": { "$ref": "#/$defs/Expression" },
+        "alternate": { "$ref": "#/$defs/Expression" }
+      },
+      "required": ["type", "test", "consequent", "alternate"]
+    },
+    "RangeExpression": {
+      "type": "object",
+      "description": "Inclusive integer range [a:b] -> range(a, b + 1).",
+      "properties": {
+        "type": { "const": "Range" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "start": { "$ref": "#/$defs/Expression" },
+        "end": { "$ref": "#/$defs/Expression" },
+        "inclusiveEnd": { "type": "boolean" }
+      },
+      "required": ["type", "start", "end", "inclusiveEnd"]
+    },
+    "SumExpression": {
+      "type": "object",
+      "description": "Summation, e.g. Σ(i^2, i in [1:N]).",
+      "properties": {
+        "type": { "const": "Sum" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "expr": { "$ref": "#/$defs/Expression" },
+        "iterator": { "$ref": "#/$defs/Identifier" },
+        "range": { "$ref": "#/$defs/RangeExpression" }
+      },
+      "required": ["type", "expr", "iterator", "range"]
+    },
+    "FunctionCall": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "Call" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "callee": { "$ref": "#/$defs/Identifier" },
+        "args": { "type": "array", "items": { "$ref": "#/$defs/Expression" } }
+      },
+      "required": ["type", "callee", "args"]
+    },
+    "MatrixExpression": {
+      "type": "object",
+      "description": "Matrix constructor, e.g. <M>(data) -> np.array(data).",
+      "properties": {
+        "type": { "const": "Matrix" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "data": { "$ref": "#/$defs/Expression" }
+      },
+      "required": ["type", "data"]
+    },
+    "TransposeExpression": {
+      "type": "object",
+      "description": "Transpose, e.g. m^T -> np.transpose(m).",
+      "properties": {
+        "type": { "const": "Transpose" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "operand": { "$ref": "#/$defs/Expression" }
+      },
+      "required": ["type", "operand"]
+    },
+    "ListLiteral": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "List" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "elements": { "type": "array", "items": { "$ref": "#/$defs/Expression" } }
+      },
+      "required": ["type", "elements"]
+    },
+    "MembershipExpression": {
+      "type": "object",
+      "description": "Membership test, e.g. i in [1:10] -> i in range(1, 11).",
+      "properties": {
+        "type": { "const": "Membership" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "element": { "$ref": "#/$defs/Expression" },
+        "collection": { "$ref": "#/$defs/Expression" }
+      },
+      "required": ["type", "element", "collection"]
+    },
+    "AwaitExpression": {
+      "type": "object",
+      "description": "await <expr> (Phase 3 temporal loops).",
+      "properties": {
+        "type": { "const": "Await" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "argument": { "$ref": "#/$defs/Expression" }
+      },
+      "required": ["type", "argument"]
+    },
+    "OverlayAssign": {
+      "type": "object",
+      "description": "Parser-level overlay assignment (x^+100, x^-5, x^*2). Resolved by semantic analysis into Assignment (first ^+) or AugmentedAssign.",
+      "properties": {
+        "type": { "const": "OverlayAssign" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "target": { "$ref": "#/$defs/Identifier" },
+        "op": { "enum": ["+", "-", "*", "/"] },
+        "value": { "$ref": "#/$defs/Expression" }
+      },
+      "required": ["type", "target", "op", "value"]
+    },
+    "AssignmentStatement": {
+      "type": "object",
+      "description": "Resolved plain assignment, e.g. x = 100 or y = f(x).",
+      "properties": {
+        "type": { "const": "Assignment" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "target": { "$ref": "#/$defs/Identifier" },
+        "value": { "$ref": "#/$defs/Expression" },
+        "declares": { "type": "boolean" }
+      },
+      "required": ["type", "target", "value", "declares"]
+    },
+    "AugmentedAssignStatement": {
+      "type": "object",
+      "description": "Resolved augmented assignment, e.g. x += 10, x -= 5, x *= 2.",
+      "properties": {
+        "type": { "const": "AugmentedAssign" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "target": { "$ref": "#/$defs/Identifier" },
+        "op": { "enum": ["+", "-", "*", "/"] },
+        "value": { "$ref": "#/$defs/Expression" }
+      },
+      "required": ["type", "target", "op", "value"]
+    },
+    "OutputStatement": {
+      "type": "object",
+      "description": "Output, e.g. x^0 -> print(x).",
+      "properties": {
+        "type": { "const": "Output" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "value": { "$ref": "#/$defs/Expression" }
+      },
+      "required": ["type", "value"]
+    },
+    "ExpressionStatement": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "ExpressionStatement" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "expression": { "$ref": "#/$defs/Expression" }
+      },
+      "required": ["type", "expression"]
+    },
+    "ReturnStatement": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "Return" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "value": { "$ref": "#/$defs/Expression" }
+      },
+      "required": ["type"]
+    },
+    "DecoratorArg": {
+      "type": "object",
+      "description": "One decorator argument: keyword (name=value) or positional (name absent).",
+      "properties": {
+        "name": { "type": "string" },
+        "value": { "$ref": "#/$defs/Expression" }
+      },
+      "required": ["value"]
+    },
+    "Decorator": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "Decorator" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "name": { "type": "string" },
+        "args": { "type": "array", "items": { "$ref": "#/$defs/DecoratorArg" } }
+      },
+      "required": ["type", "name"]
+    },
+    "FunctionDef": {
+      "type": "object",
+      "description": "A function definition. temperature is resolved from @cold/@hot decorators.",
+      "properties": {
+        "type": { "const": "FunctionDef" },
+        "span": { "$ref": "#/$defs/SourceSpan" },
+        "name": { "type": "string" },
+        "params": { "type": "array", "items": { "$ref": "#/$defs/Identifier" } },
+        "decorators": { "type": "array", "items": { "$ref": "#/$defs/Decorator" } },
+        "body": { "type": "array", "items": { "$ref": "#/$defs/Statement" } },
+        "temperature": { "enum": ["cold", "hot"] },
+        "isAsync": { "type": "boolean" }
+      },
+      "required": ["type", "name", "params", "decorators", "body"]
+    }
+  }
+}

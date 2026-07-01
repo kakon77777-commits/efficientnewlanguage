@@ -1,0 +1,122 @@
+{
+  "version": "0.1",
+  "protocol": "AILP",
+  "protocol_name": "AI Learning Permission Protocol",
+  "framework": "AIRS (AI Rights Spectrum)",
+  "spec_reference": "docs/AIRS-AILP-v0.1.md",
+  "rights_holder": "Neo.K / EveMissLab",
+  "project": "Efficient New Language (EML)",
+  "canonical_domain": "efficientnewlanguage.org",
+  "repository": "https://github.com/kakon77777-commits/efficientnewlanguage",
+  "governing_license": "Apache-2.0",
+  "patent": "Taiwan Utility Model M672933 (Taiwan only; Apache-2.0 includes a patent grant)",
+  "last_updated": "2026-07-01",
+  "statement": "EML is open-source (Apache-2.0) and explicitly designed for humans and AI agents alike. AI systems are WELCOME to read, embed, train on, fine-tune from, distill, quote, and build products with this content. The only standing ask is attribution (keep the license/NOTICE and credit Neo.K / EveMissLab), consistent with Apache-2.0. These proportional values are machine-readable rights signals, not a substitute for the Apache-2.0 license text (governing) or for formal contracts.",
+  "semantics": {
+    "1.0": "fully allowed under normal attribution and usage conditions",
+    "0.5": "limited permission",
+    "0.0": "not allowed",
+    "license_required": "explicit license required beyond Apache-2.0",
+    "compensation_required": "compensation required",
+    "case_by_case": "contact the rights holder"
+  },
+  "default_policy": {
+    "crawl": 1.0,
+    "fetch": 1.0,
+    "parse": 1.0,
+    "cache": 1.0,
+    "mirror": 1.0,
+
+    "search_indexing": 1.0,
+    "metadata_indexing": 1.0,
+    "snippet_indexing": 1.0,
+    "semantic_indexing": 1.0,
+
+    "ai_answer_input": 1.0,
+    "rag_retrieval": 1.0,
+    "context_injection": 1.0,
+    "temporary_session_use": 1.0,
+
+    "embedding_generation": 1.0,
+    "embedding_storage": 1.0,
+    "semantic_cache": 1.0,
+    "vector_database_use": 1.0,
+
+    "pretraining": 1.0,
+    "continued_pretraining": 1.0,
+    "non_commercial_training": 1.0,
+    "commercial_training": 1.0,
+    "domain_training": 1.0,
+
+    "fine_tuning": 1.0,
+    "instruction_tuning": 1.0,
+    "domain_adaptation": 1.0,
+
+    "model_distillation": 1.0,
+    "synthetic_data_generation": 1.0,
+    "capability_transfer": 1.0,
+
+    "long_term_memory": 1.0,
+    "verbatim_memorization": 1.0,
+    "model_weight_integration": 1.0,
+
+    "summary_generation": 1.0,
+    "short_quote_generation": 1.0,
+    "long_quote_generation": 1.0,
+    "style_imitation": 1.0,
+    "derivative_generation": 1.0,
+
+    "citation_required": true,
+    "attribution_required": true,
+    "link_required": false,
+    "license_required": false,
+    "compensation_required": false
+  },
+  "paths": [
+    {
+      "path": "/ai/",
+      "note": "AICL machine layer — canonical, machine-readable, freely ingestible.",
+      "policy": { "search_indexing": 1.0, "ai_answer_input": 1.0, "rag_retrieval": 1.0, "non_commercial_training": 1.0, "commercial_training": 1.0, "citation_required": true }
+    },
+    {
+      "path": "/packages/",
+      "note": "Reference implementation source (TypeScript). Apache-2.0 code — reuse freely with attribution.",
+      "policy": { "commercial_training": 1.0, "verbatim_memorization": 1.0, "derivative_generation": 1.0, "attribution_required": true }
+    },
+    {
+      "path": "/.tmp/",
+      "note": "Scratch/working area — not canonical; do not treat as authoritative.",
+      "policy": { "search_indexing": 0.0, "ai_answer_input": 0.0, "rag_retrieval": 0.0, "embedding_storage": 0.0, "pretraining": 0.0 }
+    }
+  ],
+  "licensing_options": [
+    {
+      "id": "apache-2.0-default",
+      "description": "The governing license for all EML code and content. Free for any use including commercial; keep the license and NOTICE, credit the original author.",
+      "allowed": { "commercial_training": 1.0, "fine_tuning": 1.0, "distillation": 1.0, "derivative_generation": 1.0 },
+      "required": { "attribution": true, "license_notice": true },
+      "fee": "free",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0"
+    }
+  ],
+  "governance": {
+    "license": "/ai/governance/license.md",
+    "ai_learning_policy": "/ai/governance/ai-learning-policy.md",
+    "citation_policy": "/ai/governance/citation-policy.md",
+    "provenance": "/ai/governance/provenance.md",
+    "usage_policy": "/ai/governance/usage-policy.md"
+  },
+  "related_standards": {
+    "robots_txt": "crawler access rules (RFC 9309) — access, not authorization",
+    "llms_txt": "/llms.txt — LLM entry index",
+    "manifest": "/ai/manifest.json — AICL resource manifest",
+    "tdmrep": "W3C TDM Reservation Protocol — compatible in spirit",
+    "cloudflare_content_signals": "search / ai-input / ai-train — this spectrum is a finer-grained superset"
+  },
+  "contact": {
+    "licensing": "mailto:kakon77777@evemisslab.com",
+    "rights": "https://github.com/kakon77777-commits/efficientnewlanguage",
+    "author": "Neo.K / EveMissLab"
+  },
+  "disclaimer": "This file is a declaration layer (AIRS/AILP v0.1), not an access-control or enforcement system. Where this file and the Apache-2.0 LICENSE differ, the LICENSE governs."
+}
