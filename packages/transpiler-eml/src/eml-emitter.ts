@@ -137,6 +137,12 @@ export function emitEmlStatement(stmt: Statement, bound: Set<string> = new Set()
       throw new EmlEmitError('Reverse Python->EML does not yet support return statements.');
     case 'OverlayAssign':
       throw new EmlEmitError(`Internal error: emitEml received unresolved OverlayAssign for '${stmt.target.name}'.`);
+    case 'If':
+      throw new EmlEmitError('Reverse Python->EML does not yet support if/elif/else statements.');
+    case 'While':
+      throw new EmlEmitError('Reverse Python->EML does not yet support while statements.');
+    case 'ForIn':
+      throw new EmlEmitError('Reverse Python->EML does not yet support for statements.');
   }
 }
 

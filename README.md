@@ -37,7 +37,7 @@ Requirements: Node ≥ 20, pnpm, Python 3.10+ (with `numpy` for matrix cases).
 
 ```bash
 pnpm install
-pnpm test                                   # 274 tests, incl. real python execution
+pnpm test                                   # 363 tests, incl. real python execution
 pnpm typecheck
 pnpm eml run examples/phase0/sum.eml        # -> 338350
 ```
@@ -167,6 +167,9 @@ Invoke via `pnpm eml <cmd>` in this repo, e.g. `pnpm eml explain examples/phase0
 | `list^+[1,2,3]` | `lst = [1, 2, 3]` | list literal |
 | `@cold` / `@hot` + `def f(x):` + `return` | `@functools.cache` / `# @hot` + `def f(x):` + `return` | functions w/ cold-hot separation (Phase 2) |
 | `@temporal_loop(max_wait=…, check_interval=…)` + `async def` + `await temporal_wait(c)` | asyncio temporal runtime (no busy-wait, timeout, phosphor trace) | time loops (Phase 3) |
+| `if <t>: … elif <t>: … else: …` | `if <t>: … elif <t>: … else: …` | conditional branching (Phase 6) |
+| `while <t>: …` | `while <t>: …` | condition-controlled loop (Phase 6) |
+| `for <x> in <iterable>: …` | `for <x> in <iterable>: …` | iteration over a range or list (Phase 6) |
 
 EML accepts a Unicode display form (`Σ(i², i∈[1:N])`) normalized to the ASCII
 canonical form before lexing.

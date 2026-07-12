@@ -124,6 +124,19 @@ function scanStatement(stmt: Statement, effects: string[], userFns: Set<string>)
       // A nested function's own body is analyzed independently; defining it is
       // not itself a side effect of the enclosing function.
       break;
+    case 'If':
+      scanExpression(stmt.test, effects, userFns);
+      for (const s of stmt.body) scanStatement(s, effects, userFns);
+      for (const s of stmt.orelse) scanStatement(s, effects, userFns);
+      break;
+    case 'While':
+      scanExpression(stmt.test, effects, userFns);
+      for (const s of stmt.body) scanStatement(s, effects, userFns);
+      break;
+    case 'ForIn':
+      scanExpression(stmt.iterable, effects, userFns);
+      for (const s of stmt.body) scanStatement(s, effects, userFns);
+      break;
   }
 }
 
@@ -213,6 +226,19 @@ export function collectCalledNames(fn: FunctionDef): string[] {
         break;
       case 'FunctionDef':
         break; // nested function's calls belong to it, not the enclosing scope
+      case 'If':
+        collectCallsExpr(stmt.test, names);
+        stmt.body.forEach(visit);
+        stmt.orelse.forEach(visit);
+        break;
+      case 'While':
+        collectCallsExpr(stmt.test, names);
+        stmt.body.forEach(visit);
+        break;
+      case 'ForIn':
+        collectCallsExpr(stmt.iterable, names);
+        stmt.body.forEach(visit);
+        break;
     }
   };
   for (const stmt of fn.body) visit(stmt);

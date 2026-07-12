@@ -102,6 +102,19 @@ function walkStmt(stmt: Statement, bound: Set<string>, onCall: (name: string) =>
       for (const s of stmt.body) walkStmt(s, inner, onCall);
       break;
     }
+    case 'If':
+      walkExpr(stmt.test, bound, onCall);
+      for (const s of stmt.body) walkStmt(s, bound, onCall);
+      for (const s of stmt.orelse) walkStmt(s, bound, onCall);
+      break;
+    case 'While':
+      walkExpr(stmt.test, bound, onCall);
+      for (const s of stmt.body) walkStmt(s, bound, onCall);
+      break;
+    case 'ForIn':
+      walkExpr(stmt.iterable, bound, onCall);
+      for (const s of stmt.body) walkStmt(s, bound, onCall);
+      break;
   }
 }
 

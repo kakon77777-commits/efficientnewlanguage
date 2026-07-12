@@ -243,6 +243,14 @@ function runProgram(
     return items;
   };
 
+  /** Materialize a `for ... in <iterable>` target into concrete items — Python
+   *  iterates lists element-by-element and strings character-by-character. */
+  const iterableItems = (v: PyVal): PyVal[] => {
+    if (v.k === 'list') return v.v;
+    if (v.k === 'str') return [...v.v].map((ch) => STR(ch));
+    throw new PyError('TypeError', `'${typeName(v)}' object is not iterable`);
+  };
+
   const evalSum = (expr: Extract<Expression, { type: 'Sum' }>, scope: Scope): PyVal => {
     const items = rangeInts(expr.range, scope);
     let acc: PyVal = INT(0n); // Python sum() starts at int 0
@@ -426,6 +434,30 @@ function runProgram(
       case 'OverlayAssign':
         // Should never reach the interpreter — the semantic pass resolves these.
         throw new Unsupported('OverlayAssign', 'unresolved overlay assignment (internal)');
+      case 'If': {
+        if (truthy(evalExpr(stmt.test, scope))) {
+          for (const s of stmt.body) execStmt(s, scope);
+        } else {
+          for (const s of stmt.orelse) execStmt(s, scope);
+        }
+        return;
+      }
+      case 'While': {
+        while (truthy(evalExpr(stmt.test, scope))) {
+          tick(); // bounds runaway loops against maxSteps — same role as rangeInts/evalSum
+          for (const s of stmt.body) execStmt(s, scope);
+        }
+        return;
+      }
+      case 'ForIn': {
+        const items = iterableItems(evalExpr(stmt.iterable, scope));
+        for (const item of items) {
+          tick();
+          assign(scope, stmt.target.name, item);
+          for (const s of stmt.body) execStmt(s, scope);
+        }
+        return;
+      }
     }
   };
 
@@ -504,13 +536,28 @@ function assign(scope: Scope, name: string, value: PyVal): void {
   scope.vars.set(name, value);
 }
 
-/** Names bound anywhere in a (flat) function body — Python's static locals. */
+/**
+ * Names bound anywhere in a function body — Python's static locals. Recurses
+ * into if/while/for bodies (they don't introduce a new scope in real Python),
+ * including a for-loop's own target, which stays bound after the loop ends.
+ */
 function localNames(body: Statement[]): Set<string> {
   const out = new Set<string>();
-  for (const s of body) {
-    if (s.type === 'Assignment' || s.type === 'AugmentedAssign') out.add(s.target.name);
-    else if (s.type === 'FunctionDef') out.add(s.name); // a nested def binds a local
-  }
+  const visit = (stmts: Statement[]): void => {
+    for (const s of stmts) {
+      if (s.type === 'Assignment' || s.type === 'AugmentedAssign') out.add(s.target.name);
+      else if (s.type === 'FunctionDef') out.add(s.name); // a nested def binds a local
+      else if (s.type === 'If') {
+        visit(s.body);
+        visit(s.orelse);
+      } else if (s.type === 'While') visit(s.body);
+      else if (s.type === 'ForIn') {
+        out.add(s.target.name);
+        visit(s.body);
+      }
+    }
+  };
+  visit(body);
   return out;
 }
 

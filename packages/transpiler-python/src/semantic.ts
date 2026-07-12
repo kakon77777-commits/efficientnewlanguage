@@ -154,8 +154,12 @@ export function analyzeSemantics(
     }
   };
 
-  const resolve = (stmt: Statement, scope: Set<string>, inFunction: boolean): Statement => {
-    const isModule = scope === moduleScope;
+  // `isModule` is passed explicitly rather than re-derived from `scope === moduleScope`:
+  // if/elif/else branches resolve against a CLONED scope Set (see the 'If' case
+  // below), which would break identity-based detection while still being at
+  // module level. It never changes across if/while/for recursion — only
+  // `resolveFunction` flips it to false for a function's own body.
+  const resolve = (stmt: Statement, scope: Set<string>, inFunction: boolean, isModule: boolean): Statement => {
     currentSpan = stmt.span;
     switch (stmt.type) {
       case 'OverlayAssign': {
@@ -233,6 +237,35 @@ export function analyzeSemantics(
       }
       case 'FunctionDef':
         return resolveFunction(stmt, scope, isModule);
+      case 'If': {
+        collectExpr(stmt.test);
+        // Branches are mutually exclusive: resolve each against its own scope
+        // clone (a name first-assigned in one branch must not leak into the
+        // sibling as "already declared" — see docs/agent-handoff.md and the
+        // control-flow test suite for the concrete NameError this avoids), then
+        // union whatever each branch newly declared back into the parent scope.
+        const bodyScope = new Set(scope);
+        const body = stmt.body.map((s) => resolve(s, bodyScope, inFunction, isModule));
+        const orelseScope = new Set(scope);
+        const orelse = stmt.orelse.map((s) => resolve(s, orelseScope, inFunction, isModule));
+        for (const branchScope of [bodyScope, orelseScope]) {
+          for (const name of branchScope) scope.add(name);
+        }
+        return { type: 'If', test: stmt.test, body, orelse, span: stmt.span };
+      }
+      case 'While': {
+        collectExpr(stmt.test);
+        // while/for don't introduce a new scope (0+ executions, not mutually
+        // exclusive alternatives): resolve the body against the same live scope.
+        const body = stmt.body.map((s) => resolve(s, scope, inFunction, isModule));
+        return { ...stmt, body };
+      }
+      case 'ForIn': {
+        collectExpr(stmt.iterable);
+        declareIn(scope, stmt.target.name, isModule);
+        const body = stmt.body.map((s) => resolve(s, scope, inFunction, isModule));
+        return { ...stmt, body };
+      }
     }
   };
 
@@ -309,7 +342,7 @@ export function analyzeSemantics(
 
     // Analyze the body in a fresh scope seeded with the parameters.
     const fnScope = new Set<string>(fn.params.map((p) => p.name));
-    const body = fn.body.map((s) => resolve(s, fnScope, true));
+    const body = fn.body.map((s) => resolve(s, fnScope, true, false));
     const resolved: FunctionDef = { ...fn, body };
 
     // @cold caches via functools.cache — but caching an async def memoizes the
@@ -339,7 +372,7 @@ export function analyzeSemantics(
     return resolved;
   };
 
-  const body = program.body.map((s) => resolve(s, moduleScope, false));
+  const body = program.body.map((s) => resolve(s, moduleScope, false, true));
   const resolvedProgram: Program = { type: 'Program', body, span: program.span };
 
   // ── Interprocedural purity (taint) ──────────────────────────────────────────

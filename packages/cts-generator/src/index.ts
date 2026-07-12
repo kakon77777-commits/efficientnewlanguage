@@ -47,6 +47,9 @@ const COMMENT_BY_TYPE: Record<string, string> = {
   'function.def': '函數定義',
   'control.temporal': '時間迴圈（等待條件成熟，不 busy wait）',
   'control.return': '回傳值',
+  'control.if': '條件分支（if/elif/else）',
+  'control.while': 'while 迴圈',
+  'control.for': 'for 迴圈（走訪可疊代對象）',
   expression: '運算式',
 };
 
@@ -150,6 +153,12 @@ function semanticTypeOf(stmt: Statement): string {
       return 'control.return';
     case 'OverlayAssign':
       return 'binding.assignment';
+    case 'If':
+      return 'control.if';
+    case 'While':
+      return 'control.while';
+    case 'ForIn':
+      return 'control.for';
   }
 }
 
@@ -167,6 +176,12 @@ function statementValue(stmt: Statement): Expression | null {
       return stmt.value ?? null;
     case 'FunctionDef':
       return null;
+    case 'If':
+      return stmt.test;
+    case 'While':
+      return stmt.test;
+    case 'ForIn':
+      return stmt.iterable;
   }
 }
 

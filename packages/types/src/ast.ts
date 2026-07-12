@@ -237,6 +237,38 @@ export interface FunctionDef extends NodeBase {
   isAsync?: boolean;
 }
 
+/**
+ * `if <test>: <body>` with an optional `elif`/`else` tail. `elif` is modeled
+ * as a single-element `orelse` whose sole entry is another {@link IfStatement}
+ * — mirroring Python's own `ast.If` chaining exactly. An empty `orelse` means
+ * no `elif`/`else` at all; a non-empty `orelse` that is not a single nested
+ * `If` is a plain `else:` block.
+ */
+export interface IfStatement extends NodeBase {
+  type: 'If';
+  test: Expression;
+  body: Statement[];
+  orelse: Statement[];
+}
+
+/** `while <test>: <body>`. No `while...else` (not supported). */
+export interface WhileStatement extends NodeBase {
+  type: 'While';
+  test: Expression;
+  body: Statement[];
+}
+
+/**
+ * `for <target> in <iterable>: <body>`. `target` is a single bare identifier
+ * (no tuple-unpacking). No `for...else` (not supported).
+ */
+export interface ForInStatement extends NodeBase {
+  type: 'ForIn';
+  target: Identifier;
+  iterable: Expression;
+  body: Statement[];
+}
+
 export type Statement =
   | OverlayAssign
   | AssignmentStatement
@@ -244,7 +276,10 @@ export type Statement =
   | OutputStatement
   | ExpressionStatement
   | FunctionDef
-  | ReturnStatement;
+  | ReturnStatement
+  | IfStatement
+  | WhileStatement
+  | ForInStatement;
 
 export interface Program extends NodeBase {
   type: 'Program';

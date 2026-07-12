@@ -183,6 +183,10 @@ export function emitCppStatement(stmt: Statement, listVars: Set<string> = new Se
       throw new CppEmitError(
         `Internal error: unresolved OverlayAssign for '${stmt.target.name}'. analyzeSemantics() must run first.`,
       );
+    case 'If':
+    case 'While':
+    case 'ForIn':
+      throw new CppEmitError(`'${stmt.type}' is not supported by the C⁺⁺⁺ prototype yet.`);
   }
 }
 
@@ -234,6 +238,16 @@ function statementCallsName(stmt: Statement, name: string): boolean {
       return stmt.value ? expressionCallsName(stmt.value, name) : false;
     case 'FunctionDef':
       return stmt.body.some((s) => statementCallsName(s, name));
+    case 'If':
+      return (
+        expressionCallsName(stmt.test, name) ||
+        stmt.body.some((s) => statementCallsName(s, name)) ||
+        stmt.orelse.some((s) => statementCallsName(s, name))
+      );
+    case 'While':
+      return expressionCallsName(stmt.test, name) || stmt.body.some((s) => statementCallsName(s, name));
+    case 'ForIn':
+      return expressionCallsName(stmt.iterable, name) || stmt.body.some((s) => statementCallsName(s, name));
   }
 }
 

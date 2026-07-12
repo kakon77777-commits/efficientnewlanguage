@@ -18,6 +18,9 @@ import type {
   AwaitExpression,
   ComparisonOperator,
   BinaryOperator,
+  IfStatement,
+  WhileStatement,
+  ForInStatement,
 } from '@eml/types';
 
 export class ParseError extends Error {
@@ -146,6 +149,15 @@ class Parser {
     }
     if (this.check('RETURN')) {
       return this.parseReturn();
+    }
+    if (this.check('IF')) {
+      return this.parseIf();
+    }
+    if (this.check('WHILE')) {
+      return this.parseWhile();
+    }
+    if (this.check('FOR')) {
+      return this.parseForIn();
     }
 
     // Statement-level overlay forms: `x^0`, `x^+100`, `x^-5`, `list^+[...]`.
@@ -300,8 +312,62 @@ class Parser {
     return { type: 'Return', value: this.parseExpression() };
   }
 
+  // ── Control flow (if/elif/else, while, for...in) ───────────────────────────
+
+  /** Parse `if <test>: <body>` (also used recursively for `elif`, which shares
+   *  the exact same shape — the caller has already consumed IF or ELIF). */
+  private parseIf(): IfStatement {
+    this.next(); // IF or ELIF
+    const test = this.parseExpression();
+    this.expect('COLON', "':' after the if/elif condition");
+    const body = this.parseBlock('if');
+    const orelse = this.parseElseOrElif();
+    return { type: 'If', test, body, orelse };
+  }
+
+  /** Parse an optional `elif ...` (nested If) or `else:` tail after an if-block. */
+  private parseElseOrElif(): Statement[] {
+    if (this.check('ELIF')) {
+      const startTok = this.peek();
+      const nested = this.parseIf();
+      const endTok = this.tokens[this.pos - 1] ?? startTok;
+      nested.span = {
+        start: startTok.start,
+        end: endTok.end,
+        line: startTok.line,
+        column: startTok.column,
+      };
+      return [nested];
+    }
+    if (this.check('ELSE')) {
+      this.next();
+      this.expect('COLON', "':' after 'else'");
+      return this.parseBlock('else');
+    }
+    return [];
+  }
+
+  private parseWhile(): WhileStatement {
+    this.expect('WHILE');
+    const test = this.parseExpression();
+    this.expect('COLON', "':' after the while condition");
+    const body = this.parseBlock('while');
+    return { type: 'While', test, body };
+  }
+
+  private parseForIn(): ForInStatement {
+    this.expect('FOR');
+    const targetTok = this.expect('IDENT', 'for-loop variable');
+    const target: Identifier = { type: 'Identifier', name: targetTok.value };
+    this.expect('IN', "'in' after the for-loop variable");
+    const iterable = this.parseExpression();
+    this.expect('COLON', "':' after the for...in clause");
+    const body = this.parseBlock('for');
+    return { type: 'ForIn', target, iterable, body };
+  }
+
   /** Parse an indented block of statements: NEWLINE INDENT stmt+ DEDENT. */
-  private parseBlock(): Statement[] {
+  private parseBlock(context = 'Function'): Statement[] {
     this.expect('NEWLINE', "newline after ':'");
     this.skipNewlines();
     this.expect('INDENT', 'an indented block');
@@ -315,7 +381,7 @@ class Parser {
     if (!this.check('EOF')) this.expect('DEDENT', 'end of the indented block');
     if (body.length === 0) {
       const t = this.peek();
-      throw new ParseError('Function body cannot be empty', t.line, t.column);
+      throw new ParseError(`${context} body cannot be empty`, t.line, t.column);
     }
     return body;
   }

@@ -91,6 +91,15 @@ function scanStatementExpr(stmt: Statement, visit: (e: Expression) => void): voi
       break;
     case 'FunctionDef':
       break; // nested bodies are visited separately
+    case 'If':
+      walk(stmt.test);
+      break; // body/orelse are visited separately (see visitStmt)
+    case 'While':
+      walk(stmt.test);
+      break; // body is visited separately
+    case 'ForIn':
+      walk(stmt.iterable);
+      break; // body is visited separately
   }
 }
 
@@ -114,6 +123,24 @@ export function classifyLoops(program: Program, fns: LoopFnInput[]): LoopFact[] 
       loops.push({ loopKind: 'algebraic_sum', deterministic: true, terminating: true, span: stmt.span });
     } else if (hasRangeIteration) {
       loops.push({ loopKind: 'basic_repeat', deterministic: true, terminating: true, span: stmt.span });
+    }
+    if (stmt.type === 'If') {
+      for (const s of stmt.body) visitStmt(s);
+      for (const s of stmt.orelse) visitStmt(s);
+      return;
+    }
+    if (stmt.type === 'While') {
+      // A while condition is not statically provable to terminate (unlike a
+      // materialized range/list iteration), same conservative treatment as recursion.
+      loops.push({ loopKind: 'while_loop', deterministic: true, terminating: false, span: stmt.span });
+      for (const s of stmt.body) visitStmt(s);
+      return;
+    }
+    if (stmt.type === 'ForIn') {
+      // The iterable is always a materialized finite list/string in this interpreter.
+      loops.push({ loopKind: 'for_loop', deterministic: true, terminating: true, span: stmt.span });
+      for (const s of stmt.body) visitStmt(s);
+      return;
     }
   };
   for (const stmt of program.body) visitStmt(stmt);

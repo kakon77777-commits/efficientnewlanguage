@@ -46,11 +46,13 @@ const here = dirname(fileURLToPath(import.meta.url));
 const fixturesDir = join(here, 'fixtures');
 const fixtures = readdirSync(fixturesDir).filter((f) => f.endsWith('.eml')).sort();
 
-// Functions (`def` / decorators) are a forward-only construct in Phase 2: the
-// reverse Python->EML path stays statement-level, so function fixtures are not
-// expected to round-trip. The fixpoint checks cover the round-trippable subset.
+// Functions (`def` / decorators, Phase 2) and control flow (`if`/`elif`/`else`/
+// `while`/`for`, Phase 6) are forward-only constructs: the reverse Python->EML
+// path stays statement-level, so fixtures using them are not expected to
+// round-trip (see eml-emitter.ts's throwing cases + py-parser.ts's lack of
+// if/while/for/def handling). The fixpoint checks cover the round-trippable subset.
 const roundTrippable = fixtures.filter(
-  (f) => !/\bdef\s/.test(readFileSync(join(fixturesDir, f), 'utf8')),
+  (f) => !/\b(def|if|elif|else|while|for)\b/.test(readFileSync(join(fixturesDir, f), 'utf8')),
 );
 
 describe('round-trip EML -> Python -> EML -> Python (fixpoint)', () => {

@@ -44,6 +44,11 @@ export type TokenType =
   | 'RETURN' // return — function return keyword
   | 'ASYNC' // async — async function modifier (temporal loops)
   | 'AWAIT' // await — await an async expression
+  | 'IF' // if — conditional statement
+  | 'ELIF' // elif — chained conditional branch
+  | 'ELSE' // else — conditional / fallback branch
+  | 'WHILE' // while — condition-controlled loop
+  | 'FOR' // for — iteration over a range or list
   // block structure (Python-style significant indentation)
   | 'INDENT' // emitted when a logical line is more indented than the prior block
   | 'DEDENT' // emitted when indentation decreases back to an enclosing block

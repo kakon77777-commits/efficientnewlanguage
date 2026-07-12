@@ -208,6 +208,11 @@ export function lex(source: string): Token[] {
       else if (value === 'return') type = 'RETURN';
       else if (value === 'async') type = 'ASYNC';
       else if (value === 'await') type = 'AWAIT';
+      else if (value === 'if') type = 'IF';
+      else if (value === 'elif') type = 'ELIF';
+      else if (value === 'else') type = 'ELSE';
+      else if (value === 'while') type = 'WHILE';
+      else if (value === 'for') type = 'FOR';
       push(type, value, startPos, startLine, startCol);
       continue;
     }

@@ -104,6 +104,14 @@ const CASES: Array<[string, string]> = [
   // lexical closures + mutual recursion (Phase 5 follow-up)
   ['nested function closure', 'def g(a):\n    def h():\n        return a\n    h() => r\n    return r\n\ng(7) => out\nout^0'],
   ['mutual recursion', 'def is_even(n):\n    n == 0 ? 1 : is_odd(n - 1) => r\n    return r\n\ndef is_odd(n):\n    n == 0 ? 0 : is_even(n - 1) => r\n    return r\n\nis_even(4) => x\nx^0'],
+  // Phase 6: control flow (if/elif/else, while, for...in)
+  ['if/elif/else branch selection', 'x^+15\nif x > 20:\n    y^+1\nelif x > 10:\n    y^+2\nelse:\n    y^+3\ny^0'],
+  ['while loop accumulator', 'n^+5\ntotal^+0\nwhile n > 0:\n    total + n => total\n    n - 1 => n\ntotal^0'],
+  ['for...in over a range', 'N^+5\ntotal^+0\nfor i in [1:N]:\n    total + i^2 => total\ntotal^0'],
+  ['for with an if inside', 'count^+0\nfor i in [1:10]:\n    if i > 5:\n        count + 1 => count\ncount^0'],
+  ['fibonacci via while', 'a^+0\nb^+1\nn^+10\nwhile n > 0:\n    a + b => c\n    b => a\n    c => b\n    n - 1 => n\na^0'],
+  ['for-loop target leaks its final value after the loop (Python semantics)', 'for i in [1:3]:\n    i^0\ni^0'],
+  ['return inside a nested if/while unwinds correctly', 'def f(n):\n    while n > 0:\n        if n == 3:\n            return n\n        n - 1 => n\n    return 0 - 1\n\nf(5) => r\nr^0'],
 ];
 
 describe.skipIf(!PYTHON)('interpreter ≡ python (execution-truth gate)', () => {

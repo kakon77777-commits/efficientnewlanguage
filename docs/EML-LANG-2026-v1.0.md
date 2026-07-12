@@ -23,7 +23,7 @@ and whitepaper §4.2–4.4. Where this document and those disagree, **this docum
   to ASCII before tokenizing (§2).
 * The reference implementation is the TypeScript monorepo under `packages/`. Concrete behavior cited
   here (precedence, formatting, diagnostics) is what that implementation does and what the test
-  suite (`tests/`, 274 cases) enforces.
+  suite (`tests/`, 363 cases) enforces.
 * §11 defines exactly what "v1.0" freezes and what remains non-normative / prototype.
 
 ---
@@ -107,7 +107,20 @@ Statement      ::= OverlayStatement
                  | ExpressionStatement
                  | FunctionDefinition          (* Phase 2 *)
                  | ReturnStatement             (* Phase 2, function body only *)
+                 | IfStatement                 (* Phase 6 *)
+                 | WhileStatement              (* Phase 6 *)
+                 | ForInStatement              (* Phase 6 *)
                  | EmptyStatement
+
+(* ── Control flow (Phase 6) ── *)
+IfStatement    ::= "if" Expression ":" Newline Block
+                    [ "elif" Expression ":" Newline Block ]*
+                    [ "else" ":" Newline Block ]
+                    (* modeled in the AST as a nested IfStatement per elif, not
+                       a separate list — this EBNF line is the surface form *)
+WhileStatement ::= "while" Expression ":" Newline Block
+ForInStatement ::= "for" Identifier InOperator Expression ":" Newline Block
+                    (* target MUST be a single bare identifier; no tuple-unpacking *)
 
 (* ── Functions, decorators, temperature, temporal (Phase 2–3) ── *)
 FunctionDefinition ::= { Decorator Newline } [ "async" ] "def" Identifier
@@ -303,6 +316,54 @@ print(total)
 
 ---
 
+## 6a. Control flow — if/elif/else, while, for...in (Phase 6)
+
+```eml
+x^+15
+if x > 20:
+    y^+1
+elif x > 10:
+    y^+2
+else:
+    y^+3
+y^0
+```
+→
+```python
+x = 15
+if x > 20:
+    y = 1
+elif x > 10:
+    y = 2
+else:
+    y = 3
+print(y)
+```
+
+* **`elif` is a nested `If`, not a separate list.** The AST's `IfStatement.orelse` is either empty (no
+  elif/else), a single-element array holding another `IfStatement` (an `elif`), or any other non-empty
+  array (a plain `else:` block). This mirrors Python's own `ast.If` chaining exactly.
+* **Branch scoping.** `if`/`elif`/`else` branches are mutually exclusive: each resolves `x^+n`-style
+  declarations against its own scope, and only names newly declared in *every* branch are then visible
+  as declared after the statement (matching Python: an `if`/`elif`/`else` that assigns in every branch
+  leaves the name bound afterward; assigning in only one branch means the name may be unbound depending
+  on which branch ran, exactly as CPython behaves). `while`/`for` do **not** get this branch-scoping
+  treatment — they execute the same body 0+ times, not as mutually-exclusive alternatives, so they
+  resolve against the same live scope as straight-line code.
+* **`for` target.** A single bare identifier only (no tuple-unpacking). It is declared like any other
+  assignment target (participates in `E_ALIAS_COLLISION` and `declaredNames`) and, matching Python,
+  stays bound to its last value after the loop ends.
+* **No `break`/`continue`, no `while`/`for`-`else`.** A `while` loop must rely on its own condition (or
+  an enclosing function's `return`) to exit early. These are explicit scope cuts for this round, not
+  permanent restrictions.
+* **Back ends.** Python emission is 1:1 (native `if`/`while`/`for`). The C⁺⁺⁺ prototype back end (§10)
+  and reverse Python→EML transpilation (§9) both fail loudly on these constructs this round — see §11.
+* **Interpreter (`@eml/interp`).** Real branch/loop execution, reusing the enclosing scope directly (no
+  new scope per Python semantics above); `while`/`for` iterations are bounded by the same step-budget
+  mechanism as `Σ`/range iteration.
+
+---
+
 ## 7. Temporal loops (Phase 3)
 
 `@temporal_loop` lets a function wait for a condition to mature **without busy-waiting**:
@@ -421,6 +482,12 @@ minimal Python envelope (optional `seq`/`ts`/`mono`/`writer`) and the §8.2 voca
 **Stability policy.** Additive changes (new symbols, new event types, new diagnostics) are minor.
 Changing an existing symbol/overlay/expansion/diagnostic meaning, or breaking the round-trip
 invariant, is **major** (`EML-LANG-2027` or `v2.0`).
+
+**Phase 6 addendum.** `if`/`elif`/`else`, `while`, and `for...in` (§6a) were added as new statement
+kinds after the initial v1.0 freeze. This is an **additive** change per the policy above: nothing in
+§4/§5/Appendix A changed meaning, and the §9 round-trip guarantee for the previously-supported subset
+is untouched. `try`/`except`, dict/set literals, `class`, user `import`, and `break`/`continue` remain
+future work — not yet built, not rejected.
 
 ---
 

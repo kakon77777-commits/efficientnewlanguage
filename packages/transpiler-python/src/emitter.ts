@@ -172,6 +172,31 @@ export function emitStatement(stmt: Statement): string {
         `Internal error: unresolved OverlayAssign for '${stmt.target.name}'. ` +
           'analyzeSemantics() must run before emitStatement().',
       );
+    case 'If': {
+      const lines: string[] = [`if ${emitExpression(stmt.test)}:`];
+      for (const s of stmt.body) lines.push(indent(emitStatement(s)));
+      if (stmt.orelse.length === 1 && stmt.orelse[0]!.type === 'If') {
+        // emitStatement() on the nested If always starts with "if ..."; prefixing
+        // "el" turns it into "elif ..." and recurses correctly through chains.
+        lines.push('el' + emitStatement(stmt.orelse[0]!));
+      } else if (stmt.orelse.length > 0) {
+        lines.push('else:');
+        for (const s of stmt.orelse) lines.push(indent(emitStatement(s)));
+      }
+      return lines.join('\n');
+    }
+    case 'While': {
+      const lines: string[] = [`while ${emitExpression(stmt.test)}:`];
+      for (const s of stmt.body) lines.push(indent(emitStatement(s)));
+      return lines.join('\n');
+    }
+    case 'ForIn': {
+      const lines: string[] = [
+        `for ${aliasIdentifier(stmt.target.name)} in ${emitExpression(stmt.iterable)}:`,
+      ];
+      for (const s of stmt.body) lines.push(indent(emitStatement(s)));
+      return lines.join('\n');
+    }
   }
 }
 
