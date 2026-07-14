@@ -37,7 +37,7 @@ Requirements: Node ≥ 20, pnpm, Python 3.10+ (with `numpy` for matrix cases).
 
 ```bash
 pnpm install
-pnpm test                                   # 512 tests, incl. real python execution
+pnpm test                                   # 535 tests, incl. real python execution
 pnpm typecheck
 pnpm eml run examples/phase0/sum.eml        # -> 338350
 ```
@@ -109,6 +109,17 @@ $ pnpm eml trace examples/phase0/sum.eml --run
 numpy (`<M>`/`^T`) and temporal (`async`/`await`/`@temporal_loop`) constructs run only under real
 Python; the interpreter reports them as `unsupported` (never a fabricated value), and `eml trace
 --run` splices in the real `eml:temporal:*` events from the Python process.
+
+## Language server (Phase 8, MVP)
+
+`@eml/lsp` is a real, editor-agnostic Language Server Protocol server: live diagnostics (reusing
+the same `Diagnostic[]` the CLI/interpreter already produce), hover showing the Python expansion
+of the statement under your cursor, and completion for keywords + every `eml-symbols.json` symbol.
+`packages/vscode-extension` is a minimal (dev-prototype, not Marketplace-published) VS Code client
+— open this repo in VS Code, press F5 from `packages/vscode-extension` (Extension Development
+Host), then open [`examples/phase8-lsp/demo.eml`](examples/phase8-lsp/demo.eml) to try it. Go-to-
+definition, inline-trace visualization, and Unicode-display-form position accuracy are explicit
+scope cuts this round, not gaps — see `docs/agent-handoff.md`'s "Phase 8" section.
 
 ## AI-assisted compression (Phase 1)
 
@@ -199,6 +210,8 @@ packages/
   interp/            browser-safe execution-truth interpreter + trace producer (Phase 5)
   cli/               the `eml` command
   cogni-editor/      dual-state view (EML | Python | AST) + Trace panel (PHOSPHOR phosphor-jsonl-v1) + Functions panel (cold/hot · importance · crystallization)
+  lsp/               Language Server Protocol server — diagnostics/hover/completion (Phase 8)
+  vscode-extension/  minimal VS Code client for @eml/lsp (dev prototype, not published; Phase 8)
 scripts/launch.mjs   EML Studio launcher (pnpm start / eml-studio.cmd|sh)
 ai/        AI-native layer (AICL + AIRS/AILP) — see below
 llms.txt   LLM entry index

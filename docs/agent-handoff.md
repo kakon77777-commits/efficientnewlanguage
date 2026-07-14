@@ -8,7 +8,7 @@ non-obvious decisions so you don't drift.
 1. **Do not build Ultimate features first.** No full runtime, no C+++, no
    AI-driven Logic Crystallization, no auto-repair, no 12-loop runtime. Those
    are later phases. The MVP is a deterministic EML/Py+ → Python transpiler.
-2. **Run `pnpm test` before and after any change.** 512 tests must stay green
+2. **Run `pnpm test` before and after any change.** 535 tests must stay green
    (the C++ compile+run test executes via a detected g++/clang++/MSVC toolchain,
    or auto-skips if none is installed — MSVC adds ~15s for vcvars; the
    interpreter≡Python gate auto-skips if no `python` is found).
@@ -592,6 +592,116 @@ smoke test combining every sub-phase (a class with a method containing a
 attribute) passed `eml trace --run`'s `eml:equiv` gate — interpreter and real
 Python produced byte-identical output.
 
+## Phase 8 — LSP server + minimal VS Code extension (MVP complete)
+
+The first `docs/roadmap.md` commercialization item (A-1): a real Language
+Server Protocol server for EML, plus a minimal (not marketplace-polished) VS
+Code extension client so it's actually usable in a real editor. Scope:
+diagnostics + hover + completion — the three capabilities directly reachable
+from EXISTING exports with zero new core-package logic (go-to-definition,
+inline trace, and Unicode-display-form position accuracy are explicit,
+documented scope cuts, not gaps — see below).
+
+- **`packages/lsp` (`@eml/lsp`)**: standard, editor-agnostic
+  `vscode-languageserver`/`vscode-languageserver-textdocument` (NOT VS-Code-
+  only despite the package name history). Follows the codebase's existing
+  "pure computation, thin I/O adapter" split (mirrors `emitter.ts`/
+  `semantic.ts` vs `cli/index.ts`): `logic.ts` has zero `vscode-
+  languageserver/node` imports and no process I/O — every function is a
+  plain value in, plain value out, directly vitest-testable; `server.ts` is
+  the thin `Connection`-wiring adapter; `index.ts` re-exports both and
+  auto-launches over real stdio ONLY when it's the actual process entry
+  point (guarded via `import.meta.url` vs the resolved entry-script path —
+  otherwise importing `@eml/lsp` from a test would open a real stdio
+  connection as a side effect).
+- **Diagnostics**: a direct pass-through of `transpileEmlToPython`'s
+  existing `diagnostics: Diagnostic[]`.
+- **Hover**: shows the Python expansion (via the existing `emitStatement()`)
+  of the innermost statement whose span contains the cursor — a fresh
+  recursive lookup (`findEnclosingStatement`) over the resolved AST, since no
+  existing code needed this shape of query. Also surfaces any diagnostic
+  whose span overlaps the hovered statement in the same popup.
+- **A real, non-obvious bug found and fixed during this round**: a compound
+  statement (`If`/`While`/`ForIn`/`FunctionDef`/`ClassDef`) that owns its own
+  nested block consumes the DEDENT token closing that block as part of its
+  OWN span (`parseStatementWithSpan()` wraps the entire `parseFunctionDef()`/
+  etc. call, which itself calls `parseBlock()` and consumes that DEDENT
+  before returning). A DEDENT token is zero-width at the position of the
+  very FIRST character of the next sibling — so in e.g. `def __init__(...):
+  ...\n    def get(...): ...`, `__init__`'s span ends EXACTLY at `get`'s
+  starting offset. An initial single-pass "half-open OR inclusive-end"
+  boundary check made the FIRST sibling (`__init__`) incorrectly win at that
+  exact tie, even though `get`'s own half-open range genuinely contains it.
+  Fixed with a two-pass design: check half-open containment (`[start, end)`)
+  across ALL siblings first (unambiguous, must win outright); only fall back
+  to inclusive-end (`offset === span.end`) in a second pass, for the
+  legitimate case of hovering right after a statement's last character with
+  no following sibling. Locked in by a dedicated regression test
+  (`tests/lsp-logic.test.ts`).
+- **Completion**: keyword completions (a small hand-maintained 20-entry list
+  mirroring the lexer's keyword branches — the lexer is an if/else-if chain
+  over a `TokenType` switch, not an exported `Set`, so a small duplication
+  here was cheaper than a lexer refactor) + symbol completions sourced
+  directly from `EML_SYMBOLS` (`eml-symbols.json` — zero new data authored).
+  `^+=` is deliberately excluded — the spec (§4) marks it an *internal*
+  symbol-table tag, not writable surface syntax; suggesting it would be
+  actively misleading. `def`/`await` (present in both sources) are not
+  duplicated.
+- **Position/offset conversion — two real subtleties beyond "just use
+  character offsets"**: (1) `transpileEmlToPython`'s catch-block diagnostic
+  for `E_LEX`/`E_PARSE` hardcodes `span: {start: 0, end: 0, line, column}` —
+  `line`/`column` are real, `start`/`end` are always 0; a naive conversion
+  trusting `start` uniformly would silently place every lex/parse-error
+  squiggle at document position (0,0). (2) `normalizeSource()` collapses
+  `\r\n`/`\r` → `\n` unconditionally, BEFORE any Unicode substitution — so
+  `normalized.length !== rawText.length` for a CRLF-saved file even with
+  zero Unicode symbols in it. Fixed by using `span.line`/`span.column`
+  (1-based, survive EOL normalization) for a Range's START position, and a
+  scratch `TextDocument` built over the semantic pass's own `normalized`
+  string (never exposed to the client) purely for `positionAt`/`offsetAt`
+  math on the END position and reverse hover lookups. Net effect: position
+  accuracy for ASCII-canonical EML source is correct regardless of the
+  file's line-ending style — only Unicode display-form source remains
+  out of scope this round, matching the language's own normative stance
+  ("ASCII canonical form is normative … Unicode is an informative
+  projection", `docs/EML-LANG-2026-v1.0.md` §2.1).
+- **`packages/vscode-extension`**: deliberately plain CommonJS JS (not TS)
+  for `extension.js` — VS Code's extension host `require()`-loads `main`
+  synchronously with no bundler/tsx registration active in that process, and
+  introducing the repo's first build step just for a prototype extension
+  would contradict the "no build step" convention everywhere else. Spawns
+  the server via `node <tsx's own dist/cli.mjs> <packages/lsp/src/index.ts>`
+  (resolved relative to the workspace root) — deliberately NOT `node_modules/
+  .bin/tsx`, sidestepping Windows shell-shim (`tsx.CMD`) quoting issues in
+  `child_process.spawn`. Only works when launched via VS Code's Extension
+  Development Host (F5) with this exact monorepo checkout open as the
+  workspace root — a `packages/vscode-extension/.vscode/launch.json` is
+  provided for that. Minimal TextMate grammar (keywords/comments/strings/
+  numbers only) + `language-configuration.json` — no marketplace polish, no
+  icon, no bundling for public distribution (mirrors the C++ back end's
+  existing "PROTOTYPE not backend" framing, `docs/cpp-feasibility.md`).
+- **Explicit scope cuts** (documented, not silently missing): go-to-
+  definition/references (`semantic.ts`'s `declaredNames` only carries
+  aggregate name lists, not per-identifier declaration spans — a real,
+  separate, non-trivial addition); inline trace visualization (a webview
+  feature, not a standard LSP capability — belongs to the separate "編輯器
+  外掛" roadmap item polishing this prototype extension, not the server).
+- Tests: `tests/lsp-logic.test.ts` (pure functions — diagnostics conversion,
+  the hover statement-lookup algorithm including the DEDENT-boundary
+  regression, completion-list de-duplication, span/range boundary
+  arithmetic including a CRLF case) + ONE real `tests/lsp-protocol.test.ts`
+  integration test proving the actual `vscode-languageserver` connection
+  wiring end-to-end (initialize handshake, `didOpen` → `publishDiagnostics`,
+  `hover`, `completion`) over in-memory duplex streams (`node:stream`'s
+  `PassThrough`, via `vscode-jsonrpc`'s direct-Node-stream
+  `createMessageConnection` overload) — no child-process spawn, no
+  filesystem, no network. 535 tests total (up from 512 pre-Phase-8).
+  `examples/phase8-lsp/demo.eml` (+ its committed `.trace.jsonl` golden)
+  exercises class + try/except + a deliberate `W_METHOD_DECORATOR_UNSUPPORTED`
+  warning (a WARNING, not an error — every committed example must transpile
+  with zero ERROR diagnostics, per `tests/examples.test.ts`) for the manual
+  VS Code F5 walkthrough.
+
 ## Non-obvious design decisions (the gotchas)
 
 ### 1. Two-stage AST: `OverlayAssign` is resolved by semantics
@@ -689,9 +799,14 @@ These were tightened after an adversarial review; tests live in
 - Phase 6 (COMPLETE): `if`/`elif`/`else`, `while`, `for...in`.
 - Phase 7 (COMPLETE): `break`/`continue`, dict/set literals + subscript,
   attribute access + user `import`, `try`/`except`/`finally`/`raise`, `class`
-  (minimal viable OOP). EML can now express general-purpose programs. Next
-  (not yet scoped): the "commercialization/adoption" roadmap in
-  `docs/roadmap.md` (LSP, editor extension, npm publish, MCP/agent tooling).
+  (minimal viable OOP). EML can now express general-purpose programs.
+- Phase 8 (A-1 LSP MVP COMPLETE; roadmap otherwise not yet started):
+  `@eml/lsp` + a minimal VS Code extension client (diagnostics/hover/
+  completion). Next within Phase 8 (Neo's call, `docs/roadmap.md`): editor
+  extension polish (item 2 — icon, marketplace prep, inline trace webview),
+  npm publishing (item 3), MCP/agent tooling (item 8), or go-to-definition
+  (needs a `semantic.ts` addition: per-identifier declaration spans, not
+  just aggregate name lists).
 - Phase 6 (COMPLETE): `if`/`elif`/`else`, `while`, `for...in` control-flow
   statements — forward (EML→Python) + interpreter execution; reverse (Python→EML)
   and the C⁺⁺⁺ backend fail loud by design this round.

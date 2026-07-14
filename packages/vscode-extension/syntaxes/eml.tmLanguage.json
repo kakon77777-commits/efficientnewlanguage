@@ -1,0 +1,47 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "EML",
+  "scopeName": "source.eml",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [{ "name": "comment.line.number-sign.eml", "match": "#.*$" }]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.eml",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "name": "constant.character.escape.eml", "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.single.eml",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "name": "constant.character.escape.eml", "match": "\\\\." }]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [{ "name": "constant.numeric.eml", "match": "\\b\\d+(\\.\\d+)?([eE][+-]?\\d+)?\\b" }]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.eml",
+          "match": "\\b(if|elif|else|while|for|in|break|continue|def|return|async|await|import|try|except|finally|raise|as|class|SUM)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [{ "name": "keyword.operator.eml", "match": "=>|\\^|Σ|∈|⇒|≥|≤|≠" }]
+    }
+  }
+}

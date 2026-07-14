@@ -178,8 +178,8 @@ attribute/import、try/except/raise、class）、雙向轉譯、冷熱/結晶化
 Phase 8 的命題不是「再加語言功能」，而是把強 MVP 推進到**真正可商用、可實用**：**先讓人能用 → 再讓 AI 能用 → 再讓它能賺。**
 
 ### A. 實用化（降低採用門檻）
-1. **LSP 語言伺服器** — hover 顯示 Python 展開、即時診斷、跳轉、inline trace（「能在真專案用」的最大解鎖）。
-2. **編輯器外掛** — 將 Cogni-Editor 化為 VS Code / JetBrains extension（語法、Nova IME、一鍵 transpile/trace）。
+1. **LSP 語言伺服器 — 已完成（MVP）2026-07-14。** `@eml/lsp`（`packages/lsp`，標準 `vscode-languageserver`/-textdocument，editor-agnostic）+ 最小 VS Code 外掛（`packages/vscode-extension`，dev prototype，非上架）。範圍：即時診斷（直接復用 `transpileEmlToPython` 的 `Diagnostic[]`）、hover 顯示游標所在敘述句的 Python 展開（復用既有 `emitStatement()`）、completion（`EML_SYMBOLS` + 20 個關鍵字）。明確排除本輪：跳轉/go-to-definition（需要語意分析器新增逐識別字宣告 span，非本輪範圍）、inline trace 視覺化（屬於「編輯器外掛」項目，非 LSP 伺服器本身）、Unicode 顯示形式（`Σ`/`∈`/`⇒`/`²`…）的診斷/hover 位置精確度（ASCII 標準形式優先，符合語言本身的規範立場）。535 測試（含一個真正的 protocol-level in-process 整合測試，證明 `vscode-languageserver` 連線真的能跑，不只是純邏輯單元測試）。詳見 `docs/agent-handoff.md`「Phase 8 — LSP」章節。
+2. **編輯器外掛** — 將 Cogni-Editor 化為 VS Code / JetBrains extension（語法、Nova IME、一鍵 transpile/trace）。上面的 `packages/vscode-extension` 只是「證明能動」的最小雛形（無 icon、無上架準備、無 inline trace webview）——真正的外掛打磨仍是這一項的範圍。
 3. **好裝好跑** — `@eml/*` 發佈到 npm、`npx eml`、單檔 `eml` 執行檔（Node SEA）、Python 端 runtime helper。
 4. **擴大支援子集** — 從 Python 子集往真實程式碼覆蓋率推進（更多語法/後端落地，而非僅 prototype）。
 

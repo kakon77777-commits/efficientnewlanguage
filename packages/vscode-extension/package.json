@@ -1,0 +1,36 @@
+{
+  "name": "eml-lsp-client",
+  "displayName": "EML Language Support (dev prototype)",
+  "description": "Diagnostics, hover (Python expansion), and completion for .eml files via @eml/lsp. Prototype — not published to the Marketplace.",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.91.0"
+  },
+  "categories": ["Programming Languages"],
+  "activationEvents": ["onLanguage:eml"],
+  "main": "./src/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "eml",
+        "extensions": [".eml"],
+        "aliases": ["EML", "eml"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "eml",
+        "scopeName": "source.eml",
+        "path": "./syntaxes/eml.tmLanguage.json"
+      }
+    ]
+  },
+  "dependencies": {
+    "vscode-languageclient": "^10.1.0"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.91.0"
+  }
+}

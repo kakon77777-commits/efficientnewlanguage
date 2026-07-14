@@ -1,0 +1,24 @@
+# EML LSP demo — Phase 8. Open this in the VS Code extension (Extension
+# Development Host) to see live diagnostics, hover (Python expansion), and
+# completion in a real editor.
+class Counter:
+    @cold
+    def __init__(self, start):
+        start => self.value
+    def increment(self):
+        self.value + 1 => self.value
+    def get(self):
+        return self.value
+
+Counter(0) => c
+c.increment()
+c.increment()
+
+try:
+    10 / 0 => result
+except ZeroDivisionError:
+    0 => result
+
+c.get() => total
+total^0
+result^0
