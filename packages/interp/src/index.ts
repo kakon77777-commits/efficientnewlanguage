@@ -26,6 +26,9 @@ import type {
   Statement,
   Expression,
   FunctionDef,
+  AssignTarget,
+  ExceptHandler,
+  ClassDef,
   Diagnostic,
 } from '@eml/types';
 import { transpileEmlToPython } from '@eml/transpiler-python';
@@ -39,6 +42,9 @@ import {
   BOOL,
   NONE,
   LIST,
+  DICT,
+  SET,
+  canonicalKey,
   arith,
   power,
   compare,
@@ -100,6 +106,11 @@ class Unsupported {
 class StepLimit {
   constructor(public readonly steps: number) {}
 }
+/** Signals used to unwind `break`/`continue` to the nearest enclosing loop
+ *  (caught in `execStmt`'s While/ForIn cases, NOT at the function-call boundary
+ *  like ReturnSignal — must not escape past the loop). */
+class BreakSignal {}
+class ContinueSignal {}
 
 interface Scope {
   vars: Map<string, PyVal>;
@@ -153,6 +164,10 @@ function runProgram(
   let steps = 0;
   let depth = 0;
   let error: InterpResult['error'];
+  /** The exception currently being handled by an `except` block, for a bare
+   *  `raise` re-raise (Phase 7d). Saved/restored around each handler so nested
+   *  try/except blocks don't clobber an outer one's in-flight exception. */
+  let currentException: PyError | undefined;
 
   const tick = (): void => {
     if (++steps > maxSteps) throw new StepLimit(steps);
@@ -218,7 +233,74 @@ function runProgram(
         throw new Unsupported('^T transpose', 'numpy transpose runs only under a real Python runtime');
       case 'Await':
         throw new Unsupported('await', 'asyncio temporal loops run only under a real Python runtime');
+      case 'Dict':
+        return DICT(expr.entries.map((e) => ({ key: evalExpr(e.key, scope), value: evalExpr(e.value, scope) })));
+      case 'Set':
+        return SET(expr.elements.map((e) => evalExpr(e, scope)));
+      case 'Subscript':
+        return subscriptGet(evalExpr(expr.object, scope), evalExpr(expr.index, scope));
+      case 'Attribute': {
+        // A bare Identifier object may be an unbound module name (`math`) —
+        // resolve via readVar (never throws) rather than evalExpr, so that
+        // case still defers as Unsupported exactly as before Phase 7e. Any
+        // other object shape (Subscript, Call, nested Attribute, ...) is
+        // evaluated normally; if it turns out to be a real instance
+        // (Phase 7e), read from its attrs — otherwise defer.
+        const objVal = expr.object.type === 'Identifier' ? readVar(scope, expr.object.name) : evalExpr(expr.object, scope);
+        if (objVal !== undefined && objVal.k === 'instance') {
+          const v = objVal.attrs.get(expr.attr);
+          if (v === undefined) {
+            throw new PyError('AttributeError', `'${objVal.className}' object has no attribute '${expr.attr}'`);
+          }
+          return v;
+        }
+        const objLabel = expr.object.type === 'Identifier' ? expr.object.name : 'value';
+        throw new Unsupported(
+          `read .${expr.attr}`,
+          `attribute access on '${objLabel}' runs only under a real Python runtime (not modeled by the interpreter yet)`,
+        );
+      }
     }
+  };
+
+  /** Read an `AssignTarget` for an augmented-assign's current value (Phase 7b/7c). */
+  const readTarget = (target: AssignTarget, scope: Scope): PyVal => {
+    if (target.type === 'Identifier') {
+      const v = readVar(scope, target.name);
+      if (v === undefined) throw new PyError('NameError', `name '${target.name}' is not defined`);
+      return v;
+    }
+    if (target.type === 'Subscript') {
+      return subscriptGet(evalExpr(target.object, scope), evalExpr(target.index, scope));
+    }
+    // Attribute target read (part of `+=` etc.) — same defer as evalExpr's Attribute case.
+    return evalExpr(target, scope);
+  };
+
+  /** Write an `AssignTarget` (Phase 7b: Subscript; Phase 7c: Attribute). */
+  const writeTarget = (target: AssignTarget, value: PyVal, scope: Scope): void => {
+    if (target.type === 'Identifier') {
+      assign(scope, target.name, value);
+      return;
+    }
+    if (target.type === 'Subscript') {
+      subscriptSet(evalExpr(target.object, scope), evalExpr(target.index, scope), value);
+      return;
+    }
+    // Attribute target write (`self.x = v` / `obj.x = v`, Phase 7e). Same
+    // module-name leniency as evalExpr's Attribute case: a bare Identifier
+    // object resolves via readVar (never throws), so an unbound module name
+    // still defers as Unsupported rather than crashing with a NameError.
+    const objVal = target.object.type === 'Identifier' ? readVar(scope, target.object.name) : evalExpr(target.object, scope);
+    if (objVal !== undefined && objVal.k === 'instance') {
+      objVal.attrs.set(target.attr, value);
+      return;
+    }
+    const objLabel = target.object.type === 'Identifier' ? target.object.name : 'value';
+    throw new Unsupported(
+      `write .${target.attr}`,
+      `attribute assignment on '${objLabel}' runs only under a real Python runtime (not modeled by the interpreter yet)`,
+    );
   };
 
   /** Materialize an inclusive/exclusive integer range to a list of ints. */
@@ -268,12 +350,32 @@ function runProgram(
   };
 
   const evalCall = (expr: Extract<Expression, { type: 'Call' }>, scope: Scope): PyVal => {
+    if (expr.callee.type === 'Attribute') {
+      // Same module-name leniency as evalExpr's Attribute case: resolve a
+      // bare Identifier object via readVar (never throws), so an unbound
+      // module name (`math.sqrt(x)`) still defers as Unsupported rather than
+      // crashing with a NameError. If the object turns out to be a real
+      // instance (Phase 7e), dispatch to its method — otherwise defer
+      // (module calls / built-in container methods are real, correct Python
+      // once emitted; the interpreter just doesn't model those yet).
+      const objExpr = expr.callee.object;
+      const objVal = objExpr.type === 'Identifier' ? readVar(scope, objExpr.name) : evalExpr(objExpr, scope);
+      if (objVal !== undefined && objVal.k === 'instance') {
+        return callMethod(objVal, expr.callee.attr, expr.args.map((a) => evalExpr(a, scope)));
+      }
+      const objLabel = objExpr.type === 'Identifier' ? objExpr.name : 'value';
+      throw new Unsupported(
+        `call ${objLabel}.${expr.callee.attr}()`,
+        'attribute/method calls run only under a real Python runtime (not modeled by the interpreter yet)',
+      );
+    }
     const name = expr.callee.name;
     const args = expr.args.map((a) => evalExpr(a, scope));
     // Resolve the callee by lexical lookup (functions are values in their defining
     // scope), falling back to a supported builtin when the name is unbound.
     const callee = readVar(scope, name);
     if (callee === undefined) return callBuiltin(name, args);
+    if (callee.k === 'class') return instantiateClass(callee, args);
     if (callee.k !== 'func' || callee.def === undefined) {
       throw new PyError('TypeError', `'${typeName(callee)}' object is not callable`);
     }
@@ -333,6 +435,77 @@ function runProgram(
     return result;
   };
 
+  /** Look up a method by name in a class body (Phase 7e) — `undefined` if absent. */
+  const findMethod = (def: ClassDef, methodName: string): FunctionDef | undefined =>
+    def.body.find((s): s is FunctionDef => s.type === 'FunctionDef' && s.name === methodName);
+
+  /**
+   * `ClassName(args)` construction (Phase 7e): look up `__init__`, bind a
+   * fresh instance as `self`, run its body, return the instance. No
+   * `__init__` at all is a valid zero-arg construction (an empty instance);
+   * extra args with no `__init__` to absorb them is a TypeError, mirroring
+   * real Python's default `object.__init__`.
+   */
+  const instantiateClass = (cls: Extract<PyVal, { k: 'class' }>, args: PyVal[]): PyVal => {
+    const def = cls.def as ClassDef;
+    const instance: Extract<PyVal, { k: 'instance' }> = { k: 'instance', className: cls.name, classDef: def, attrs: new Map() };
+    const init = findMethod(def, '__init__');
+    if (init) {
+      runMethodBody(instance, init, args);
+    } else if (args.length > 0) {
+      throw new PyError('TypeError', `${cls.name}() takes no arguments (${args.length} given)`);
+    }
+    return instance;
+  };
+
+  /** Dispatch `instance.methodName(args)` (Phase 7e) — AttributeError if the
+   *  class defines no such method. */
+  const callMethod = (instance: Extract<PyVal, { k: 'instance' }>, methodName: string, args: PyVal[]): PyVal => {
+    const method = findMethod(instance.classDef as ClassDef, methodName);
+    if (!method) {
+      throw new PyError('AttributeError', `'${instance.className}' object has no attribute '${methodName}'`);
+    }
+    return runMethodBody(instance, method, args);
+  };
+
+  /**
+   * Execute a method body with `self` bound to `instance` and the remaining
+   * params bound to `args` — mirrors evalCall's function-call machinery
+   * (recursion guard, tick, ReturnSignal) but WITHOUT @cold/@hot caching
+   * (methods are excluded from the whole cold/hot analysis stack this round —
+   * see semantic.ts's resolveMethod). Methods close over the top-level module
+   * scope, not a captured lexical closure: `{k:'class', ...}` carries no
+   * `closure` field (unlike `{k:'func', ...}`), a deliberate "minimal viable
+   * OOP" simplification — a class nested inside a function whose methods
+   * reference that function's locals is not modeled faithfully this round.
+   */
+  const runMethodBody = (instance: Extract<PyVal, { k: 'instance' }>, method: FunctionDef, args: PyVal[]): PyVal => {
+    if (++depth > RECURSION_LIMIT) {
+      depth--;
+      throw new PyError('RecursionError', 'maximum recursion depth exceeded');
+    }
+    tick();
+    const qualifiedName = `${instance.className}.${method.name}`;
+    emitter.emit('eml:call', { fn: qualifiedName, args: args.map(pyRepr), temperature: 'neutral' });
+    const local: Scope = { vars: new Map(), parent: module, locals: localNames(method.body) };
+    const [selfParam, ...restParams] = method.params;
+    if (selfParam) local.vars.set(selfParam.name, instance);
+    restParams.forEach((p, i) => local.vars.set(p.name, args[i] ?? NONE));
+    let result: PyVal = NONE;
+    try {
+      for (const s of method.body) execStmt(s, local);
+    } catch (e) {
+      if (e instanceof ReturnSignal) result = e.value;
+      else {
+        depth--;
+        throw e;
+      }
+    }
+    depth--;
+    emitter.emit('eml:return', { fn: qualifiedName, value: pyRepr(result) });
+    return result;
+  };
+
   const callBuiltin = (name: string, args: PyVal[]): PyVal => {
     switch (name) {
       case 'abs': {
@@ -346,7 +519,15 @@ function runProgram(
         const a = need(args, 0, name);
         if (a.k === 'str') return INT(BigInt([...a.v].length));
         if (a.k === 'list') return INT(BigInt(a.v.length));
+        if (a.k === 'dict' || a.k === 'set') return INT(BigInt(a.v.size));
         throw new PyError('TypeError', `object of type '${typeName(a)}' has no len()`);
+      }
+      case 'set': {
+        // Zero-arg only — `{}` is a dict literal (Python parity), so `set()` is
+        // the only way to spell an empty set; `set(iterable)` conversion is out
+        // of scope this round.
+        if (args.length > 0) throw new Unsupported('set(iterable)', 'converting an iterable to a set is not modeled yet');
+        return SET([]);
       }
       case 'int': {
         const a = args[0] ?? INT(0n);
@@ -410,16 +591,15 @@ function runProgram(
         return;
       case 'Assignment': {
         const v = evalExpr(stmt.value, scope);
-        assign(scope, stmt.target.name, v);
-        emitter.emit('eml:assign', { name: stmt.target.name, value: pyRepr(v), declares: stmt.declares });
+        writeTarget(stmt.target, v, scope);
+        emitter.emit('eml:assign', { name: targetLabel(stmt.target), value: pyRepr(v), declares: stmt.declares });
         return;
       }
       case 'AugmentedAssign': {
-        const cur = readVar(scope, stmt.target.name);
-        if (cur === undefined) throw new PyError('NameError', `name '${stmt.target.name}' is not defined`);
+        const cur = readTarget(stmt.target, scope);
         const v = arith(stmt.op, cur, evalExpr(stmt.value, scope));
-        assign(scope, stmt.target.name, v);
-        emitter.emit('eml:augment', { name: stmt.target.name, op: stmt.op, value: pyRepr(v) });
+        writeTarget(stmt.target, v, scope);
+        emitter.emit('eml:augment', { name: targetLabel(stmt.target), op: stmt.op, value: pyRepr(v) });
         return;
       }
       case 'Output': {
@@ -445,7 +625,13 @@ function runProgram(
       case 'While': {
         while (truthy(evalExpr(stmt.test, scope))) {
           tick(); // bounds runaway loops against maxSteps — same role as rangeInts/evalSum
-          for (const s of stmt.body) execStmt(s, scope);
+          try {
+            for (const s of stmt.body) execStmt(s, scope);
+          } catch (e) {
+            if (e instanceof BreakSignal) break;
+            if (e instanceof ContinueSignal) continue;
+            throw e;
+          }
         }
         return;
       }
@@ -454,10 +640,96 @@ function runProgram(
         for (const item of items) {
           tick();
           assign(scope, stmt.target.name, item);
-          for (const s of stmt.body) execStmt(s, scope);
+          try {
+            for (const s of stmt.body) execStmt(s, scope);
+          } catch (e) {
+            if (e instanceof BreakSignal) break;
+            if (e instanceof ContinueSignal) continue;
+            throw e;
+          }
         }
         return;
       }
+      case 'Break':
+        throw new BreakSignal();
+      case 'Continue':
+        throw new ContinueSignal();
+      case 'Import':
+        // No-op: the interpreter doesn't model real module objects, but a
+        // program that imports something and never actually calls into it
+        // should still run cleanly — only USE of the module defers (see
+        // evalCall's/evalExpr's Attribute handling), not the import itself.
+        return;
+      case 'Try': {
+        // Lean entirely on native JS try/finally: it already runs `finally`
+        // exactly once regardless of success / matched-throw / unmatched-throw
+        // / break-continue-return inside the body, and before a rethrown
+        // exception continues propagating — a direct match for Python's own
+        // `finally` guarantee, with zero manual pending-exception bookkeeping.
+        try {
+          try {
+            for (const s of stmt.body) execStmt(s, scope);
+          } catch (e) {
+            if (e instanceof PyError) {
+              const handler = stmt.handlers.find((h) => matchesHandler(h, e));
+              if (handler) {
+                const hScope: Scope = handler.name
+                  ? { vars: new Map([[handler.name, STR(e.message)]]), parent: scope }
+                  : scope;
+                const prevException = currentException;
+                currentException = e;
+                try {
+                  for (const s of handler.body) execStmt(s, hScope);
+                } finally {
+                  currentException = prevException;
+                }
+                return;
+              }
+            }
+            // Wrong exception type, or a non-PyError signal (Break/Continue/
+            // Return/Unsupported/StepLimit) — passes through untouched; the
+            // outer `finally` below still runs before it keeps propagating.
+            throw e;
+          }
+        } finally {
+          for (const s of stmt.finallyBody) execStmt(s, scope);
+        }
+        return;
+      }
+      case 'Raise': {
+        if (!stmt.exception) {
+          if (!currentException) throw new PyError('RuntimeError', 'No active exception to re-raise');
+          throw currentException;
+        }
+        const exc = stmt.exception;
+        if (exc.type === 'Call' && exc.callee.type === 'Identifier') {
+          const args = exc.args.map((a) => evalExpr(a, scope));
+          throw new PyError(exc.callee.name, args.length > 0 ? pyStr(args[0]!) : '');
+        }
+        if (exc.type === 'Identifier' && readVar(scope, exc.name) === undefined) {
+          // Not a bound variable — a bare exception class reference (`raise ValueError`).
+          throw new PyError(exc.name, '');
+        }
+        // A bound variable (e.g. `raise e` from `except ... as e`), an
+        // attribute-qualified exception class, or anything else — no real
+        // exception-object model exists this round, so defer rather than
+        // fabricate a wrong exception type/message.
+        throw new Unsupported(
+          'raise <expression>',
+          'raising anything other than a bare `raise`, `raise ExceptionClass`, or `raise ExceptionClass("msg")` is not modeled by the interpreter yet',
+        );
+      }
+      case 'ClassDef':
+        // Bind a first-class class value, parallel to how FunctionDef binds
+        // {k:'func',...}. Methods are looked up from `def.body` by name at
+        // call time (instantiateClass/callMethod), not pre-materialized —
+        // see docs for why (no per-method closure is modeled this round).
+        assign(scope, stmt.name, { k: 'class', name: stmt.name, def: stmt });
+        emitter.emit('eml:classdef', {
+          name: stmt.name,
+          methods: stmt.body.filter((s): s is FunctionDef => s.type === 'FunctionDef').map((s) => s.name),
+        });
+        return;
     }
   };
 
@@ -492,6 +764,16 @@ function runProgram(
       // `return` at module scope: Python raises SyntaxError at compile, but our
       // grammar lets it parse; treat as a clean stop rather than crashing the host.
       emitter.emit('eml:run:incomplete', { reason: 'return-at-module-scope' });
+      return finalize(false);
+    }
+    if (e instanceof BreakSignal || e instanceof ContinueSignal) {
+      // A break/continue outside a loop is normally caught by the semantic
+      // pass (E_BREAK_OUTSIDE_LOOP/E_CONTINUE_OUTSIDE_LOOP) before the
+      // interpreter ever sees it; `interpretProgram()` skips that gate for an
+      // already-resolved AST, so defend the same way ReturnSignal does above.
+      emitter.emit('eml:run:incomplete', {
+        reason: e instanceof BreakSignal ? 'break-outside-loop' : 'continue-outside-loop',
+      });
       return finalize(false);
     }
     throw e;
@@ -536,6 +818,66 @@ function assign(scope: Scope, name: string, value: PyVal): void {
   scope.vars.set(name, value);
 }
 
+/** Whether `handler` catches `e` — exact `pyType` string match; `except:`
+ *  (no type) and `except Exception:` both act as catch-all. No hierarchical
+ *  matching (Phase 7d fidelity gap: `except ArithmeticError:` will not catch
+ *  a `ZeroDivisionError` here, though it would in real transpiled Python). */
+function matchesHandler(handler: ExceptHandler, e: PyError): boolean {
+  if (!handler.exceptionType || handler.exceptionType === 'Exception') return true;
+  return handler.exceptionType === e.pyType;
+}
+
+/** Human-readable trace label for an assignment target (Phase 7b: Identifier or Subscript). */
+function targetLabel(target: AssignTarget): string {
+  if (target.type === 'Identifier') return target.name;
+  const objLabel = target.object.type === 'Identifier' ? target.object.name : '…';
+  return `${objLabel}[…]`;
+}
+
+/** Resolve a list/str index, supporting Python negative indices; IndexError if out of range. */
+function normalizeIndex(idx: PyVal, length: number, containerType: string): number {
+  if (idx.k !== 'int' && idx.k !== 'bool') {
+    throw new PyError('TypeError', `${containerType} indices must be integers, not ${typeName(idx)}`);
+  }
+  const raw = idx.k === 'bool' ? (idx.v ? 1 : 0) : Number(idx.v);
+  const resolved = raw < 0 ? raw + length : raw;
+  if (resolved < 0 || resolved >= length) {
+    throw new PyError('IndexError', `${containerType} index out of range`);
+  }
+  return resolved;
+}
+
+/** `obj[index]` read (Phase 7b) — list/str (negative indices) + dict (KeyError). */
+function subscriptGet(obj: PyVal, index: PyVal): PyVal {
+  if (obj.k === 'list') return obj.v[normalizeIndex(index, obj.v.length, 'list')]!;
+  if (obj.k === 'str') return STR(obj.v[normalizeIndex(index, obj.v.length, 'string')]!);
+  if (obj.k === 'dict') {
+    if (!isHashable(index)) throw new PyError('TypeError', `unhashable type: '${typeName(index)}'`);
+    const entry = obj.v.get(canonicalKey(index));
+    if (!entry) throw new PyError('KeyError', pyRepr(index));
+    return entry.value;
+  }
+  throw new PyError('TypeError', `'${typeName(obj)}' object is not subscriptable`);
+}
+
+/** `obj[index] = value` write (Phase 7b) — list (in place) + dict (insert-or-update). */
+function subscriptSet(obj: PyVal, index: PyVal, value: PyVal): void {
+  if (obj.k === 'list') {
+    obj.v[normalizeIndex(index, obj.v.length, 'list')] = value;
+    return;
+  }
+  if (obj.k === 'str') throw new PyError('TypeError', "'str' object does not support item assignment");
+  if (obj.k === 'dict') {
+    if (!isHashable(index)) throw new PyError('TypeError', `unhashable type: '${typeName(index)}'`);
+    const ck = canonicalKey(index);
+    const existing = obj.v.get(ck);
+    obj.v.set(ck, { key: existing ? existing.key : index, value });
+    return;
+  }
+  throw new PyError('TypeError', `'${typeName(obj)}' object does not support item assignment`);
+}
+
+
 /**
  * Names bound anywhere in a function body — Python's static locals. Recurses
  * into if/while/for bodies (they don't introduce a new scope in real Python),
@@ -545,8 +887,12 @@ function localNames(body: Statement[]): Set<string> {
   const out = new Set<string>();
   const visit = (stmts: Statement[]): void => {
     for (const s of stmts) {
-      if (s.type === 'Assignment' || s.type === 'AugmentedAssign') out.add(s.target.name);
-      else if (s.type === 'FunctionDef') out.add(s.name); // a nested def binds a local
+      // A Subscript target (Phase 7b: `d[k] = v`) mutates an existing object —
+      // it does not bind a new Python-function-local name, unlike a bare name.
+      if ((s.type === 'Assignment' || s.type === 'AugmentedAssign') && s.target.type === 'Identifier') {
+        out.add(s.target.name);
+      } else if (s.type === 'FunctionDef') out.add(s.name); // a nested def binds a local
+      else if (s.type === 'ClassDef') out.add(s.name); // a nested class binds a local too
       else if (s.type === 'If') {
         visit(s.body);
         visit(s.orelse);

@@ -56,6 +56,7 @@ function scanStatementExpr(stmt: Statement, visit: (e: Expression) => void): voi
         walk(e.collection);
         break;
       case 'Call':
+        if (e.callee.type === 'Attribute') walk(e.callee.object);
         for (const a of e.args) walk(a);
         break;
       case 'Matrix':
@@ -70,6 +71,22 @@ function scanStatementExpr(stmt: Statement, visit: (e: Expression) => void): voi
       case 'Await':
         walk(e.argument);
         break;
+      case 'Dict':
+        for (const entry of e.entries) {
+          walk(entry.key);
+          walk(entry.value);
+        }
+        break;
+      case 'Set':
+        for (const el of e.elements) walk(el);
+        break;
+      case 'Subscript':
+        walk(e.object);
+        walk(e.index);
+        break;
+      case 'Attribute':
+        walk(e.object);
+        break;
       default:
         break;
     }
@@ -77,6 +94,9 @@ function scanStatementExpr(stmt: Statement, visit: (e: Expression) => void): voi
   switch (stmt.type) {
     case 'Assignment':
     case 'AugmentedAssign':
+      walk(stmt.value);
+      if (stmt.target.type !== 'Identifier') walk(stmt.target);
+      break;
     case 'OverlayAssign':
       walk(stmt.value);
       break;
@@ -100,6 +120,17 @@ function scanStatementExpr(stmt: Statement, visit: (e: Expression) => void): voi
     case 'ForIn':
       walk(stmt.iterable);
       break; // body is visited separately
+    case 'Break':
+    case 'Continue':
+    case 'Import':
+      break; // no expressions
+    case 'Try':
+      break; // body/handlers/finally are visited separately (see visitStmt)
+    case 'Raise':
+      if (stmt.exception) walk(stmt.exception);
+      break;
+    case 'ClassDef':
+      break; // method bodies carry no loop-classifier metadata this round
   }
 }
 
@@ -140,6 +171,14 @@ export function classifyLoops(program: Program, fns: LoopFnInput[]): LoopFact[] 
       // The iterable is always a materialized finite list/string in this interpreter.
       loops.push({ loopKind: 'for_loop', deterministic: true, terminating: true, span: stmt.span });
       for (const s of stmt.body) visitStmt(s);
+      return;
+    }
+    if (stmt.type === 'Try') {
+      // Try itself is not a loop kind — just keep recursing to find any
+      // nested loop construct in its body/handlers/finally.
+      for (const s of stmt.body) visitStmt(s);
+      for (const h of stmt.handlers) for (const s of h.body) visitStmt(s);
+      for (const s of stmt.finallyBody) visitStmt(s);
       return;
     }
   };

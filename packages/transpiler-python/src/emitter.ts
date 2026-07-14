@@ -1,4 +1,4 @@
-import type { Program, Statement, Expression, DecoratorArg } from '@eml/types';
+import type { Program, Statement, Expression, DecoratorArg, AssignTarget } from '@eml/types';
 
 /**
  * Identifier aliases to avoid shadowing Python builtins.
@@ -96,9 +96,15 @@ export function emitExpression(expr: Expression): string {
       return `sum(${emitExpression(expr.expr)} for ${aliasIdentifier(expr.iterator.name)} in ${emitExpression(expr.range)})`;
     case 'Membership':
       return `${emitExpression(expr.element)} in ${emitExpression(expr.collection)}`;
-    case 'Call':
-      // Do NOT alias the callee: preserve genuine builtin calls like `list(1)`.
-      return `${expr.callee.name}(${expr.args.map(emitExpression).join(', ')})`;
+    case 'Call': {
+      // An Identifier callee is NOT aliased: preserve genuine builtin calls
+      // like `list(1)`. An Attribute callee (`math.sqrt(x)`) re-emits through
+      // the Attribute case below, which DOES alias its own object identifier
+      // (e.g. `list.method()` -> `lst.method()`) — the member name itself is
+      // never aliased either way.
+      const callee = expr.callee.type === 'Identifier' ? expr.callee.name : emitExpression(expr.callee);
+      return `${callee}(${expr.args.map(emitExpression).join(', ')})`;
+    }
     case 'Matrix':
       return `np.array(${emitExpression(expr.data)})`;
     case 'Transpose':
@@ -110,7 +116,26 @@ export function emitExpression(expr: Expression): string {
       // comparison, conditional, and `**`), so a non-atomic argument MUST be
       // parenthesized: `await (a + b)`, not `await a + b` (= `(await a) + b`).
       return `await ${child(expr.argument, 6)}`;
+    case 'Dict':
+      return `{${expr.entries.map((e) => `${emitExpression(e.key)}: ${emitExpression(e.value)}`).join(', ')}}`;
+    case 'Set':
+      return `{${expr.elements.map(emitExpression).join(', ')}}`;
+    case 'Subscript':
+      // The index is already grouped by `[...]`; the object binds at postfix
+      // precedence, so anything looser (e.g. `(a + b)[0]`) needs parens.
+      return `${child(expr.object, 6)}[${emitExpression(expr.index)}]`;
+    case 'Attribute':
+      // Same precedence reasoning as Subscript: the object binds at postfix
+      // level, so a looser object (e.g. `(a + b).attr`) needs parens. The
+      // attribute name itself is never aliased (it's a member, not a binding).
+      return `${child(expr.object, 6)}.${expr.attr}`;
   }
+}
+
+/** Emit an assignment target (Phase 7b: `AssignTarget` is Identifier | Subscript). */
+function emitTarget(target: AssignTarget): string {
+  if (target.type === 'Identifier') return aliasIdentifier(target.name);
+  return emitExpression(target);
 }
 
 /** Emit decorator arguments, e.g. `max_wait=3600, check_interval=60`. */
@@ -132,15 +157,41 @@ function indent(block: string): string {
 export function emitStatement(stmt: Statement): string {
   switch (stmt.type) {
     case 'Assignment':
-      return `${aliasIdentifier(stmt.target.name)} = ${emitExpression(stmt.value)}`;
+      return `${emitTarget(stmt.target)} = ${emitExpression(stmt.value)}`;
     case 'AugmentedAssign':
-      return `${aliasIdentifier(stmt.target.name)} ${stmt.op}= ${emitExpression(stmt.value)}`;
+      return `${emitTarget(stmt.target)} ${stmt.op}= ${emitExpression(stmt.value)}`;
     case 'Output':
       return `print(${emitExpression(stmt.value)})`;
     case 'ExpressionStatement':
       return emitExpression(stmt.expression);
     case 'Return':
       return stmt.value ? `return ${emitExpression(stmt.value)}` : 'return';
+    case 'Break':
+      return 'break';
+    case 'Continue':
+      return 'continue';
+    case 'Import':
+      return `import ${stmt.module}`;
+    case 'Try': {
+      const lines: string[] = ['try:'];
+      for (const s of stmt.body) lines.push(indent(emitStatement(s)));
+      for (const h of stmt.handlers) {
+        const header = h.exceptionType
+          ? h.name
+            ? `except ${h.exceptionType} as ${h.name}:`
+            : `except ${h.exceptionType}:`
+          : 'except:';
+        lines.push(header);
+        for (const s of h.body) lines.push(indent(emitStatement(s)));
+      }
+      if (stmt.finallyBody.length > 0) {
+        lines.push('finally:');
+        for (const s of stmt.finallyBody) lines.push(indent(emitStatement(s)));
+      }
+      return lines.join('\n');
+    }
+    case 'Raise':
+      return stmt.exception ? `raise ${emitExpression(stmt.exception)}` : 'raise';
     case 'FunctionDef': {
       const lines: string[] = [];
       // Decorators: @cold caches pure logic; @hot is a non-caching marker;
@@ -197,6 +248,11 @@ export function emitStatement(stmt: Statement): string {
       for (const s of stmt.body) lines.push(indent(emitStatement(s)));
       return lines.join('\n');
     }
+    case 'ClassDef': {
+      const lines: string[] = [`class ${aliasIdentifier(stmt.name)}:`];
+      for (const s of stmt.body) lines.push(indent(emitStatement(s)));
+      return lines.join('\n');
+    }
   }
 }
 
@@ -223,11 +279,12 @@ export function emitProgram(
     lines.push('');
   }
   program.body.forEach((stmt, i) => {
-    // Set top-level function definitions off with a blank line for readability;
-    // formatPython() collapses any runs this produces.
-    if (stmt.type === 'FunctionDef' && i > 0) lines.push('');
+    // Set top-level function/class definitions off with a blank line for
+    // readability; formatPython() collapses any runs this produces.
+    const isBlock = stmt.type === 'FunctionDef' || stmt.type === 'ClassDef';
+    if (isBlock && i > 0) lines.push('');
     lines.push(emitStatement(stmt));
-    if (stmt.type === 'FunctionDef' && i < program.body.length - 1) lines.push('');
+    if (isBlock && i < program.body.length - 1) lines.push('');
   });
   return lines.join('\n') + '\n';
 }

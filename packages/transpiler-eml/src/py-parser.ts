@@ -126,7 +126,10 @@ class PyParser {
       return { type: 'AugmentedAssign', target, op: augOp, value };
     }
     const expr = this.parseExpr();
-    if (expr.type === 'Call' && expr.callee.name === 'print' && expr.args.length === 1) {
+    // `parsePostfix()` only ever builds a Call over an Identifier callee (see
+    // below); `expr.callee.type === 'Identifier'` is always true here, but
+    // spelled out since the shared FunctionCall type now also allows Attribute.
+    if (expr.type === 'Call' && expr.callee.type === 'Identifier' && expr.callee.name === 'print' && expr.args.length === 1) {
       return { type: 'Output', value: expr.args[0]! };
     }
     return { type: 'ExpressionStatement', expression: expr };

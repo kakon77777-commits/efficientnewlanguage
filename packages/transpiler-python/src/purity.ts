@@ -50,10 +50,20 @@ export interface PurityResult {
 function scanExpression(expr: Expression, effects: string[], userFns: Set<string>): void {
   switch (expr.type) {
     case 'Call':
-      // A user-defined function shadows a builtin of the same name; its purity is
-      // resolved interprocedurally, so only treat NON-user names as impure here.
-      if (IMPURE_CALLS.has(expr.callee.name) && !userFns.has(expr.callee.name)) {
-        effects.push(`呼叫 ${expr.callee.name}()（I/O 或外部副作用）`);
+      if (expr.callee.type === 'Identifier') {
+        // A user-defined function shadows a builtin of the same name; its purity is
+        // resolved interprocedurally, so only treat NON-user names as impure here.
+        if (IMPURE_CALLS.has(expr.callee.name) && !userFns.has(expr.callee.name)) {
+          effects.push(`呼叫 ${expr.callee.name}()（I/O 或外部副作用）`);
+        }
+      } else {
+        // An Attribute callee (`math.sqrt(x)`, `mod.write(x)`, ...) is an
+        // unknown quantity — conservatively treat ANY attribute call as a
+        // potential side effect rather than attempting an unwinnable
+        // per-module allowlist (matches this file's own "reports observed
+        // effects, not proof of purity" stance).
+        effects.push(`呼叫 ${expr.callee.object.type === 'Identifier' ? expr.callee.object.name + '.' : ''}${expr.callee.attr}()（未知模組/物件呼叫，保守視為副作用）`);
+        scanExpression(expr.callee.object, effects, userFns);
       }
       for (const a of expr.args) scanExpression(a, effects, userFns);
       break;
@@ -95,6 +105,24 @@ function scanExpression(expr: Expression, effects: string[], userFns: Set<string
     case 'Await':
       scanExpression(expr.argument, effects, userFns);
       break;
+    case 'Dict':
+      for (const e of expr.entries) {
+        scanExpression(e.key, effects, userFns);
+        scanExpression(e.value, effects, userFns);
+      }
+      break;
+    case 'Set':
+      for (const e of expr.elements) scanExpression(e, effects, userFns);
+      break;
+    case 'Subscript':
+      scanExpression(expr.object, effects, userFns);
+      scanExpression(expr.index, effects, userFns);
+      break;
+    case 'Attribute':
+      // A bare attribute READ (not a call) is not itself a side effect —
+      // only the Call case above treats an attribute *call* as one.
+      scanExpression(expr.object, effects, userFns);
+      break;
     case 'Identifier':
     case 'NumberLiteral':
     case 'StringLiteral':
@@ -111,6 +139,11 @@ function scanStatement(stmt: Statement, effects: string[], userFns: Set<string>)
       break;
     case 'Assignment':
     case 'AugmentedAssign':
+      // A Subscript target's object/index (e.g. `d[compute_index()] = v`) can
+      // itself hide a side effect — scan it too, not just the RHS value.
+      scanExpression(stmt.value, effects, userFns);
+      if (stmt.target.type !== 'Identifier') scanExpression(stmt.target, effects, userFns);
+      break;
     case 'OverlayAssign':
       scanExpression(stmt.value, effects, userFns);
       break;
@@ -137,6 +170,27 @@ function scanStatement(stmt: Statement, effects: string[], userFns: Set<string>)
       scanExpression(stmt.iterable, effects, userFns);
       for (const s of stmt.body) scanStatement(s, effects, userFns);
       break;
+    case 'Break':
+    case 'Continue':
+    case 'Import':
+      break; // no expressions, no side effects
+    case 'Try':
+      for (const s of stmt.body) scanStatement(s, effects, userFns);
+      for (const h of stmt.handlers) for (const s of h.body) scanStatement(s, effects, userFns);
+      for (const s of stmt.finallyBody) scanStatement(s, effects, userFns);
+      break;
+    case 'Raise':
+      // Raising is not itself treated as an impurity/side effect (it's still
+      // deterministic given the same inputs) — but an expression hidden
+      // inside it (e.g. a call) is scanned like anywhere else.
+      if (stmt.exception) scanExpression(stmt.exception, effects, userFns);
+      break;
+    case 'ClassDef':
+      // Method bodies are opaque to this analysis stack this round (see
+      // semantic.ts's resolveMethod) — a nested class definition is not
+      // itself a side effect, and its methods are analyzed independently
+      // (never, since they're excluded from fnRecords).
+      break;
   }
 }
 
@@ -156,7 +210,12 @@ export function checkPurity(fn: FunctionDef, userFns: Set<string> = new Set()): 
 function collectCallsExpr(expr: Expression, into: Set<string>): void {
   switch (expr.type) {
     case 'Call':
-      into.add(expr.callee.name);
+      // Only an Identifier callee can NAME a user-defined function (what this
+      // interprocedural taint set tracks) — an Attribute callee (`math.sqrt`)
+      // never refers to one by bare name, so there's nothing to add for it,
+      // though its object may itself hide a user-function call worth recursing into.
+      if (expr.callee.type === 'Identifier') into.add(expr.callee.name);
+      else collectCallsExpr(expr.callee.object, into);
       for (const a of expr.args) collectCallsExpr(a, into);
       break;
     case 'Power':
@@ -197,6 +256,22 @@ function collectCallsExpr(expr: Expression, into: Set<string>): void {
     case 'Await':
       collectCallsExpr(expr.argument, into);
       break;
+    case 'Dict':
+      for (const e of expr.entries) {
+        collectCallsExpr(e.key, into);
+        collectCallsExpr(e.value, into);
+      }
+      break;
+    case 'Set':
+      for (const e of expr.elements) collectCallsExpr(e, into);
+      break;
+    case 'Subscript':
+      collectCallsExpr(expr.object, into);
+      collectCallsExpr(expr.index, into);
+      break;
+    case 'Attribute':
+      collectCallsExpr(expr.object, into);
+      break;
     default:
       break;
   }
@@ -218,6 +293,9 @@ export function collectCalledNames(fn: FunctionDef): string[] {
         break;
       case 'Assignment':
       case 'AugmentedAssign':
+        collectCallsExpr(stmt.value, names);
+        if (stmt.target.type !== 'Identifier') collectCallsExpr(stmt.target, names);
+        break;
       case 'OverlayAssign':
         collectCallsExpr(stmt.value, names);
         break;
@@ -239,6 +317,20 @@ export function collectCalledNames(fn: FunctionDef): string[] {
         collectCallsExpr(stmt.iterable, names);
         stmt.body.forEach(visit);
         break;
+      case 'Break':
+      case 'Continue':
+      case 'Import':
+        break;
+      case 'Try':
+        stmt.body.forEach(visit);
+        stmt.handlers.forEach((h) => h.body.forEach(visit));
+        stmt.finallyBody.forEach(visit);
+        break;
+      case 'Raise':
+        if (stmt.exception) collectCallsExpr(stmt.exception, names);
+        break;
+      case 'ClassDef':
+        break; // methods are analyzed independently, never via fnRecords
     }
   };
   for (const stmt of fn.body) visit(stmt);

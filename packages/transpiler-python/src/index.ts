@@ -95,6 +95,7 @@ export function transpileEmlToPython(
         declaredNames: semantic.declaredNames,
         functions,
         loops,
+        importedModules: semantic.importedModules,
       },
     };
   } catch (err) {
@@ -121,7 +122,7 @@ export function transpileEmlToPython(
       diagnostics: [diagnostic],
       imports: [],
       python: '',
-      metadata: { emlLines: countNonEmpty(normalized), pythonLines: 0, symbolsUsed: [], declaredNames: [], functions: [], loops: [] },
+      metadata: { emlLines: countNonEmpty(normalized), pythonLines: 0, symbolsUsed: [], declaredNames: [], functions: [], loops: [], importedModules: [] },
     };
   }
 }

@@ -23,7 +23,7 @@ and whitepaper §4.2–4.4. Where this document and those disagree, **this docum
   to ASCII before tokenizing (§2).
 * The reference implementation is the TypeScript monorepo under `packages/`. Concrete behavior cited
   here (precedence, formatting, diagnostics) is what that implementation does and what the test
-  suite (`tests/`, 363 cases) enforces.
+  suite (`tests/`, 512 cases) enforces.
 * §11 defines exactly what "v1.0" freezes and what remains non-normative / prototype.
 
 ---
@@ -95,14 +95,17 @@ A conforming parser MUST accept the ASCII form; it MAY accept Unicode by normali
 
 ## 3. Grammar (EBNF) — v1.0
 
-This grammar is at Phase-4 parity. It extends grammar.md v0.1 with decorator arguments, `async def`,
-the `await` expression, the `/` overlay operator, and the power operator `^<int≥1>`.
+This grammar is at Phase-7 parity. It extends grammar.md v0.1 with decorator arguments, `async def`,
+the `await` expression, the `/` overlay operator, the power operator `^<int≥1>`, and (Phase 7a–7e)
+`break`/`continue`, dict/set literals + subscript, attribute access + user `import`,
+`try`/`except`/`finally`/`raise`, and `class`.
 
 ```ebnf
 Program        ::= { Statement Newline? }
 
 Statement      ::= OverlayStatement
                  | AssignmentStatement
+                 | CompoundAssignStatement     (* Phase 7b *)
                  | OutputStatement
                  | ExpressionStatement
                  | FunctionDefinition          (* Phase 2 *)
@@ -110,9 +113,15 @@ Statement      ::= OverlayStatement
                  | IfStatement                 (* Phase 6 *)
                  | WhileStatement              (* Phase 6 *)
                  | ForInStatement              (* Phase 6 *)
+                 | BreakStatement              (* Phase 7a *)
+                 | ContinueStatement           (* Phase 7a *)
+                 | ImportStatement             (* Phase 7c *)
+                 | TryStatement                (* Phase 7d *)
+                 | RaiseStatement              (* Phase 7d *)
+                 | ClassDefinition             (* Phase 7e *)
                  | EmptyStatement
 
-(* ── Control flow (Phase 6) ── *)
+(* ── Control flow (Phase 6, 7a) ── *)
 IfStatement    ::= "if" Expression ":" Newline Block
                     [ "elif" Expression ":" Newline Block ]*
                     [ "else" ":" Newline Block ]
@@ -121,6 +130,33 @@ IfStatement    ::= "if" Expression ":" Newline Block
 WhileStatement ::= "while" Expression ":" Newline Block
 ForInStatement ::= "for" Identifier InOperator Expression ":" Newline Block
                     (* target MUST be a single bare identifier; no tuple-unpacking *)
+BreakStatement    ::= "break"
+ContinueStatement ::= "continue"
+                    (* legal anywhere at parse time; E_BREAK_OUTSIDE_LOOP /
+                       E_CONTINUE_OUTSIDE_LOOP are semantic-pass diagnostics,
+                       mirroring how `return` outside a function is checked *)
+
+(* ── Modules, exceptions, classes (Phase 7c–7e) ── *)
+ImportStatement ::= "import" Identifier
+                    (* a single bare module name only — no `from x import y`,
+                       no `as` aliasing, no dotted paths *)
+
+TryStatement   ::= "try" ":" Newline Block
+                    ExceptClause+
+                    [ "finally" ":" Newline Block ]
+                 | "try" ":" Newline Block "finally" ":" Newline Block
+                    (* at least one ExceptClause or a finally is REQUIRED *)
+ExceptClause   ::= "except" [ Identifier [ "as" Identifier ] ] ":" Newline Block
+                    (* a bare `except:` is equivalent to `except Exception:` *)
+RaiseStatement ::= "raise" [ Expression ]
+
+ClassDefinition ::= "class" Identifier ":" Newline ClassBlock
+ClassBlock     ::= Indent { ( FunctionDefinition | AssignmentStatement | OverlayStatement ) Newline } Dedent
+                    (* no base-class clause; a class body may only contain
+                       method defs or a plain assignment — anything else is
+                       E_CLASS_BODY_UNSUPPORTED. Methods are ordinary
+                       FunctionDefinition nodes; `self` is an ordinary first
+                       parameter, nothing special at the grammar level. *)
 
 (* ── Functions, decorators, temperature, temporal (Phase 2–3) ── *)
 FunctionDefinition ::= { Decorator Newline } [ "async" ] "def" Identifier
@@ -136,8 +172,16 @@ Block          ::= Indent { Statement Newline } Dedent
 ReturnStatement ::= "return" [ Expression ]
 
 (* ── Assignment / overlay / output ── *)
-AssignmentStatement ::= Expression AssignArrow Identifier
+AssignmentStatement ::= Expression AssignArrow AssignTarget
 AssignArrow    ::= "=>" | "⇒"
+CompoundAssignStatement ::= AssignTarget CompoundOp Expression      (* Phase 7b, target-FIRST *)
+CompoundOp     ::= "+=" | "-=" | "*=" | "/="
+
+(* AssignTarget is the *reversed* form's target side: a bare name, or a name
+   followed by any number of subscript/attribute suffixes. `OverlayStatement`'s
+   `^`-sigil targets and a `for`-loop's own target stay Identifier-only — see
+   §6a/§6b for why. *)
+AssignTarget   ::= Identifier { "[" Expression "]" | "." Identifier }
 
 OverlayStatement ::= Identifier OverlaySuffix
                    | Identifier OverlaySuffix ListLiteral        (* list^+[...] *)
@@ -157,14 +201,18 @@ MultiplicativeExpression ::= PowerExpression { ("*" | "/") PowerExpression }
 (* `^Number` (power, Number ≠ 0) and `^T` (transpose) are mutually-exclusive
    suffixes over a postfix/primary; they do not chain (no `m^T^2`). *)
 PowerExpression ::= PostfixExpression [ ( "^" Number ) | "^T" ]
-PostfixExpression ::= PrimaryExpression { CallSuffix }
-CallSuffix     ::= "(" [ ArgumentList ] ")"            (* call: f(a,b) *)
-                 | "^+" "(" [ ArgumentList ] ")"       (* call-bind: f^+(a,b) (an expression) *)
+PostfixExpression ::= PrimaryExpression { CallSuffix | SubscriptSuffix | AttributeSuffix }
+CallSuffix     ::= "(" [ ArgumentList ] ")"            (* call: f(a,b) / obj.method(a,b) (Phase 7c) *)
+                 | "^+" "(" [ ArgumentList ] ")"       (* call-bind: f^+(a,b) (an expression; Identifier callee only) *)
+SubscriptSuffix ::= "[" Expression "]"                 (* obj[index], Phase 7b *)
+AttributeSuffix ::= "." Identifier                     (* obj.attr, Phase 7c *)
 PrimaryExpression ::= Identifier
                     | Number | String
                     | SumExpression
                     | MatrixExpression
                     | ListLiteral
+                    | DictLiteral                      (* Phase 7b *)
+                    | SetLiteral                       (* Phase 7b *)
                     | RangeExpression
                     | MembershipExpression
                     | AwaitExpression                 (* Phase 3 *)
@@ -179,6 +227,9 @@ RangeExpression ::= "[" Expression ":" Expression "]"   (* inclusive of the uppe
 MembershipExpression ::= Expression InOperator (RangeExpression | Expression)
 MatrixExpression ::= "<M>" "(" Expression ")"
 ListLiteral    ::= "[" [ ArgumentList ] "]"
+DictLiteral    ::= "{" [ DictEntry { "," DictEntry } ] "}"        (* empty `{}` is a dict, Python parity *)
+DictEntry      ::= Expression ":" Expression
+SetLiteral     ::= "{" Expression { "," Expression } "}"          (* an empty set has no literal — use `set()` *)
 ```
 
 ---
@@ -364,6 +415,128 @@ print(y)
 
 ---
 
+## 6b. Grammar completion — break/continue, dict/set/subscript, attribute/import, try/except/raise, class (Phase 7)
+
+Five additive sub-phases (7a–7e) closing the remaining gap to "EML can express
+a general-purpose program": Phase 6 (§6a) added branching/looping but no way
+to exit a loop early, no keyed collections, no attribute/module access, no
+exception handling, and no user-defined types.
+
+**Shared foundation — `AssignTarget`.** EML has no native `target = value`
+syntax (bare `=` is claimed as equality). The existing `=>` arrow idiom widens
+its target side from one bare identifier to a chain of subscript/attribute
+suffixes: `AssignTarget ::= Identifier { "[" Expression "]" | "." Identifier
+}` (§3). `v => d[k]` and `v => self.x` are the *reversed* spelling; target-FIRST
+compound assignment (`d[k] += v`) uses the new `+=`/`-=`/`*=`/`/=` tokens
+instead. `OverlayStatement`'s `^`-sigil target and a `for`-loop's own target
+stay `Identifier`-only — there is no declare-vs-augment ambiguity to resolve
+for a subscript/attribute target (unlike a bare name), and tuple/subscript
+`for`-targets were not requested.
+
+### 7a — `break` / `continue`
+
+`break` exits, `continue` skips to the next iteration of, the nearest
+enclosing `while`/`for`. Both are legal anywhere at **parse** time; using one
+outside a loop body is a **semantic** diagnostic (`E_BREAK_OUTSIDE_LOOP` /
+`E_CONTINUE_OUTSIDE_LOOP`), mirroring how `return` outside a function is
+checked (§6, `E_RETURN_OUTSIDE_FN`) rather than grammatically restricted. A
+`def` nested inside a loop resets the loop context — its own `break` cannot
+escape to an enclosing loop, matching Python.
+
+### 7b — dict / set literals + subscript
+
+`{k: v, ...}` is a dict; `{v, ...}` is a set; an empty `{}` is a dict (Python
+parity) — an empty set has no literal spelling (`set()` only). `obj[index]`
+reads/writes a list (negative indices supported), string (read-only —
+`TypeError` on write, matching Python's string immutability), or dict
+(`KeyError` on a missing read; write inserts-or-updates). Python's rule that
+`1`/`1.0`/`True` are the *same* dict/set key is preserved by the reference
+implementation's canonical key normalization.
+
+### 7c — attribute access + user `import`
+
+`obj.attr` reads/writes an attribute; `obj.method(args)` composes naturally
+(an `Attribute` followed by a call suffix). `import module` accepts a single
+bare top-level module name only — no `from x import y`, no `as` aliasing, no
+dotted paths (`import os.path`). An attribute call/read without a matching
+prior `import` is a runtime `NameError`, exactly as in real Python — EML does
+not statically validate that the module name is real.
+
+### 7d — `try` / `except` / `finally` + `raise`
+
+`try: … (except [Type [as name]]: …)+ [finally: …]` — at least one `except`
+or a `finally` is required (a bare `try:` alone is `E_PARSE`). `except:` with
+no type is equivalent to `except Exception:` (catch-all). `raise` (bare)
+re-raises the currently-handled exception; `raise Type("msg")` raises a new
+one; `except Type as name:` binds `name` only for the duration of that
+handler (Python's implicit `del` on exit — it does not leak into surrounding
+scope).
+
+### 7e — `class` — minimal viable OOP
+
+```eml
+class Counter:
+    def __init__(self, start):
+        start => self.value
+    def increment(self):
+        self.value + 1 => self.value
+    def get(self):
+        return self.value
+
+Counter(0) => c
+c.increment()
+c.increment()
+c.get() => r
+r^0
+```
+→
+```python
+class Counter:
+    def __init__(self, start):
+        self.value = start
+    def increment(self):
+        self.value = self.value + 1
+    def get(self):
+        return self.value
+
+c = Counter(0)
+c.increment()
+c.increment()
+r = c.get()
+print(r)
+```
+
+`class Name:` with no base-class clause (a `class Foo(Bar):` form is not
+recognized by the grammar and fails loud as a plain `E_PARSE`). Methods are
+ordinary `FunctionDefinition` nodes — `self` is an ordinary first parameter,
+nothing special grammatically. A class body may otherwise only contain a
+plain assignment (a class-level variable) — anything else is
+`E_CLASS_BODY_UNSUPPORTED`. No inheritance, no multiple inheritance, no
+method decorators (`@staticmethod`/`@classmethod`/`@property`), no dunder
+methods beyond `__init__` (no `__str__`/`__repr__`/`__eq__`/operator
+overloading). A `@cold`/`@hot`/`@temporal_loop` decorator on a method is
+diagnosed (`W_METHOD_DECORATOR_UNSUPPORTED`) and has no effect — method
+bodies are not analyzed by the cold/hot/purity/importance/crystallization
+stack this round (§6's per-function analysis applies only to top-level and
+nested *functions*, not methods — this is a deliberate scope cut to avoid
+two unrelated classes' same-named methods colliding in that whole-program,
+bare-name-keyed analysis). `W_CLASS_REDECLARED` mirrors `W_FN_REDECLARED`.
+Instantiation (`Foo(args)`) is an ordinary function call grammatically —
+Python itself resolves class-vs-function at runtime.
+
+### Diagnostics and back ends (Phase 7, all sub-phases)
+
+7a and 7e are the only sub-phases with new diagnostic codes (Appendix A);
+7b/7c/7d intentionally add **none** — dict/set/subscript errors (`KeyError`,
+`IndexError`, `TypeError`) are runtime `PyError`s like existing arithmetic
+errors, an `import`ed name that's never really available is a runtime
+`NameError` like real Python, and try/except/raise's scoping and matching
+subtleties are deliberately runtime concerns, not static ones. The C⁺⁺⁺
+prototype back end (§10) and reverse Python→EML transpilation (§9) both fail
+loudly on every Phase 7 construct — see §11.
+
+---
+
 ## 7. Temporal loops (Phase 3)
 
 `@temporal_loop` lets a function wait for a condition to mature **without busy-waiting**:
@@ -486,8 +659,20 @@ invariant, is **major** (`EML-LANG-2027` or `v2.0`).
 **Phase 6 addendum.** `if`/`elif`/`else`, `while`, and `for...in` (§6a) were added as new statement
 kinds after the initial v1.0 freeze. This is an **additive** change per the policy above: nothing in
 §4/§5/Appendix A changed meaning, and the §9 round-trip guarantee for the previously-supported subset
-is untouched. `try`/`except`, dict/set literals, `class`, user `import`, and `break`/`continue` remain
-future work — not yet built, not rejected.
+is untouched.
+
+**Phase 7 addendum.** `break`/`continue`, dict/set literals + subscript, attribute access + user
+`import`, `try`/`except`/`finally`/`raise`, and `class` (§6b) were added as new statement/expression
+kinds, completing the grammar to general-purpose-program coverage. Also **additive**: nothing in
+§4/§5/Appendix A's *existing* entries changed meaning, `AssignTarget` (§3) is a strict widening of
+what an assignment target could already be (a bare identifier remains valid everywhere it was), and
+the §9 round-trip guarantee for the previously-supported subset is untouched (every Phase 7 construct
+is forward-only — reverse Python→EML and the C⁺⁺⁺ back end fail loudly on all of them, §6b). Five new
+diagnostic codes were added to Appendix A (`E_BREAK_OUTSIDE_LOOP`, `E_CONTINUE_OUTSIDE_LOOP`,
+`E_CLASS_BODY_UNSUPPORTED`, `W_METHOD_DECORATOR_UNSUPPORTED`, `W_CLASS_REDECLARED`) — additive per
+the same policy. No language feature remains scoped-out from the original "general-purpose program"
+goal; `class` explicitly excludes inheritance, method decorators, and dunders beyond `__init__` as a
+permanent (not merely deferred) design simplification for this language generation.
 
 ---
 
@@ -503,6 +688,9 @@ future work — not yet built, not rejected.
 | `E_RANGE_NONINT` | A `range` bound is a non-integer literal. |
 | `E_ALIAS_COLLISION` | Two identifiers map to the same emitted Python name (builtin-shadow alias), or a function is named like an alias key. |
 | `E_RETURN_OUTSIDE_FN` | `return` used outside a function body. |
+| `E_BREAK_OUTSIDE_LOOP` | `break` used outside a loop body. |
+| `E_CONTINUE_OUTSIDE_LOOP` | `continue` used outside a loop body. |
+| `E_CLASS_BODY_UNSUPPORTED` | A class-body statement is neither a method definition nor a plain assignment. |
 | `E_CPP_UNSUPPORTED` | (C++ back end) construct outside the prototype subset — fail loud, no broken C++. |
 
 **Warnings (do not block; surfaced to the user):**
@@ -517,6 +705,8 @@ future work — not yet built, not rejected.
 | `W_TEMPORAL_NOT_ASYNC` | `@temporal_loop` on a non-`async def`. |
 | `W_TEMPORAL_ARG` | Unknown `@temporal_loop` argument. |
 | `W_COLD_ASYNC` | `@cold` on an `async def` (caching skipped — would memoize a coroutine). |
+| `W_METHOD_DECORATOR_UNSUPPORTED` | A `@cold`/`@hot`/`@temporal_loop` decorator on a class method — not analyzed this round, has no effect. |
+| `W_CLASS_REDECLARED` | A class name is redeclared in the same scope (mirrors `W_FN_REDECLARED`). |
 
 The bug classifier (`eml bugs`) records, but does not fix, diagnostics at five severities:
 **CRITICAL · MAJOR · MINOR · TRIVIAL · COSMETIC** (CRITICAL/MAJOR map to `ok:false` so a trace

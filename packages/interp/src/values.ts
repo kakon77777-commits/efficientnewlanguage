@@ -24,10 +24,21 @@ export type PyVal =
   | { k: 'str'; v: string }
   | { k: 'bool'; v: boolean }
   | { k: 'list'; v: PyVal[] }
+  // Phase 7b: dict/set, keyed by `canonicalKey()` (a JS Map can't use PyVal
+  // structural equality directly). A dict entry keeps both the original key
+  // PyVal (for repr/iteration) and its value; a set just keeps the element.
+  | { k: 'dict'; v: Map<string, { key: PyVal; value: PyVal }> }
+  | { k: 'set'; v: Map<string, PyVal> }
   // A first-class function value. `def` (the FunctionDef) and `closure` (the
   // defining Scope, for lexical closures) are interpreter-owned and kept opaque
   // here so this module stays dependency-free; the interpreter casts them.
   | { k: 'func'; name: string; def?: unknown; closure?: unknown }
+  // Phase 7e: minimal viable OOP. `def`/`classDef` (both ClassDef ASTs) are
+  // kept opaque for the same dependency-free reason as `func`'s `def`. An
+  // instance's `attrs` map is the ONLY place instance state lives — there is
+  // no separate class-level attribute store this round (see docs).
+  | { k: 'class'; name: string; def: unknown }
+  | { k: 'instance'; className: string; classDef: unknown; attrs: Map<string, PyVal> }
   | { k: 'none' };
 
 /** A Python-style runtime error (name mirrors the CPython exception class). */
@@ -47,6 +58,49 @@ export const STR = (v: string): PyVal => ({ k: 'str', v });
 export const BOOL = (v: boolean): PyVal => ({ k: 'bool', v });
 export const LIST = (v: PyVal[]): PyVal => ({ k: 'list', v });
 export const NONE: PyVal = { k: 'none' };
+
+/**
+ * Canonical dict/set key: Python treats int/float/bool as the SAME key when
+ * numerically equal (`hash(1) == hash(1.0) == hash(True)`; `{1: 'a'}[1.0]`
+ * returns `'a'`), so numeric values normalize to one shared form. Everything
+ * else gets a type-tagged form so e.g. the string `"n:1"` can never collide
+ * with the canonicalization of the int `1`.
+ */
+export function canonicalKey(v: PyVal): string {
+  if (v.k === 'int') return `n:${v.v}`;
+  if (v.k === 'bool') return `n:${v.v ? '1' : '0'}`;
+  if (v.k === 'float') {
+    if (Number.isFinite(v.v) && Number.isInteger(v.v)) return `n:${BigInt(v.v)}`;
+    return `n:${v.v}`; // NaN/Infinity/non-integral float: distinct from any int key
+  }
+  if (v.k === 'str') return `s:${v.v}`;
+  if (v.k === 'none') return 'z:None';
+  throw new PyError('TypeError', `unhashable type: '${typeName(v)}'`);
+}
+
+/** Build a dict PyVal from literal entries, in source order. A later entry
+ *  with a numerically-equal key UPDATES the value but keeps the first key's
+ *  identity for repr — matches Python's own `{1: 'a', 1.0: 'b'}` -> `{1: 'b'}`. */
+export const DICT = (entries: { key: PyVal; value: PyVal }[]): PyVal => {
+  const m = new Map<string, { key: PyVal; value: PyVal }>();
+  for (const e of entries) {
+    const ck = canonicalKey(e.key);
+    const existing = m.get(ck);
+    m.set(ck, { key: existing ? existing.key : e.key, value: e.value });
+  }
+  return { k: 'dict', v: m };
+};
+
+/** Build a set PyVal from literal elements; duplicates (by canonical key)
+ *  collapse to the first-seen representative, matching Python set literals. */
+export const SET = (elements: PyVal[]): PyVal => {
+  const m = new Map<string, PyVal>();
+  for (const e of elements) {
+    const ck = canonicalKey(e);
+    if (!m.has(ck)) m.set(ck, e);
+  }
+  return { k: 'set', v: m };
+};
 
 type PyNumeric = Extract<PyVal, { k: 'int' | 'float' | 'bool' }>;
 const isNumeric = (a: PyVal): a is PyNumeric => a.k === 'int' || a.k === 'float' || a.k === 'bool';
@@ -80,8 +134,16 @@ export function typeName(a: PyVal): string {
       return 'bool';
     case 'list':
       return 'list';
+    case 'dict':
+      return 'dict';
+    case 'set':
+      return 'set';
     case 'func':
       return 'function';
+    case 'class':
+      return 'type';
+    case 'instance':
+      return a.className;
     case 'none':
       return 'NoneType';
   }
@@ -100,8 +162,13 @@ export function truthy(a: PyVal): boolean {
       return a.v;
     case 'list':
       return a.v.length > 0;
+    case 'dict':
+    case 'set':
+      return a.v.size > 0;
     case 'func':
-      return true;
+    case 'class':
+    case 'instance':
+      return true; // a plain object with no __bool__/__len__ override is always truthy
     case 'none':
       return false;
   }
@@ -270,16 +337,39 @@ export function pyEquals(a: PyVal, b: PyVal): boolean {
   if (a.k === 'none' && b.k === 'none') return true;
   if (a.k === 'list' && b.k === 'list')
     return a.v.length === b.v.length && a.v.every((x, i) => pyEquals(x, b.v[i]!));
+  if (a.k === 'dict' && b.k === 'dict') {
+    if (a.v.size !== b.v.size) return false;
+    for (const [key, entry] of a.v) {
+      const other = b.v.get(key);
+      if (!other || !pyEquals(entry.value, other.value)) return false;
+    }
+    return true;
+  }
+  if (a.k === 'set' && b.k === 'set') {
+    if (a.v.size !== b.v.size) return false;
+    for (const key of a.v.keys()) if (!b.v.has(key)) return false;
+    return true;
+  }
+  // No `__eq__` override is modeled this round, so a class/instance falls
+  // back to Python's own default: identity. Without this, `c == c` would
+  // incorrectly fall through to `return false` below (neither side matches
+  // any of the cases above), breaking reflexivity for the SAME object.
+  if (a.k === 'instance' && b.k === 'instance') return a === b;
+  if (a.k === 'class' && b.k === 'class') return a === b;
   return false;
 }
 
-/** `element in collection` (list membership / substring). */
+/** `element in collection` (list membership / substring / dict keys / set membership). */
 export function contains(element: PyVal, collection: PyVal): PyVal {
   if (collection.k === 'list') return BOOL(collection.v.some((x) => pyEquals(x, element)));
   if (collection.k === 'str') {
     if (element.k !== 'str')
       throw new PyError('TypeError', `'in <string>' requires string as left operand, not ${typeName(element)}`);
     return BOOL(collection.v.includes(element.v));
+  }
+  if (collection.k === 'dict' || collection.k === 'set') {
+    if (!isHashable(element)) throw new PyError('TypeError', `unhashable type: '${typeName(element)}'`);
+    return BOOL(collection.v.has(canonicalKey(element)));
   }
   throw new PyError('TypeError', `argument of type '${typeName(collection)}' is not iterable`);
 }
@@ -301,8 +391,23 @@ export function pyStr(a: PyVal): string {
       return 'None';
     case 'list':
       return '[' + a.v.map(pyRepr).join(', ') + ']';
+    case 'dict':
+      return '{' + [...a.v.values()].map((e) => `${pyRepr(e.key)}: ${pyRepr(e.value)}`).join(', ') + '}';
+    case 'set':
+      // Python has no `{}` literal for an empty set (that's a dict); repr matches.
+      return a.v.size === 0 ? 'set()' : '{' + [...a.v.values()].map(pyRepr).join(', ') + '}';
     case 'func':
       return `<function ${a.name}>`;
+    case 'class':
+      return `<class '${a.name}'>`;
+    case 'instance':
+      // Real Python's default repr embeds a memory address (`<Counter object
+      // at 0x7f...>`), which is inherently non-reproducible — there is no
+      // meaningful "exact match" to chase here (no `__str__`/`__repr__`
+      // override is modeled this round), so this is a deliberately stable
+      // placeholder rather than a fabricated address. Never asserted against
+      // real Python in the equivalence tests for that reason.
+      return `<${a.className} object>`;
   }
 }
 
@@ -358,7 +463,15 @@ export function floatRepr(n: number): string {
   return s;
 }
 
-/** Whether a value is hashable (usable as a dict key / functools.cache arg). */
+/**
+ * Whether a value is hashable (usable as a dict key / functools.cache arg).
+ * Real Python objects ARE hashable by default (identity-based hash) — `class`/
+ * `instance` are marked unhashable here as a deliberate conservative
+ * simplification (there is no meaningful *structural* key to assign them,
+ * and this avoids ever needing one for dict-key / cache-key purposes this
+ * round). Divergence, not a correctness gap: forward Python emission is
+ * unaffected; only the interpreter's own caching/dict-key logic declines.
+ */
 export function isHashable(v: PyVal): boolean {
-  return v.k !== 'list'; // dict/set not modeled; everything else is hashable
+  return v.k !== 'list' && v.k !== 'dict' && v.k !== 'set' && v.k !== 'class' && v.k !== 'instance';
 }

@@ -33,6 +33,8 @@ export interface TranspileMetadata {
   functions: CtsFunction[];
   /** Per-loop kind + determinism/termination classification (Phase 4). */
   loops: CtsLoop[];
+  /** Bare module names from user `import module` statements (Phase 7c). */
+  importedModules: string[];
 }
 
 export interface TranspileOptions {

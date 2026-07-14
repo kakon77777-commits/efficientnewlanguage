@@ -46,14 +46,29 @@ const here = dirname(fileURLToPath(import.meta.url));
 const fixturesDir = join(here, 'fixtures');
 const fixtures = readdirSync(fixturesDir).filter((f) => f.endsWith('.eml')).sort();
 
-// Functions (`def` / decorators, Phase 2) and control flow (`if`/`elif`/`else`/
-// `while`/`for`, Phase 6) are forward-only constructs: the reverse Python->EML
-// path stays statement-level, so fixtures using them are not expected to
-// round-trip (see eml-emitter.ts's throwing cases + py-parser.ts's lack of
-// if/while/for/def handling). The fixpoint checks cover the round-trippable subset.
-const roundTrippable = fixtures.filter(
-  (f) => !/\b(def|if|elif|else|while|for)\b/.test(readFileSync(join(fixturesDir, f), 'utf8')),
-);
+// Functions (`def` / decorators, Phase 2), control flow (`if`/`elif`/`else`/
+// `while`/`for`, Phase 6), `break`/`continue` (Phase 7a), dict/set/subscript
+// (Phase 7b), attribute access/`import` (Phase 7c), try/except/finally/
+// raise (Phase 7d), and `class` (Phase 7e) are forward-only constructs: the
+// reverse Python->EML path stays statement-level, so fixtures using them are
+// not expected to round-trip (see eml-emitter.ts's throwing cases + py-
+// parser.ts's/py-lexer.ts's lack of
+// if/while/for/def/break/continue/dict/set/subscript/attribute/import/try/
+// except/finally/raise/class handling). Dict/set use `{` (never used by any
+// round-trippable fixture); subscript is detected as a word character
+// directly followed by `[` (e.g. `lst[0]`) as opposed to a bare `[1:N]`
+// range/list literal (always preceded by whitespace/punctuation); attribute
+// access is detected as an identifier char, `.`, identifier-start char (e.g.
+// `math.sqrt`) as opposed to a numeric literal's decimal point (`3.14`,
+// where a digit precedes/follows the `.`). The fixpoint checks cover the
+// round-trippable subset.
+const roundTrippable = fixtures.filter((f) => {
+  const src = readFileSync(join(fixturesDir, f), 'utf8');
+  return (
+    !/\b(def|if|elif|else|while|for|break|continue|import|try|except|finally|raise|class)\b/.test(src) &&
+    !/[A-Za-z0-9_]\[|\{|[A-Za-z_]\.[A-Za-z_]/.test(src)
+  );
+});
 
 describe('round-trip EML -> Python -> EML -> Python (fixpoint)', () => {
   for (const f of roundTrippable) {

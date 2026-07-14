@@ -91,9 +91,11 @@ export interface SumExpression extends NodeBase {
   range: RangeExpression;
 }
 
+/** `callee` widens to `Identifier | AttributeExpression` in Phase 7c so
+ *  `math.sqrt(x)` / `obj.method(x)` parse as a Call over an Attribute. */
 export interface FunctionCall extends NodeBase {
   type: 'Call';
-  callee: Identifier;
+  callee: Identifier | AttributeExpression;
   args: Expression[];
 }
 
@@ -127,6 +129,32 @@ export interface AwaitExpression extends NodeBase {
   argument: Expression;
 }
 
+/** `{k: v, ...}`, e.g. `{"a": 1, "b": 2}`. Empty `{}` is a dict (Python parity). Phase 7b. */
+export interface DictLiteral extends NodeBase {
+  type: 'Dict';
+  entries: { key: Expression; value: Expression }[];
+}
+
+/** `{v, ...}`, e.g. `{1, 2, 3}`. An empty set has no literal form — use `set()`. Phase 7b. */
+export interface SetLiteral extends NodeBase {
+  type: 'Set';
+  elements: Expression[];
+}
+
+/** `obj[index]`, e.g. `d["k"]`, `lst[0]`, `lst[-1]`. Phase 7b. */
+export interface SubscriptExpression extends NodeBase {
+  type: 'Subscript';
+  object: Expression;
+  index: Expression;
+}
+
+/** `obj.attr`, e.g. `math.sqrt`, `self.value`. Phase 7c. */
+export interface AttributeExpression extends NodeBase {
+  type: 'Attribute';
+  object: Expression;
+  attr: string;
+}
+
 export type Expression =
   | Identifier
   | NumberLiteral
@@ -142,7 +170,22 @@ export type Expression =
   | TransposeExpression
   | ListLiteral
   | MembershipExpression
-  | AwaitExpression;
+  | AwaitExpression
+  | DictLiteral
+  | SetLiteral
+  | SubscriptExpression
+  | AttributeExpression;
+
+/**
+ * The shapes an assignment (`=>` arrow form, or a compound `+=`/`-=`/`*=`/`/=`)
+ * may target. `Identifier` is the original bare-name form; `Subscript` (Phase
+ * 7b) allows `d[k] = v` / `d[k] += v`; `Attribute` (Phase 7c) allows
+ * `self.x = v`. `OverlayAssign`'s `^`-sigil forms and `ForInStatement`'s loop
+ * variable stay `Identifier`-only — see docs for why (no declare/augment
+ * ambiguity to resolve for a subscript/attribute target, and no
+ * tuple/subscript/attribute for-targets requested).
+ */
+export type AssignTarget = Identifier | SubscriptExpression | AttributeExpression;
 
 // ── Statements ──────────────────────────────────────────────────────────────
 
@@ -161,16 +204,17 @@ export interface OverlayAssign extends NodeBase {
 /** Resolved plain assignment, e.g. `x = 100` or `y = f(x)`. */
 export interface AssignmentStatement extends NodeBase {
   type: 'Assignment';
-  target: Identifier;
+  target: AssignTarget;
   value: Expression;
-  /** True when this is the first binding of `target` in the program. */
+  /** True when this is the first binding of `target` in the program. Always
+   *  false for a non-Identifier target (a Subscript mutates, never declares). */
   declares: boolean;
 }
 
-/** Resolved augmented assignment, e.g. `x += 10`, `x -= 5`, `x *= 2`. */
+/** Resolved augmented assignment, e.g. `x += 10`, `x -= 5`, `x *= 2`, `d[k] += 1`. */
 export interface AugmentedAssignStatement extends NodeBase {
   type: 'AugmentedAssign';
-  target: Identifier;
+  target: AssignTarget;
   op: BinaryOperator;
   value: Expression;
 }
@@ -269,6 +313,79 @@ export interface ForInStatement extends NodeBase {
   body: Statement[];
 }
 
+/** `break` — exits the nearest enclosing `while`/`for` loop. Phase 7a. */
+export interface BreakStatement extends NodeBase {
+  type: 'Break';
+}
+
+/** `continue` — skips to the next iteration of the nearest enclosing loop. Phase 7a. */
+export interface ContinueStatement extends NodeBase {
+  type: 'Continue';
+}
+
+/**
+ * `import module` — a single bare module name, e.g. `import math`. No
+ * `from x import y`, no `as` aliasing, no dotted paths (`import os.path`).
+ * Phase 7c. Emitted in-place (not hoisted) since the user wrote it there.
+ */
+export interface ImportStatement extends NodeBase {
+  type: 'Import';
+  module: string;
+}
+
+/**
+ * One `except [ExceptionType] [as name]:` clause. Not a `Statement`/
+ * `Expression` itself — a sub-node of `TryStatement`, mirroring how
+ * `Decorator` is a sub-node of `FunctionDef`. `exceptionType` absent = bare
+ * `except:` (catch-all, same as `except Exception:`). Phase 7d.
+ */
+export interface ExceptHandler extends NodeBase {
+  type: 'ExceptHandler';
+  exceptionType?: string;
+  name?: string;
+  body: Statement[];
+}
+
+/**
+ * `try: <body> (except ...: <body>)+ [finally: <body>]` — Python requires at
+ * least one `except` or a `finally` (enforced by the parser). No `else:`
+ * clause (Phase 7d scope cut). `handlers`/`finallyBody` are checked in
+ * written order; `finallyBody` is empty (not undefined) when there's no
+ * `finally:` clause, matching `orelse`'s empty-means-absent convention.
+ */
+export interface TryStatement extends NodeBase {
+  type: 'Try';
+  body: Statement[];
+  handlers: ExceptHandler[];
+  finallyBody: Statement[];
+}
+
+/**
+ * `raise` (bare re-raise) or `raise <expression>` (e.g. `raise ValueError("msg")`).
+ * Phase 7d. No new "exception object" PyVal — the interpreter special-cases a
+ * `Call`/bare `Identifier` naming a Python exception class; anything else
+ * defers as `Unsupported`. See docs for why this is a deliberate shortcut.
+ */
+export interface RaiseStatement extends NodeBase {
+  type: 'Raise';
+  exception?: Expression;
+}
+
+/**
+ * `class Name: <body>` — minimal viable OOP (Phase 7e): no inheritance, no
+ * base classes, no method decorators (`@staticmethod`/`@classmethod`/
+ * `@property`), no dunders beyond `__init__`. Methods are ordinary nested
+ * `FunctionDef` nodes — `self` is just a ordinary first parameter, nothing
+ * special at the AST level. A class body may otherwise only contain a plain
+ * `Assignment`/`OverlayAssign` (a class-level variable); anything else is
+ * `E_CLASS_BODY_UNSUPPORTED` (see semantic.ts).
+ */
+export interface ClassDef extends NodeBase {
+  type: 'ClassDef';
+  name: string;
+  body: Statement[];
+}
+
 export type Statement =
   | OverlayAssign
   | AssignmentStatement
@@ -279,7 +396,13 @@ export type Statement =
   | ReturnStatement
   | IfStatement
   | WhileStatement
-  | ForInStatement;
+  | ForInStatement
+  | BreakStatement
+  | ContinueStatement
+  | ImportStatement
+  | TryStatement
+  | RaiseStatement
+  | ClassDef;
 
 export interface Program extends NodeBase {
   type: 'Program';

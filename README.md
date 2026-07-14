@@ -37,7 +37,7 @@ Requirements: Node ≥ 20, pnpm, Python 3.10+ (with `numpy` for matrix cases).
 
 ```bash
 pnpm install
-pnpm test                                   # 363 tests, incl. real python execution
+pnpm test                                   # 512 tests, incl. real python execution
 pnpm typecheck
 pnpm eml run examples/phase0/sum.eml        # -> 338350
 ```
@@ -170,6 +170,14 @@ Invoke via `pnpm eml <cmd>` in this repo, e.g. `pnpm eml explain examples/phase0
 | `if <t>: … elif <t>: … else: …` | `if <t>: … elif <t>: … else: …` | conditional branching (Phase 6) |
 | `while <t>: …` | `while <t>: …` | condition-controlled loop (Phase 6) |
 | `for <x> in <iterable>: …` | `for <x> in <iterable>: …` | iteration over a range or list (Phase 6) |
+| `break` / `continue` | `break` / `continue` | exit / skip a loop iteration (Phase 7a) |
+| `{k: v, ...}` / `{v, ...}` | `{k: v, ...}` / `{v, ...}` | dict / set literal (Phase 7b) |
+| `obj[index]`, `v => obj[k]`, `obj[k] += v` | `obj[index]`, `obj[k] = v`, `obj[k] += v` | subscript read/write (Phase 7b) |
+| `obj.attr`, `v => obj.attr` | `obj.attr`, `obj.attr = v` | attribute access (Phase 7c) |
+| `import module` | `import module` | bare module import (Phase 7c) |
+| `try: … except [T [as e]]: … [finally: …]` | `try: … except [T [as e]]: … [finally: …]` | exception handling (Phase 7d) |
+| `raise` / `raise T("msg")` | `raise` / `raise T("msg")` | raise / re-raise (Phase 7d) |
+| `class Name: def m(self, ...): …` | `class Name: def m(self, ...): …` | minimal viable OOP, no inheritance (Phase 7e) |
 
 EML accepts a Unicode display form (`Σ(i², i∈[1:N])`) normalized to the ASCII
 canonical form before lexing.

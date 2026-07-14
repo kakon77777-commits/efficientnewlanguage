@@ -147,6 +147,26 @@ export function lex(source: string): Token[] {
       push('NE', '!=', startPos, startLine, startCol);
       continue;
     }
+    if (at('+=')) {
+      advance(2);
+      push('PLUSEQ', '+=', startPos, startLine, startCol);
+      continue;
+    }
+    if (at('-=')) {
+      advance(2);
+      push('MINUSEQ', '-=', startPos, startLine, startCol);
+      continue;
+    }
+    if (at('*=')) {
+      advance(2);
+      push('STAREQ', '*=', startPos, startLine, startCol);
+      continue;
+    }
+    if (at('/=')) {
+      advance(2);
+      push('SLASHEQ', '/=', startPos, startLine, startCol);
+      continue;
+    }
 
     // sigma (summation keyword)
     if (c === 'Σ') {
@@ -213,6 +233,15 @@ export function lex(source: string): Token[] {
       else if (value === 'else') type = 'ELSE';
       else if (value === 'while') type = 'WHILE';
       else if (value === 'for') type = 'FOR';
+      else if (value === 'break') type = 'BREAK';
+      else if (value === 'continue') type = 'CONTINUE';
+      else if (value === 'import') type = 'IMPORT';
+      else if (value === 'try') type = 'TRY';
+      else if (value === 'except') type = 'EXCEPT';
+      else if (value === 'finally') type = 'FINALLY';
+      else if (value === 'raise') type = 'RAISE';
+      else if (value === 'as') type = 'AS';
+      else if (value === 'class') type = 'CLASS';
       push(type, value, startPos, startLine, startCol);
       continue;
     }
@@ -228,8 +257,11 @@ export function lex(source: string): Token[] {
       ')': 'RPAREN',
       '[': 'LBRACKET',
       ']': 'RBRACKET',
+      '{': 'LBRACE',
+      '}': 'RBRACE',
       ':': 'COLON',
       ',': 'COMMA',
+      '.': 'DOT',
       '?': 'QUESTION',
       '>': 'GT',
       '<': 'LT',

@@ -112,6 +112,27 @@ const CASES: Array<[string, string]> = [
   ['fibonacci via while', 'a^+0\nb^+1\nn^+10\nwhile n > 0:\n    a + b => c\n    b => a\n    c => b\n    n - 1 => n\na^0'],
   ['for-loop target leaks its final value after the loop (Python semantics)', 'for i in [1:3]:\n    i^0\ni^0'],
   ['return inside a nested if/while unwinds correctly', 'def f(n):\n    while n > 0:\n        if n == 3:\n            return n\n        n - 1 => n\n    return 0 - 1\n\nf(5) => r\nr^0'],
+  // Phase 7a: break / continue
+  ['break exits a while loop early', 'n^+0\ntotal^+0\nwhile n < 100:\n    n + 1 => n\n    if n > 5:\n        break\n    total + n => total\ntotal^0'],
+  ['continue skips the rest of a for-loop iteration', 'total^+0\nfor i in [1:10]:\n    if i > 5:\n        continue\n    total + i => total\ntotal^0'],
+  ['break in an inner loop does not affect an outer loop', 'total^+0\nfor i in [1:3]:\n    for j in [1:5]:\n        break\n        total + 1 => total\n    total + 1 => total\ntotal^0'],
+  // Phase 7d: try/except/finally + raise
+  ['try/except catches ZeroDivisionError, finally always runs', 'result^+0\ntry:\n    10 / 0 => ignored\nexcept ZeroDivisionError:\n    result^-1\nfinally:\n    result + 100 => result\nresult^0'],
+  ['raise + except-as binds the message (print(e) matches str(e))', 'def validate(n):\n    if n < 0:\n        raise ValueError("n must be non-negative")\n    return n\n\ntry:\n    validate(0 - 5) => r\n    r^0\nexcept ValueError as e:\n    e^0'],
+  ['finally runs even when no exception occurs', 'log^+0\ntry:\n    1 + 1 => x\nexcept ValueError:\n    log^+1\nfinally:\n    log^+2\nx^0\nlog^0'],
+  // Phase 7e: class (minimal viable OOP)
+  [
+    'class construction + methods + self.attr (arrow-form self.value assignment)',
+    'class Counter:\n    def __init__(self, start):\n        start => self.value\n    def increment(self):\n        self.value + 1 => self.value\n    def get(self):\n        return self.value\n\nCounter(0) => c\nc.increment()\nc.increment()\nc.get() => r\nr^0',
+  ],
+  [
+    'two instances of the same class carry independent state',
+    'class Counter:\n    def __init__(self, start):\n        start => self.value\n    def increment(self):\n        self.value + 1 => self.value\n\nCounter(0) => a\nCounter(100) => b\na.increment()\nb.increment()\nb.increment()\na.value => x\nb.value => y\nx^0\ny^0',
+  ],
+  [
+    'two classes with a same-named method do not collide at runtime',
+    'class Dog:\n    def __init__(self):\n        "woof" => self.sound\n    def speak(self):\n        return self.sound\n\nclass Cat:\n    def __init__(self):\n        "meow" => self.sound\n    def speak(self):\n        return self.sound\n\nDog() => d\nCat() => cat\nd.speak() => a\ncat.speak() => b\na^0\nb^0',
+  ],
 ];
 
 describe.skipIf(!PYTHON)('interpreter ≡ python (execution-truth gate)', () => {
@@ -227,6 +248,19 @@ describe.skipIf(!PYTHON)('runtime errors match Python (exception class + non-zer
     ['ZeroDivisionError', 'a^+1\nb^+0\na^/b\na^0', 'ZeroDivisionError'],
     ['ValueError from int()', 'int("abc") => r\nr^0', 'ValueError'],
     ['TypeError from abs(str)', 'abs("x") => r\nr^0', 'TypeError'],
+    ['KeyError from a missing dict key', 'd^+{}\nd["missing"] => x\nx^0', 'KeyError'],
+    ['IndexError from an out-of-range list subscript', 'lst^+[1,2,3]\nlst[10] => x\nx^0', 'IndexError'],
+    ['TypeError from string item assignment (immutable)', 's^+"hi"\n5 => s[0]', 'TypeError'],
+    [
+      'an unmatched except type lets the exception propagate uncaught',
+      'try:\n    10 / 0 => x\nexcept ValueError:\n    x^+0\nx^0',
+      'ZeroDivisionError',
+    ],
+    [
+      'AttributeError from a missing instance attribute',
+      'class C:\n    def __init__(self):\n        1 => self.x\n\nC() => c\nc.y => r\nr^0',
+      'AttributeError',
+    ],
   ];
   for (const [name, src, type] of ERROR_CASES) {
     it(`${name}`, () => {

@@ -33,7 +33,16 @@ const round3 = (x: number): number => Math.round(x * 1000) / 1000;
 function walkExpr(expr: Expression, bound: Set<string>, onCall: (name: string) => void): void {
   switch (expr.type) {
     case 'Call':
-      if (!bound.has(expr.callee.name)) onCall(expr.callee.name);
+      if (expr.callee.type === 'Identifier') {
+        if (!bound.has(expr.callee.name)) onCall(expr.callee.name);
+      } else {
+        // Key an Attribute callee by its full dotted name (`"math.sqrt"`) so
+        // it can never collide with an unrelated bare user function sharing
+        // just the tail name (e.g. a user's own `sqrt`).
+        const objName = expr.callee.object.type === 'Identifier' ? expr.callee.object.name : '…';
+        onCall(`${objName}.${expr.callee.attr}`);
+        walkExpr(expr.callee.object, bound, onCall);
+      }
       for (const a of expr.args) walkExpr(a, bound, onCall);
       break;
     case 'Power':
@@ -74,6 +83,23 @@ function walkExpr(expr: Expression, bound: Set<string>, onCall: (name: string) =
     case 'Await':
       walkExpr(expr.argument, bound, onCall);
       break;
+    case 'Dict':
+      for (const e of expr.entries) {
+        walkExpr(e.key, bound, onCall);
+        walkExpr(e.value, bound, onCall);
+      }
+      break;
+    case 'Set':
+      for (const e of expr.elements) walkExpr(e, bound, onCall);
+      break;
+    case 'Subscript':
+      walkExpr(expr.object, bound, onCall);
+      walkExpr(expr.index, bound, onCall);
+      break;
+    case 'Attribute':
+      // A bare attribute READ (not a call) isn't itself a call site.
+      walkExpr(expr.object, bound, onCall);
+      break;
     default:
       break;
   }
@@ -87,6 +113,9 @@ function walkStmt(stmt: Statement, bound: Set<string>, onCall: (name: string) =>
       break;
     case 'Assignment':
     case 'AugmentedAssign':
+      walkExpr(stmt.value, bound, onCall);
+      if (stmt.target.type !== 'Identifier') walkExpr(stmt.target, bound, onCall);
+      break;
     case 'OverlayAssign':
       walkExpr(stmt.value, bound, onCall);
       break;
@@ -114,6 +143,22 @@ function walkStmt(stmt: Statement, bound: Set<string>, onCall: (name: string) =>
     case 'ForIn':
       walkExpr(stmt.iterable, bound, onCall);
       for (const s of stmt.body) walkStmt(s, bound, onCall);
+      break;
+    case 'Break':
+    case 'Continue':
+    case 'Import':
+      break;
+    case 'Try':
+      for (const s of stmt.body) walkStmt(s, bound, onCall);
+      for (const h of stmt.handlers) for (const s of h.body) walkStmt(s, bound, onCall);
+      for (const s of stmt.finallyBody) walkStmt(s, bound, onCall);
+      break;
+    case 'Raise':
+      if (stmt.exception) walkExpr(stmt.exception, bound, onCall);
+      break;
+    case 'ClassDef':
+      // Method bodies are excluded from importance scoring this round (see
+      // semantic.ts's resolveMethod) — no call sites to attribute here.
       break;
   }
 }

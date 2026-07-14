@@ -21,6 +21,16 @@ import type {
   IfStatement,
   WhileStatement,
   ForInStatement,
+  DictLiteral,
+  SetLiteral,
+  SubscriptExpression,
+  AttributeExpression,
+  ImportStatement,
+  AssignTarget,
+  ExceptHandler,
+  TryStatement,
+  RaiseStatement,
+  ClassDef,
 } from '@eml/types';
 
 export class ParseError extends Error {
@@ -49,6 +59,14 @@ const OVERLAY_OPS: Partial<Record<TokenType, BinaryOperator>> = {
   MINUS: '-',
   STAR: '*',
   SLASH: '/',
+};
+
+/** Compound-assignment operators (Phase 7b), target-first: `d[k] += 1`. */
+const COMPOUND_ASSIGN_OPS: Partial<Record<TokenType, BinaryOperator>> = {
+  PLUSEQ: '+',
+  MINUSEQ: '-',
+  STAREQ: '*',
+  SLASHEQ: '/',
 };
 
 type OverlayKind = 'output' | 'overlay-assign' | 'list-assign' | 'expr';
@@ -159,6 +177,26 @@ class Parser {
     if (this.check('FOR')) {
       return this.parseForIn();
     }
+    if (this.check('BREAK')) {
+      this.next();
+      return { type: 'Break' };
+    }
+    if (this.check('CONTINUE')) {
+      this.next();
+      return { type: 'Continue' };
+    }
+    if (this.check('IMPORT')) {
+      return this.parseImport();
+    }
+    if (this.check('TRY')) {
+      return this.parseTry();
+    }
+    if (this.check('RAISE')) {
+      return this.parseRaise();
+    }
+    if (this.check('CLASS')) {
+      return this.parseClassDef();
+    }
 
     // Statement-level overlay forms: `x^0`, `x^+100`, `x^-5`, `list^+[...]`.
     if (this.check('IDENT') && this.peek(1).type === 'CARET') {
@@ -200,15 +238,58 @@ class Parser {
     const expr = this.parseExpression();
     if (this.check('ARROW')) {
       this.next();
-      const targetTok = this.expect('IDENT', 'assignment target');
+      const target = this.parseAssignTargetChain();
       return {
         type: 'Assignment',
-        target: { type: 'Identifier', name: targetTok.value },
+        target,
         value: expr,
         declares: false,
       };
     }
+    const compoundOp = COMPOUND_ASSIGN_OPS[this.peek().type];
+    if (compoundOp) {
+      const opTok = this.next(); // += / -= / *= / /=
+      const target = this.toAssignTarget(expr, opTok);
+      const value = this.parseExpression();
+      return { type: 'AugmentedAssign', target, op: compoundOp, value };
+    }
     return { type: 'ExpressionStatement', expression: expr };
+  }
+
+  /**
+   * Parse the target side of `=>` (`IDENT ('[' Expression ']' | '.' IDENT)*`,
+   * so `v => d[k]` / `v => self.x` compose to Subscript/Attribute targets).
+   * This is the *reversed* form (value first, `=>`, then target) — see
+   * `toAssignTarget()` for the target-first compound-assign form (`d[k] += v`).
+   */
+  private parseAssignTargetChain(): AssignTarget {
+    const idTok = this.expect('IDENT', 'assignment target');
+    let target: AssignTarget = { type: 'Identifier', name: idTok.value };
+    for (;;) {
+      if (this.check('LBRACKET')) {
+        this.next(); // [
+        const index = this.parseExpression();
+        this.expect('RBRACKET', "']' after subscript index");
+        target = { type: 'Subscript', object: target, index };
+      } else if (this.check('DOT')) {
+        this.next(); // .
+        const attrTok = this.expect('IDENT', 'attribute name');
+        target = { type: 'Attribute', object: target, attr: attrTok.value };
+      } else {
+        break;
+      }
+    }
+    return target;
+  }
+
+  /** Validate a parsed expression is a legal compound-assignment target (name, subscript, or attribute). */
+  private toAssignTarget(expr: Expression, opTok: Token): AssignTarget {
+    if (expr.type === 'Identifier' || expr.type === 'Subscript' || expr.type === 'Attribute') return expr;
+    throw new ParseError(
+      `Cannot use '${opTok.value}' here — only a name, a subscript (e.g. 'd[k]'), or an attribute (e.g. 'obj.attr') can be a compound-assignment target.`,
+      opTok.line,
+      opTok.column,
+    );
   }
 
   /** Decide what an `IDENT ^ ...` prefix means using up to 2 tokens of lookahead. */
@@ -310,6 +391,77 @@ class Parser {
       return { type: 'Return' };
     }
     return { type: 'Return', value: this.parseExpression() };
+  }
+
+  /** Parse `import module` — a single bare module name only (Phase 7c). */
+  private parseImport(): ImportStatement {
+    this.expect('IMPORT');
+    const modTok = this.expect('IDENT', 'module name');
+    return { type: 'Import', module: modTok.value };
+  }
+
+  /**
+   * Parse `try: <body> (except ...: <body>)* [finally: <body>]` (Phase 7d).
+   * Python requires at least one `except` or a `finally` — enforced here.
+   */
+  private parseTry(): TryStatement {
+    this.expect('TRY');
+    this.expect('COLON', "':' after 'try'");
+    const body = this.parseBlock('try');
+    const handlers: ExceptHandler[] = [];
+    while (this.check('EXCEPT')) {
+      handlers.push(this.parseExceptHandler());
+    }
+    let finallyBody: Statement[] = [];
+    if (this.check('FINALLY')) {
+      this.next();
+      this.expect('COLON', "':' after 'finally'");
+      finallyBody = this.parseBlock('finally');
+    }
+    if (handlers.length === 0 && finallyBody.length === 0) {
+      const t = this.peek();
+      throw new ParseError("'try' must have at least one 'except' clause or a 'finally' clause", t.line, t.column);
+    }
+    return { type: 'Try', body, handlers, finallyBody };
+  }
+
+  /** Parse one `except [ExceptionType [as name]]:` clause. */
+  private parseExceptHandler(): ExceptHandler {
+    this.expect('EXCEPT');
+    let exceptionType: string | undefined;
+    let name: string | undefined;
+    if (!this.check('COLON')) {
+      exceptionType = this.expect('IDENT', 'exception type').value;
+      if (this.check('AS')) {
+        this.next();
+        name = this.expect('IDENT', 'exception binding name').value;
+      }
+    }
+    this.expect('COLON', "':' after 'except'");
+    const body = this.parseBlock('except');
+    return { type: 'ExceptHandler', exceptionType, name, body };
+  }
+
+  /** Parse `raise` (bare re-raise) or `raise <expression>` (Phase 7d). */
+  private parseRaise(): RaiseStatement {
+    this.expect('RAISE');
+    if (this.check('NEWLINE') || this.check('DEDENT') || this.check('EOF')) {
+      return { type: 'Raise' };
+    }
+    return { type: 'Raise', exception: this.parseExpression() };
+  }
+
+  /**
+   * Parse `class Name: <body>` (Phase 7e) — no base classes, no decorators.
+   * A mistaken `class Foo(Bar):` fails loud with a plain `E_PARSE` here (the
+   * parser never looks for a base-class clause, matching the plan's scope cut).
+   */
+  private parseClassDef(): ClassDef {
+    this.expect('CLASS');
+    const nameTok = this.expect('IDENT', 'class name');
+    this.expect('COLON', "':' after the class name");
+    const body = this.parseBlock('class');
+    return { type: 'ClassDef', name: nameTok.value, body };
   }
 
   // ── Control flow (if/elif/else, while, for...in) ───────────────────────────
@@ -471,7 +623,7 @@ class Parser {
     let expr = this.parsePrimary();
     for (;;) {
       const t = this.peek();
-      if (t.type === 'LPAREN' && expr.type === 'Identifier') {
+      if (t.type === 'LPAREN' && (expr.type === 'Identifier' || expr.type === 'Attribute')) {
         const args = this.parseArgs();
         const call: FunctionCall = { type: 'Call', callee: expr, args };
         expr = call;
@@ -486,6 +638,17 @@ class Parser {
         const args = this.parseArgs();
         const call: FunctionCall = { type: 'Call', callee: expr, args };
         expr = call;
+      } else if (t.type === 'LBRACKET') {
+        this.next(); // [
+        const index = this.parseExpression();
+        this.expect('RBRACKET', "']' after subscript index");
+        const sub: SubscriptExpression = { type: 'Subscript', object: expr, index };
+        expr = sub;
+      } else if (t.type === 'DOT') {
+        this.next(); // .
+        const attrTok = this.expect('IDENT', 'attribute name');
+        const attr: AttributeExpression = { type: 'Attribute', object: expr, attr: attrTok.value };
+        expr = attr;
       } else {
         break;
       }
@@ -544,6 +707,8 @@ class Parser {
       }
       case 'LBRACKET':
         return this.parseBracket();
+      case 'LBRACE':
+        return this.parseBraceLiteral();
       default:
         throw new ParseError(
           `Unexpected token ${t.type} ('${t.value}')`,
@@ -602,6 +767,38 @@ class Parser {
     while (this.match('COMMA')) elements.push(this.parseExpression());
     this.expect('RBRACKET');
     return { type: 'List', elements };
+  }
+
+  /**
+   * Parse `{...}` which may be a dict `{k: v, ...}` or a set `{v, ...}` — the
+   * same first-element-then-peek-for-COLON disambiguation `parseBracket()`
+   * already uses for range-vs-list. An empty `{}` is a dict (Python parity);
+   * an empty set has no literal form (`set()` — see `callBuiltin`).
+   */
+  private parseBraceLiteral(): DictLiteral | SetLiteral {
+    this.expect('LBRACE');
+    if (this.check('RBRACE')) {
+      this.next();
+      return { type: 'Dict', entries: [] };
+    }
+    const first = this.parseExpression();
+    if (this.check('COLON')) {
+      this.next();
+      const firstValue = this.parseExpression();
+      const entries: DictLiteral['entries'] = [{ key: first, value: firstValue }];
+      while (this.match('COMMA')) {
+        const key = this.parseExpression();
+        this.expect('COLON', "':' in dict literal");
+        const value = this.parseExpression();
+        entries.push({ key, value });
+      }
+      this.expect('RBRACE', "'}' after dict literal");
+      return { type: 'Dict', entries };
+    }
+    const elements: Expression[] = [first];
+    while (this.match('COMMA')) elements.push(this.parseExpression());
+    this.expect('RBRACE', "'}' after set literal");
+    return { type: 'Set', elements };
   }
 }
 

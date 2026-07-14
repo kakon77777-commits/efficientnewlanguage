@@ -22,6 +22,9 @@ export type TokenType =
   | 'RPAREN' // )
   | 'LBRACKET' // [
   | 'RBRACKET' // ]
+  | 'LBRACE' // { — dict/set literal opener
+  | 'RBRACE' // } — dict/set literal closer
+  | 'DOT' // . — attribute access (obj.attr)
   // structural
   | 'COLON' // :
   | 'COMMA' // ,
@@ -36,6 +39,11 @@ export type TokenType =
   | 'EQEQ' // ==
   | 'NE' // != (also ≠)
   | 'EQ' // = (single equals, treated as equality comparison)
+  // compound assignment (Phase 7b) — target FIRST, unlike the reversed `=>` arrow form
+  | 'PLUSEQ' // +=
+  | 'MINUSEQ' // -=
+  | 'STAREQ' // *=
+  | 'SLASHEQ' // /=
   // keywords / special multi-char
   | 'SIGMA' // Σ or SUM — summation keyword
   | 'IN' // in or ∈ — range membership
@@ -49,6 +57,15 @@ export type TokenType =
   | 'ELSE' // else — conditional / fallback branch
   | 'WHILE' // while — condition-controlled loop
   | 'FOR' // for — iteration over a range or list
+  | 'BREAK' // break — exit the nearest enclosing loop
+  | 'CONTINUE' // continue — skip to the next loop iteration
+  | 'IMPORT' // import — bring in a module (bare name only)
+  | 'TRY' // try — begin an exception-handling block
+  | 'EXCEPT' // except — catch a matching exception
+  | 'FINALLY' // finally — always-run cleanup block
+  | 'RAISE' // raise — raise (or re-raise) an exception
+  | 'AS' // as — bind a caught exception to a name (except ... as e)
+  | 'CLASS' // class — minimal viable OOP (Phase 7e)
   // block structure (Python-style significant indentation)
   | 'INDENT' // emitted when a logical line is more indented than the prior block
   | 'DEDENT' // emitted when indentation decreases back to an enclosing block

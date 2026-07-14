@@ -105,6 +105,9 @@ export function emitCppExpression(expr: Expression): string {
       return `[&]{ auto ${m} = ${emitCppExpression(expr.element)}; return (${m} >= ${start} && ${m} <= ${end}); }()`;
     }
     case 'Call':
+      if (expr.callee.type !== 'Identifier') {
+        throw new CppEmitError('An attribute/method call (`obj.method(...)`) is not supported by the C⁺⁺⁺ prototype.');
+      }
       return `${expr.callee.name}(${expr.args.map(emitCppExpression).join(', ')})`;
     case 'List': {
       // The prototype only types integer-literal lists; anything else would
@@ -124,6 +127,14 @@ export function emitCppExpression(expr: Expression): string {
       throw new CppEmitError('Transpose `^T` is numpy-specific and not supported by the C⁺⁺⁺ prototype.');
     case 'Await':
       throw new CppEmitError('`await` / async is not supported by the C⁺⁺⁺ prototype.');
+    case 'Dict':
+      throw new CppEmitError('Dict literals `{k: v, ...}` are not supported by the C⁺⁺⁺ prototype.');
+    case 'Set':
+      throw new CppEmitError('Set literals `{v, ...}` are not supported by the C⁺⁺⁺ prototype.');
+    case 'Subscript':
+      throw new CppEmitError('Subscript access `obj[index]` is not supported by the C⁺⁺⁺ prototype.');
+    case 'Attribute':
+      throw new CppEmitError('Attribute access `obj.attr` is not supported by the C⁺⁺⁺ prototype.');
   }
 }
 
@@ -142,13 +153,20 @@ function indent(block: string): string {
 export function emitCppStatement(stmt: Statement, listVars: Set<string> = new Set()): string {
   switch (stmt.type) {
     case 'Assignment': {
+      if (stmt.target.type !== 'Identifier') {
+        throw new CppEmitError('A Subscript assignment target (`d[k] = v`) is not supported by the C⁺⁺⁺ prototype.');
+      }
       const rhs = emitCppExpression(stmt.value);
       if (stmt.value.type === 'List') listVars.add(stmt.target.name);
       else listVars.delete(stmt.target.name);
       return stmt.declares ? `auto ${stmt.target.name} = ${rhs};` : `${stmt.target.name} = ${rhs};`;
     }
-    case 'AugmentedAssign':
+    case 'AugmentedAssign': {
+      if (stmt.target.type !== 'Identifier') {
+        throw new CppEmitError('A Subscript assignment target (`d[k] += v`) is not supported by the C⁺⁺⁺ prototype.');
+      }
       return `${stmt.target.name} ${stmt.op}= ${emitCppExpression(stmt.value)};`;
+    }
     case 'Output':
       if (stmt.value.type === 'List' || (stmt.value.type === 'Identifier' && listVars.has(stmt.value.name))) {
         throw new CppEmitError('Outputting a list is not supported by the C⁺⁺⁺ prototype (std::vector has no std::ostream operator<<).');
@@ -186,6 +204,12 @@ export function emitCppStatement(stmt: Statement, listVars: Set<string> = new Se
     case 'If':
     case 'While':
     case 'ForIn':
+    case 'Break':
+    case 'Continue':
+    case 'Import':
+    case 'Try':
+    case 'Raise':
+    case 'ClassDef':
       throw new CppEmitError(`'${stmt.type}' is not supported by the C⁺⁺⁺ prototype yet.`);
   }
 }
@@ -194,7 +218,10 @@ export function emitCppStatement(stmt: Statement, listVars: Set<string> = new Se
 function expressionCallsName(expr: Expression, name: string): boolean {
   switch (expr.type) {
     case 'Call':
-      return expr.callee.name === name || expr.args.some((a) => expressionCallsName(a, name));
+      return (
+        (expr.callee.type === 'Identifier' ? expr.callee.name === name : expressionCallsName(expr.callee, name)) ||
+        expr.args.some((a) => expressionCallsName(a, name))
+      );
     case 'Power':
       return expressionCallsName(expr.base, name) || expressionCallsName(expr.exponent, name);
     case 'Binary':
@@ -220,6 +247,14 @@ function expressionCallsName(expr: Expression, name: string): boolean {
       return expr.elements.some((e) => expressionCallsName(e, name));
     case 'Await':
       return expressionCallsName(expr.argument, name);
+    case 'Dict':
+      return expr.entries.some((e) => expressionCallsName(e.key, name) || expressionCallsName(e.value, name));
+    case 'Set':
+      return expr.elements.some((e) => expressionCallsName(e, name));
+    case 'Subscript':
+      return expressionCallsName(expr.object, name) || expressionCallsName(expr.index, name);
+    case 'Attribute':
+      return expressionCallsName(expr.object, name);
     default:
       return false;
   }
@@ -229,6 +264,10 @@ function statementCallsName(stmt: Statement, name: string): boolean {
   switch (stmt.type) {
     case 'Assignment':
     case 'AugmentedAssign':
+      return (
+        expressionCallsName(stmt.value, name) ||
+        (stmt.target.type !== 'Identifier' && expressionCallsName(stmt.target, name))
+      );
     case 'OverlayAssign':
     case 'Output':
       return expressionCallsName(stmt.value, name);
@@ -248,6 +287,20 @@ function statementCallsName(stmt: Statement, name: string): boolean {
       return expressionCallsName(stmt.test, name) || stmt.body.some((s) => statementCallsName(s, name));
     case 'ForIn':
       return expressionCallsName(stmt.iterable, name) || stmt.body.some((s) => statementCallsName(s, name));
+    case 'Break':
+    case 'Continue':
+    case 'Import':
+      return false;
+    case 'Try':
+      return (
+        stmt.body.some((s) => statementCallsName(s, name)) ||
+        stmt.handlers.some((h) => h.body.some((s) => statementCallsName(s, name))) ||
+        stmt.finallyBody.some((s) => statementCallsName(s, name))
+      );
+    case 'Raise':
+      return stmt.exception ? expressionCallsName(stmt.exception, name) : false;
+    case 'ClassDef':
+      return stmt.body.some((s) => statementCallsName(s, name));
   }
 }
 

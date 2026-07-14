@@ -77,6 +77,9 @@ export function emitEmlExpression(expr: Expression): string {
     case 'Membership':
       return `${emitEmlExpression(expr.element)} in ${emitEmlExpression(expr.collection)}`;
     case 'Call':
+      if (expr.callee.type !== 'Identifier') {
+        throw new EmlEmitError('Reverse Python->EML does not yet support an attribute/method call (`obj.method(...)`).');
+      }
       return `${expr.callee.name}(${expr.args.map(emitEmlExpression).join(', ')})`;
     case 'Matrix':
       return `<M>(${emitEmlExpression(expr.data)})`;
@@ -88,12 +91,23 @@ export function emitEmlExpression(expr: Expression): string {
       // Async/await is a forward-only construct (Phase 3 temporal loops); the
       // reverse path stays statement-level. Fail loudly.
       throw new EmlEmitError('Reverse Python->EML does not support await / async (temporal loops are forward-only).');
+    case 'Dict':
+      throw new EmlEmitError('Reverse Python->EML does not yet support dict literals.');
+    case 'Set':
+      throw new EmlEmitError('Reverse Python->EML does not yet support set literals.');
+    case 'Subscript':
+      throw new EmlEmitError('Reverse Python->EML does not yet support subscript access.');
+    case 'Attribute':
+      throw new EmlEmitError('Reverse Python->EML does not yet support attribute access.');
   }
 }
 
 export function emitEmlStatement(stmt: Statement, bound: Set<string> = new Set()): string {
   switch (stmt.type) {
     case 'Assignment': {
+      if (stmt.target.type !== 'Identifier') {
+        throw new EmlEmitError('Reverse Python->EML does not yet support a subscript assignment target (`d[k] = v`).');
+      }
       const v = stmt.value;
       let line: string;
       if (v.type === 'List') {
@@ -107,6 +121,9 @@ export function emitEmlStatement(stmt: Statement, bound: Set<string> = new Set()
       return line;
     }
     case 'AugmentedAssign': {
+      if (stmt.target.type !== 'Identifier') {
+        throw new EmlEmitError('Reverse Python->EML does not yet support a subscript assignment target (`d[k] += v`).');
+      }
       if (!isAtom(stmt.value)) {
         throw new EmlEmitError(
           `EML cannot express an augmented assignment with a compound right-hand side ('${stmt.target.name} ${stmt.op}= …').`,
@@ -143,6 +160,18 @@ export function emitEmlStatement(stmt: Statement, bound: Set<string> = new Set()
       throw new EmlEmitError('Reverse Python->EML does not yet support while statements.');
     case 'ForIn':
       throw new EmlEmitError('Reverse Python->EML does not yet support for statements.');
+    case 'Break':
+      throw new EmlEmitError('Reverse Python->EML does not yet support break statements.');
+    case 'Continue':
+      throw new EmlEmitError('Reverse Python->EML does not yet support continue statements.');
+    case 'Import':
+      throw new EmlEmitError('Reverse Python->EML does not yet support import statements.');
+    case 'Try':
+      throw new EmlEmitError('Reverse Python->EML does not yet support try/except/finally statements.');
+    case 'Raise':
+      throw new EmlEmitError('Reverse Python->EML does not yet support raise statements.');
+    case 'ClassDef':
+      throw new EmlEmitError(`Reverse Python->EML does not yet support class definitions ('class ${stmt.name}').`);
   }
 }
 

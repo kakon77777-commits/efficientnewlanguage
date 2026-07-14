@@ -38,6 +38,8 @@ const COMMENT_BY_TYPE: Record<string, string> = {
   'binding.augmented': '複合賦值',
   'binding.call': '函式呼叫並指派',
   'list.literal': '建立列表',
+  'dict.literal': '建立字典',
+  'set.literal': '建立集合',
   'linear.matrix': '建立矩陣／陣列',
   'linear.transpose': '矩陣轉置',
   'control.conditional': '條件運算式',
@@ -50,6 +52,12 @@ const COMMENT_BY_TYPE: Record<string, string> = {
   'control.if': '條件分支（if/elif/else）',
   'control.while': 'while 迴圈',
   'control.for': 'for 迴圈（走訪可疊代對象）',
+  'control.break': '跳出迴圈',
+  'control.continue': '跳到下一次迴圈',
+  'control.import': '匯入模組',
+  'control.try': '例外處理（try/except/finally）',
+  'control.raise': '拋出例外',
+  'class.def': '類別定義',
   expression: '運算式',
 };
 
@@ -88,7 +96,8 @@ function collectIdents(expr: Expression, acc: Set<string>): void {
       collectIdents(expr.collection, acc);
       break;
     case 'Call':
-      acc.add(expr.callee.name);
+      if (expr.callee.type === 'Identifier') acc.add(expr.callee.name);
+      else collectIdents(expr.callee, acc); // Attribute callee -> its object identifier
       for (const a of expr.args) collectIdents(a, acc);
       break;
     case 'Matrix':
@@ -102,6 +111,22 @@ function collectIdents(expr: Expression, acc: Set<string>): void {
       break;
     case 'Await':
       collectIdents(expr.argument, acc);
+      break;
+    case 'Dict':
+      for (const e of expr.entries) {
+        collectIdents(e.key, acc);
+        collectIdents(e.value, acc);
+      }
+      break;
+    case 'Set':
+      for (const e of expr.elements) collectIdents(e, acc);
+      break;
+    case 'Subscript':
+      collectIdents(expr.object, acc);
+      collectIdents(expr.index, acc);
+      break;
+    case 'Attribute':
+      collectIdents(expr.object, acc);
       break;
   }
 }
@@ -120,6 +145,10 @@ function semanticTypeOf(stmt: Statement): string {
           return 'binding.call';
         case 'List':
           return 'list.literal';
+        case 'Dict':
+          return 'dict.literal';
+        case 'Set':
+          return 'set.literal';
         case 'Matrix':
           return 'linear.matrix';
         case 'Transpose':
@@ -159,6 +188,18 @@ function semanticTypeOf(stmt: Statement): string {
       return 'control.while';
     case 'ForIn':
       return 'control.for';
+    case 'Break':
+      return 'control.break';
+    case 'Continue':
+      return 'control.continue';
+    case 'Import':
+      return 'control.import';
+    case 'Try':
+      return 'control.try';
+    case 'Raise':
+      return 'control.raise';
+    case 'ClassDef':
+      return 'class.def';
   }
 }
 
@@ -182,6 +223,14 @@ function statementValue(stmt: Statement): Expression | null {
       return stmt.test;
     case 'ForIn':
       return stmt.iterable;
+    case 'Break':
+    case 'Continue':
+    case 'Import':
+    case 'Try':
+    case 'ClassDef':
+      return null;
+    case 'Raise':
+      return stmt.exception ?? null;
   }
 }
 
@@ -189,6 +238,9 @@ function bindingTarget(stmt: Statement): string | null {
   switch (stmt.type) {
     case 'Assignment':
     case 'AugmentedAssign':
+      // A Subscript target (Phase 7b: `d[k] = v`) mutates an existing object
+      // rather than binding a name — no cross-ref entry for it.
+      return stmt.target.type === 'Identifier' ? stmt.target.name : null;
     case 'OverlayAssign':
       return stmt.target.name;
     default:
