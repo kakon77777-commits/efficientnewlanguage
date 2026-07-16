@@ -3,12 +3,12 @@
 You are taking over the EML MVP. Read this before touching code. It encodes the
 non-obvious decisions so you don't drift.
 
-## The 6 rules (do not violate)
+## The 7 rules (do not violate)
 
 1. **Do not build Ultimate features first.** No full runtime, no C+++, no
    AI-driven Logic Crystallization, no auto-repair, no 12-loop runtime. Those
    are later phases. The MVP is a deterministic EML/Py+ → Python transpiler.
-2. **Run `pnpm test` before and after any change.** 535 tests must stay green
+2. **Run `pnpm test` before and after any change.** 538 tests must stay green
    (the C++ compile+run test executes via a detected g++/clang++/MSVC toolchain,
    or auto-skips if none is installed — MSVC adds ~15s for vcvars; the
    interpreter≡Python gate auto-skips if no `python` is found).
@@ -20,6 +20,10 @@ non-obvious decisions so you don't drift.
    and/or a golden fixture. New rule → an AST/Python assertion.
 6. **PHOSPHOR CTS is the execution-truth layer, not decoration.** Keep `eml cts`
    output conformant to whitepaper Appendix C.
+7. **Keep `docs/PROGRESS.md` in sync.** It's the living progress-spectrum
+   dashboard (separate from `docs/roadmap.md`, which is the "what/why" plan).
+   Update its spectrum table + append a work-log entry every time a milestone
+   completes or its scope changes — don't let it go stale.
 
 ## What works today (Phase 0, complete)
 
@@ -702,6 +706,121 @@ documented scope cuts, not gaps — see below).
   with zero ERROR diagnostics, per `tests/examples.test.ts`) for the manual
   VS Code F5 walkthrough.
 
+## Phase 8 — MCP server (MVP complete)
+
+The second `docs/roadmap.md` commercialization item (C-8): a Model Context
+Protocol server so AI agents (Claude Code/Desktop, any other MCP client) can
+read/write EML and consume its trace directly as tools, instead of needing a
+human to run the CLI.
+
+- **Not new logic — a protocol adapter over an existing design.** The site
+  repo (`D:\Ai\網站群\高效新語言\新版`, separate git repo) already runs a fully
+  designed, tested, deployed "Agent Tool Layer" REST API at `/ai/tools/*`
+  (`worker/index.ts`) — 7 tools (parse, transpile-python, transpile-eml,
+  interpret, trace, roundtrip, health) on top of the same
+  `@eml/{transpiler-python,transpiler-eml,interp,trace}` packages, with a
+  consistent envelope, resource-limit guards, and structured errors. `@eml/mcp`
+  mirrors that design's semantics EXACTLY (same 7 tool names, same envelope
+  shape, same limit values) so the two agent surfaces — REST for arbitrary
+  HTTP/web clients, MCP for AI agents — never diverge into two different
+  designs for the same capability. It can't literally import that repo's code
+  (separate git repo), so `guards.ts`'s pre-flight checks (source-length cap,
+  raw nesting-depth scan, AST complexity walk) are reimplemented fresh here,
+  using the identical threshold constants for consistency.
+- **`packages/mcp` (`@eml/mcp`)**: same "pure logic / thin adapter" split as
+  `@eml/lsp` — `guards.ts` (pure: `MAX_SOURCE_LENGTH`/`MAX_NESTING`/
+  `MAX_EXPONENT`/`MAX_GROWTH_LOG2`/`MAX_RANGE_SPAN`/`MAX_STEPS` constants,
+  `rawNestingDepth`, `complexityError`, `sanitizeError`) + `tools.ts` (pure:
+  one `(source: string) => Envelope` function per tool, zero
+  `@modelcontextprotocol/sdk` imports — fully vitest-testable without a
+  protocol connection) + `server.ts` (thin adapter: the only file that touches
+  `McpServer`/`registerTool`) + `index.ts` (re-exports all three; auto-launches
+  over real stdio ONLY when it's the actual process entry point, via the same
+  `import.meta.url` vs `pathToFileURL(process.argv[1]).href` guard
+  `@eml/lsp/src/index.ts` already established).
+- **The envelope**: `{ ok, tool, version, input_hash, result, warnings, errors,
+  trace_id }` — `input_hash` is `sha256:<hex>` via `node:crypto`'s
+  `createHash` (this runs in plain Node via `tsx`, not a Cloudflare Worker, so
+  no Web Crypto `subtle.digest`); `trace_id` is `eml-trace-<uuid>` via
+  `node:crypto`'s `randomUUID()`. `roundtrip` is the one tool whose
+  `errors`/`warnings` stay `[]` even on failure — failure is communicated
+  purely via `result.ok`/`result.message` (matches the REST tool's own
+  behavior; locked in by a dedicated test).
+- **Tool-domain errors are a normal result, not a protocol error.** A compile
+  diagnostic or a failed round-trip returns MCP's `isError: false` with the
+  envelope's `ok: false` and `errors[]` populated — `isError: true` is
+  reserved for genuinely unexpected internal failures (`E_INTERNAL`). This
+  mirrors the REST worker's own choice to return HTTP 200 for `ok:false`, and
+  matches MCP's own documented philosophy (`CallToolResultSchema`'s doc
+  comment): tool-domain errors belong in the result object so the agent can
+  see them and self-correct, not as a protocol-level error it can't introspect.
+- **Guards**: `MAX_SOURCE_LENGTH = 20_000` (checked first) → `E_PAYLOAD_TOO_LARGE`;
+  `MAX_NESTING = 256` raw bracket/paren scan (bounds parser-recursion stack
+  overflow) → `E_RESOURCE_LIMIT`; for `interpret`/`trace` only, a post-parse
+  AST-walk complexity check (`MAX_EXPONENT = 4096` largest literal `Power`
+  exponent, `MAX_GROWTH_LOG2 = 20` cumulative magnitude-growth budget,
+  `MAX_RANGE_SPAN = 5_000_000` largest literal range span) → `E_RESOURCE_LIMIT`,
+  run ONLY when the program compiles (a program that fails to compile can't
+  run away — its diagnostics are a normal `ok:false` result, not a resource
+  rejection); `MAX_STEPS = 2_000_000` passed through to `interpret()`'s own
+  step budget. No wall-clock timeout — the toolchain is fully deterministic,
+  so cost is bounded structurally, not by a clock.
+- **Verified against the real installed SDK before writing code, not assumed
+  from research.** `@modelcontextprotocol/sdk` stable is `1.29.0` (NOT the
+  `@modelcontextprotocol/server` v2-beta line, which targets a later stable
+  release and wasn't out yet). Confirmed directly from the installed
+  `.d.ts` files: `new Client(clientInfo: Implementation, options?)`,
+  `callTool(params: CallToolRequest['params'])` where `params` is
+  `{ name: string, arguments?: Record<string, unknown> }`, `registerTool(name,
+  { inputSchema: <Zod raw shape> }, cb)`, and content blocks are
+  `{ type: 'text', text: string }`.
+- **Tests**: `tests/mcp-logic.test.ts` (pure functions — each of the 7
+  `tools.ts` functions in a clean-source and an error-source case, plus
+  `guards.ts`'s `rawNestingDepth`/`complexityError`/`sanitizeError` directly,
+  plus the source-length/nesting/exponent guard thresholds exercised through
+  the tool functions themselves) + ONE real `tests/mcp-protocol.test.ts`
+  integration test using the SDK's own first-class in-process transport
+  (`InMemoryTransport.createLinkedPair()`) with a real `Client`: tool listing,
+  a clean `transpile_python` call, and a compile-error call asserting
+  `isError` stays `false` while `structuredContent.ok` is `false`. 559 tests
+  total (up from 538 pre-Phase-8-MCP). Additionally smoke-tested the ACTUAL
+  stdio entry point (not just the in-memory transport) by piping a raw
+  JSON-RPC `initialize` + `tools/list` handshake into `node
+  node_modules/tsx/dist/cli.mjs packages/mcp/src/index.ts` directly — confirms
+  the auto-launch guard and real `StdioServerTransport` wiring both work, not
+  just the test-only in-process path.
+- A repo-root `.mcp.json` wires the server in for Claude Code: `{"mcpServers":
+  {"eml": {"command": "node", "args": ["node_modules/tsx/dist/cli.mjs",
+  "packages/mcp/src/index.ts"]}}}` — same "resolve tsx's own `dist/cli.mjs`,
+  not `.bin/tsx`" choice as the VS Code extension's `serverOptions`
+  (sidesteps Windows shell-shim quoting), just in a config file instead of a
+  runtime `child_process.spawn` call.
+
+## Phase 8 — public conformance suite (MVP complete)
+
+The third roadmap item this phase (B-5): not new logic, but packaging two *already-existing* gates
+(`tests/fixtures/`'s exact-text mapping check, `examples/`'s `eml:equiv` execution-truth check) into
+`docs/conformance.md` — a doc explaining, for an external reader with no context on this repo's
+internal `vitest` layout, what "EML-LANG-2026-v1.0 conformant" concretely means and how to check it
+via `pnpm eml test` / `eml trace <file> --run` alone.
+
+- **A real design mistake, caught by actually running it, not assumed correct.** The first draft
+  added an `--run` flag to `eml test` that spawned real Python on every matched fixture, assuming all
+  29 `tests/fixtures/*.eml` were complete, runnable programs. Running it immediately surfaced 6
+  failures (`04_transpose`, `05_condition`, `06_bind`, `10_range`, `12_matrix`, `13_call`) — these
+  fixtures are Appendix B's "14 documented statement mappings" (matching `tests/statement-mapping.
+  test.ts`'s own case list), deliberately isolated single-construct snippets that reference names
+  never bound in that fixture (`m`, `x`, `f`, `data`) because they exist to pin down one construct's
+  *expansion*, not to execute standalone. The `--run` flag and its CLI help-text line were reverted
+  entirely rather than special-cased (no reliable signal distinguishes "snippet" from "complete
+  program" fixtures without new metadata, and the two-layer split documented below already covers
+  execution-truth correctly via `examples/`).
+- **`tests/cli-conformance.test.ts`**: spawns the REAL `eml test` CLI process (not the internal
+  `transpileEmlToPython` comparison `tests/golden.test.ts` already does directly) — proves argv
+  parsing, `--dir`, exit codes (0 all-pass / 1 any-fail), and the missing-companion-file SKIP
+  behavior all work as `docs/conformance.md` documents them, the same "verify the actual entry
+  point, not just internal logic" discipline used for the LSP/MCP protocol tests.
+
 ## Non-obvious design decisions (the gotchas)
 
 ### 1. Two-stage AST: `OverlayAssign` is resolved by semantics
@@ -800,13 +919,15 @@ These were tightened after an adversarial review; tests live in
 - Phase 7 (COMPLETE): `break`/`continue`, dict/set literals + subscript,
   attribute access + user `import`, `try`/`except`/`finally`/`raise`, `class`
   (minimal viable OOP). EML can now express general-purpose programs.
-- Phase 8 (A-1 LSP MVP COMPLETE; roadmap otherwise not yet started):
+- Phase 8 (A-1 LSP MVP COMPLETE, C-8 MCP server MVP COMPLETE; roadmap's own
+  top-3 priority list now 2/3 done — only E-11 open-core pricing remains):
   `@eml/lsp` + a minimal VS Code extension client (diagnostics/hover/
-  completion). Next within Phase 8 (Neo's call, `docs/roadmap.md`): editor
-  extension polish (item 2 — icon, marketplace prep, inline trace webview),
-  npm publishing (item 3), MCP/agent tooling (item 8), or go-to-definition
-  (needs a `semantic.ts` addition: per-identifier declaration spans, not
-  just aggregate name lists).
+  completion), and `@eml/mcp` (7 agent-callable tools + repo-root
+  `.mcp.json`). Next within Phase 8 (Neo's call, `docs/roadmap.md`): E-11
+  open-core pricing tiers (roadmap's 3rd priority), editor extension polish
+  (item 2 — icon, marketplace prep, inline trace webview), npm publishing
+  (item 3), or go-to-definition (needs a `semantic.ts` addition: per-identifier
+  declaration spans, not just aggregate name lists).
 - Phase 6 (COMPLETE): `if`/`elif`/`else`, `while`, `for...in` control-flow
   statements — forward (EML→Python) + interpreter execution; reverse (Python→EML)
   and the C⁺⁺⁺ backend fail loud by design this round.

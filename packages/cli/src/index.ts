@@ -563,6 +563,18 @@ function cmdTrace(a: ParsedArgs): void {
   if (anomalies > 0) process.exitCode = 1;
 }
 
+/**
+ * `eml test` — the practical companion to `docs/conformance.md`: an external,
+ * vitest-independent check that a fixture set's EML sources transpile to the
+ * exact committed Python text (grammar-mapping conformance, §11). Fixtures are
+ * deliberately statement/expression-level mapping snippets (Appendix B's "14
+ * cases" and their Phase 6/7 successors) — several reference names that are
+ * never bound (`m`, `x`, `f`, `data`, ...) because they exist to pin down a
+ * single construct's expansion, not to run standalone. Execution-truth
+ * conformance (does a real, complete program run correctly) is a separate,
+ * already-existing layer: `examples/*.trace.jsonl` + `eml trace <file> --run`
+ * (see docs/conformance.md).
+ */
 function cmdTest(a: ParsedArgs): void {
   const dir = (flag(a, 'dir') as string) ?? join('tests', 'fixtures');
   if (!existsSync(dir)) {
@@ -719,7 +731,8 @@ Usage:
   eml bugs <file> [--run] [--trace=f] [--json]  Classify errors (5 levels) mapped to EML source
   eml trace <file> [--out f] [--run] PHOSPHOR phosphor-jsonl-v1 execution trace (interp;
                                      --run adds an eml:equiv check vs real Python)
-  eml test [--dir d]                 Run golden fixtures (default tests/fixtures)
+  eml test [--dir d]                 Run golden fixtures (default tests/fixtures); the practical
+                                     grammar-mapping conformance check (docs/conformance.md).
 
   --cache[=path]                     preview against a persistent crystallization
                                      cache (default .eml-cache/crystal.json, must end .json).

@@ -44,6 +44,8 @@ pnpm eml run examples/phase0/sum.eml        # -> 338350
 
 The full language reference is **[docs/EML-LANG-2026-v1.0.md](docs/EML-LANG-2026-v1.0.md)**
 (the normative spec). New contributors should read [docs/agent-handoff.md](docs/agent-handoff.md) first.
+Current status at a glance: **[docs/PROGRESS.md](docs/PROGRESS.md)** (a living progress spectrum,
+updated on every completed or updated milestone).
 
 ## Launch — EML Studio
 
@@ -120,6 +122,18 @@ of the statement under your cursor, and completion for keywords + every `eml-sym
 Host), then open [`examples/phase8-lsp/demo.eml`](examples/phase8-lsp/demo.eml) to try it. Go-to-
 definition, inline-trace visualization, and Unicode-display-form position accuracy are explicit
 scope cuts this round, not gaps — see `docs/agent-handoff.md`'s "Phase 8" section.
+
+## MCP server (Phase 8, MVP)
+
+`@eml/mcp` exposes EML as 7 Model Context Protocol tools — `parse`, `transpile_python`,
+`transpile_eml`, `interpret`, `trace`, `roundtrip`, `health` — so any MCP client (Claude Code,
+Claude Desktop, etc.) can read/write EML and consume its execution trace directly, without a human
+running the CLI. Mirrors the design of the site's `/ai/tools/*` REST API exactly (same envelope,
+same 7 tools, same resource limits) so the two agent surfaces don't diverge. A repo-root
+`.mcp.json` wires it in for Claude Code; run `pnpm install` once, then reconnect this repo as a
+session to see `mcp__eml__*` tools. Tool-domain failures (a compile error, a failed round-trip) are
+always a normal `ok:false` result, never a protocol-level error — so the agent can read `errors[]`
+and self-correct instead of the call simply failing.
 
 ## AI-assisted compression (Phase 1)
 
@@ -212,14 +226,17 @@ packages/
   cogni-editor/      dual-state view (EML | Python | AST) + Trace panel (PHOSPHOR phosphor-jsonl-v1) + Functions panel (cold/hot · importance · crystallization)
   lsp/               Language Server Protocol server — diagnostics/hover/completion (Phase 8)
   vscode-extension/  minimal VS Code client for @eml/lsp (dev prototype, not published; Phase 8)
+  mcp/               Model Context Protocol server — 7 agent-callable tools (Phase 8)
 scripts/launch.mjs   EML Studio launcher (pnpm start / eml-studio.cmd|sh)
+.mcp.json  repo-root MCP client config (wires @eml/mcp in for Claude Code)
 ai/        AI-native layer (AICL + AIRS/AILP) — see below
 llms.txt   LLM entry index
 examples/  tests/  docs/  eml-symbols.json
 ```
 
 See [docs/architecture.md](docs/architecture.md), the
-[whitepaper](docs/whitepaper.md), the [grammar](docs/grammar.md), and
+[whitepaper](docs/whitepaper.md), the [grammar](docs/grammar.md),
+[docs/conformance.md](docs/conformance.md) (how to externally verify an implementation), and
 [docs/agent-handoff.md](docs/agent-handoff.md) (read this before contributing).
 
 ## Design principles
