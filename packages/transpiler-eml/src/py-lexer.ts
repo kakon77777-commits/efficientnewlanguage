@@ -2,8 +2,10 @@
  * Lexer for the Python *subset* that the EML transpiler emits (and a little
  * more, to tolerate hand-written Python in the same subset). Not a full Python
  * lexer — it covers assignments, augmented assigns, print, arithmetic, power,
- * comparisons, ternary, calls, lists, ranges, sum-comprehensions, and
- * np.array/np.transpose.
+ * comparisons, ternary, calls, lists, ranges, sum-comprehensions,
+ * np.array/np.transpose, (Phase A) `if`/`elif`/`else`, `while`, and `for...in`
+ * block statements via COLON + INDENT/DEDENT tokenization, and (Phase B2)
+ * dict/set literals + subscript via LBRACE/RBRACE.
  */
 
 export type PyTokenType =
@@ -24,8 +26,12 @@ export type PyTokenType =
   | 'RPAREN'
   | 'LBRACKET'
   | 'RBRACKET'
+  | 'LBRACE'
+  | 'RBRACE'
   | 'COMMA'
   | 'DOT'
+  | 'COLON'
+  | 'AT'
   | 'GT'
   | 'LT'
   | 'GE'
@@ -33,6 +39,8 @@ export type PyTokenType =
   | 'EQEQ'
   | 'NE'
   | 'NEWLINE'
+  | 'INDENT'
+  | 'DEDENT'
   | 'EOF';
 
 export interface PyToken {
@@ -60,6 +68,12 @@ export function lexPython(source: string): PyToken[] {
   let pos = 0;
   let line = 1;
   let col = 1;
+  // Indentation tracking (Phase A) — ported from the forward EML lexer
+  // (packages/parser/src/lexer.ts), adapted to this file's helper names. A tab
+  // counts as width 1 (no tab-stop expansion), matching the forward lexer's
+  // own documented simplification.
+  const indentStack: number[] = [0];
+  let atLineStart = true;
 
   const peek = (o = 0): string => src[pos + o] ?? '';
   const at = (s: string): boolean => src.startsWith(s, pos);
@@ -79,6 +93,38 @@ export function lexPython(source: string): PyToken[] {
   };
 
   while (pos < src.length) {
+    if (atLineStart) {
+      atLineStart = false;
+      let width = 0;
+      while (peek(width) === ' ' || peek(width) === '\t') width++;
+      const after = peek(width);
+      // Blank or comment-only lines don't change the indentation level; fall
+      // through and let the whitespace/comment/newline handlers consume them.
+      if (after !== '\n' && after !== '' && after !== '#') {
+        const sLine = line;
+        const sCol = col;
+        advance(width);
+        const top = indentStack[indentStack.length - 1]!;
+        if (width > top) {
+          indentStack.push(width);
+          push('INDENT', '', sLine, sCol);
+        } else if (width < top) {
+          while (indentStack.length > 1 && indentStack[indentStack.length - 1]! > width) {
+            indentStack.pop();
+            push('DEDENT', '', line, col);
+          }
+          if (indentStack[indentStack.length - 1]! !== width) {
+            throw new PyLexError(
+              `Inconsistent indentation: dedent to ${width} does not match any enclosing block`,
+              line,
+              col,
+            );
+          }
+        }
+        continue;
+      }
+    }
+
     const c = peek();
     const l = line;
     const cc = col;
@@ -90,6 +136,7 @@ export function lexPython(source: string): PyToken[] {
     if (c === '\n') {
       advance();
       push('NEWLINE', '\n', l, cc);
+      atLineStart = true;
       continue;
     }
     if (c === '#') {
@@ -187,10 +234,14 @@ export function lexPython(source: string): PyToken[] {
       ')': 'RPAREN',
       '[': 'LBRACKET',
       ']': 'RBRACKET',
+      '{': 'LBRACE',
+      '}': 'RBRACE',
       ',': 'COMMA',
       '.': 'DOT',
+      ':': 'COLON',
       '>': 'GT',
       '<': 'LT',
+      '@': 'AT',
     };
     if (c in single) {
       advance();
@@ -199,6 +250,12 @@ export function lexPython(source: string): PyToken[] {
     }
 
     throw new PyLexError(`Unexpected character: ${JSON.stringify(c)}`, l, cc);
+  }
+
+  // Close any blocks still open at end of file (mirrors the forward lexer).
+  while (indentStack.length > 1) {
+    indentStack.pop();
+    push('DEDENT', '', line, col);
   }
 
   tokens.push({ type: 'EOF', value: '', line, column: col });

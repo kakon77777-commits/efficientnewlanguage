@@ -116,6 +116,11 @@ Things that now DO round-trip cleanly (don't regress):
 One-way by design: **`list`→`lst`** (reverse of `lst = [...]` is `lst^+[...]`,
 not `list^+[...]`; Python fixpoint still holds).
 
+**Since Phase A (2026-07-16)**, the reverse path is no longer purely flat/statement-level —
+`if`/`elif`/`else`, `while`, and `for...in` now round-trip too, via a real INDENT/DEDENT/`COLON`-
+aware suite parser. See the dedicated "Phase 8 — reverse Python→EML, Phase A" section below for the
+lexer/parser/emitter design and a real correctness bug it surfaced.
+
 ## Phase 2 — functions, cold/hot, crystallization, importance (complete)
 
 EML gained **function definitions** (the prerequisite for `@cold`/`@hot`, which
@@ -820,6 +825,340 @@ via `pnpm eml test` / `eml trace <file> --run` alone.
   parsing, `--dir`, exit codes (0 all-pass / 1 any-fail), and the missing-companion-file SKIP
   behavior all work as `docs/conformance.md` documents them, the same "verify the actual entry
   point, not just internal logic" discipline used for the LSP/MCP protocol tests.
+
+## Phase 8 — reverse Python→EML, Phase A + B1 + B2 + C + D + E1 (if/while/for, break/continue, dict/set/subscript, attribute/import, try/except/raise, function definitions; MVP complete)
+
+Triggered by a real B-6 measurement: running `eml compress` on 5 unmodified real Python files was
+5/5 failures, every one within the first few lines. Root cause: `packages/transpiler-eml/src/
+py-lexer.ts` had **zero** support for compound statements — no `COLON`, `INDENT`, or `DEDENT` token
+existed at all, so virtually any real, non-trivial Python program (almost none avoid `if`/`def`/
+`for`) failed immediately. This was already a documented scope cut (§11's Phase 6/7 addenda say
+reverse "fails loudly" on these), but the real-world severity had never been concretely measured.
+Given the scope — this is, in effect, redoing forward Phase 6 (`if`/`elif`/`else`, `while`,
+`for...in`) and Phase 7a–e in reverse — Neo chose to do it in phased slices, same cadence as the
+forward direction's own Phase 6 → 7a → 7b → 7c → 7d → 7e rollout. **This round is Phase A only**:
+the shared block-parsing infrastructure plus `if`/`elif`/`else`, `while`, `for...in`. `break`/
+`continue`, dict/set/subscript, attribute/import, try/except/raise, and `def`/`class` are explicitly
+deferred to their own future rounds.
+
+- **The AST needed zero changes.** `packages/types/src/ast.ts` already fully modeled
+  `IfStatement`/`WhileStatement`/`ForInStatement` (and every later-phase node) for both directions
+  from the start. The entire gap was three files: `py-lexer.ts` (no tokens), `py-parser.ts` (no
+  grammar), `eml-emitter.ts` (12 explicit `throw new EmlEmitError(...)` stubs, one per unsupported
+  node, deliberately placed there — "fail loud, not silently wrong" — ready to fill in). Also
+  confirmed: EML's own block syntax is byte-identical to Python's (`if x > 20:`, same colons, same
+  4-space indentation) — only the simple statements/expressions *inside* a block use EML's overlay
+  forms, so the reverse emitter's job for these three constructs was almost entirely "reproduce the
+  header verbatim + recursively emit the body," not invention.
+- **`py-lexer.ts`**: added a `COLON` single-char token and ported the forward EML lexer's
+  indent-stack algorithm (`packages/parser/src/lexer.ts` lines 59–92 + 280–284) nearly verbatim: an
+  `indentStack` starting at `[0]`, measured only on lines with real code (blank/comment-only lines
+  are skipped from the indent check), `width > top` → push + emit `INDENT`, `width < top` → pop in a
+  loop emitting one `DEDENT` per pop until the stack top is `<= width` (throwing on a mismatched
+  dedent), and a trailing DEDENT flush at EOF. **No new keyword token types** — this reverse lexer's
+  existing convention (every identifier, including `if`/`else`/`in`/`sum`/`range`/`np`, lexes as a
+  plain `NAME`, disambiguated by the parser via `checkName(value)`) was kept rather than introducing
+  a parallel dedicated-keyword scheme like the forward lexer's; smaller, more consistent diff.
+- **`py-parser.ts`**: restructured from "one statement per line, must be followed by `NEWLINE`/`EOF`"
+  to suite-aware — a new `parseBlock()` (`COLON`-then-`NEWLINE INDENT stmt+ DEDENT`) and an
+  `expectStatementEnd()` mirroring the forward parser's exact trick: a compound statement's `DEDENT`
+  is consumed internally by its own `parseBlock()` call, so the *following* statement may start
+  immediately — detected by checking whether the token just consumed was a `DEDENT`. `parseIf()`/
+  `parseElseOrElif()`/`parseWhile()`/`parseForIn()` mirror the forward parser's shapes closely,
+  including the `elif`-as-nested-`If` trick.
+- **A real correctness gap the regression test caught: `break`/`continue` were silently
+  mistranslated, not rejected.** Every other still-unsupported keyword (`def`, `class`, `try`,
+  `import`, ...) happens to be followed by something that already breaks parsing when misread as a
+  bare identifier (a name, a colon, etc.), so they failed loudly by accident even before being
+  explicitly handled. `break`/`continue` are uniquely dangerous: a bare keyword immediately followed
+  by end-of-line is *exactly* the shape of a valid (if bogus) bare-identifier expression statement —
+  so without explicit handling, `break` alone on a line silently parsed as a meaningless reference to
+  a variable named "break" and the reverse transpiler reported success. Fixed by recognizing
+  `checkName('break')`/`checkName('continue')` explicitly in `parseStatement()`, routing them to
+  `eml-emitter.ts`'s pre-existing `Break`/`Continue` throw-stubs instead.
+- **A second real correctness bug, also caught by the round-trip test, not assumed correct:
+  reassigning an already-bound variable inside a loop.** `eml-emitter.ts`'s `Assignment` case always
+  emitted the `^+` sigil form for atom values (`x^+value`) regardless of whether `x` was already
+  bound — safe for a fresh declaration, but wrong for a Python `a = b` REASSIGNING an already-declared
+  loop-carried variable (e.g. Fibonacci's `a, b = b, a + b`-style per-iteration update): the forward
+  parser's own two-stage `^+` disambiguation would misread the re-emitted `a^+b` as an *augmented
+  add*, not a fresh value. No prior fixture ever exercised this (all 14 pre-Phase-A fixtures assigned
+  each variable exactly once), so it was a latent bug, not something Phase A introduced — only loops
+  make reassignment-of-a-bound-name a common pattern. Fixed: the `Assignment` case now checks
+  `bound.has(target.name)` first and always uses the unconditional reversed-arrow form (`value =>
+  target`) for a reassignment, regardless of value shape.
+- **Branch-aware `bound` scope for `if`/`elif`/`else` (the flagged risk from planning, confirmed
+  necessary).** `emitEmlStatement` threads a `bound: Set<string>` tracking which names have already
+  appeared via `^+`, used to decide whether an `AugmentedAssign` can safely use `^+` — a name
+  declared in only ONE branch of an `if` must NOT be treated as bound afterward. A new `emitIfChain()`
+  helper (separate from the generic `emitEmlStatement` dispatcher, so exhaustiveness metadata survives
+  the recursive `elif` case) clones `bound` per branch, and merges a name back into the outer scope
+  ONLY if it was declared in EVERY branch of an exhaustive chain (ending in a plain `else`) — mirrors
+  the forward semantic analyzer's own branch-scope-clone-then-merge rule for Phase 6. `while`/`for`
+  deliberately do NOT clone: they share one live `bound` set with their enclosing scope throughout,
+  matching the forward analyzer's own "no branch cloning for loops" choice (0+ iterations aren't
+  mutually exclusive branches, so a loop-body declaration is simply always considered bound after —
+  the same simplification the forward side already made).
+- **Tests**: `tests/bidirectional.test.ts`'s `roundTrippable` exclusion regex narrowed (`if`/`elif`/
+  `else`/`while`/`for` removed from the blacklist; `break`/`continue`/`import`/`try`/`except`/
+  `finally`/`raise`/`class`/`def` stay excluded) — fixtures 16–20 became round-trippable automatically.
+  New `tests/reverse-blocks.test.ts`: if/elif/else, while, for, nested if-in-while, the exhaustive-vs-
+  non-exhaustive branch-merge cases (including an elif-chain-with-no-final-else negative case), and a
+  regression guard confirming break/continue/dict/class/def/try still fail (not silently widened).
+  589 tests total (up from 565).
+- **Verification beyond unit tests**: a fresh, hand-written Python snippet using only `if`/`while`/
+  `for` + assignment/print was run through the REAL CLI end to end — `eml compress` → `eml roundtrip`
+  (fixpoint OK) → `eml run` (output matched a real `python3` run byte-for-byte). Also re-ran the
+  original 5 real corpus files from the B-6 measurement: still 5/5 not fully successful (each also
+  uses a still-out-of-scope construct — `%`, dict literals, or `try`), but 2 of 5 now fail measurably
+  later in the file (`Calculate_age`: line 6 → 48; `Duplicate_files_remover`: line 7 → 22) — concrete,
+  honest evidence of progress. The other 3 show no visible change only because their specific
+  still-excluded construct (`%`/`try`/`{`) happens to appear before any `if`/`while`/`for` in that
+  particular file — not a regression, just where each file's content happens to put its blocker.
+  Worth remembering: lexing is a separate, complete upfront pass before parsing starts, so a file's
+  reported failure is whichever comes first — the lexer's or the parser's — not necessarily evidence
+  the parser itself progressed past a construct it still doesn't understand.
+
+**Phase B1 (same day, 2026-07-16): `break`/`continue`.** A small, low-risk follow-on rather than its
+own large slice — the reverse parser already needed to recognize `break`/`continue` explicitly as
+part of Phase A's regression-guard fix (see above: they're the one pair of bare keywords that would
+otherwise silently mistranslate into a meaningless identifier reference), so the AST nodes were
+already being built correctly; only `eml-emitter.ts`'s two throw-stubs needed to become real
+emission (`return 'break'` / `return 'continue'`). Two of `tests/reverse-blocks.test.ts`'s regression-
+guard cases ("break/continue still fails") were themselves updated into positive round-trip tests,
+since what they guarded against became a real capability — the test file's own comment now reflects
+Phase A + B1 together. Fixtures 21 (`while` + `break`) and 22 (`for` + `continue`) became
+round-trippable via `tests/bidirectional.test.ts`'s narrowed exclusion regex. 594 tests total (up
+from 589).
+
+**Phase B2 (same day, 2026-07-16): dict/set literals + subscript.** Mirrors forward Phase 7b. The
+AST needed zero changes (`DictLiteral`/`SetLiteral`/`SubscriptExpression`/the `AssignTarget` union
+were already fully modeled for both directions) — same story as every prior sub-phase.
+
+- **`py-lexer.ts`**: added `LBRACE`/`RBRACE` — the entire lexer change.
+- **`py-parser.ts`**: added `parseBraceLiteral()` (mirrors the forward parser's exact dict-vs-set
+  disambiguation: parse the first element as an expression, then peek for `COLON`); widened
+  `parsePostfix()` from a `while (LPAREN && Identifier)` single-iteration loop to a `for (;;)` loop
+  also handling `LBRACKET` (subscript), so `d[k]`, chained `d[k][j]`, and `f(x)[0]` all parse for free.
+- **The one genuinely delicate change: `AssignTarget` widening.** `parseStatement()`'s assignment
+  detection used to be a 2-token lookahead BEFORE parsing anything (`NAME` immediately followed by
+  `ASSIGN`) — structurally incapable of recognizing `d[k] = v` (a multi-token LHS). Restructured to
+  parse the LHS as a general expression FIRST via the existing `parseExpr()` chain (which already
+  naturally stops right after an `Identifier`/`Subscript`, since `=`/`+=` etc. aren't valid
+  expression-continuation tokens), THEN check the current token for `ASSIGN`/an aug-op, validating
+  the parsed expression collapses into a legal target via a new `toAssignTarget(expr)` helper
+  (`Identifier | Subscript` this phase — `Attribute` still throws, Phase C). This changes the code
+  PATH for plain `x = value` too (parse `x` as an expression first, then see `ASSIGN`) but produces
+  byte-identical results for that case, mirroring the forward parser's own split between
+  `parseAssignTargetChain()` (build-from-scratch) and `toAssignTarget()` (validate-already-parsed).
+- **A real syntax distinction to get right, not obvious from the AST alone**: EML's bare-identifier
+  `^+`/`^-`/`^*`/`^/` sigil is ambiguous by design (§5.1's two-stage declare-vs-augment
+  disambiguation) — that ambiguity doesn't exist for a container element, so a subscript's compound
+  assign uses the REAL `+=`/`-=`/`*=`/`/=` operator text directly (`scores["alice"] += 5`, confirmed
+  from `tests/fixtures/23_dict_literal.eml` line 3), never the `^` sigil. A subscript target for a
+  FRESH (non-compound) assignment always uses the reversed-arrow form (`99 => list[1]`, fixture 25
+  line 6) since `^+` cannot spell a subscript target at all. `eml-emitter.ts`'s `Assignment`/
+  `AugmentedAssign` cases each gained a `Subscript`-target branch handling this before falling through
+  to the existing, unchanged `Identifier`-target logic.
+- **A small, safe cleanup noticed while re-reading this code, not a new bug**: the `Assignment`
+  case's `v.type === 'List'` special-case produced byte-identical output to just calling
+  `emitEmlExpression(v)` generically (both already went through the same `case 'List':` logic) —
+  replaced with one `isInlineLiteral` helper (`isAtom(e) || List | Dict | Set`) covering all three
+  literal kinds uniformly, so `scores^+{"alice": 10, "bob": 20}`-style inline dict/set literals now
+  emit the same way `lst^+[1, 2, 3]` already did. `isAtom` itself is untouched — still used unmodified
+  by `AugmentedAssign`'s RHS-compound check.
+- **Tests**: `tests/bidirectional.test.ts`'s exclusion regex narrowed further (the subscript-pattern
+  and brace-literal alternatives removed, attribute-dot detection kept) — fixtures 23 (`dict_literal`),
+  24 (`set_literal`), 25 (`subscript_assign`) became round-trippable. `tests/reverse-blocks.test.ts`
+  gained a new describe block: dict literal + subscript read, set + membership, fresh subscript
+  assign, compound subscript assign (asserting the real operator appears, not the `^` sigil), and a
+  word-tally loop combining dict subscript targets with `if`/`else` (proving Phase A's `bound`
+  branch-merge and Phase B2's target widening compose correctly, not just work in isolation). The old
+  "dict literal still fails" regression guard was replaced with an "attribute access still fails" one,
+  since dict literals are no longer a gap. 605 tests total (up from 594).
+- **A real, honest finding from re-running the original B-6 corpus files, not a regression**:
+  `text_to_morse_code`'s dict literal (`symbols = {...}`) is written across MULTIPLE lines in the real
+  file. Neither this lexer NOR the forward EML lexer (`packages/parser/src/lexer.ts`) suppresses
+  `NEWLINE` inside bracket nesting the way a real Python tokenizer does (implicit line-joining) — both
+  emit an unconditional `NEWLINE` per `\n` regardless of depth. Confirmed this is a genuine,
+  pre-existing WHOLE-LANGUAGE boundary since Phase 0, not something Phase B2 broke: every list/dict/
+  matrix literal in this repo's own examples (checked the longest one, `tic_tac_toe.eml`'s 8-element
+  list-of-lists) is written on one line. Extending either lexer to support multi-line bracketed
+  literals would be its own separate, cross-cutting round (affects both directions, every bracket
+  type) — explicitly not attempted here. `Duplicate_files_remover` (the other file blocked by `{` last
+  round) shows genuine progress instead: it now fails at `def hashFile` (line 7, a parser error)
+  instead of at the dict literal (line 22, a lexer error) — proof the dict literal itself now lexes
+  and parses correctly all the way through; the file's remaining blocker is `def` (Phase E scope).
+
+**Phase C (same day, 2026-07-16): attribute access + bare `import`.** Mirrors forward Phase 7c.
+Zero lexer changes — `DOT` already existed (Phase 0, for the hardcoded `np.array`/`np.transpose`
+special case in `parsePrimary()`, checked first and untouched, so it keeps taking priority over
+generic attribute parsing for anything `np`-prefixed).
+
+- **`py-parser.ts`**: `parsePostfix()`'s `for (;;)` loop gained a `DOT` branch building `Attribute`
+  nodes; its `LPAREN` (call) branch widened from `expr.type === 'Identifier'` to also accept
+  `'Attribute'`, so `math.sqrt(x)` parses as `Call` over `Attribute` — matching the shared
+  `FunctionCall.callee: Identifier | AttributeExpression` type the forward direction already used.
+  `toAssignTarget()` widened one final step to `Identifier | Subscript | Attribute`, now an exact
+  match for the forward parser's own `AssignTarget` union — **matching forward's own phase
+  attribution, not an arbitrary choice**: the forward parser's type comments show `Attribute` was
+  added to `AssignTarget` in forward Phase 7c itself (not deferred to 7e/class), so this round
+  included attribute-as-assignment-target rather than artificially narrowing scope to attribute-read
+  only.
+- **Bare `import module`, deliberately two-layered.** EML's `ImportStatement` can express exactly one
+  shape: a single bare module name. `parseStatement()` gained a case recognizing `import <NAME>`
+  unconditionally, wherever it's called from (top level AND nested inside a block, unlike prior
+  keywords which only got program-top-level treatment before) — a real, if rare, nested aliased
+  import now fails loudly (the trailing `as`/`.` token trips `expectStatementEnd()`), the same
+  "protection for free" every keyword added this session already relies on. `parseProgram()`'s
+  pre-existing top-level-only silent-skip fallback (for `from X import Y`, always skipped — never
+  representable — and for a non-bare `import`, e.g. `as`-aliased or dotted) stays exactly as before,
+  now gated by a new `isBareImport()` lookahead so it only fires when the bare-import case in
+  `parseStatement()` WOULDN'T otherwise handle it. This preserves the pre-existing, already-passing
+  "ignores import lines" test (`import numpy as np` keeps silently dropping — 'np' is a permanently
+  magic prefix for the matrix system regardless of any import statement) while making genuinely bare
+  `import math` a real, round-trippable node.
+- **`eml-emitter.ts`**: `Attribute` emission mirrors `Subscript`/`Transpose`'s existing postfix-
+  precedence pattern (`child(expr.object, 6)` + `.` + attr name). `Call`'s callee-guard widened
+  symmetrically with the parser change, and now recursively calls `emitEmlExpression(expr.callee)`
+  instead of assuming `.name` directly, so it renders both an `Identifier` and an `Attribute` callee
+  uniformly. `Import` emission is a one-liner (`import ${stmt.module}`). The `Assignment`/
+  `AugmentedAssign` `Subscript`-target branches (from Phase B2) widened to also cover `Attribute` —
+  identical logic, since both share the same "not bare-identifier, no declare/augment ambiguity"
+  reasoning already documented from Phase B2; removing the now-redundant `Identifier`-only guards
+  compiled clean, confirming TypeScript's own narrowing correctly proved `Identifier` is the only
+  remaining case in the `AssignTarget` union after handling `Subscript`/`Attribute`.
+- **Tests**: `tests/bidirectional.test.ts`'s exclusion regex narrowed to just `def|try|except|
+  finally|raise|class` (both the subscript/brace pattern AND the attribute-dot pattern are now gone)
+  — fixture 26 (`import_math`) became round-trippable. `tests/reverse-blocks.test.ts` gained a new
+  describe block: attribute-callee call round-trip (mirrors fixture 26), bare import round-trip,
+  fresh + compound attribute-assignment round-trip (asserting the real operator, not `^`), and an
+  explicit non-regression check that aliased imports still silently drop. The old "attribute access
+  still fails" regression guard was replaced (attribute access is no longer a gap). One test-writing
+  mistake caught immediately by running it, not shipped: `print(obj.value)` — `^0` output requires a
+  bare identifier per EML's own grammar (pre-existing, documented constraint, unrelated to this
+  round) — fixed by binding the attribute read to a variable first, the same idiom already used for
+  the Phase B2 dict/subscript tests. 611 tests total (up from 605).
+- **Re-ran the same 5 real B-6 corpus files**: no change for any of them — expected and confirmed,
+  since none of the 5 has attribute-read or import as its FIRST blocking construct (their blockers
+  remain `%`, `try:`, `def`, and the still out-of-scope multi-line dict literal, per the Phase B2
+  entry above). A real, fresh `import math` + `math.sqrt(x)` snippet was used for the actual
+  end-to-end CLI proof instead (`eml compress` → `eml roundtrip` → `eml run`, matched real Python).
+
+**Phase D (same day, 2026-07-16): `try`/`except`/`finally` + `raise`.** Mirrors forward Phase 7d.
+Zero lexer changes — `try`/`except`/`finally`/`raise`/`as` are all just `NAME` tokens (the
+established convention every phase after A has followed), and `COLON`/`INDENT`/`DEDENT` already
+exist.
+
+- **A real bug found by testing BEFORE writing any implementation code, not assumed**: Python's
+  `pass` — needed for an otherwise-empty `except`/`try` body, since `parseBlock()` already requires
+  non-empty bodies — has the EXACT SAME silent-mistranslation vulnerability `break`/`continue` had
+  before Phase A's fix. Verified directly: `transpilePythonToEml('x = 1\npass\n')` used to succeed
+  and emit `x^+1\npass`, treating the bare keyword as a variable reference. EML has no `Pass`/no-op
+  AST node at all (confirmed absent from the `Statement` union), so the fix mirrors break/continue's
+  shape exactly: recognize `pass` explicitly in `parseStatement()` and throw a clear, fail-loud error
+  — NOT add a new no-op emission capability, which would be a separate, out-of-scope feature.
+- **`py-parser.ts`**: `parseTry()`/`parseExceptHandler()`/`parseRaise()` mirror the forward parser's
+  shapes closely — `try:` body, zero-or-more `except [Type] [as name]:` handlers, optional
+  `finally:`, requiring at least one of `except`/`finally` (Python's own rule, enforced identically
+  to the forward parser). `raise` with no trailing expression (checked via `NEWLINE`/`DEDENT`/`EOF`)
+  is a bare re-raise; otherwise the exception expression reuses the existing `Call`/`Identifier`
+  emission machinery (`ValueError("msg")` is already a supported `Call`).
+- **The one design decision requiring real care, matching forward's own documented conservatism**:
+  per this doc's own "Phase 7" section above, the forward semantic analyzer treats `try`/`except`
+  MORE conservatively than `if`/`elif`/`else`'s branch-merge — each `except` handler
+  clones the scope from BEFORE the `try` (not from the try body's own clone), since the try body
+  might fail partway through. Mirrored exactly for the reverse emitter's `bound` set: the `try` body
+  and each `except` handler each get an ISOLATED clone that never merges back (which part, if any,
+  actually completed is conditional); `finally` shares the SAME live `bound` (no cloning) since it
+  always runs unconditionally — the identical reasoning already applied to `while`/`for` bodies in
+  Phase A. Locked in with a dedicated test pair: a name assigned only inside `try` is NOT usable
+  afterward (an `AugmentedAssign` on it fails loudly), while a name assigned in `finally` IS.
+- **Tests**: `tests/bidirectional.test.ts`'s exclusion regex narrowed to just `def|class` — the ONLY
+  remaining forward-only constructs. Fixture 27 (`try_except_finally`) became round-trippable;
+  fixture 28 (`raise_custom`) stays excluded since it also uses `def` (Phase E scope, confirmed from
+  its content, not a Phase D gap). `tests/reverse-blocks.test.ts` gained a new describe block: basic
+  try/except/finally round-trip, `except ... as e` round-trip, try+finally-only round-trip, bare
+  `raise` round-trip, `raise <expr>` round-trip, both conservative-scope cases above, and a `pass`
+  regression-guard test. 620 tests total (up from 611).
+- **Re-ran the same 5 real B-6 corpus files — genuine, concrete progress this time**:
+  `Decimal_to_binary_convertor` (previously blocked at line 1 on `try:` itself) now progresses all
+  the way to line 3's `if menu < 1 or menu > 2:` — blocked by the `or` boolean operator, which no
+  reverse-parser phase has ever supported (a separate, pre-existing gap, not something Phase D was
+  meant to address). The other 4 files show no change, exactly as expected (their blockers — `%`,
+  `def`, the multi-line dict literal — are all still out of this round's scope). A real, fresh
+  try/except/finally-inside-a-loop snippet was used for the end-to-end CLI proof
+  (`eml compress` → `eml roundtrip` → `eml run`, matched real Python).
+
+**Phase E1 (same day, 2026-07-16): function definitions + `return`.** Mirrors forward Phase 2 —
+the `@cold`/neutral subset only; `class` (forward Phase 7e) is deliberately its own separate future
+round (E2), not attempted here. Zero AST changes — `FunctionDef`/`ReturnStatement`/`Decorator`/
+`Temperature` (`packages/types/src/ast.ts`) were already fully modeled for both directions since
+forward Phase 2.
+
+- **Two real, non-obvious findings, verified directly against the forward source BEFORE writing any
+  implementation code — the most consequential research this whole reverse-transpiler effort has
+  surfaced.**
+  1. **`@cold` and `@hot` are NOT symmetric in the emitted Python.** Read
+     `packages/transpiler-python/src/emitter.ts`'s `FunctionDef` case directly: `@cold` (non-async)
+     emits a real `@functools.cache` decorator; `@hot` emits only a **comment**
+     (`# @hot: dynamic state — not cached`); no decorator emits nothing. Since this reverse lexer
+     discards comments entirely (never tokenizes them), `@hot` is **structurally unrecoverable from
+     emitted Python — a permanent information-loss boundary, not "not yet implemented,"** the same
+     category as `async`/`await` being permanently forward-only. A function that was originally
+     `@hot` will not reach a round-trip fixpoint; documented as such in §9/§11 rather than glossed
+     over as a deferred gap like `class`.
+  2. **`import functools` is auto-synthesized boilerplate, not user-authored EML.** Confirmed via
+     `packages/transpiler-python/src/semantic.ts` (~line 596): the forward semantic analyzer adds
+     `'import functools'` to an auto-collected `importsNeeded` set whenever a non-async `@cold`
+     function exists, independent of any user-written `import` statement, hoisted to the file top.
+     `tests/fixtures/15_cold_function.eml`'s source has no `import` line at all; its `.expected.py`
+     has `import functools` purely from this auto-synthesis. Treating this bare import as a real,
+     preservable `ImportStatement` (as Phase C's bare-import logic would by default) would duplicate
+     it on the next forward pass. Fixed with a `functools`-specific skip in `parseProgram()`'s
+     pre-filter, mirroring how `import numpy as np` is already specially dropped.
+- **`py-lexer.ts`**: added `AT` (`@`) — the first genuinely new token since Phase B2's
+  `LBRACE`/`RBRACE`, and the entire lexer change.
+- **`py-parser.ts`**: `parseFunctionDef()` recognizes ONLY the exact decorator shape the forward
+  emitter ever produces — `@functools.cache` (via `expectName`/`expect(DOT)` chained checks) — setting
+  `temperature: 'cold'`; anything else after `@` (`@staticmethod`, `@property`, a custom decorator,
+  `functools.lru_cache(...)`, a parenthesized `@functools.cache()`) throws rather than
+  partial-matching, since none of those shapes are ever reachable from this emitter's own output.
+  `async` gets an explicit, dedicated rejection message in `parseStatement()` (temporal loops are
+  permanent forward-only) rather than falling through to a generic "unexpected token" failure —
+  intentionally a better error than every other still-unsupported keyword gets for free. Params are
+  bare comma-separated `NAME`s only (no defaults/`*args`/`**kwargs`/annotations), matching the
+  `Identifier[]`-only `FunctionDef.params` type. `parseReturn()` mirrors `parseRaise()`'s bare-vs-
+  expression shape exactly.
+- **`eml-emitter.ts`**: `Return` is a one-line ternary. `FunctionDef` introduced the round's one
+  genuinely new scoping rule: a **fresh, function-local `bound` set — not cloned from the enclosing
+  scope** — pre-seeded only with the function's own parameter names. Every prior block construct
+  (if/while/for/try) is only isolated GOING OUT (nothing declared inside reliably survives after, but
+  the enclosing scope's names remain visible/mutable inside); a function body is the first construct
+  isolated in BOTH directions, since it's the first one that's also a real call boundary — nothing
+  from the caller's scope leaks in, and nothing declared inside leaks back out. `@hot` is never
+  emitted (nothing to emit it as, and it can never arise from re-parsing already-emitted Python
+  anyway — only from a freshly-forward-transpiled AST).
+- **Tests**: `tests/bidirectional.test.ts`'s exclusion regex narrowed to just `class` — the ONLY
+  remaining forward-only construct. Fixture 15 (`cold_function`) and fixture 28 (`raise_custom`, a
+  nice bonus — uses `def`+`if`+`raise`+`try`+`except` but no `class`) both became round-trippable.
+  `tests/reverse-blocks.test.ts` gained a new describe block: `@cold` function round-trip (incl.
+  confirming the auto `import functools` is correctly dropped, not duplicated, on re-forward-
+  transpile), neutral function round-trip, bare `return` round-trip, the fixture-28-mirroring
+  combined def+if+raise+try case, function-scope isolation going OUT (a name assigned inside a
+  function does not leak to the caller) and going IN (a module-level bound name doesn't
+  false-positive "already bound" for a same-named fresh local inside a function), `async def`
+  rejection, and an unsupported-decorator (`@staticmethod`) rejection. No positive test exists for
+  `@hot` — it's permanently unrecoverable, not merely untested. 632 tests total (up from 620).
+- **Verification**: a real, fresh recursive `@cold` function (`factorial`, calling itself) was run
+  through the actual CLI end to end — `eml compress` → `eml roundtrip` (fixpoint OK) → `eml run`
+  (153 == 153, matched a real `python` run byte-for-byte) — and the reconstructed EML was confirmed
+  to NOT contain a spurious `import functools` line. Re-ran the same 5 real B-6 corpus files:
+  `Duplicate_files_remover` (previously blocked at `def hashFile`, line 7) now progresses to
+  `with open(filename, 'rb') as file:` on line 11 — `with`/context managers are a new, separate,
+  out-of-this-round gap, and this is concrete proof `def` itself now fully lexes/parses. The other 4
+  files show no change, exactly as expected (`%`, `or`, and the multi-line dict literal remain
+  earlier in those files than any function definition).
 
 ## Non-obvious design decisions (the gotchas)
 

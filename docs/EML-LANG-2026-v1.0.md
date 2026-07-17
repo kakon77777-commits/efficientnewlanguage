@@ -614,10 +614,39 @@ interpreter's stdout equals the real Python run's stdout.
 
 The supported statement subset round-trips: `Python(subset) → EML → Python` is a fixpoint
 (`python1 == python2`). The reverse path is a deterministic inverse of the emitter; it **fails
-loudly** on inexpressible constructs rather than guessing. Forward-only constructs (NOT part of the
-round-trip invariant): function definitions, `@cold`/`@hot`, `@temporal_loop`, `async`/`await`,
-matrices. Arbitrary-Python compression (lossy) is an AI-assisted, validator-gated, suggestion-only
-layer (whitepaper §5.4) and is **not** part of the deterministic core.
+loudly** on inexpressible constructs rather than guessing. As of Phase A (2026-07-16), the subset
+includes `if`/`elif`/`else`, `while`, and `for...in` (§6a); as of Phase B1 (same day), `break`/
+`continue` (§6b); as of Phase B2 (same day), dict/set literals + subscript, including subscript
+assignment targets (`d[k] = v` / `d[k] += v`); as of Phase C (same day), attribute access — including
+as a call callee (`math.sqrt(x)`) and as an assignment target (`obj.attr = v` / `obj.attr += v`) —
+and a bare `import module` statement; as of Phase D (same day), `try`/`except`/`finally` and `raise`;
+as of Phase E1 (same day), function definitions and `return` — the `@cold`/neutral subset only (see
+below) — see §11's addenda. Forward-only constructs (NOT part of the round-trip invariant):
+`@temporal_loop`, `async`/`await`, and `class` (§6b) — the reverse subset now covers every other
+Phase 0–7 statement/expression kind except `class`.
+**`@hot` is a permanent, structural round-trip gap, not a deferred one** (distinct from `class`,
+which is merely not-yet-implemented): the forward Python emitter renders `@cold` as a real
+`@functools.cache` decorator but `@hot` as a bare **comment** (`# @hot: dynamic state — not
+cached`), and comments are never tokenized by the reverse lexer — so a function that was originally
+`@hot` has no marker left in its emitted Python for the reverse path to recover. It will not reach a
+round-trip fixpoint; this is the same category of permanent, one-way information loss as
+`async`/`await`. Also note: the reverse path treats a bare `import functools` as auto-generated
+boilerplate and never reconstructs it as a literal EML import — the forward semantic analyzer
+auto-synthesizes exactly this import whenever a non-async `@cold` function exists, independent of
+any user-authored import, so preserving it literally would duplicate it on the next forward pass.
+**Known whole-language boundary, not a Phase B2 gap**: neither transpilation direction has ever
+supported a bracketed literal (`[...]`, `{...}`, a call's `(...)`) spanning multiple physical lines —
+confirmed via a real corpus test (a genuine third-party Python file whose dict literal is written
+across many lines): both lexers emit an unconditional `NEWLINE` token per `\n` regardless of bracket
+nesting depth, with no Python-style implicit line-joining inside brackets. This is a pre-existing,
+whole-language design boundary dating to Phase 0 (every list/dict/matrix literal in this repo's own
+examples is written on one line), not a defect introduced by Phase B2 — extending either lexer to
+support it would be its own separate, cross-cutting round. (Correction: an earlier revision of this
+section also listed matrices as forward-only;
+`<M>(...)`/`^T` have always round-tripped via the reverse emitter's `Matrix`/`Transpose` cases — this
+was a documentation error, not a capability change.) Arbitrary-Python compression (lossy) is an
+AI-assisted, validator-gated, suggestion-only layer (whitepaper §5.4) and is **not** part of the
+deterministic core.
 
 ---
 
@@ -673,6 +702,92 @@ diagnostic codes were added to Appendix A (`E_BREAK_OUTSIDE_LOOP`, `E_CONTINUE_O
 the same policy. No language feature remains scoped-out from the original "general-purpose program"
 goal; `class` explicitly excludes inheritance, method decorators, and dunders beyond `__init__` as a
 permanent (not merely deferred) design simplification for this language generation.
+
+**Phase 8 reverse-transpiler addendum, Phase A (2026-07-16).** The reverse Python→EML path (§9)
+gained a real block-statement grammar: `if`/`elif`/`else`, `while`, and `for...in` (§6a) now
+round-trip, on top of the INDENT/DEDENT/`COLON`-aware tokenization + suite parsing this required.
+This **widens** the §9 round-trip guarantee rather than merely leaving it "untouched" as the Phase 6
+addendum above said at the time — additive per the stability policy, since no previously-supported
+mapping changed meaning. `break`/`continue`, dict/set literals + subscript, attribute access +
+`import`, `try`/`except`/`finally`/`raise`, and `class` (§6b) remain forward-only this round —
+explicitly deferred to their own follow-up rounds, not attempted here. One correctness subtlety
+worth recording normatively: a name assigned inside only SOME branches of a non-exhaustive `if` (no
+`else`) is not considered reliably bound afterward by the reverse emitter (an `AugmentedAssign` on
+it fails loudly) — only a name assigned in EVERY branch of an exhaustive `if`/`elif`/`else` chain is
+treated as bound going forward, mirroring how the forward semantic analyzer already reasons about
+branch scope for Phase 6 control flow (§6a).
+
+**Phase 8 reverse-transpiler addendum, Phase B1 (2026-07-16, same day).** `break`/`continue` (§6b)
+now round-trip too — the reverse parser already needed to recognize them explicitly (see the note
+below), so emission was a small, low-risk follow-on to Phase A rather than its own large slice.
+Further widens §9's round-trip guarantee, additive per the stability policy. dict/set literals +
+subscript, attribute access + `import`, `try`/`except`/`finally`/`raise`, and `class` (§6b) remain
+forward-only, deferred to their own follow-up rounds.
+
+**Phase 8 reverse-transpiler addendum, Phase B2 (2026-07-16, same day).** dict/set literals +
+subscript (§6b) now round-trip, including subscript as an assignment target — `AssignTarget` (the
+reverse parser's own target-detection logic, not the shared AST type, which needed no change) widened
+from bare-identifier-only to `Identifier | Subscript`, mirroring the forward parser's existing
+`Identifier | Subscript | Attribute` union. Further widens §9's round-trip guarantee, additive per
+the stability policy. attribute access + `import`, `try`/`except`/`finally`/`raise`, and `class`
+(§6b) remain forward-only, deferred to their own follow-up rounds. Re-testing against real,
+unmodified third-party Python files (the same B-6 corpus-validation sample used to originally
+motivate this whole effort) surfaced the whole-language multi-line-bracketed-literal boundary
+recorded in §9 above — a genuine finding, not a regression, and explicitly not addressed this round.
+
+**Phase 8 reverse-transpiler addendum, Phase C (2026-07-16, same day).** Attribute access (§6b) now
+round-trips too — as an expression, as a call callee (`math.sqrt(x)`, mirroring
+`tests/fixtures/26_import_math.eml`), and as an assignment target (`obj.attr = v` / `obj.attr += v`,
+using the same reversed-arrow / real-compound-operator rules Phase B2 established for `Subscript`
+targets). `AssignTarget` (the reverse parser's own target-detection logic) widened one final step to
+`Identifier | Subscript | Attribute`, now matching the forward parser's `AssignTarget` union exactly.
+A bare `import module` statement also now round-trips (parsed only when followed by exactly one
+module name then a statement boundary — the sole shape EML's `ImportStatement` can express); an
+aliased (`import x as y`) or dotted (`import os.path`) import, or any `from X import Y`, still
+silently drops exactly as before this round (unchanged, deliberately not attempted — none of those
+forms has an EML source form to round-trip to). Further widens §9's round-trip guarantee, additive
+per the stability policy. `try`/`except`/`finally`/`raise` and `class` (§6b) remain forward-only,
+deferred to their own follow-up rounds.
+
+**Phase 8 reverse-transpiler addendum, Phase D (2026-07-16, same day).** `try`/`except`/`finally`
+and `raise` (§6b) now round-trip too. Per-part `bound`-scope handling deliberately mirrors the
+forward semantic analyzer's own documented conservatism (Phase 7d): the `try` body and each
+`except` handler each get an ISOLATED scope clone that never merges back into the enclosing scope
+(since which of them, if any, actually completed is conditional — the try body might fail partway
+through), while `finally` shares the same live scope with no cloning (it always runs
+unconditionally, the same reasoning already applied to `while`/`for` bodies in Phase A). A real,
+verified-before-writing-code finding: Python's `pass` — commonly needed for an otherwise-empty
+`except`/`try` body, since `parseBlock()` requires non-empty bodies — had the exact same silent-
+mistranslation vulnerability `break`/`continue` had before Phase A's fix (a bare keyword immediately
+followed by end-of-line is indistinguishable from a harmless identifier reference to this
+simplified parser). EML has no no-op-statement AST node at all, so `pass` is recognized explicitly
+and rejected with a clear error rather than silently accepted. Further widens §9's round-trip
+guarantee, additive per the stability policy. Only function definitions and `class` (§6b) remain
+forward-only after this round — every other Phase 0–7 statement/expression kind now round-trips.
+
+**Phase 8 reverse-transpiler addendum, Phase E1 (2026-07-16, same day).** Function definitions and
+`return` (Phase 2) now round-trip — the `@cold`/neutral subset only. Only the exact decorator shape
+the forward emitter ever produces is recognized: `@functools.cache` → `temperature: 'cold'`; a bare
+function gets no decorator; anything else (`@staticmethod`, `@property`, a custom decorator,
+`functools.lru_cache(...)`, a parenthesized `@functools.cache()`) is rejected outright rather than
+partial-matched, since none of those are reachable from this emitter's own output. `async def` is
+also explicitly rejected with a dedicated, specific error message (temporal loops are a permanent
+forward-only construct) rather than falling through to a generic parse failure. **`@hot` is a
+permanent round-trip gap, not a deferred one** — see §9's normative note above; this is the first
+Phase 8 round where "forward-only" doesn't mean "not implemented yet" for part of its own scope. A
+second real finding, verified against the forward semantic analyzer's source before writing any
+parser code: `import functools` is auto-synthesized boilerplate (added to the emitted Python
+whenever a non-async `@cold` function exists, independent of any user-authored import), so the
+reverse parser special-cases this exact bare import and never reconstructs it as a literal
+`ImportStatement` — reconstructing it literally would duplicate it on the next forward pass (once
+from the reconstructed import, once again from the auto-collection re-triggered by seeing `@cold`).
+Function bodies introduced a new `bound`-scope rule, stricter than every prior block construct: a
+FRESH, function-local scope (not cloned from the enclosing scope) pre-seeded only with the
+function's own parameter names — the first construct isolated in BOTH directions (nothing declared
+inside leaks out, matching if/try's existing behavior, but ALSO nothing from the caller's scope
+leaks in, which if/while/for/try never needed since none of them are call boundaries). Further
+widens §9's round-trip guarantee, additive per the stability policy. `class` (§6b) is now the only
+forward-only construct left that is a deferred (not permanent) gap.
 
 ---
 

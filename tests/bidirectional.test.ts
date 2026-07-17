@@ -46,28 +46,21 @@ const here = dirname(fileURLToPath(import.meta.url));
 const fixturesDir = join(here, 'fixtures');
 const fixtures = readdirSync(fixturesDir).filter((f) => f.endsWith('.eml')).sort();
 
-// Functions (`def` / decorators, Phase 2), control flow (`if`/`elif`/`else`/
-// `while`/`for`, Phase 6), `break`/`continue` (Phase 7a), dict/set/subscript
-// (Phase 7b), attribute access/`import` (Phase 7c), try/except/finally/
-// raise (Phase 7d), and `class` (Phase 7e) are forward-only constructs: the
-// reverse Python->EML path stays statement-level, so fixtures using them are
-// not expected to round-trip (see eml-emitter.ts's throwing cases + py-
-// parser.ts's/py-lexer.ts's lack of
-// if/while/for/def/break/continue/dict/set/subscript/attribute/import/try/
-// except/finally/raise/class handling). Dict/set use `{` (never used by any
-// round-trippable fixture); subscript is detected as a word character
-// directly followed by `[` (e.g. `lst[0]`) as opposed to a bare `[1:N]`
-// range/list literal (always preceded by whitespace/punctuation); attribute
-// access is detected as an identifier char, `.`, identifier-start char (e.g.
-// `math.sqrt`) as opposed to a numeric literal's decimal point (`3.14`,
-// where a digit precedes/follows the `.`). The fixpoint checks cover the
-// round-trippable subset.
+// `class` (Phase 7e) is the last forward-only construct: the reverse
+// Python->EML path doesn't parse/emit it yet (see eml-emitter.ts's ClassDef
+// throw + py-parser.ts's lack of class handling). `if`/`elif`/`else`,
+// `while`, and `for...in` (Phase 6) round-trip as of Phase A (2026-07-16);
+// `break`/`continue` (Phase 7a) as of Phase B1 (same day); dict/set literals
+// + subscript (Phase 7b) as of Phase B2 (same day); attribute access + bare
+// `import` (Phase 7c) as of Phase C (same day); try/except/finally/raise
+// (Phase 7d) as of Phase D (same day); function definitions + `return`
+// (Phase 2, the `@cold`/neutral subset — `@hot` is a permanent, not
+// deferred, gap; see eml-emitter.ts's FunctionDef case) as of Phase E1 (same
+// day) — as long as the fixture's body doesn't ALSO use `class`. The
+// fixpoint checks cover the round-trippable subset.
 const roundTrippable = fixtures.filter((f) => {
   const src = readFileSync(join(fixturesDir, f), 'utf8');
-  return (
-    !/\b(def|if|elif|else|while|for|break|continue|import|try|except|finally|raise|class)\b/.test(src) &&
-    !/[A-Za-z0-9_]\[|\{|[A-Za-z_]\.[A-Za-z_]/.test(src)
-  );
+  return !/\bclass\b/.test(src);
 });
 
 describe('round-trip EML -> Python -> EML -> Python (fixpoint)', () => {
