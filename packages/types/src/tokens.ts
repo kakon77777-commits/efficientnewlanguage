@@ -51,6 +51,7 @@ export type TokenType =
   | 'IN' // in or ∈ — range membership
   | 'AND' // and or ∧ — boolean AND (short-circuit)
   | 'OR' // or or ∨ — boolean OR (short-circuit)
+  | 'NOT' // not or ¬ — boolean negation (always returns bool)
   | 'MATRIX' // <M> — matrix constructor opener
   | 'DEF' // def — function definition keyword
   | 'RETURN' // return — function return keyword

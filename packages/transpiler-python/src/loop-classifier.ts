@@ -39,6 +39,9 @@ function scanStatementExpr(stmt: Statement, visit: (e: Expression) => void): voi
         walk(e.left);
         walk(e.right);
         break;
+      case 'Not':
+        walk(e.operand);
+        break;
       case 'Conditional':
         walk(e.test);
         walk(e.consequent);
@@ -67,6 +70,9 @@ function scanStatementExpr(stmt: Statement, visit: (e: Expression) => void): voi
         walk(e.operand);
         break;
       case 'List':
+        for (const el of e.elements) walk(el);
+        break;
+      case 'Tuple':
         for (const el of e.elements) walk(el);
         break;
       case 'Await':

@@ -55,6 +55,9 @@ function walkExpr(expr: Expression, bound: Set<string>, onCall: (name: string) =
       walkExpr(expr.left, bound, onCall);
       walkExpr(expr.right, bound, onCall);
       break;
+    case 'Not':
+      walkExpr(expr.operand, bound, onCall);
+      break;
     case 'Conditional':
       walkExpr(expr.test, bound, onCall);
       walkExpr(expr.consequent, bound, onCall);
@@ -79,6 +82,9 @@ function walkExpr(expr: Expression, bound: Set<string>, onCall: (name: string) =
       walkExpr(expr.operand, bound, onCall);
       break;
     case 'List':
+      for (const e of expr.elements) walkExpr(e, bound, onCall);
+      break;
+    case 'Tuple':
       for (const e of expr.elements) walkExpr(e, bound, onCall);
       break;
     case 'Await':

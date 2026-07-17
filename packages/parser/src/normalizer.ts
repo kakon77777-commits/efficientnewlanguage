@@ -56,6 +56,13 @@ const REPLACEMENTS: Array<[string, string]> = [
   ['∈', ' in '], // ∈
   ['∧', ' and '], // ∧
   ['∨', ' or '], // ∨
+  // `¬` gets ONLY a trailing space, unlike `∧`/`∨`'s both-side spacing: `¬`
+  // is a PREFIX operator and can legitimately be the first character on a
+  // line (e.g. `¬x => r`), where a leading space would corrupt the
+  // indentation-sensitive lexer's whitespace measurement (a real bug caught
+  // by a direct test, not assumed safe from the `∧`/`∨` precedent — those
+  // are infix-only and never appear at line-start, so they never hit this).
+  ['¬', 'not '], // ¬
   ['⟨', '<'], // ⟨  (matrix open ⟨M⟩ -> <M>)
   ['⟩', '>'], // ⟩
   ['×', '*'], // × (multiplication sign)

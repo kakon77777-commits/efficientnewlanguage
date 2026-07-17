@@ -170,28 +170,48 @@ export function lexPython(source: string): PyToken[] {
     }
     if (matchedTwo) continue;
 
+    // string literal (single/double quoted, or triple-quoted `'''`/`"""` —
+    // Phase 9 item 4). Same "representationally identical once lexed, no
+    // INDENT/DEDENT conflict" reasoning as the forward lexer (packages/
+    // parser/src/lexer.ts) — this loop consumes embedded raw newlines
+    // directly via its own advance() calls, never returning control to the
+    // outer dispatch loop's `c === '\n'` branch until the closing delimiter.
     if (c === '"' || c === "'") {
       const quote = c;
+      const readEscape = (): string => {
+        advance(); // backslash
+        const e = peek();
+        advance();
+        return e === 'n' ? '\n'
+          : e === 't' ? '\t'
+          : e === 'r' ? '\r'
+          : e === '\\' ? '\\'
+          : e === '"' ? '"'
+          : e === "'" ? "'"
+          : e === '0' ? '\0'
+          : '\\' + e;
+      };
+      const readPlain = (): string => {
+        const ch = peek();
+        advance();
+        return ch;
+      };
+      if (at(quote.repeat(3))) {
+        const delim = quote.repeat(3);
+        advance(3);
+        let value = '';
+        while (pos < src.length && !at(delim)) {
+          value += peek() === '\\' ? readEscape() : readPlain();
+        }
+        if (!at(delim)) throw new PyLexError('Unterminated triple-quoted string', l, cc);
+        advance(3);
+        push('STRING', value, l, cc);
+        continue;
+      }
       advance();
       let value = '';
       while (pos < src.length && peek() !== quote) {
-        if (peek() === '\\') {
-          advance(); // backslash
-          const e = peek();
-          advance();
-          value +=
-            e === 'n' ? '\n'
-            : e === 't' ? '\t'
-            : e === 'r' ? '\r'
-            : e === '\\' ? '\\'
-            : e === '"' ? '"'
-            : e === "'" ? "'"
-            : e === '0' ? '\0'
-            : '\\' + e;
-        } else {
-          value += peek();
-          advance();
-        }
+        value += peek() === '\\' ? readEscape() : readPlain();
       }
       if (peek() !== quote) throw new PyLexError('Unterminated string', l, cc);
       advance();

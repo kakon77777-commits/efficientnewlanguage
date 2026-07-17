@@ -42,6 +42,7 @@ import {
   BOOL,
   NONE,
   LIST,
+  TUPLE,
   DICT,
   SET,
   canonicalKey,
@@ -54,6 +55,7 @@ import {
   pyRepr,
   typeName,
   isHashable,
+  percentFormat,
 } from './values';
 
 export { type PyVal, PyError } from './values';
@@ -213,11 +215,19 @@ function runProgram(
         const left = evalExpr(expr.left, scope);
         const right = evalExpr(expr.right, scope);
         // `%` on a string is Python's printf-style string-formatting operator
-        // (`"%s" % (a, b)`), a distinct, unimplemented semantic — a separate,
-        // later Phase 9 item, not numeric modulo. Defer rather than let
-        // `arith()`'s generic isNumeric check throw a wrong TypeError.
-        if (expr.op === '%' && (left.k === 'str' || right.k === 'str')) {
-          throw new Unsupported('% string formatting', 'printf-style % formatting is not modeled yet');
+        // (`"%s" % (a, b)`), not numeric modulo — a tuple right-hand side
+        // supplies multiple substitution values in order; anything else is
+        // treated as the single value (verified against real Python: `'%s' %
+        // 5` and `'%s' % (5,)` are identical). Phase 9 item 3a.
+        if (expr.op === '%' && left.k === 'str') {
+          const args = right.k === 'tuple' ? right.v : [right];
+          return STR(percentFormat(left.v, args));
+        }
+        if (expr.op === '%' && right.k === 'str') {
+          // Left isn't a string but right is — a genuine cross-type TypeError
+          // in real Python (`5 % 'x'`), verified directly, not `arith()`'s own
+          // generic (and here, wrong) numeric-only message.
+          throw new PyError('TypeError', `unsupported operand type(s) for %: '${typeName(left)}' and 'str'`);
         }
         return arith(expr.op, left, right);
       }
@@ -230,12 +240,17 @@ function runProgram(
         if (expr.op === 'and') return truthy(left) ? evalExpr(expr.right, scope) : left;
         return truthy(left) ? left : evalExpr(expr.right, scope);
       }
+      case 'Not':
+        // Unlike `and`/`or`, `not` always returns a real bool.
+        return BOOL(!truthy(evalExpr(expr.operand, scope)));
       case 'Conditional':
         return truthy(evalExpr(expr.test, scope))
           ? evalExpr(expr.consequent, scope)
           : evalExpr(expr.alternate, scope);
       case 'List':
         return LIST(expr.elements.map((e) => evalExpr(e, scope)));
+      case 'Tuple':
+        return TUPLE(expr.elements.map((e) => evalExpr(e, scope)));
       case 'Membership':
         return contains(evalExpr(expr.element, scope), evalExpr(expr.collection, scope));
       case 'Range':
@@ -345,7 +360,7 @@ function runProgram(
   /** Materialize a `for ... in <iterable>` target into concrete items — Python
    *  iterates lists element-by-element and strings character-by-character. */
   const iterableItems = (v: PyVal): PyVal[] => {
-    if (v.k === 'list') return v.v;
+    if (v.k === 'list' || v.k === 'tuple') return v.v;
     if (v.k === 'str') return [...v.v].map((ch) => STR(ch));
     throw new PyError('TypeError', `'${typeName(v)}' object is not iterable`);
   };
@@ -867,6 +882,11 @@ function normalizeIndex(idx: PyVal, length: number, containerType: string): numb
 /** `obj[index]` read (Phase 7b) — list/str (negative indices) + dict (KeyError). */
 function subscriptGet(obj: PyVal, index: PyVal): PyVal {
   if (obj.k === 'list') return obj.v[normalizeIndex(index, obj.v.length, 'list')]!;
+  // Read-only — `subscriptSet` intentionally has no 'tuple' case, so writing
+  // through a tuple subscript still falls through to its existing "does not
+  // support item assignment" error, which is already the correct Python
+  // message for an immutable tuple.
+  if (obj.k === 'tuple') return obj.v[normalizeIndex(index, obj.v.length, 'tuple')]!;
   if (obj.k === 'str') return STR(obj.v[normalizeIndex(index, obj.v.length, 'string')]!);
   if (obj.k === 'dict') {
     if (!isHashable(index)) throw new PyError('TypeError', `unhashable type: '${typeName(index)}'`);

@@ -152,6 +152,10 @@ export function analyzeSemantics(
         collectExpr(expr.left);
         collectExpr(expr.right);
         break;
+      case 'Not':
+        symbols.add('not');
+        collectExpr(expr.operand);
+        break;
       case 'Call':
         // An Attribute callee (`math.sqrt(x)`) can itself hide nested
         // expressions in its object (e.g. `d[k].method()`) — recurse into it
@@ -161,6 +165,9 @@ export function analyzeSemantics(
         for (const a of expr.args) collectExpr(a);
         break;
       case 'List':
+        for (const e of expr.elements) collectExpr(e);
+        break;
+      case 'Tuple':
         for (const e of expr.elements) collectExpr(e);
         break;
       case 'Await':

@@ -16,7 +16,9 @@ import { transpilePythonToEml, roundTripFromPython } from '@eml/transpiler-eml';
  * follows the divisor), unlike JS's/C++'s native truncating `%` (sign follows
  * the dividend) — see `docs/EML-LANG-2026-v1.0.md` §5.7 and
  * `docs/reverse-transpiler-feasibility.md`'s methodology this reuses.
- * String-formatting `%` (`"%s" % (a, b)`) is a separate, later Phase 9 item.
+ * String-formatting `%` (`"%s" % (a, b)`) was implemented later, in Phase 9
+ * item 3a (tests/phase9-tuple-format.test.ts) — at the time this file was
+ * written it still deferred as Unsupported.
  */
 
 function resolvePython(): string | null {
@@ -87,16 +89,22 @@ describe.skipIf(!PYTHON)('Phase 9 — real Python execution parity: floor-mod, n
   }
 });
 
-describe('Phase 9 — interpreter: ZeroDivisionError + string-% defer', () => {
+describe('Phase 9 — interpreter: ZeroDivisionError + string-% is REAL formatting (Phase 9 item 3a)', () => {
   it('modulo by zero raises ZeroDivisionError (verified message text against real Python)', () => {
     const r = interpret('a^+5\nb^+0\na % b => r\nr^0');
     expect(r.error?.type).toBe('ZeroDivisionError');
     expect(r.error?.message).toBe('division by zero');
   });
 
-  it('`"x" % y` (string-formatting %) defers as Unsupported, not a wrong TypeError or silent output', () => {
+  // Superseded by Phase 9 item 3a: `"x" % y` used to defer as Unsupported
+  // (string-formatting `%` wasn't modeled yet); it's now real — see
+  // tests/phase9-tuple-format.test.ts for the full %-formatting suite. This
+  // specific case ("hi" has no format directive at all) now raises the exact
+  // real-Python TypeError, verified directly, not the old placeholder defer.
+  it('a format string with no directives raises the real Python TypeError (arg not consumed)', () => {
     const r = interpret('a^+"hi"\nb^+5\na % b => r\nr^0');
-    expect(r.unsupported.length).toBeGreaterThan(0);
+    expect(r.error?.type).toBe('TypeError');
+    expect(r.error?.message).toBe('not all arguments converted during string formatting');
     expect(r.ok).toBe(false);
   });
 });

@@ -180,27 +180,47 @@ export function lex(source: string): Token[] {
       continue;
     }
 
-    // string literal (single or double quoted) — rarely needed but supported
+    // string literal (single/double quoted, or triple-quoted `'''`/`"""` —
+    // Phase 9 item 4). A triple-quoted string is representationally IDENTICAL
+    // to a regular one once lexed (StringLiteral has no quote-style flag), so
+    // both branches share the same escape-handling logic. Embedded raw
+    // newlines inside either form are consumed directly by THIS loop's own
+    // `advance()` calls and never reach the outer dispatch loop's `c === '\n'`
+    // branch, so they can never spuriously trigger INDENT/DEDENT tracking —
+    // verified directly, the same guarantee an ordinary string containing a
+    // stray literal newline already relies on today.
     if (c === '"' || c === "'") {
       const quote = c;
+      const readEscape = (): string => {
+        advance(); // backslash
+        const e = advance();
+        return e === 'n' ? '\n'
+          : e === 't' ? '\t'
+          : e === 'r' ? '\r'
+          : e === '\\' ? '\\'
+          : e === '"' ? '"'
+          : e === "'" ? "'"
+          : e === '0' ? '\0'
+          : '\\' + e;
+      };
+      if (at(quote.repeat(3))) {
+        const delim = quote.repeat(3);
+        advance(3);
+        let value = '';
+        while (pos < source.length && !at(delim)) {
+          value += peek() === '\\' ? readEscape() : advance();
+        }
+        if (!at(delim)) {
+          throw new LexError('Unterminated triple-quoted string literal', startLine, startCol);
+        }
+        advance(3); // closing delimiter
+        push('STRING', value, startPos, startLine, startCol);
+        continue;
+      }
       advance();
       let value = '';
       while (pos < source.length && peek() !== quote) {
-        if (peek() === '\\') {
-          advance(); // backslash
-          const e = advance();
-          value +=
-            e === 'n' ? '\n'
-            : e === 't' ? '\t'
-            : e === 'r' ? '\r'
-            : e === '\\' ? '\\'
-            : e === '"' ? '"'
-            : e === "'" ? "'"
-            : e === '0' ? '\0'
-            : '\\' + e;
-        } else {
-          value += advance();
-        }
+        value += peek() === '\\' ? readEscape() : advance();
       }
       if (peek() !== quote) {
         throw new LexError('Unterminated string literal', startLine, startCol);
@@ -230,6 +250,7 @@ export function lex(source: string): Token[] {
       if (value === 'in') type = 'IN';
       else if (value === 'and') type = 'AND';
       else if (value === 'or') type = 'OR';
+      else if (value === 'not') type = 'NOT';
       else if (value === 'SUM') type = 'SIGMA';
       else if (value === 'def') type = 'DEF';
       else if (value === 'return') type = 'RETURN';

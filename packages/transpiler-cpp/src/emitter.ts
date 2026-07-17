@@ -51,13 +51,15 @@ function precedence(expr: Expression): number {
       return 1;
     case 'Logical':
       return expr.op === 'or' ? 2 : 3;
+    case 'Not':
+      return 4;
     case 'Comparison':
     case 'Membership':
-      return 4;
+      return 5;
     case 'Binary':
-      return expr.op === '+' || expr.op === '-' ? 5 : 6;
+      return expr.op === '+' || expr.op === '-' ? 6 : 7;
     default:
-      return 8; // atoms, calls, power (a function call), sum (a lambda), list, literals
+      return 9; // atoms, calls, power (a function call), sum (a lambda), list, tuple, literals
   }
 }
 
@@ -76,7 +78,7 @@ export function emitCppExpression(expr: Expression): string {
     case 'StringLiteral':
       return JSON.stringify(expr.value); // C++ accepts the same basic escapes
     case 'Power':
-      return `eml_pow(${child(expr.base, 8)}, ${emitCppExpression(expr.exponent)})`;
+      return `eml_pow(${child(expr.base, 9)}, ${emitCppExpression(expr.exponent)})`;
     case 'Binary': {
       // C++'s `%` is integer-only (a compile error on `double` operands),
       // unlike Python's, which also works on floats. This backend does no
@@ -89,12 +91,12 @@ export function emitCppExpression(expr: Expression): string {
       ) {
         throw new CppEmitError('C⁺⁺⁺ `%` requires integer operands (a non-integer literal was used) — C++ modulo does not support floating-point types.');
       }
-      const prec = expr.op === '+' || expr.op === '-' ? 5 : 6;
+      const prec = expr.op === '+' || expr.op === '-' ? 6 : 7;
       const nonAssoc = expr.op === '-' || expr.op === '/' || expr.op === '%';
       return `${child(expr.left, prec)} ${expr.op} ${child(expr.right, prec, nonAssoc)}`;
     }
     case 'Comparison':
-      return `${child(expr.left, 4)} ${expr.op} ${child(expr.right, 4)}`;
+      return `${child(expr.left, 5)} ${expr.op} ${child(expr.right, 5)}`;
     case 'Logical': {
       // C++ && / || always yield bool; Python's and/or yield an OPERAND
       // (short-circuit value). This is a real, deliberate narrowing for this
@@ -103,6 +105,15 @@ export function emitCppExpression(expr: Expression): string {
       const op = expr.op === 'and' ? '&&' : '||';
       return `${child(expr.left, prec)} ${op} ${child(expr.right, prec)}`;
     }
+    case 'Not':
+      // C++'s `!` binds MUCH TIGHTER than comparison (unlike Python's `not`,
+      // which binds looser) — `!x > 5` parses as `(!x) > 5` in real C++, not
+      // `!(x > 5)`. Reusing this shared precedence system (built for
+      // Python's own precedence) would be WRONG here, so this case bypasses
+      // `child()`/`precedence()` entirely and always parenthesizes the
+      // operand — correctness over minimal parens, verified by reasoning
+      // through concrete cases before writing this, not assumed safe.
+      return `!(${emitCppExpression(expr.operand)})`;
     case 'Conditional':
       return `(${child(expr.test, 1, true)} ? ${child(expr.consequent, 1, true)} : ${emitCppExpression(expr.alternate)})`;
     case 'Sum': {
@@ -140,6 +151,8 @@ export function emitCppExpression(expr: Expression): string {
       }
       return `std::vector<long long>{${expr.elements.map(emitCppExpression).join(', ')}}`;
     }
+    case 'Tuple':
+      throw new CppEmitError('Tuple literals `(a, b, ...)` are not supported by the C⁺⁺⁺ prototype (this numeric-only prototype has no tuple or string-formatting model).');
     case 'Range':
       throw new CppEmitError('A bare range `[a:b]` has no C⁺⁺⁺ value form; use it inside Σ or `in`.');
     case 'Matrix':
@@ -249,6 +262,8 @@ function expressionCallsName(expr: Expression, name: string): boolean {
     case 'Comparison':
     case 'Logical':
       return expressionCallsName(expr.left, name) || expressionCallsName(expr.right, name);
+    case 'Not':
+      return expressionCallsName(expr.operand, name);
     case 'Conditional':
       return (
         expressionCallsName(expr.test, name) ||
@@ -266,6 +281,8 @@ function expressionCallsName(expr: Expression, name: string): boolean {
     case 'Transpose':
       return expressionCallsName(expr.operand, name);
     case 'List':
+      return expr.elements.some((e) => expressionCallsName(e, name));
+    case 'Tuple':
       return expr.elements.some((e) => expressionCallsName(e, name));
     case 'Await':
       return expressionCallsName(expr.argument, name);

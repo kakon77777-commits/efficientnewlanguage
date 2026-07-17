@@ -77,6 +77,9 @@ function scanExpression(expr: Expression, effects: string[], userFns: Set<string
       scanExpression(expr.left, effects, userFns);
       scanExpression(expr.right, effects, userFns);
       break;
+    case 'Not':
+      scanExpression(expr.operand, effects, userFns);
+      break;
     case 'Conditional':
       scanExpression(expr.test, effects, userFns);
       scanExpression(expr.consequent, effects, userFns);
@@ -101,6 +104,9 @@ function scanExpression(expr: Expression, effects: string[], userFns: Set<string
       scanExpression(expr.operand, effects, userFns);
       break;
     case 'List':
+      for (const e of expr.elements) scanExpression(e, effects, userFns);
+      break;
+    case 'Tuple':
       for (const e of expr.elements) scanExpression(e, effects, userFns);
       break;
     case 'Await':
@@ -229,6 +235,9 @@ function collectCallsExpr(expr: Expression, into: Set<string>): void {
       collectCallsExpr(expr.left, into);
       collectCallsExpr(expr.right, into);
       break;
+    case 'Not':
+      collectCallsExpr(expr.operand, into);
+      break;
     case 'Conditional':
       collectCallsExpr(expr.test, into);
       collectCallsExpr(expr.consequent, into);
@@ -253,6 +262,9 @@ function collectCallsExpr(expr: Expression, into: Set<string>): void {
       collectCallsExpr(expr.operand, into);
       break;
     case 'List':
+      for (const e of expr.elements) collectCallsExpr(e, into);
+      break;
+    case 'Tuple':
       for (const e of expr.elements) collectCallsExpr(e, into);
       break;
     case 'Await':

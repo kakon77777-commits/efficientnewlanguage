@@ -77,6 +77,13 @@ export interface LogicalExpression extends NodeBase {
   right: Expression;
 }
 
+/** `not x` — unary boolean negation (Phase 9). Always returns a bool
+ *  (unlike `and`/`or`, which return an operand) — see `packages/interp`. */
+export interface NotExpression extends NodeBase {
+  type: 'Not';
+  operand: Expression;
+}
+
 /** Ternary, e.g. `x > 40 ? A : B` -> `A if x > 40 else B`. */
 export interface ConditionalExpression extends NodeBase {
   type: 'Conditional';
@@ -127,6 +134,13 @@ export interface ListLiteral extends NodeBase {
   elements: Expression[];
 }
 
+/** `(a, b, ...)`, e.g. `(name, year)`. `(x)` alone stays plain grouping (not a
+ *  1-tuple) — only a trailing comma makes it one, e.g. `(x,)`. Phase 9 item 3a. */
+export interface TupleLiteral extends NodeBase {
+  type: 'Tuple';
+  elements: Expression[];
+}
+
 /** Membership test, e.g. `i in [1:10]` -> `i in range(1, 11)`. */
 export interface MembershipExpression extends NodeBase {
   type: 'Membership';
@@ -174,6 +188,7 @@ export type Expression =
   | BinaryExpression
   | ComparisonExpression
   | LogicalExpression
+  | NotExpression
   | ConditionalExpression
   | RangeExpression
   | SumExpression
@@ -181,6 +196,7 @@ export type Expression =
   | MatrixExpression
   | TransposeExpression
   | ListLiteral
+  | TupleLiteral
   | MembershipExpression
   | AwaitExpression
   | DictLiteral

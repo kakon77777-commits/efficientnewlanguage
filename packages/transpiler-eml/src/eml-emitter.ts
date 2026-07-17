@@ -19,15 +19,17 @@ function precedence(expr: Expression): number {
       return 1;
     case 'Logical':
       return expr.op === 'or' ? 2 : 3;
+    case 'Not':
+      return 4;
     case 'Comparison':
     case 'Membership':
-      return 4;
+      return 5;
     case 'Binary':
-      return expr.op === '+' || expr.op === '-' ? 5 : 6;
+      return expr.op === '+' || expr.op === '-' ? 6 : 7;
     case 'Power':
-      return 7;
-    default:
       return 8;
+    default:
+      return 9;
   }
 }
 
@@ -41,10 +43,10 @@ const isAtom = (e: Expression): boolean =>
   e.type === 'Identifier' || e.type === 'NumberLiteral' || e.type === 'StringLiteral';
 
 /** Values eligible for the inline `target^+<literal>` sigil form (as opposed
- *  to the reversed-arrow form) — atoms plus list/dict/set literals, all of
- *  which `emitEmlExpression` already renders as valid EML literal text. */
+ *  to the reversed-arrow form) — atoms plus list/dict/set/tuple literals, all
+ *  of which `emitEmlExpression` already renders as valid EML literal text. */
 const isInlineLiteral = (e: Expression): boolean =>
-  isAtom(e) || e.type === 'List' || e.type === 'Dict' || e.type === 'Set';
+  isAtom(e) || e.type === 'List' || e.type === 'Dict' || e.type === 'Set' || e.type === 'Tuple';
 
 /** Real compound-assignment operator text for a Subscript/Attribute target —
  *  EML's `^+`/`^-`/`^*`/`^/` sigil is bare-identifier-only (§5.1's two-stage
@@ -87,18 +89,20 @@ export function emitEmlExpression(expr: Expression): string {
           `EML cannot express a power with exponent '${emitEmlExpression(expr.exponent)}' — the exponent must be a non-zero number literal.`,
         );
       }
-      return `${child(expr.base, 7, true)}^${emitEmlExpression(expr.exponent)}`;
+      return `${child(expr.base, 8, true)}^${emitEmlExpression(expr.exponent)}`;
     case 'Binary': {
-      const prec = expr.op === '+' || expr.op === '-' ? 5 : 6;
+      const prec = expr.op === '+' || expr.op === '-' ? 6 : 7;
       const nonAssoc = expr.op === '-' || expr.op === '/' || expr.op === '%';
       return `${child(expr.left, prec)} ${expr.op} ${child(expr.right, prec, nonAssoc)}`;
     }
     case 'Comparison':
-      return `${child(expr.left, 4)} ${expr.op} ${child(expr.right, 4)}`;
+      return `${child(expr.left, 5)} ${expr.op} ${child(expr.right, 5)}`;
     case 'Logical': {
       const prec = expr.op === 'or' ? 2 : 3;
       return `${child(expr.left, prec)} ${expr.op} ${child(expr.right, prec)}`;
     }
+    case 'Not':
+      return `not ${child(expr.operand, 4)}`;
     case 'Conditional':
       return `${child(expr.test, 1, true)} ? ${child(expr.consequent, 1, true)} : ${emitEmlExpression(expr.alternate)}`;
     case 'Range':
@@ -115,9 +119,15 @@ export function emitEmlExpression(expr: Expression): string {
     case 'Matrix':
       return `<M>(${emitEmlExpression(expr.data)})`;
     case 'Transpose':
-      return `${child(expr.operand, 8)}^T`;
+      return `${child(expr.operand, 9)}^T`;
     case 'List':
       return `[${expr.elements.map(emitEmlExpression).join(', ')}]`;
+    case 'Tuple':
+      // A single element needs the trailing comma to be a real Python tuple
+      // — `(x)` alone is just grouping, not a 1-tuple.
+      if (expr.elements.length === 0) return '()';
+      if (expr.elements.length === 1) return `(${emitEmlExpression(expr.elements[0]!)},)`;
+      return `(${expr.elements.map(emitEmlExpression).join(', ')})`;
     case 'Await':
       // Async/await is a forward-only construct (Phase 3 temporal loops); the
       // reverse path stays statement-level. Fail loudly.
@@ -127,9 +137,9 @@ export function emitEmlExpression(expr: Expression): string {
     case 'Set':
       return `{${expr.elements.map(emitEmlExpression).join(', ')}}`;
     case 'Subscript':
-      return `${child(expr.object, 8)}[${emitEmlExpression(expr.index)}]`;
+      return `${child(expr.object, 9)}[${emitEmlExpression(expr.index)}]`;
     case 'Attribute':
-      return `${child(expr.object, 8)}.${expr.attr}`;
+      return `${child(expr.object, 9)}.${expr.attr}`;
   }
 }
 

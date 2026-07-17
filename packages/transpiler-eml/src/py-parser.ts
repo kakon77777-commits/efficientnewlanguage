@@ -481,13 +481,25 @@ class PyParser {
   }
 
   private parseAnd(): Expression {
-    let left = this.parseComparison();
+    let left = this.parseNot();
     while (this.checkName('and')) {
       this.next();
-      const right = this.parseComparison();
+      const right = this.parseNot();
       left = { type: 'Logical', op: 'and', left, right };
     }
     return left;
+  }
+
+  /** `not_test: 'not' not_test | comparison` — mirrors the forward parser's
+   *  `parseNot()` exactly. No new lexer token needed — `not` is keyword-shaped
+   *  and this lexer has no keyword tokens (every identifier is `NAME`,
+   *  disambiguated via `checkName()`), same as `and`/`or`. */
+  private parseNot(): Expression {
+    if (this.checkName('not')) {
+      this.next();
+      return { type: 'Not', operand: this.parseNot() };
+    }
+    return this.parseComparison();
   }
 
   private parseComparison(): Expression {
@@ -599,9 +611,23 @@ class PyParser {
     }
     if (t.type === 'LPAREN') {
       this.next();
-      const e = this.parseExpr();
-      this.expect('RPAREN');
-      return e;
+      if (this.check('RPAREN')) {
+        this.next();
+        return { type: 'Tuple', elements: [] }; // ()
+      }
+      const first = this.parseExpr();
+      if (this.check('COMMA')) {
+        const elements: Expression[] = [first];
+        while (this.check('COMMA')) {
+          this.next();
+          if (this.check('RPAREN')) break; // trailing comma, e.g. (x,) or (x, y,)
+          elements.push(this.parseExpr());
+        }
+        this.expect('RPAREN');
+        return { type: 'Tuple', elements };
+      }
+      this.expect('RPAREN'); // no comma seen -> plain grouping, unchanged behavior
+      return first;
     }
     if (t.type === 'LBRACKET') {
       return this.parseList();

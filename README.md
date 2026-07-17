@@ -186,12 +186,18 @@ be recovered from emitted Python.
 Separately, EML's own language (both directions) is being extended to close
 real-corpus gaps found via the B-6 measurement — `and`/`or` boolean
 combinators (short-circuit, returning an operand not always a `bool`,
-matching Python exactly) and numeric `%` (Python floor-mod, not JS/C++'s
-truncating mod) both shipped 2026-07-17; `not`, string formatting,
-triple-quoted strings, keyword arguments, `with`/context managers, and
-multi-line bracketed literals are each their own future round (see
-`docs/roadmap.md`'s Phase 9). Arbitrary-Python compression (lossy,
-semantics-sensitive) remains an AI-assisted, suggestion-only layer for
+matching Python exactly), numeric `%` (Python floor-mod, not JS/C++'s
+truncating mod), and unary `not` (always a real `bool`; the C++ backend
+always parenthesizes its operand since `!` binds tighter than comparison
+while Python's `not` binds looser) all shipped 2026-07-17; tuple literals
+and the `%` string-formatting operator (`%s`/`%d`/`%f`/`%%`), plus
+triple-quoted strings `'''...'''`/`"""..."""`, shipped 2026-07-18.
+(`.format()` turned out to need no separate work at all — it's an ordinary
+attribute-call, already generic since Phase 7c.) Keyword arguments,
+`with`/context managers, and multi-line bracketed literals are each their
+own future round (see `docs/roadmap.md`'s Phase 9). Arbitrary-Python
+compression (lossy, semantics-sensitive) remains an AI-assisted,
+suggestion-only layer for
 a later phase.
 
 Invoke via `pnpm eml <cmd>` in this repo, e.g. `pnpm eml explain examples/phase0/sum.eml`.

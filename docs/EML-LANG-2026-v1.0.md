@@ -198,7 +198,14 @@ ConditionalExpression ::= OrExpression [ "?" Expression ":" Expression ]
    `&&`/`||`) return an OPERAND, not always a bool, matching Python exactly.
    `∧`/`∨` are accepted Unicode display forms (normalized before lexing). *)
 OrExpression   ::= AndExpression { ("or" | "∨") AndExpression }
-AndExpression  ::= ComparisonExpression { ("and" | "∧") ComparisonExpression }
+AndExpression  ::= NotExpression { ("and" | "∧") NotExpression }
+(* `not_test: 'not' not_test | comparison` — right-recursive, mirrors Python's
+   own grammar exactly, so `not not x` parses correctly. `not` binds looser
+   than comparison but tighter than `and`/`or`. `¬` is an accepted Unicode
+   display form (trailing-space-only substitution — unlike `∧`/`∨`, `¬` is a
+   PREFIX operator and can be the first character on a line, where a leading
+   space would corrupt the indentation-sensitive lexer). *)
+NotExpression  ::= ( "not" | "¬" ) NotExpression | ComparisonExpression
 (* Correction (Phase 9): `MembershipExpression` was previously (mis)documented
    under `PrimaryExpression` below — the actual parser has always placed it
    between comparison and additive precedence. Corrected here, not a behavior
@@ -220,11 +227,12 @@ PrimaryExpression ::= Identifier
                     | SumExpression
                     | MatrixExpression
                     | ListLiteral
+                    | TupleLiteral                     (* Phase 9 item 3a *)
                     | DictLiteral                      (* Phase 7b *)
                     | SetLiteral                       (* Phase 7b *)
                     | RangeExpression
                     | AwaitExpression                 (* Phase 3 *)
-                    | "(" Expression ")"
+                    | "(" Expression ")"                (* plain grouping — NOT a 1-tuple, see TupleLiteral *)
 
 AwaitExpression ::= "await" PrimaryExpression
 ArgumentList   ::= Expression { "," Expression }
@@ -235,6 +243,11 @@ RangeExpression ::= "[" Expression ":" Expression "]"   (* inclusive of the uppe
 MembershipExpression ::= AdditiveExpression [ InOperator (RangeExpression | AdditiveExpression) ]
 MatrixExpression ::= "<M>" "(" Expression ")"
 ListLiteral    ::= "[" [ ArgumentList ] "]"
+(* `(x)` alone is plain grouping, NOT a 1-tuple — matches real Python exactly.
+   A trailing comma is what makes it a tuple: `(x,)` is a genuine 1-element
+   tuple, `()` an empty one. Phase 9 item 3a. *)
+TupleLiteral   ::= "(" ")"
+                 | "(" Expression "," [ ArgumentList ] [ "," ] ")"
 DictLiteral    ::= "{" [ DictEntry { "," DictEntry } ] "}"        (* empty `{}` is a dict, Python parity *)
 DictEntry      ::= Expression ":" Expression
 SetLiteral     ::= "{" Expression { "," Expression } "}"          (* an empty set has no literal — use `set()` *)
@@ -301,7 +314,7 @@ sign of the DIVISOR (`-7 % 3 == 2`, `7 % -3 == -2`), NOT the sign of the dividen
 native `%` does (`-7 % 3 == -1` in those languages) — verified directly against the real, installed
 Python interpreter before implementing, not assumed. `%`-by-zero raises `ZeroDivisionError('division
 by zero')`, the same literal message for int and float operands alike. String-formatting `%`
-(`"%s" % (a, b)`) is a distinct, unimplemented semantic — a separate, later Phase 9 item.
+(`"%s" % (a, b)`) is a distinct semantic from numeric modulo — see §5.10.
 
 ### 5.3 `^0` — output
 
@@ -332,12 +345,15 @@ builtin call like `list(1)` is preserved).
 `[a:b]` is **inclusive** of `b`: it emits `range(a, b+1)` (literal `b` folds to `b+1`; the form
 `X-1` cancels to `range(a, X)` so reverse-transpiled `[1:n-1]` round-trips). Range bounds MUST be
 integers; a non-integer literal bound is `E_RANGE_NONINT`. Emitter precedence (tightest → loosest,
-as of Phase 9): power(7) > mul/div/mod(6) > add/sub(5) > comparison/membership(4) > and(3) > or(2) >
-conditional(1). The emitter parenthesizes minimally and exactly to preserve grouping; `**` is
+as of Phase 9): power(8) > mul/div/mod(7) > add/sub(6) > comparison/membership(5) > not(4) > and(3) >
+or(2) > conditional(1). The emitter parenthesizes minimally and exactly to preserve grouping; `**` is
 right-associative (its base is parenthesized), `-`/`/`/`%` are non-associative (an equal-precedence
 right operand is parenthesized — `a % (b % c)` keeps its parens, unlike `a + (b + c)`), and `and`/`or`
 are associative in value (so an equal-precedence child is never force-parenthesized) but `and` binds
-tighter than `or`, matching Python exactly.
+tighter than `or`, matching Python exactly. **`not` binds tighter than `and`/`or` but looser than
+comparison** — `not x > 5` stays bare (means `not (x > 5)`, comparison binds tighter), `not (a or b)`
+keeps its parens (or/and bind looser). This precedence relationship does **not** carry over to the
+C⁺⁺⁺ backend — see §5.9.
 
 ### 5.8 Boolean combinators (`and`/`or`, Phase 9)
 
@@ -358,6 +374,80 @@ Because `and`/`or` combine into every existing analysis pass (purity/importance/
 a call or loop hidden inside a boolean expression (`f() and g()`, `cond and Σ(...)`) is still found
 by every pass — this was verified with dedicated tests, not assumed, since several of these walkers
 have a non-exhaustive `default:` fallback where a missed case would silently (not loudly) under-count.
+
+### 5.9 Unary negation (`not`, Phase 9)
+
+`not x` is unary boolean negation — discovered as a real B-6 corpus gap (`Calculate_age`'s
+`(not leap_year)`) only after the `%` blocker cleared on the same file, never reached by any earlier
+measurement. Unlike `and`/`or`, **`not` always returns a real `bool`** (`not 0` is `True`, not `0` —
+verified against real Python execution, since this is a genuine truthy-negation, not a bitwise/bool
+flip). `¬` is an accepted Unicode display form.
+
+**A real, easy-to-miss cross-language correctness risk, found by reasoning through concrete cases
+before writing any emitter code**: Python's `not` binds LOOSER than comparison (`not x > 5` means
+`not (x > 5)`), but C++'s `!` binds MUCH TIGHTER than comparison (`!x > 5` parses as `(!x) > 5` in
+real C++). Reusing this spec's shared precedence system (built to mirror Python's own precedence,
+which the Python and EML emitters both genuinely share) for the C⁺⁺⁺ backend would silently emit
+textually-plausible C++ that means something different. **Fix**: the C⁺⁺⁺ backend's `not` case
+bypasses the shared precedence machinery entirely and always parenthesizes its operand (`!(...)`) —
+correctness over minimal parens. This is documented as its own divergence in `docs/cpp-feasibility.md`,
+distinct from (and more severe than) the `and`/`or`-to-`&&`/`||` narrowing in §5.8, since getting it
+wrong wouldn't just lose short-circuit-operand semantics — it would silently compute the WRONG
+boolean result.
+
+### 5.10 Tuple literals and `%` string-formatting (Phase 9 item 3a)
+
+`(a, b, ...)` is a real, immutable tuple literal — discovered as a real B-6 corpus gap
+(`Calculate_age`'s `"%s's age is %d years or " % (name, year)`) alongside the `%` string-formatting
+operator itself; EML had no tuple type at all before this. `(x)` **without** a trailing comma stays
+plain grouping (returns `x`, not a 1-tuple — matches real Python exactly); `(x,)` is a genuine
+1-element tuple, `(x, y)`/`(x, y,)` a 2-element one, `()` an empty one. A tuple is a DIFFERENT kind
+from a list — `(1, 2) == [1, 2]` is `False`, matching real Python (they never compare equal even with
+identical elements).
+
+`%` is Python's printf-style string-formatting operator when its left operand is a string — a
+distinct semantic from numeric modulo (§5.2). The right operand supplies the substitution value(s):
+a tuple supplies them in order; anything else is treated as the single value (`"%s" % 5` and `"%s" %
+(5,)` are identical, matching real Python). Supported directives: `%s` (via `str()`), `%d` (int
+conversion — **truncates a float toward zero**, `3.9`→`3`, `-3.9`→`-3`), `%f` (fixed 6-decimal
+default precision), `%%` (literal percent, consumes no argument). Argument-count mismatches and
+cross-type errors raise the exact real-Python messages (verified directly against the installed
+Python before implementing): `not enough arguments for format string`, `not all arguments converted
+during string formatting`, `unsupported operand type(s) for %: '<type>' and 'str'`, `%d format: a
+real number is required, not <type>`.
+
+**Deliberately out of scope this round** (documented gaps, not silent mis-implementations — each
+already fails loud via an existing generic default rather than computing something wrong): tuple
+arithmetic (`+` concat, `*` repeat) and ordering comparison (`<`/`>`); tuple hashability (real Python
+tuples are hashable when every element is — that recursive check isn't modeled, so a tuple can't be
+used as a dict/set key this round); `%(name)s` mapping-style directives and any flag/width/precision
+modifier (`%05d`, `%.2f`).
+
+`.format()` (the other string-formatting mechanism, once assumed to be a separate future item —
+**turned out on inspection to already work, no new implementation needed**): `"...".format(x)` is
+representationally just an ordinary attribute-call (`Attribute` + `Call`, generic since Phase 7c), so
+it parses, forward-emits, and reverse-round-trips today with zero `.format()`-specific code, verified
+directly (`year = 2000; msg = "{0} is a leap year!!".format(year); print(msg)` compresses and
+round-trips cleanly). It's in the exact same category as numpy's `<M>`/`^T`: the pure-JS interpreter
+doesn't model its internals and reports it `Unsupported`, so `eml run` defers execution to a real
+Python subprocess — an existing, accepted pattern, not a gap.
+
+The C⁺⁺⁺ prototype backend has no tuple or string-formatting model at all and rejects a `Tuple`
+literal outright with `E_CPP_UNSUPPORTED` — see `docs/cpp-feasibility.md`.
+
+### 5.11 Triple-quoted strings (Phase 9 item 4)
+
+`'''...'''` and `"""..."""` are real, lexer-only extensions of the existing quoted-string literal —
+there is no separate EBNF terminal, since `StringLiteral` has no quote-style flag and every consumer
+(parser, all 3 emitters, every semantic walker, the interpreter) already treats a triple-quoted value
+identically to a regular one once lexed. A single stray occurrence of the delimiter's own quote
+character (not 3 in a row) is ordinary content, not a premature close; an embedded literal newline is
+preserved as real string content and safely re-escaped on emission (`JSON.stringify`-equivalent).
+Verified directly (not assumed): a multi-line triple-quoted string cannot trigger spurious
+INDENT/DEDENT tokens in either lexer, since the string-reading loop consumes embedded newlines
+directly and never returns control to the outer dispatch's indentation check until the closing
+delimiter is found — the same guarantee an ordinary string containing a stray literal newline already
+relied on before this phase.
 
 ---
 
@@ -664,10 +754,12 @@ almost no new logic beyond a `class Name:` header and a fresh, class-local `boun
 addenda. **This is the final phase of the reverse-transpiler effort**: every Phase 0–7 statement/
 expression kind that CAN round-trip now does. The only remaining forward-only constructs (NOT part
 of the round-trip invariant) are `@temporal_loop` and `async`/`await`. **As of Phase 9 (2026-07-17),
-`and`/`or` (§5.8) also round-trip** — a genuinely new expression kind added AFTER the reverse-
-transpiler effort concluded, as the first item of a separate language-extension track (real B-6
-corpus gaps beyond grammar completeness); both directions were built together for this one, unlike
-Phase A–E2's reverse-only rounds.
+`and`/`or` (§5.8), numeric `%` (§5.2), and unary `not` (§5.9) also round-trip; as of the same Phase 9
+(item 3a), tuple literals and `%` string-formatting (§5.10) round-trip too; as of 2026-07-18 (item 4),
+triple-quoted strings (§5.11) round-trip as well** — each a genuinely new (or, for `%`, meaningfully
+extended) expression kind added AFTER the reverse-transpiler effort concluded, as items of a separate
+language-extension track (real B-6 corpus gaps beyond grammar completeness); both directions were
+built together for each of these, unlike Phase A–E2's reverse-only rounds.
 **`@hot` is a permanent, structural round-trip gap within function support, not a deferred one**
 (distinct from `class`, which was merely not-yet-implemented until this phase): the forward Python
 emitter renders `@cold` as a real `@functools.cache` decorator but `@hot` as a bare **comment**

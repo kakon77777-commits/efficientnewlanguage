@@ -1215,7 +1215,7 @@ than Phase B1.
   reverse Python→EML transpiler effort is now complete**: only `@temporal_loop`, `async`/`await`, and
   the permanent `@hot` exception remain outside the round-trip invariant.
 
-## Phase 9 — real-corpus language extension (item 1: `and`/`or`, item 2: `%`)
+## Phase 9 — real-corpus language extension (item 1: `and`/`or`, item 2: `%`, item 8: `not`, item 3a: tuple + `%`-format, item 4: triple-quoted strings)
 
 Re-measuring the same 5 real B-6 corpus files after Phase 8's completion exposed that
 `Decimal_to_binary_convertor` and `Leap_Year_Checker` are blocked by a genuine LANGUAGE-level gap,
@@ -1375,6 +1375,235 @@ generically over `BinaryOperator`, not enumerating specific operators.
   prior measurement. Small in scope (same mechanism family as `and`/`or`, just unary), logged as a
   new roadmap candidate (`docs/roadmap.md`'s Phase 9 item 8) rather than silently folded into this
   round's "done" claim.
+
+### Item 8 — unary boolean `not` (2026-07-17, same day)
+
+Smallest remaining candidate after `%`'s corpus re-measurement surfaced it. Same mechanism family as
+`and`/`or` (a genuinely new `Expression` node needing a case in every analysis pass), but differs in
+two ways: Python's `not` always returns a real `bool` (unlike `and`/`or`'s operand-return, simpler
+here), and it needed its own brand-new precedence tier — the **4th renumbering pass** across the same
+3 independent emitter files this Phase 9 track keeps touching.
+
+- **AST**: `NotExpression { type: 'Not', operand: Expression }` (`packages/types/src/ast.ts`) mirrors
+  the pre-existing `TransposeExpression`'s exact single-operand shape, not `LogicalExpression`'s
+  two-operand one.
+- **Forward**: `tokens.ts` gained `NOT`; `lexer.ts`'s keyword chain recognizes it alongside `and`/`or`.
+  `parser.ts` inserted a right-recursive `parseNot()` between `parseAnd()` and `parseComparison()`
+  (`not_test: 'not' not_test | comparison`, mirroring Python's own grammar so `not not x` parses
+  correctly without extra machinery). `normalizer.ts` gained `¬` → `not ` — **NOT the same
+  both-side-spacing `∧`/`∨` use**: a real bug caught by a direct test in `tests/phase9-not.test.ts`,
+  not assumed safe from that precedent. `∧`/`∨` are always infix and never appear at line-start in
+  valid grammar; `¬` is a PREFIX operator and legitimately CAN start a line (e.g. `¬x => r`), where a
+  leading space corrupts the indentation-sensitive lexer's whitespace measurement, producing a bogus
+  `Unexpected token INDENT`. Fixed by using a trailing-space-only replacement (`'not '`) for `¬`.
+- **Precedence renumbering (4th pass, same 3 files)**: inserted a new tier 4 for `Not`, shifting
+  everything at the old tier 4+ up by one — final table: Conditional=1, Or=2, And=3, **Not=4 (new)**,
+  Comparison/Membership=5, Binary+/-=6, Binary\*/÷/%=7, Power=8, atoms/default=9. Every hardcoded old
+  literal (`emitRangeEnd`'s threshold, Power/Await/Subscript/Attribute's wrap checks) shifted
+  accordingly in all three files, re-verified by grepping every `child(..., <number>)` call site per
+  file after editing — the same discipline as every prior renumbering round.
+- **The one genuinely critical finding this round, verified by reasoning through concrete cases
+  BEFORE writing any code**: Python's `not` binds LOOSER than comparison (`not x > 5` means
+  `not (x > 5)`), but C++'s `!` binds MUCH TIGHTER than comparison (`!x > 5` parses as `(!x) > 5` in
+  real C++). The shared `precedence()`/`child()` machinery is correct for the Python and EML emitters
+  (both genuinely follow Python's own precedence), but reusing it naively for the C++ backend would
+  silently emit textually-plausible, semantically WRONG C++. Fix: the C++ backend's `Not` case
+  bypasses `child()`/`precedence()` entirely and always parenthesizes its operand —
+  `` `!(${emitCppExpression(expr.operand)})` `` — correctness over minimal parens. Locked in with a
+  dedicated test asserting the critical case emits `!(x > 5)`, and explicitly asserting it does NOT
+  contain the wrong `!x > 5`. Documented in `docs/cpp-feasibility.md`'s "Known divergences" as
+  stricter than `%`'s guard: a precedence mismatch here would silently compute the WRONG boolean, not
+  just fail to compile.
+- **Seven semantic walkers** (one more than `and`/`or`'s six, since `cts-generator`'s `collectIdents`
+  was already known from that round) all got a single-operand recursion case mirroring
+  `Transpose`'s existing one — `transpiler-python/src/semantic.ts`'s `collectExpr` (plus
+  `symbols.add('not')`), `purity.ts`'s `scanExpression`/`collectCallsExpr`, `importance.ts`'s
+  `walkExpr`, `loop-classifier.ts`'s `walk`, `cts-generator/src/index.ts`'s `collectIdents`, and
+  `transpiler-cpp/src/emitter.ts`'s `expressionCallsName` — each verified with a dedicated real test
+  (a call/loop/recursion hidden inside `not` must still be found), since several of these have a
+  non-exhaustive `default:` fallback, the same bug class flagged in every prior Phase 9 round.
+- **Reverse (`py-parser.ts`)**: no lexer change — `not` is keyword-shaped and this lexer has no
+  keyword tokens (every identifier is generic `NAME`, disambiguated via `checkName()`), identical
+  treatment to `and`/`or`. `parseNot()` inserted between `parseAnd()` and `parseComparison()` using
+  `this.checkName('not')`, same right-recursive shape as the forward parser.
+- **Interpreter**: simpler than `and`/`or` — `` case 'Not': return BOOL(!truthy(evalExpr(expr.operand,
+  scope))); `` — Python's `not` always returns a real bool, verified against real Python for a falsy
+  non-bool case (`not 0` → `True`, not just a bool flip of a bool).
+- **Tests**: new `tests/phase9-not.test.ts` (19 tests, all passing) — forward parse; precedence
+  (`not x > 5` stays bare, `not (a or b)` keeps its parens, `not not x` no extra parens); `¬`
+  normalization (the test that caught the leading-space bug above); real Python execution parity
+  including the falsy-non-bool case; the 4 non-compile-enforced-walker tests; the C++ always-`!(...)`
+  emission plus the critical `!(x > 5)`-not-`!x > 5` test plus the self-recursion-hidden-behind-`not`
+  guard test; reverse round-trip (bare `not`, a `Calculate_age`-shaped `and (not leap_year)` combo,
+  and verbatim `not` emission with no Unicode substitution reverse-side). **696 tests total** (up
+  from 677).
+- **Verification**: a fresh leap-year-count-with-negation CLI snippet matched real Python exactly (50
+  == 50) via `eml run`. Re-ran the same 5 real B-6 corpus files: `Calculate_age` — the file this item
+  targeted — progressed from `not` (line 21) all the way to line 48's `(name, year)`, a **tuple
+  literal** inside a `%`-format string. This is a sub-detail of the already-known item 3 (string
+  formatting), not a new gap: real `%`-format usage almost always pairs with a tuple literal on the
+  right, so item 3's scope now explicitly includes tuple literals — logged in `docs/roadmap.md`
+  rather than silently expanding item 3's "done" claim later without a record of why.
+
+### Item 3a — tuple literals + `%` string-formatting (2026-07-18)
+
+Re-reading `Calculate_age` line 48 (`"%s's age is %d years or " % (name, year), end=""`) more
+closely revealed it actually needs THREE independent gaps at once: the `%` string-format operator, a
+**tuple literal** `(name, year)` (EML had no tuple type at all), and `print(..., end=...)` keyword
+arguments (already-catalogued item 5). Checking the other two `.format()`-using corpus lines
+(`Decimal_to_binary_convertor` line 7, `Leap_Year_Checker` line 7/12) confirmed `.format()` itself is
+**not yet reachable by any of the 5 real corpus files** — both are blocked earlier by unrelated gaps
+(a Python slice `bin(dec)[2:]`, and item 4's triple-quoted docstring). So this round scoped to the
+concrete, corpus-reachable half — tuple literals + `%` string-formatting (item 3a) — leaving
+`.format()` as item 3b for later. **Update (2026-07-18, while re-testing item 4): item 3b turned out
+to need no implementation at all** — see that round's write-up below, since it was discovered as a
+byproduct of item 4's corpus re-test, not this one's.
+
+- **AST**: `TupleLiteral { type: 'Tuple', elements: Expression[] }` mirrors `ListLiteral`'s exact
+  shape. **No new lexer tokens on either side** (`LPAREN`/`RPAREN`/`COMMA` already exist, used today
+  for call args) and **no precedence-table renumbering** (Tuple is an atom-tier literal exactly like
+  `List`, which already falls to every `precedence()`'s `default: return 9`) — the smallest-footprint
+  Phase 9 round yet in those two respects.
+- **The one genuinely new piece of parsing logic, in both `parser.ts` (forward) and `py-parser.ts`
+  (reverse)**: `parsePrimary()`'s `LPAREN` case (previously pure grouping — parse one expr, expect
+  `RPAREN`) becomes the tuple-vs-grouping disambiguation point, mirroring `parseBracket()`'s existing
+  empty/single/multi structure. Traced by hand against real Python syntax before writing: `(x)`
+  **without** a comma stays plain grouping (returns `x`, not a 1-tuple — matches Python exactly);
+  `(x,)` produces a genuine 1-element tuple (the trailing-comma case, `break`ing out of the element
+  loop before the next `parseExpression()` call is what makes this work); `(x, y)`/`(x, y,)` both
+  produce a 2-tuple; `()` produces an empty tuple. No conflict with existing call-arg parsing: a call
+  is only entered via `parsePostfix()`'s separate `LPAREN` branch when it immediately follows an
+  `Identifier`/`Attribute` — a standalone `(...)` reaching `parsePrimary` never hits that branch.
+- **Emitters**: `case 'Tuple'` in both the forward Python emitter and the reverse EML emitter, each
+  handling the same three shapes (`()`, `(x,)` with the required trailing comma, `(x, y, ...)`
+  without one) — verified the single-element trailing comma is mandatory for a real Python tuple, not
+  optional. `eml-emitter.ts`'s `isInlineLiteral` whitelist gained `'Tuple'`, mirroring `List`/`Dict`/
+  `Set`. The C⁺⁺⁺ prototype's `Tuple` case throws `E_CPP_UNSUPPORTED` unconditionally (mirroring the
+  existing `Matrix`/`await` rejections) — this numeric-only prototype has no tuple or string-
+  formatting model at all, so unlike `List` (which gets a partial integer-literal-only allowance)
+  there's no partial-support case to reason about. `expressionCallsName`'s non-exhaustive `Tuple` case
+  still needed the real recursive body (self-recursion hidden inside a tuple must still be caught by
+  the same pre-pass every other construct uses) — verified with a test that asserts the SPECIFIC
+  "Recursive function" message fires, not just the generic tuple-rejection message, since both
+  present as the same `E_CPP_UNSUPPORTED` diagnostic code and would otherwise be indistinguishable.
+- **Seven semantic walkers** got a `case 'Tuple':` mirroring their existing `case 'List':` body
+  verbatim (same 7 files as the `not` round: `semantic.ts`'s `collectExpr`, `purity.ts`'s
+  `scanExpression`/`collectCallsExpr`, `importance.ts`'s `walkExpr`, `loop-classifier.ts`'s `walk`,
+  `cts-generator`'s `collectIdents` — plus its second, unrelated symbol-id-labeling switch gained
+  `'tuple.literal'` for consistency with `List`/`Dict`/`Set`/etc., though that switch isn't compile-
+  enforced).
+- **The interpreter is where the real work went, in two respects**:
+  1. **A genuinely new `PyVal` kind (`{ k: 'tuple'; v: PyVal[] }`), deliberately narrower than
+     `list`** — truthy/equality/`in`/`for`-iteration/subscript-read/`str()`/`repr()` all needed a real
+     case (equality in particular is NOT optional: without a same-kind `pyEquals` case, a tuple would
+     silently fall through to the generic `return false`, making `(1,2) == (1,2)` wrongly `False` —
+     a correctness trap, not a fail-loud gap). Deliberately excluded: arithmetic (`+` concat, `*`
+     repeat), ordering comparison (`<`/`>`), and hashability (as a dict/set key) — none used by the
+     real corpus, and each already fails loud via an existing generic default (a real `TypeError`)
+     rather than needing a new, possibly-wrong partial implementation. `str()`/`repr()` reproduce
+     Python's single-element trailing-comma quirk exactly (`(1,)`, not `(1)`).
+  2. **A new `percentFormat()` function implementing Python's printf-style `%` mini-language subset**:
+     `%s` (via `pyStr`), `%d` (int conversion — **truncates a float toward zero**, verified `3.9`→`'3'`,
+     `-3.9`→`'-3'` against real Python before writing this, not assumed), `%f` (6-decimal default
+     precision, verified `3.14159265`→`'3.141593'`), `%%` (literal percent). Every error message —
+     argument-count mismatches, the cross-type `int % str` TypeError, `%d` on a non-numeric value —
+     was verified directly against the real, installed Python first (`not enough arguments for format
+     string`, `not all arguments converted during string formatting`, `unsupported operand type(s)
+     for %: '<type>' and 'str'`, `%d format: a real number is required, not <type>`). A tuple
+     right-hand side supplies the substitution values in order; anything else is treated as the
+     single value (`"%s" % 5` and `"%s" % (5,)` are identical, matching real Python). Explicitly out
+     of scope: `.format()` (item 3b), `%(name)s` mapping keys, and any flag/width/precision modifier
+     — `percentFormat` throws clearly on these rather than mis-formatting silently.
+  3. This SUPERSEDED the old blanket `Binary` case guard that deferred ANY string-`%` as
+     `Unsupported('% string formatting', ...)` from the modulo round — `tests/phase9-modulo.test.ts`'s
+     old test for that deferral was updated (not deleted) to assert the new, more precise real-Python
+     behavior for its specific case (`"hi" % 5`, a format string with no directives, now correctly
+     raises `not all arguments converted during string formatting` instead of deferring) — the same
+     "stale test assumption, fix rather than delete" discipline used for the `@hot`/`COLDHOT` fixes
+     earlier in this project.
+- **Tests**: new `tests/phase9-tuple-format.test.ts` (28 tests) — forward parse (empty/single-with-
+  required-trailing-comma/multi tuple, confirming `(x)` without a comma still parses as plain
+  grouping); forward-emit round-trip of all shapes; real-Python execution parity for the
+  `Calculate_age`-shaped 2-directive/2-element case and for `%s`/`%d`/`%f`/`%%` individually (checked
+  against BOTH forward-emitted-then-executed Python and the interpreter); the four verified real-
+  Python error messages; the C++ `expressionCallsName` guard test (asserting the specific "Recursive
+  function" message) plus the Tuple-itself-rejected test; interpreter tests for tuple truthy/equality
+  (including tuple ≠ list with equal elements)/iteration/membership/subscript-read/str+repr; reverse
+  round-trip of a clean `"%s and %d" % (a, b)`-shaped snippet (deliberately not the full messy
+  `Calculate_age` line, since `end=""` is a separate, not-yet-done gap). **724 tests total** (up from
+  696).
+- **Verification**: a fresh `Calculate_age`-shaped CLI snippet (`name`/`year` with `%s`/`%d`) matched
+  real Python exactly via `eml run`. Re-ran the same 5 real B-6 corpus files — **honest result**:
+  `Calculate_age` advanced from the tuple/`%`-format expression on line 48 to the **same line's**
+  `end=""` keyword argument (item 5, not yet done) — this round narrows but does not fully clear that
+  file, stated plainly rather than glossed over. The other 4 files show no change, exactly as
+  expected (none were blocked on tuple/`%`-format). Also surfaced, while re-checking
+  `Decimal_to_binary_convertor`'s blocker: the Python sequence-slice gap (`bin(dec)[2:]`, found back
+  in the `and`/`or` round) still has never been given its own numbered Phase 9 roadmap item — worth
+  flagging to Neo as a possible oversight when scoping future rounds.
+
+### Item 4 — triple-quoted strings (2026-07-18, next day)
+
+Compared against item 5 (`print(x, end="")` keyword arguments, `Calculate_age`'s current blocker)
+before choosing which to do next: item 5 needs a shared `parseArgs()` change (every call site in the
+grammar goes through it), a real architectural change to the interpreter's output-buffering model
+(`write()` currently defers the newline to a single blanket step in `finalize()`, not per-call), and
+touches 3 emitters with 3 different behaviors. Item 4 was confirmed, by direct code reading before
+planning, to be **lexer-only — zero AST/parser/emitter/semantic-walker impact**: `StringLiteral` has
+no quote-style flag (every consumer already treats it as an opaque JS string), and a bare string used
+as a whole statement (the Python docstring convention) is already valid grammar today in both
+directions (nothing needed there either). The smallest round in this whole Phase 9 track.
+
+- **Both lexers** (`packages/parser/src/lexer.ts` forward, `packages/transpiler-eml/src/py-lexer.ts`
+  reverse): the existing single/double-quote string branch gained a check for the SAME quote char
+  repeated 3× at the current position (`at(quote.repeat(3))`) before falling into the regular-quote
+  path — if matched, consume the 3-char delimiter and scan until it reappears, reusing the IDENTICAL
+  escape-handling logic (factored into a small shared `readEscape()` closure in each file, so the two
+  quote-forms' escape maps can't drift apart from each other). This naturally supports both `'''` and
+  `"""` (whichever quote char opened it), matching real Python.
+- **The one thing verified directly before writing any code, not assumed safe**: can a multi-line
+  string's embedded newlines spuriously trigger this indentation-sensitive lexer's INDENT/DEDENT
+  logic? No — the string-reading loop consumes every character (including `\n`) via its own
+  `advance()` calls, and `atLineStart` is only ever set by the OUTER dispatch loop's own `c === '\n'`
+  branch, which the string loop never returns control to until the closing delimiter is found. This
+  already held today for an ordinary quoted string containing a stray literal newline (a rare,
+  pre-existing case); it holds identically for a triple-quoted one. Confirmed with a dedicated
+  lexer-level test in both lexers (counting `INDENT`/`DEDENT` tokens directly, not just an
+  integration-level round-trip check).
+- **Zero downstream changes** — confirmed, not assumed: every parser/emitter/semantic-walker/
+  interpreter consumer of `StringLiteral` already treats it as an opaque string value. Both the
+  Python and EML emitters already re-serialize via `JSON.stringify(expr.value)`, which automatically
+  escapes an embedded real newline back into a literal `\n` two-character sequence — a docstring's
+  real newlines round-trip safely into a single re-emitted regular-string line with no new logic. The
+  C++ backend's `StringLiteral` case (`JSON.stringify(expr.value)` too) needed no change either,
+  confirmed by direct reading rather than assumed from the "no change needed" pattern.
+- **Tests**: new `tests/phase9-triple-quoted-strings.test.ts` (10 tests) — both quote styles lex to a
+  plain `StringLiteral`; an embedded literal newline is preserved as real content; a single stray
+  occurrence of the delimiter's own quote character doesn't prematurely close the string; an empty
+  triple-quoted string `""""""`; the two lexer-level "no spurious INDENT/DEDENT" tests described
+  above (forward and reverse); a forward-emit test that executes the re-emitted Python and confirms
+  the RUNTIME string value still contains a real newline (not just checking the source text shape);
+  reverse round-trip of a `Leap_Year_Checker`-shaped bare docstring inside an `if`/`else` body (and a
+  `'''...'''`-style variant). **734 tests total** (up from 724).
+- **Verification**: a fresh docstring-as-first-statement CLI snippet matched real Python exactly via
+  `eml run`. Re-ran the same 5 real B-6 corpus files: `Leap_Year_Checker` advanced past all 3 of its
+  docstring blocks entirely — genuine, clean progress. The other 4 files show no change, as expected.
+- **A significant bonus finding, surfaced only because the corpus re-test moved `Leap_Year_Checker`'s
+  blocker forward far enough to reach it**: its NEW blocker is `print("{0} is a leap year!!"
+  .format(year))` — but investigating this revealed **item 3b (`.format()`) needs NO implementation
+  work at all**, contradicting this doc's own earlier claim (written during the item 3a round) that
+  it was "not yet reachable by any corpus file." `.format()` is representationally just an ordinary
+  attribute-call (`Attribute` + `Call`, generic since Phase 7c) — verified directly: `year = 2000; msg
+  = "{0} is a leap year!!".format(year); print(msg)` compresses and round-trips cleanly with zero
+  `.format()`-specific code, today. It's in the exact same category as numpy's `<M>`/`^T`: the
+  pure-JS interpreter doesn't model its internals (`interpret()` reports `unsupported: ["call
+  value.format()"]`, confirmed directly), so `eml run` defers execution to a real Python subprocess —
+  an existing, already-accepted pattern for this class of construct, not a gap. `Leap_Year_Checker`'s
+  REAL remaining blocker is unrelated to `.format()` itself: it prints the `.format()` call's result
+  directly, unbound, hitting EML's pre-existing, deliberately-designed `^0`-requires-a-bare-identifier
+  restriction (§5.3) — not a new language gap. Whether that restriction is worth loosening is Neo's
+  call, not assumed or acted on here. `docs/roadmap.md`'s item 3b entry was corrected accordingly
+  (from "待做" to "already works, no action needed") rather than left stale.
 
 ## Non-obvious design decisions (the gotchas)
 

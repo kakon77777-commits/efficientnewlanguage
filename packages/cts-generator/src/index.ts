@@ -79,6 +79,9 @@ function collectIdents(expr: Expression, acc: Set<string>): void {
       collectIdents(expr.left, acc);
       collectIdents(expr.right, acc);
       break;
+    case 'Not':
+      collectIdents(expr.operand, acc);
+      break;
     case 'Conditional':
       collectIdents(expr.test, acc);
       collectIdents(expr.consequent, acc);
@@ -108,6 +111,9 @@ function collectIdents(expr: Expression, acc: Set<string>): void {
       collectIdents(expr.operand, acc);
       break;
     case 'List':
+      for (const e of expr.elements) collectIdents(e, acc);
+      break;
+    case 'Tuple':
       for (const e of expr.elements) collectIdents(e, acc);
       break;
     case 'Await':
@@ -146,6 +152,8 @@ function semanticTypeOf(stmt: Statement): string {
           return 'binding.call';
         case 'List':
           return 'list.literal';
+        case 'Tuple':
+          return 'tuple.literal';
         case 'Dict':
           return 'dict.literal';
         case 'Set':

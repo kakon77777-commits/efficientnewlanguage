@@ -24,6 +24,14 @@ export type PyVal =
   | { k: 'str'; v: string }
   | { k: 'bool'; v: boolean }
   | { k: 'list'; v: PyVal[] }
+  // Phase 9 item 3a: a real, immutable sequence value — same shape as `list`,
+  // but a DIFFERENT kind (a tuple never equals a list with the same elements,
+  // matching real Python). Deliberately narrower than list this round: no
+  // arith (`+`/`*`) or ordering-comparison support, and NOT hashable (see
+  // `isHashable`) — none of these are exercised by the real corpus yet, and
+  // each already fails loud via an existing generic default rather than
+  // computing something silently wrong. See docs/roadmap.md Phase 9 item 3a.
+  | { k: 'tuple'; v: PyVal[] }
   // Phase 7b: dict/set, keyed by `canonicalKey()` (a JS Map can't use PyVal
   // structural equality directly). A dict entry keeps both the original key
   // PyVal (for repr/iteration) and its value; a set just keeps the element.
@@ -57,6 +65,7 @@ export const FLOAT = (v: number): PyVal => ({ k: 'float', v });
 export const STR = (v: string): PyVal => ({ k: 'str', v });
 export const BOOL = (v: boolean): PyVal => ({ k: 'bool', v });
 export const LIST = (v: PyVal[]): PyVal => ({ k: 'list', v });
+export const TUPLE = (v: PyVal[]): PyVal => ({ k: 'tuple', v });
 export const NONE: PyVal = { k: 'none' };
 
 /**
@@ -134,6 +143,8 @@ export function typeName(a: PyVal): string {
       return 'bool';
     case 'list':
       return 'list';
+    case 'tuple':
+      return 'tuple';
     case 'dict':
       return 'dict';
     case 'set':
@@ -161,6 +172,7 @@ export function truthy(a: PyVal): boolean {
     case 'bool':
       return a.v;
     case 'list':
+    case 'tuple':
       return a.v.length > 0;
     case 'dict':
     case 'set':
@@ -359,6 +371,11 @@ export function pyEquals(a: PyVal, b: PyVal): boolean {
   if (a.k === 'none' && b.k === 'none') return true;
   if (a.k === 'list' && b.k === 'list')
     return a.v.length === b.v.length && a.v.every((x, i) => pyEquals(x, b.v[i]!));
+  // Same kind required — a tuple never equals a list with the same elements
+  // in real Python (`(1,2) == [1,2]` is False), so this deliberately does NOT
+  // share a branch with the list case above.
+  if (a.k === 'tuple' && b.k === 'tuple')
+    return a.v.length === b.v.length && a.v.every((x, i) => pyEquals(x, b.v[i]!));
   if (a.k === 'dict' && b.k === 'dict') {
     if (a.v.size !== b.v.size) return false;
     for (const [key, entry] of a.v) {
@@ -383,7 +400,8 @@ export function pyEquals(a: PyVal, b: PyVal): boolean {
 
 /** `element in collection` (list membership / substring / dict keys / set membership). */
 export function contains(element: PyVal, collection: PyVal): PyVal {
-  if (collection.k === 'list') return BOOL(collection.v.some((x) => pyEquals(x, element)));
+  if (collection.k === 'list' || collection.k === 'tuple')
+    return BOOL(collection.v.some((x) => pyEquals(x, element)));
   if (collection.k === 'str') {
     if (element.k !== 'str')
       throw new PyError('TypeError', `'in <string>' requires string as left operand, not ${typeName(element)}`);
@@ -413,6 +431,12 @@ export function pyStr(a: PyVal): string {
       return 'None';
     case 'list':
       return '[' + a.v.map(pyRepr).join(', ') + ']';
+    case 'tuple':
+      // Single-element tuple needs the trailing comma in its repr too, e.g.
+      // `(1,)` — matches real Python (`repr((1,))` is `'(1,)'`, not `'(1)'`).
+      if (a.v.length === 0) return '()';
+      if (a.v.length === 1) return `(${pyRepr(a.v[0]!)},)`;
+      return '(' + a.v.map(pyRepr).join(', ') + ')';
     case 'dict':
       return '{' + [...a.v.values()].map((e) => `${pyRepr(e.key)}: ${pyRepr(e.value)}`).join(', ') + '}';
     case 'set':
@@ -493,7 +517,65 @@ export function floatRepr(n: number): string {
  * and this avoids ever needing one for dict-key / cache-key purposes this
  * round). Divergence, not a correctness gap: forward Python emission is
  * unaffected; only the interpreter's own caching/dict-key logic declines.
+ *
+ * A real Python tuple is hashable when every element is (`hash((1,2))` works;
+ * `hash((1,[2]))` raises `TypeError`), but that recursive check isn't needed
+ * by the real corpus this round (Phase 9 item 3a), so `tuple` stays excluded
+ * here too — a documented gap (tuple-as-dict-key fails loud), not a partial,
+ * possibly-wrong hashability implementation.
  */
 export function isHashable(v: PyVal): boolean {
-  return v.k !== 'list' && v.k !== 'dict' && v.k !== 'set' && v.k !== 'class' && v.k !== 'instance';
+  return (
+    v.k !== 'list' && v.k !== 'tuple' && v.k !== 'dict' && v.k !== 'set' && v.k !== 'class' && v.k !== 'instance'
+  );
+}
+
+// ── `%` string-formatting (Phase 9 item 3a) ─────────────────────────────────
+
+/**
+ * Python's printf-style `%` string-formatting operator (`"%s and %d" % (a,
+ * b)`). Deliberately scoped to what the real corpus needs — `%s`/`%d`/`%f`/
+ * `%%`, no flags/width/precision/`%(name)s` mapping keys — anything beyond
+ * that throws clearly rather than mis-formatting silently. `%d`'s float
+ * truncation and `%f`'s 6-decimal default, and every error message below,
+ * were verified directly against the real, installed Python before writing
+ * this (not assumed): `'%d' % 3.9` -> `'3'`, `'%d' % -3.9` -> `'-3'`, `'%f' %
+ * 3.14159265` -> `'3.141593'`.
+ */
+export function percentFormat(fmt: string, args: PyVal[]): string {
+  let argIdx = 0;
+  let out = '';
+  for (let i = 0; i < fmt.length; i++) {
+    const c = fmt[i];
+    if (c !== '%') {
+      out += c;
+      continue;
+    }
+    const spec = fmt[++i];
+    if (spec === '%') {
+      out += '%';
+      continue;
+    }
+    if (spec === undefined) throw new PyError('ValueError', "incomplete format");
+    if (argIdx >= args.length) throw new PyError('TypeError', 'not enough arguments for format string');
+    const val = args[argIdx++]!;
+    if (spec === 's') {
+      out += pyStr(val);
+    } else if (spec === 'd') {
+      if (!isNumeric(val)) {
+        throw new PyError('TypeError', `%d format: a real number is required, not ${typeName(val)}`);
+      }
+      const n = isFloaty(val) ? BigInt(Math.trunc(toNum(val))) : toBig(val);
+      out += n.toString();
+    } else if (spec === 'f') {
+      if (!isNumeric(val)) {
+        throw new PyError('TypeError', `%f format: a real number is required, not ${typeName(val)}`);
+      }
+      out += toNum(val).toFixed(6);
+    } else {
+      throw new PyError('ValueError', `unsupported format character '${spec}'`);
+    }
+  }
+  if (argIdx < args.length) throw new PyError('TypeError', 'not all arguments converted during string formatting');
+  return out;
 }

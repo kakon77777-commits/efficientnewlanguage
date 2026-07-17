@@ -72,6 +72,16 @@ EML constructs the C++ subset can't express:
   not Python's floor-mod — irrelevant here since the emitted text is the same
   raw `%`, and the divergence only matters for negative operands (out of
   scope for this prototype's own stated non-goals).
+- **`not` (Phase 9) always parenthesizes its operand (`!(...)`), bypassing the
+  shared precedence system every other operator uses.** Python's `not` binds
+  LOOSER than comparison (`not x > 5` means `not (x > 5)`), but C++'s `!` binds
+  MUCH TIGHTER than comparison (`!x > 5` parses as `(!x) > 5` in real C++).
+  Reusing the shared `precedence()`/`child()` machinery here (correct for the
+  Python and EML emitters, which both genuinely share Python's precedence)
+  would silently emit textually-plausible but WRONG C++ — this is why `not`'s
+  case skips that machinery entirely rather than joining it, a stricter fix
+  than `%`'s literal-only guard above, since a precedence mismatch here would
+  silently compute the wrong boolean, not just fail to compile.
 - **`auto`-returning functions can't be forward-declared**, so a function must be
   defined before its callers. Recursion (self or mutual) is therefore rejected
   with `E_CPP_UNSUPPORTED` (a real backend would emit a concrete return type).
@@ -81,6 +91,14 @@ EML constructs the C++ subset can't express:
   narrows that to a plain boolean, a deliberate simplification (self-recursion hidden behind
   `and`/`or`, e.g. `f() and f()`, is still correctly rejected as `E_CPP_UNSUPPORTED` — verified with
   a dedicated test, not assumed, since the recursion-detection walker has a non-exhaustive fallback).
+- **Tuple literals `(a, b, ...)` are rejected outright (Phase 9 item 3a)** — this numeric-only
+  prototype has no tuple value and no string-formatting model at all (unlike lists, which get a
+  partial integer-literal-only allowance), so `emitCppExpression`'s `Tuple` case always throws
+  `E_CPP_UNSUPPORTED` regardless of contents, rather than attempting any partial support. Self-
+  recursion hidden inside a tuple (e.g. `(fact(n), 1) => r` inside `fact`) is still caught by the
+  same recursion pre-pass every other construct uses — verified with a dedicated test that checks
+  the specific "Recursive function" message fires (not just the generic tuple-rejection message),
+  since both would otherwise present as the same `E_CPP_UNSUPPORTED` code.
 
 ## Clang / LibTooling feasibility (the path to a real C⁺⁺⁺)
 
