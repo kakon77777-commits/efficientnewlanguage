@@ -46,22 +46,20 @@ const here = dirname(fileURLToPath(import.meta.url));
 const fixturesDir = join(here, 'fixtures');
 const fixtures = readdirSync(fixturesDir).filter((f) => f.endsWith('.eml')).sort();
 
-// `class` (Phase 7e) is the last forward-only construct: the reverse
-// Python->EML path doesn't parse/emit it yet (see eml-emitter.ts's ClassDef
-// throw + py-parser.ts's lack of class handling). `if`/`elif`/`else`,
-// `while`, and `for...in` (Phase 6) round-trip as of Phase A (2026-07-16);
-// `break`/`continue` (Phase 7a) as of Phase B1 (same day); dict/set literals
-// + subscript (Phase 7b) as of Phase B2 (same day); attribute access + bare
-// `import` (Phase 7c) as of Phase C (same day); try/except/finally/raise
-// (Phase 7d) as of Phase D (same day); function definitions + `return`
-// (Phase 2, the `@cold`/neutral subset — `@hot` is a permanent, not
-// deferred, gap; see eml-emitter.ts's FunctionDef case) as of Phase E1 (same
-// day) — as long as the fixture's body doesn't ALSO use `class`. The
-// fixpoint checks cover the round-trippable subset.
-const roundTrippable = fixtures.filter((f) => {
-  const src = readFileSync(join(fixturesDir, f), 'utf8');
-  return !/\bclass\b/.test(src);
-});
+// Milestone (Phase E2, 2026-07-17): EVERY fixture now round-trips — `class`
+// (Phase 7e) was the last forward-only construct, and it round-trips as of
+// this phase (see eml-emitter.ts's ClassDef case + py-parser.ts's
+// parseClassDef()). `if`/`elif`/`else`, `while`, and `for...in` (Phase 6)
+// round-trip as of Phase A (2026-07-16); `break`/`continue` (Phase 7a) as of
+// Phase B1 (same day); dict/set literals + subscript (Phase 7b) as of
+// Phase B2 (same day); attribute access + bare `import` (Phase 7c) as of
+// Phase C (same day); try/except/finally/raise (Phase 7d) as of Phase D
+// (same day); function definitions + `return` (Phase 2, the `@cold`/neutral
+// subset) as of Phase E1 (same day). The only remaining round-trip
+// exception is `@hot` (permanent, not deferred — the forward emitter
+// renders it as a comment, never a real decorator; see eml-emitter.ts's
+// FunctionDef case) — no fixture uses it, so there's nothing to exclude here.
+const roundTrippable = fixtures;
 
 describe('round-trip EML -> Python -> EML -> Python (fixpoint)', () => {
   for (const f of roundTrippable) {

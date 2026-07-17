@@ -209,10 +209,27 @@ function runProgram(
         }
         return power(base, exp);
       }
-      case 'Binary':
-        return arith(expr.op, evalExpr(expr.left, scope), evalExpr(expr.right, scope));
+      case 'Binary': {
+        const left = evalExpr(expr.left, scope);
+        const right = evalExpr(expr.right, scope);
+        // `%` on a string is Python's printf-style string-formatting operator
+        // (`"%s" % (a, b)`), a distinct, unimplemented semantic — a separate,
+        // later Phase 9 item, not numeric modulo. Defer rather than let
+        // `arith()`'s generic isNumeric check throw a wrong TypeError.
+        if (expr.op === '%' && (left.k === 'str' || right.k === 'str')) {
+          throw new Unsupported('% string formatting', 'printf-style % formatting is not modeled yet');
+        }
+        return arith(expr.op, left, right);
+      }
       case 'Comparison':
         return compare(expr.op, evalExpr(expr.left, scope), evalExpr(expr.right, scope));
+      case 'Logical': {
+        // Short-circuit: Python's `and`/`or` return an OPERAND, not always a
+        // bool, and the right side is never evaluated unless needed.
+        const left = evalExpr(expr.left, scope);
+        if (expr.op === 'and') return truthy(left) ? evalExpr(expr.right, scope) : left;
+        return truthy(left) ? left : evalExpr(expr.right, scope);
+      }
       case 'Conditional':
         return truthy(evalExpr(expr.test, scope))
           ? evalExpr(expr.consequent, scope)

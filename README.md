@@ -174,14 +174,24 @@ The reverse path is a deterministic inverse of the emitter for the supported
 subset — which now includes `if`/`elif`/`else`, `while`, `for...in`, `break`/
 `continue`, dict/set literals + subscript (incl. `d[k] = v` targets),
 attribute access + a bare `import module` statement (incl. `math.sqrt(x)`-style
-calls and `obj.attr = v` targets), `try`/`except`/`finally` + `raise`, and
-function definitions + `return` (the `@cold`/neutral subset) as of 2026-07-16,
-on top of the original flat statement mappings — only `class` remains
-forward-only, deferred to a follow-up round (see `docs/agent-handoff.md`).
-`@hot` is a permanent (not deferred) partial exception within function
-support: the forward emitter renders it as a comment, never a real decorator,
-so it can't be recovered from emitted Python. Arbitrary-Python compression
-(lossy, semantics-sensitive) remains an AI-assisted, suggestion-only layer for
+calls and `obj.attr = v` targets), `try`/`except`/`finally` + `raise`, function
+definitions + `return` (the `@cold`/neutral subset), and `class` (minimal
+viable OOP) as of 2026-07-17 — **every Phase 0–7 construct that can round-trip
+now does** (see `docs/agent-handoff.md`). The only exceptions are
+`@temporal_loop`/`async`/`await` (permanently forward-only) and `@hot`, a
+permanent (not deferred) partial exception within function support: the
+forward emitter renders it as a comment, never a real decorator, so it can't
+be recovered from emitted Python.
+
+Separately, EML's own language (both directions) is being extended to close
+real-corpus gaps found via the B-6 measurement — `and`/`or` boolean
+combinators (short-circuit, returning an operand not always a `bool`,
+matching Python exactly) and numeric `%` (Python floor-mod, not JS/C++'s
+truncating mod) both shipped 2026-07-17; `not`, string formatting,
+triple-quoted strings, keyword arguments, `with`/context managers, and
+multi-line bracketed literals are each their own future round (see
+`docs/roadmap.md`'s Phase 9). Arbitrary-Python compression (lossy,
+semantics-sensitive) remains an AI-assisted, suggestion-only layer for
 a later phase.
 
 Invoke via `pnpm eml <cmd>` in this repo, e.g. `pnpm eml explain examples/phase0/sum.eml`.

@@ -54,6 +54,8 @@ const REPLACEMENTS: Array<[string, string]> = [
   ['≤', '<='], // ≤
   ['≠', '!='], // ≠
   ['∈', ' in '], // ∈
+  ['∧', ' and '], // ∧
+  ['∨', ' or '], // ∨
   ['⟨', '<'], // ⟨  (matrix open ⟨M⟩ -> <M>)
   ['⟩', '>'], // ⟩
   ['×', '*'], // × (multiplication sign)

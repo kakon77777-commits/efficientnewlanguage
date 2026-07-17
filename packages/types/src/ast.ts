@@ -48,7 +48,7 @@ export interface PowerExpression extends NodeBase {
   exponent: Expression;
 }
 
-export type BinaryOperator = '+' | '-' | '*' | '/';
+export type BinaryOperator = '+' | '-' | '*' | '/' | '%';
 
 export interface BinaryExpression extends NodeBase {
   type: 'Binary';
@@ -62,6 +62,17 @@ export type ComparisonOperator = '>' | '<' | '>=' | '<=' | '==' | '!=';
 export interface ComparisonExpression extends NodeBase {
   type: 'Comparison';
   op: ComparisonOperator;
+  left: Expression;
+  right: Expression;
+}
+
+/** `and`/`or` — boolean combinators (short-circuit; the interpreter returns an
+ *  operand, not always a bool, matching Python — see `packages/interp`). */
+export type LogicalOperator = 'and' | 'or';
+
+export interface LogicalExpression extends NodeBase {
+  type: 'Logical';
+  op: LogicalOperator;
   left: Expression;
   right: Expression;
 }
@@ -162,6 +173,7 @@ export type Expression =
   | PowerExpression
   | BinaryExpression
   | ComparisonExpression
+  | LogicalExpression
   | ConditionalExpression
   | RangeExpression
   | SumExpression

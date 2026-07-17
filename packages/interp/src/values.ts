@@ -176,7 +176,7 @@ export function truthy(a: PyVal): boolean {
 
 // ── Arithmetic ───────────────────────────────────────────────────────────────
 
-export type ArithOp = '+' | '-' | '*' | '/';
+export type ArithOp = '+' | '-' | '*' | '/' | '%';
 
 export function arith(op: ArithOp, a: PyVal, b: PyVal): PyVal {
   // Non-numeric overloads first (str/list `+` and `*`), matching Python.
@@ -203,6 +203,28 @@ export function arith(op: ArithOp, a: PyVal, b: PyVal): PyVal {
     const d = toNum(b);
     if (d === 0) throw new PyError('ZeroDivisionError', floatDivByZero(a, b));
     return FLOAT(toNum(a) / d);
+  }
+
+  // Python's `%` is FLOOR-mod (result takes the sign of the DIVISOR:
+  // `-7 % 3 == 2`), unlike JS's native `%` (truncating, sign of the
+  // dividend: `-7 % 3 === -1`). `((a % b) + b) % b` converts JS's truncating
+  // mod into Python's floor-mod for both the bigint and float paths —
+  // verified against real Python (3.14.5) for several sign combinations
+  // before writing this, not assumed. The zero-modulus message is the same
+  // literal 'division by zero' for int and float alike, also verified
+  // directly (unlike `/`, whose message differs by type in this Python
+  // version — `%`'s doesn't).
+  if (op === '%') {
+    const d = toNum(b);
+    if (d === 0) throw new PyError('ZeroDivisionError', 'division by zero');
+    if (isFloaty(a) || isFloaty(b)) {
+      const x = toNum(a);
+      const y = toNum(b);
+      return FLOAT(((x % y) + y) % y);
+    }
+    const x = toBig(a);
+    const y = toBig(b);
+    return INT(((x % y) + y) % y);
   }
 
   // If either side is a float, compute in floats; otherwise exact bigint.

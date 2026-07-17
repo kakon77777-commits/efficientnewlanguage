@@ -59,6 +59,7 @@ const OVERLAY_OPS: Partial<Record<TokenType, BinaryOperator>> = {
   MINUS: '-',
   STAR: '*',
   SLASH: '/',
+  PERCENT: '%',
 };
 
 /** Compound-assignment operators (Phase 7b), target-first: `d[k] += 1`. */
@@ -67,6 +68,7 @@ const COMPOUND_ASSIGN_OPS: Partial<Record<TokenType, BinaryOperator>> = {
   MINUSEQ: '-',
   STAREQ: '*',
   SLASHEQ: '/',
+  PERCENTEQ: '%',
 };
 
 type OverlayKind = 'output' | 'overlay-assign' | 'list-assign' | 'expr';
@@ -545,7 +547,7 @@ class Parser {
   }
 
   private parseConditional(): Expression {
-    const test = this.parseComparison();
+    const test = this.parseOr();
     if (this.check('QUESTION')) {
       this.next();
       const consequent = this.parseExpression();
@@ -554,6 +556,26 @@ class Parser {
       return { type: 'Conditional', test, consequent, alternate };
     }
     return test;
+  }
+
+  private parseOr(): Expression {
+    let left = this.parseAnd();
+    while (this.check('OR')) {
+      this.next();
+      const right = this.parseAnd();
+      left = { type: 'Logical', op: 'or', left, right };
+    }
+    return left;
+  }
+
+  private parseAnd(): Expression {
+    let left = this.parseComparison();
+    while (this.check('AND')) {
+      this.next();
+      const right = this.parseComparison();
+      left = { type: 'Logical', op: 'and', left, right };
+    }
+    return left;
   }
 
   private parseComparison(): Expression {
@@ -589,8 +611,9 @@ class Parser {
 
   private parseMultiplicative(): Expression {
     let left = this.parsePower();
-    while (this.check('STAR') || this.check('SLASH')) {
-      const op: BinaryOperator = this.next().type === 'STAR' ? '*' : '/';
+    while (this.check('STAR') || this.check('SLASH') || this.check('PERCENT')) {
+      const t = this.next().type;
+      const op: BinaryOperator = t === 'STAR' ? '*' : t === 'SLASH' ? '/' : '%';
       const right = this.parsePower();
       left = { type: 'Binary', op, left, right };
     }

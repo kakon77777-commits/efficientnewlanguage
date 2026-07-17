@@ -826,7 +826,7 @@ via `pnpm eml test` / `eml trace <file> --run` alone.
   behavior all work as `docs/conformance.md` documents them, the same "verify the actual entry
   point, not just internal logic" discipline used for the LSP/MCP protocol tests.
 
-## Phase 8 — reverse Python→EML, Phase A + B1 + B2 + C + D + E1 (if/while/for, break/continue, dict/set/subscript, attribute/import, try/except/raise, function definitions; MVP complete)
+## Phase 8 — reverse Python→EML, Phase A + B1 + B2 + C + D + E1 + E2 (if/while/for, break/continue, dict/set/subscript, attribute/import, try/except/raise, function definitions, class; COMPLETE)
 
 Triggered by a real B-6 measurement: running `eml compress` on 5 unmodified real Python files was
 5/5 failures, every one within the first few lines. Root cause: `packages/transpiler-eml/src/
@@ -1159,6 +1159,222 @@ forward Phase 2.
   out-of-this-round gap, and this is concrete proof `def` itself now fully lexes/parses. The other 4
   files show no change, exactly as expected (`%`, `or`, and the multi-line dict literal remain
   earlier in those files than any function definition).
+
+**Phase E2 (same day, 2026-07-17) — final phase: `class`.** Mirrors forward Phase 7e's minimal
+viable OOP. This closes out the entire reverse-transpiler effort: every Phase 0–7 statement/
+expression kind that can round-trip now does. Verified directly against the AST and forward parser
+before writing any code — this turned out to be the smallest phase of the whole series, smaller even
+than Phase B1.
+
+- **The AST needed zero changes and so did the lexer.** `ClassDef` (`packages/types/src/ast.ts`) is
+  just `{ name: string, body: Statement[] }` — no base classes, no metaclass, no decorators. Its own
+  doc comment: "Methods are ordinary nested `FunctionDef` nodes — `self` is just an ordinary first
+  parameter, nothing special at the AST level." `class` is just another `NAME` token, same convention
+  every keyword in this reverse lexer follows.
+- **`py-parser.ts`**: `parseClassDef()` mirrors the forward parser's own `parseClassDef()` almost
+  line-for-line: `class Name:` then the exact same generic `parseBlock()` every other compound
+  statement already uses. Deliberately NO body-shape restriction here (methods/assignments only) —
+  confirmed the forward parser doesn't enforce this at the grammar level either; it's a
+  `semantic.ts`-only rule (`E_CLASS_BODY_UNSUPPORTED`). Matches this whole effort's established
+  practice of letting downstream forward validation catch subset violations rather than duplicating
+  restrictions in the reverse parser.
+- **`eml-emitter.ts`**: the `ClassDef` case is a `class ${name}:` header + a fresh, class-local
+  `bound` scope for the body — the same isolation reasoning as `FunctionDef` (Phase E1), since a
+  class-level variable must not be confused with a same-named module-level binding. Nested method
+  bodies needed NO special handling: `FunctionDef`'s own case already builds its own fresh `fnBound`
+  from its params regardless of what `bound` is passed to it, so method-body isolation fell out for
+  free from Phase E1's existing logic. Because `self.attr = value` (Phase C's `Attribute` assignment
+  target), `obj.method()` (Phase C's attribute-callee `Call`), and `return` (Phase E1) were already
+  fully supported, the ONLY new code this entire phase needed was the parser dispatch line + method +
+  the emitter case above.
+- **A genuine correction, found by re-deriving a Phase E1 test rather than assumed still true**:
+  Phase E1's docs said a `@hot` function "will not reach a round-trip fixpoint" — true, but this
+  round discovered the PRECISE mechanism isn't a thrown reverse-parse error. The reverse lexer
+  silently discards the `# @hot: ...` comment and happily parses the decorator-stripped Python as an
+  ordinary neutral function — `transpilePythonToEml` succeeds. The information loss only surfaces
+  later as a silent round-trip **mismatch** (`python1` still carries the comment; the reconstructed
+  `python2` does not). Caught while updating `tests/mcp-logic.test.ts`'s envelope-shape test (which
+  used `class` as its "guaranteed to fail" example before this phase) — swapping in a fresh `@hot`
+  example and asserting the wrong error string surfaced the actual message
+  (`'round-trip MISMATCH (python1 != python2)'`), not `'reverse Python->EML failed'`. §9/§11 tightened
+  accordingly.
+- **Tests**: `tests/bidirectional.test.ts`'s `roundTrippable` filter removed entirely — `class` was
+  the last exclusion, so it's now just `fixtures` with no filtering; all 29 fixtures round-trip.
+  `tests/reverse-blocks.test.ts`'s now-obsolete "still out of scope this round" describe block
+  (its one remaining case, "a class definition still fails") was replaced with a new Phase E2 describe
+  block: a `Counter`-mirrors-fixture-29 round-trip, a class-level-variable-alongside-methods
+  round-trip, and the class-scope "isolated going in" test (mirroring Phase E1's function-scope test).
+  `tests/mcp-logic.test.ts` needed one real fix: its envelope-shape regression test used `class` as a
+  convenient "always fails at reverse" example; swapped to a fresh `@hot` example (see the correction
+  above) plus a new positive test confirming `COUNTER_SRC` now round-trips. 637 tests total (up from 632).
+- **Verification**: a real, fresh `BankAccount` class (`deposit`/`withdraw`/`get_balance`, a running
+  balance) was run through the actual CLI end to end — `eml compress` → `eml roundtrip` (fixpoint OK)
+  → `eml run` (120 == 120, matched a real `python` run byte-for-byte). Re-ran the same 5 real B-6
+  corpus files: no change for any of them, exactly as expected — none of the 5 has `class` as its
+  first blocker (their blockers remain `%`, `or`, `with`, and the multi-line dict literal). **The
+  reverse Python→EML transpiler effort is now complete**: only `@temporal_loop`, `async`/`await`, and
+  the permanent `@hot` exception remain outside the round-trip invariant.
+
+## Phase 9 — real-corpus language extension (item 1: `and`/`or`, item 2: `%`)
+
+Re-measuring the same 5 real B-6 corpus files after Phase 8's completion exposed that
+`Decimal_to_binary_convertor` and `Leap_Year_Checker` are blocked by a genuine LANGUAGE-level gap,
+not a reverse-transpiler gap: EML has never had boolean-logic combinators — only a single
+`Comparison` (`x > 5`), no way to combine two (`x > 5 and y < 3`). This is a NEW roadmap category
+(`docs/roadmap.md`'s Phase 9): extending the language itself, both directions, not another
+reverse-transpiler sub-phase. Neo chose to tackle it item-by-item, smallest first; `and`/`or` is
+item 1 of ~7 discovered gaps (numeric `%`, string formatting via two distinct mechanisms,
+triple-quoted strings, `print(x, end=...)` kwargs, `with`/context managers, multi-line bracketed
+literals — each its own future round).
+
+- **This is a genuinely new `Expression` node type, so it touches far more files than a typical
+  single-direction reverse-transpiler phase** — confirmed by a dedicated research pass (an Explore
+  agent mapping every place in the codebase that pattern-matches over `Expression['type']`, plus
+  direct verification of every precedence table and parser entry point) before writing any code.
+  `LogicalExpression { op: 'and'|'or', left, right }` (`packages/types/src/ast.ts`) mirrors
+  `ComparisonExpression`'s exact shape.
+- **Forward**: `packages/types/src/tokens.ts` gained `AND`/`OR` tokens; `packages/parser/src/lexer.ts`
+  recognizes them via the existing keyword-branch chain (this lexer uses dedicated tokens, unlike the
+  reverse lexer). `packages/parser/src/parser.ts` inserted `parseOr()`/`parseAnd()` between
+  `parseConditional()` and `parseComparison()` — the conditional's `test` now calls `parseOr()`
+  instead of `parseComparison()` directly; `consequent`/`alternate` already recurse through the full
+  chain via `parseExpression()`, so they pick up `and`/`or` for free without any change.
+  `packages/parser/src/normalizer.ts` gained `∧`→`' and '`/`∨`→`' or '` Unicode display-form
+  substitutions, mirroring the existing `∈`→`' in '` entry exactly — a natural, low-cost extension of
+  this file's own stated design ("a high-value Unicode display form").
+- **Precedence renumbering — the single most error-prone part of this round, because it lives in
+  THREE independent, non-shared copies**: `transpiler-python/src/emitter.ts`,
+  `transpiler-eml/src/eml-emitter.ts`, and `transpiler-cpp/src/emitter.ts` each maintain their own
+  `precedence()`/`child()` pair. Renumbered tightest→loosest: conditional=1, or=2, and=3,
+  comparison/membership=4 (was 2), binary +/-=5 (was 3), binary \*/÷=6 (was 4), power=7 (was 5),
+  atoms/default=8 (was 6). Every hardcoded old-precedence literal scattered through each file
+  (`Power`'s base-wrap check, `Await`/`Subscript`/`Attribute`'s postfix-wrap checks, and
+  `transpiler-python/src/emitter.ts`'s `emitRangeEnd()` — a separate function with its own hardcoded
+  `< 3` meaning "looser than additive," now `< 5`) had to be updated consistently across all three
+  files, not just the table itself — verified by grepping for every `child(..., <number>)` call site
+  in each file after the edit, not assumed complete from memory.
+- **Six semantic walkers needed a new case** (`recurse into expr.left/expr.right` — no special
+  logic, `and`/`or` don't affect purity/importance/loop-classification differently than any other
+  binary combinator): `transpiler-python/src/semantic.ts`'s `collectExpr`, `purity.ts`'s
+  `scanExpression` and `collectCallsExpr`, `importance.ts`'s `walkExpr`, `loop-classifier.ts`'s
+  inline `walk`, and `cts-generator/src/index.ts`'s `collectIdents` (this last one was found only by
+  direct verification, not in the original research ask — a good reminder that "search for every
+  place a pattern like this exists" beats trusting a fixed list from memory). Three of these six
+  (`collectCallsExpr`, `walkExpr`, `loop-classifier`'s `walk`) have a **non-exhaustive `default:`
+  fallback** — the exact bug class Phase 3b already hit once with a missed `Await` case (see this
+  doc's own "Non-obvious design decisions" section) — so each was verified with a dedicated real test
+  (a call/loop hidden inside `and`/`or` must still be found), not just added and trusted.
+- **Reverse (`transpiler-eml/src/py-parser.ts`)**: no lexer change needed — this lexer has no keyword
+  tokens at all (every identifier is a generic `NAME`, disambiguated via `checkName()`), so `and`/`or`
+  recognition is just two more `checkName()` checks, the same pattern `in`/`if`/`else` already use.
+  `parseOr()`/`parseAnd()` inserted between `parseTernary()` and `parseComparison()`; BOTH of
+  `parseTernary()`'s `parseComparison()` calls (for `consequent` and `test`) needed to become
+  `parseOr()` — Python's ternary treats both its condition and its "if true" branch as full
+  boolean-expression level.
+- **Interpreter (`packages/interp/src/index.ts`) — the one place that must NOT mirror
+  `Comparison`/`Binary`'s eager-evaluate-both-sides shape.** Python's `and`/`or` return an OPERAND,
+  not always a `bool`, and short-circuit — verified directly against real Python execution before
+  writing the case, not assumed from general knowledge (`0 and 5` is `0`; `(a and b) or c` and
+  `a and (b or c)` were both hand-checked against real `python -c` output for several truthy/falsy
+  combinations to confirm the exact returned VALUE, not just truthiness). Modeled on the existing
+  `Conditional` case (test-then-branch) rather than `Comparison`'s eager both-sides evaluation:
+  evaluate `left` once, branch on `truthy(left)`, only evaluate `right` when short-circuiting doesn't
+  apply. A dedicated test proves the short-circuit is REAL, not just value-correct: `a and
+  undefined_name()` with `a` falsy must NOT raise `NameError`, since `undefined_name()` must never be
+  evaluated.
+- **C⁺⁺⁺ prototype backend**: emits `&&`/`||` — a real, documented divergence (C++'s operators always
+  yield `bool`; Python's yield an operand) added to `docs/cpp-feasibility.md`'s "Known divergences."
+  **The one genuinely dangerous spot found in this whole round**: `expressionCallsName()` (the
+  self-recursion detector gating "never emit broken C++, since an `auto`-return function can't
+  recurse") has its own non-exhaustive `default: return false` fallback, structurally identical to the
+  three semantic-walker risks above but with a worse consequence — missing this case would let
+  `f() and f()`-shaped self-recursion slip past the guard and emit genuinely broken C++ (an
+  `auto`-returning function referencing its own undeduced return type), defeating this backend's core
+  safety guarantee specifically for the one construct this round adds. Fixed and locked in with a
+  dedicated test.
+- **Tests**: new `tests/phase9-logical.test.ts` (25 tests) covering forward parse/precedence/Unicode
+  normalization, real-Python execution parity (exact returned VALUES for several truthy/falsy
+  combinations, not just pass/fail), interpreter short-circuit proof, all three at-risk semantic
+  walkers via real transpile/purity/importance/loop-classify calls, the C++ recursion-guard fix, and
+  reverse round-trip (a `Decimal_to_binary`-shaped `or` condition, a `Leap_Year_Checker`-shaped mixed
+  `and`/`or` combo). **Caught a real bug in the test file itself while writing it**: an early draft of
+  the "real Python execution parity" test table had a self-referential assertion
+  (`expect(pythonStdout(...)).toBe(cond ? pythonStdout(...) : '')`) that was trivially always true —
+  rewritten with explicit hand-computed expected values per case. `tests/mcp-logic.test.ts` was
+  untouched (that file's own envelope-shape tests don't happen to exercise boolean expressions).
+  662 tests total (up from 637).
+- **Verification**: a real, fresh loop-with-boolean-condition snippet (`(i > 5 and i < 15) or i ==
+  20`, counting matches over `[1:20]`) matched real Python exactly (10 == 10) via both `eml run` and
+  a direct `python`-executed transpile. Re-ran the same 5 real B-6 corpus files: **genuine, honest
+  progress** — `Decimal_to_binary_convertor` moved from failing at `or` (line 3) all the way to line
+  7's `bin(dec)[2:]`, a Python **sequence slice** expression — a distinct, new gap from EML's own
+  `[a:b]` range literal (which means something semantically different: an inclusive range, not
+  subsequence extraction), proving `and`/`or` itself is now fully functional. `Leap_Year_Checker`
+  shows no change, exactly as expected: its `%` appears lexically BEFORE `and`/`or` on the same line,
+  so the lexer still stops there first — not a regression, just where that file's blocker happens to
+  sit.
+
+### Item 2 — numeric modulo `%` (2026-07-17, same day)
+
+A much smaller round than `and`/`or`, verified before planning: `%` reuses the EXISTING `Binary`
+node (just widening `BinaryOperator` to include `'%'`), not a new `Expression` type. Read every
+relevant file first — `Binary`'s case in all 6 semantic walkers, and `OverlayAssign`'s resolution in
+`semantic.ts` (everything except `op === '+'` is already one generic "else — always augmented"
+branch) — confirmed **zero changes needed** to any of those 7 places, since they're already written
+generically over `BinaryOperator`, not enumerating specific operators.
+
+- **Forward/reverse lexer+parser**: two new tokens (`PERCENT`/`PERCENTEQ`) on the forward side (this
+  lexer uses dedicated keyword/operator tokens); the reverse lexer needed the same two tokens too
+  (unlike `and`/`or`, which needed zero reverse-lexer tokens since those are keyword-shaped and this
+  lexer has no keywords — `%` is punctuation, so it needs an explicit token either way).
+  `parseMultiplicative()` widened in both directions to recognize `PERCENT` alongside `STAR`/`SLASH`
+  — `%` shares Python's real precedence tier with `*`/`/` (not its own tier), confirmed directly, so
+  no precedence-table renumbering was needed at all this round (contrast with `and`/`or`, which
+  needed a full 3-file renumbering).
+- **The one real emitter fix, in all three `precedence()`/`child()` copies**: `nonAssoc` (which
+  forces parens on an equal-precedence right operand) needed `%` added alongside `-`/`/` — `%` is
+  non-associative (`a % (b % c)` must keep its parens on re-emission, or the grouping silently
+  changes meaning). Verified with a dedicated test using explicit right-side parens, not assumed
+  from the `/` precedent.
+- **The interpreter needed REAL Python floor-mod semantics, not JS's native `%`** — this is where
+  almost all of this round's actual thinking went. Python's `%` takes the sign of the DIVISOR
+  (`-7 % 3 == 2`); JS's and C++'s native `%` take the sign of the DIVIDEND (`-7 % 3 == -1` in both).
+  Verified directly against the real, installed Python (3.14.5) via `python -c` for several sign
+  combinations (`-7 % 3`, `7 % -3`, `-7 % -3`, `-7.5 % 3`) before writing any code — the classic
+  `((a % b) + b) % b` floor-mod conversion, applied to both the bigint and float arithmetic paths in
+  `values.ts`'s `arith()`. Also verified directly (not assumed from `/`'s existing type-conditional
+  message): `%`-by-zero raises `ZeroDivisionError('division by zero')` — the SAME literal message
+  for int and float alike in this Python version, simpler than `/`'s own message logic.
+- **String-formatting `%` (`"%s" % (a, b)`) is a distinct, separate semantic, deliberately deferred**:
+  `index.ts`'s `Binary` case checks for a string operand BEFORE calling `arith()` and throws
+  `Unsupported('% string formatting', ...)` — mirroring this file's existing deferral pattern
+  (Matrix/Transpose/Await) rather than letting `arith()`'s generic isNumeric check throw a
+  misleading `TypeError`, or worse, silently doing the wrong thing. `values.ts` itself stays
+  defer-agnostic (no `Unsupported` import there), preserving the existing layering where only
+  `index.ts` knows about deferral.
+- **C++ prototype backend**: C++'s `%` is integer-ONLY — applying it to a `double` is a compile
+  error, a real correctness risk unique to `%` among the four arithmetic operators (unlike `/`,
+  which compiles fine for both int and float, just with different semantics — the existing
+  documented divergence). Added a literal-level guard mirroring this backend's existing `List`
+  integer-literal check: a `%` with either operand a non-integer `NumberLiteral` is rejected with
+  `E_CPP_UNSUPPORTED` rather than emitting broken C++. Can't catch a non-literal (variable) float
+  operand — the same accepted type-blindness `/` already has, documented as such.
+- **Tests**: new `tests/phase9-modulo.test.ts` (15 tests) — forward parse/precedence/`nonAssoc`,
+  real-Python execution parity for the exact negative-operand cases verified above (checked against
+  BOTH the forward-emitted-then-executed Python AND the interpreter, not just one), `x %= 5` /
+  `x^%5` round-tripping through the already-generic augmented-assign machinery, `ZeroDivisionError`
+  message-text verification, the string-`%` deferral, the C++ integer guard, and reverse round-trip
+  (a `Leap_Year_Checker`-shaped `%`+`and`+`or` combo). 677 tests total (up from 662).
+- **Verification**: a real, fresh leap-year-counting snippet (`((y % 4 == 0) and (y % 100 != 0)) or
+  (y % 400 == 0)` over `[1896:2100]`) matched real Python exactly (50 == 50) via `eml run`. Re-ran
+  the same 5 real B-6 corpus files — **both `%`-blocked files show genuine, concrete progress**:
+  `Leap_Year_Checker` moved from `%` (line 3) to a triple-quoted docstring `"""..."""` (line 4),
+  landing exactly on the already-known item 4 gap. `Calculate_age` moved from `%` (line 48) all the
+  way to line 21's `(not leap_year)` — a **newly-discovered gap this round**: Python's `not` unary
+  boolean negation, previously masked by `%` blocking earlier in the same file, never reached by any
+  prior measurement. Small in scope (same mechanism family as `and`/`or`, just unary), logged as a
+  new roadmap candidate (`docs/roadmap.md`'s Phase 9 item 8) rather than silently folded into this
+  round's "done" claim.
 
 ## Non-obvious design decisions (the gotchas)
 

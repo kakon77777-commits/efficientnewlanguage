@@ -51,6 +51,7 @@ function walkExpr(expr: Expression, bound: Set<string>, onCall: (name: string) =
       break;
     case 'Binary':
     case 'Comparison':
+    case 'Logical':
       walkExpr(expr.left, bound, onCall);
       walkExpr(expr.right, bound, onCall);
       break;

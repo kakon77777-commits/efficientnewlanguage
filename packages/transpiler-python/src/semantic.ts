@@ -147,6 +147,11 @@ export function analyzeSemantics(
         collectExpr(expr.left);
         collectExpr(expr.right);
         break;
+      case 'Logical':
+        symbols.add(expr.op);
+        collectExpr(expr.left);
+        collectExpr(expr.right);
+        break;
       case 'Call':
         // An Attribute callee (`math.sqrt(x)`) can itself hide nested
         // expressions in its object (e.g. `d[k].method()`) — recurse into it

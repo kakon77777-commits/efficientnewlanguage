@@ -193,11 +193,20 @@ OutputStatement ::= Identifier "^0"   (* operand must be a bare identifier *)
 
 (* ── Expressions ── *)
 Expression     ::= ConditionalExpression
-ConditionalExpression ::= ComparisonExpression [ "?" Expression ":" Expression ]
-ComparisonExpression  ::= AdditiveExpression [ ComparisonOperator AdditiveExpression ]
+ConditionalExpression ::= OrExpression [ "?" Expression ":" Expression ]
+(* Phase 9: `and`/`or` boolean combinators — short-circuit, and (unlike C++'s
+   `&&`/`||`) return an OPERAND, not always a bool, matching Python exactly.
+   `∧`/`∨` are accepted Unicode display forms (normalized before lexing). *)
+OrExpression   ::= AndExpression { ("or" | "∨") AndExpression }
+AndExpression  ::= ComparisonExpression { ("and" | "∧") ComparisonExpression }
+(* Correction (Phase 9): `MembershipExpression` was previously (mis)documented
+   under `PrimaryExpression` below — the actual parser has always placed it
+   between comparison and additive precedence. Corrected here, not a behavior
+   change. *)
+ComparisonExpression  ::= MembershipExpression [ ComparisonOperator MembershipExpression ]
 ComparisonOperator    ::= ">" | "<" | ">=" | "<=" | "==" | "!=" | "≥" | "≤" | "≠"
 AdditiveExpression    ::= MultiplicativeExpression { ("+" | "-") MultiplicativeExpression }
-MultiplicativeExpression ::= PowerExpression { ("*" | "/") PowerExpression }
+MultiplicativeExpression ::= PowerExpression { ("*" | "/" | "%") PowerExpression }
 (* `^Number` (power, Number ≠ 0) and `^T` (transpose) are mutually-exclusive
    suffixes over a postfix/primary; they do not chain (no `m^T^2`). *)
 PowerExpression ::= PostfixExpression [ ( "^" Number ) | "^T" ]
@@ -214,7 +223,6 @@ PrimaryExpression ::= Identifier
                     | DictLiteral                      (* Phase 7b *)
                     | SetLiteral                       (* Phase 7b *)
                     | RangeExpression
-                    | MembershipExpression
                     | AwaitExpression                 (* Phase 3 *)
                     | "(" Expression ")"
 
@@ -224,7 +232,7 @@ SumExpression  ::= "Σ" "(" Expression "," IteratorClause ")"
 IteratorClause ::= Identifier InOperator RangeExpression
 InOperator     ::= "in" | "∈"
 RangeExpression ::= "[" Expression ":" Expression "]"   (* inclusive of the upper bound *)
-MembershipExpression ::= Expression InOperator (RangeExpression | Expression)
+MembershipExpression ::= AdditiveExpression [ InOperator (RangeExpression | AdditiveExpression) ]
 MatrixExpression ::= "<M>" "(" Expression ")"
 ListLiteral    ::= "[" [ ArgumentList ] "]"
 DictLiteral    ::= "{" [ DictEntry { "," DictEntry } ] "}"        (* empty `{}` is a dict, Python parity *)
@@ -284,10 +292,16 @@ table: if `x` is not yet declared in the active scope it is an initialization (`
 `Assignment` with `declares = true`); otherwise it is an augmented add (`x += v`). This is the only
 overlay whose meaning depends on prior declarations.
 
-### 5.2 `^-` `^*` `^/` — augmented assign
+### 5.2 `^-` `^*` `^/` `^%` — augmented assign
 
-Always augmented (`-=`, `*=`, `/=`). `^/` is Python-3 **true division** (float result). Applying one
-to an undeclared variable emits warning `W_AUG_UNDECLARED` (it will `NameError` at runtime).
+Always augmented (`-=`, `*=`, `/=`, `%=`). `^/` is Python-3 **true division** (float result).
+Applying one to an undeclared variable emits warning `W_AUG_UNDECLARED` (it will `NameError` at
+runtime). **`%` (modulo, Phase 9) is FLOOR-mod, matching Python exactly** — the result takes the
+sign of the DIVISOR (`-7 % 3 == 2`, `7 % -3 == -2`), NOT the sign of the dividend the way C/C++/JS's
+native `%` does (`-7 % 3 == -1` in those languages) — verified directly against the real, installed
+Python interpreter before implementing, not assumed. `%`-by-zero raises `ZeroDivisionError('division
+by zero')`, the same literal message for int and float operands alike. String-formatting `%`
+(`"%s" % (a, b)`) is a distinct, unimplemented semantic — a separate, later Phase 9 item.
 
 ### 5.3 `^0` — output
 
@@ -317,10 +331,33 @@ builtin call like `list(1)` is preserved).
 
 `[a:b]` is **inclusive** of `b`: it emits `range(a, b+1)` (literal `b` folds to `b+1`; the form
 `X-1` cancels to `range(a, X)` so reverse-transpiled `[1:n-1]` round-trips). Range bounds MUST be
-integers; a non-integer literal bound is `E_RANGE_NONINT`. Emitter precedence (tightest → loosest):
-power(5) > mul/div(4) > add/sub(3) > comparison/membership(2) > conditional(1). The emitter
-parenthesizes minimally and exactly to preserve grouping; `**` is right-associative (its base is
-parenthesized), and `-`/`/` are non-associative (an equal-precedence right operand is parenthesized).
+integers; a non-integer literal bound is `E_RANGE_NONINT`. Emitter precedence (tightest → loosest,
+as of Phase 9): power(7) > mul/div/mod(6) > add/sub(5) > comparison/membership(4) > and(3) > or(2) >
+conditional(1). The emitter parenthesizes minimally and exactly to preserve grouping; `**` is
+right-associative (its base is parenthesized), `-`/`/`/`%` are non-associative (an equal-precedence
+right operand is parenthesized — `a % (b % c)` keeps its parens, unlike `a + (b + c)`), and `and`/`or`
+are associative in value (so an equal-precedence child is never force-parenthesized) but `and` binds
+tighter than `or`, matching Python exactly.
+
+### 5.8 Boolean combinators (`and`/`or`, Phase 9)
+
+`and`/`or` are genuine short-circuit boolean combinators — the FIRST language-extension item added
+after the reverse-transpiler effort (Phase 8) completed, closing a real B-6 corpus gap (`if menu < 1
+or menu > 2:`, `(year % 4 == 0) and (year % 100 != 0) or (year % 400 == 0)`). `∧`/`∨` are accepted
+Unicode display forms, normalized to `and`/`or` before lexing (mirroring `∈`→`in`).
+
+**Critical semantic note, verified against real Python execution, not assumed**: `and`/`or` return
+an **operand**, not always a `bool` — `a and b` returns `a` if `a` is falsy, else `b`; `a or b`
+returns `a` if truthy, else `b`. The right operand is never evaluated unless needed (real
+short-circuit, not just a correct final value — the interpreter's `evalExpr` implements this by
+evaluating `left` once and branching, never evaluating `right` unless required). This is DIFFERENT
+from the C++ prototype backend, which maps `and`/`or` to `&&`/`||` — always yielding `bool`, a real,
+documented divergence for that backend only (see `docs/cpp-feasibility.md`).
+
+Because `and`/`or` combine into every existing analysis pass (purity/importance/loop-classifier),
+a call or loop hidden inside a boolean expression (`f() and g()`, `cond and Σ(...)`) is still found
+by every pass — this was verified with dedicated tests, not assumed, since several of these walkers
+have a non-exhaustive `default:` fallback where a missed case would silently (not loudly) under-count.
 
 ---
 
@@ -621,19 +658,31 @@ assignment targets (`d[k] = v` / `d[k] += v`); as of Phase C (same day), attribu
 as a call callee (`math.sqrt(x)`) and as an assignment target (`obj.attr = v` / `obj.attr += v`) —
 and a bare `import module` statement; as of Phase D (same day), `try`/`except`/`finally` and `raise`;
 as of Phase E1 (same day), function definitions and `return` — the `@cold`/neutral subset only (see
-below) — see §11's addenda. Forward-only constructs (NOT part of the round-trip invariant):
-`@temporal_loop`, `async`/`await`, and `class` (§6b) — the reverse subset now covers every other
-Phase 0–7 statement/expression kind except `class`.
-**`@hot` is a permanent, structural round-trip gap, not a deferred one** (distinct from `class`,
-which is merely not-yet-implemented): the forward Python emitter renders `@cold` as a real
-`@functools.cache` decorator but `@hot` as a bare **comment** (`# @hot: dynamic state — not
-cached`), and comments are never tokenized by the reverse lexer — so a function that was originally
-`@hot` has no marker left in its emitted Python for the reverse path to recover. It will not reach a
-round-trip fixpoint; this is the same category of permanent, one-way information loss as
-`async`/`await`. Also note: the reverse path treats a bare `import functools` as auto-generated
-boilerplate and never reconstructs it as a literal EML import — the forward semantic analyzer
-auto-synthesizes exactly this import whenever a non-async `@cold` function exists, independent of
-any user-authored import, so preserving it literally would duplicate it on the next forward pass.
+below); **as of Phase E2 (2026-07-17), `class`** — minimal-viable-OOP (§7e): methods are ordinary
+nested function definitions and `self` is just an ordinary first parameter, so this closed out with
+almost no new logic beyond a `class Name:` header and a fresh, class-local `bound` scope — see §11's
+addenda. **This is the final phase of the reverse-transpiler effort**: every Phase 0–7 statement/
+expression kind that CAN round-trip now does. The only remaining forward-only constructs (NOT part
+of the round-trip invariant) are `@temporal_loop` and `async`/`await`. **As of Phase 9 (2026-07-17),
+`and`/`or` (§5.8) also round-trip** — a genuinely new expression kind added AFTER the reverse-
+transpiler effort concluded, as the first item of a separate language-extension track (real B-6
+corpus gaps beyond grammar completeness); both directions were built together for this one, unlike
+Phase A–E2's reverse-only rounds.
+**`@hot` is a permanent, structural round-trip gap within function support, not a deferred one**
+(distinct from `class`, which was merely not-yet-implemented until this phase): the forward Python
+emitter renders `@cold` as a real `@functools.cache` decorator but `@hot` as a bare **comment**
+(`# @hot: dynamic state — not cached`), and comments are never tokenized by the reverse lexer — so a
+function that was originally `@hot` has no marker left in its emitted Python for the reverse path to
+recover. **Verified precisely (not assumed): this does not surface as a reverse-parse error** — the
+reverse lexer silently discards the comment and parses the decorator-stripped Python as an ordinary
+neutral function, so `transpilePythonToEml` itself succeeds. The information loss only becomes
+visible as a silent round-trip **mismatch** (`python1 != python2`, since python1 still carries the
+`@hot` comment and the reconstructed python2 does not) — the same category of permanent, one-way
+information loss as `async`/`await`, but manifesting as a quiet fixpoint miss rather than a thrown
+error. Also note: the reverse path treats a bare `import functools` as auto-generated boilerplate and
+never reconstructs it as a literal EML import — the forward semantic analyzer auto-synthesizes
+exactly this import whenever a non-async `@cold` function exists, independent of any user-authored
+import, so preserving it literally would duplicate it on the next forward pass.
 **Known whole-language boundary, not a Phase B2 gap**: neither transpilation direction has ever
 supported a bracketed literal (`[...]`, `{...}`, a call's `(...)`) spanning multiple physical lines —
 confirmed via a real corpus test (a genuine third-party Python file whose dict literal is written
@@ -788,6 +837,24 @@ inside leaks out, matching if/try's existing behavior, but ALSO nothing from the
 leaks in, which if/while/for/try never needed since none of them are call boundaries). Further
 widens §9's round-trip guarantee, additive per the stability policy. `class` (§6b) is now the only
 forward-only construct left that is a deferred (not permanent) gap.
+
+**Phase 8 reverse-transpiler addendum, Phase E2 (2026-07-17) — final phase.** `class` (§7e, minimal
+viable OOP) now round-trips, closing out the reverse-transpiler effort: every Phase 0–7 statement/
+expression kind that can round-trip now does. Verified directly against the AST and forward parser
+before writing any code: `ClassDef` is just `{ name, body }` — no base classes, no decorators, and
+methods are ordinary nested `FunctionDef` nodes with `self` as an unremarkable first parameter — so
+this phase needed almost no new logic: a `class Name:` header, the same generic `parseBlock()` every
+other compound statement already uses (the forward parser itself defers the "methods/assignments
+only" body restriction to semantic analysis, not grammar, so the reverse parser mirrors that rather
+than duplicating the restriction), and a fresh, class-local `bound` scope in the emitter — nested
+method bodies need no special handling since `FunctionDef`'s own case already builds its own fresh
+scope regardless of what's passed in. This is the smallest phase of the whole series, smaller even
+than Phase B1. One correction surfaced while re-deriving a Phase E1 test for this round: `@hot`'s
+round-trip failure is a silent mismatch, not a thrown reverse-parse error (see §9's revised normative
+note above) — the original Phase E1 wording ("will not reach a fixpoint") was accurate but imprecise
+about the mechanism; this addendum tightens it now that a real test forced the distinction. Further
+widens §9's round-trip guarantee, additive per the stability policy. Only `@temporal_loop`,
+`async`/`await`, and the permanent `@hot` exception remain outside the round-trip invariant.
 
 ---
 

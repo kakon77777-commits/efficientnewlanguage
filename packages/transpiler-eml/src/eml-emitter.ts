@@ -17,15 +17,17 @@ function precedence(expr: Expression): number {
   switch (expr.type) {
     case 'Conditional':
       return 1;
+    case 'Logical':
+      return expr.op === 'or' ? 2 : 3;
     case 'Comparison':
     case 'Membership':
-      return 2;
+      return 4;
     case 'Binary':
-      return expr.op === '+' || expr.op === '-' ? 3 : 4;
+      return expr.op === '+' || expr.op === '-' ? 5 : 6;
     case 'Power':
-      return 5;
+      return 7;
     default:
-      return 6;
+      return 8;
   }
 }
 
@@ -49,7 +51,7 @@ const isInlineLiteral = (e: Expression): boolean =>
  *  declare-vs-augment disambiguation doesn't apply to a container element,
  *  which can't be "declared" the same way), so EML spells this with the real
  *  operator directly (`scores["alice"] += 5`, tests/fixtures/23_dict_literal.eml). */
-const REAL_COMPOUND_OP: Record<string, string> = { '+': '+=', '-': '-=', '*': '*=', '/': '/=' };
+const REAL_COMPOUND_OP: Record<string, string> = { '+': '+=', '-': '-=', '*': '*=', '/': '/=', '%': '%=' };
 
 /** Indent every line of a (possibly multi-line) block by four spaces (ported
  *  verbatim from the forward Python emitter). A string-transform, not a
@@ -85,14 +87,18 @@ export function emitEmlExpression(expr: Expression): string {
           `EML cannot express a power with exponent '${emitEmlExpression(expr.exponent)}' — the exponent must be a non-zero number literal.`,
         );
       }
-      return `${child(expr.base, 5, true)}^${emitEmlExpression(expr.exponent)}`;
+      return `${child(expr.base, 7, true)}^${emitEmlExpression(expr.exponent)}`;
     case 'Binary': {
-      const prec = expr.op === '+' || expr.op === '-' ? 3 : 4;
-      const nonAssoc = expr.op === '-' || expr.op === '/';
+      const prec = expr.op === '+' || expr.op === '-' ? 5 : 6;
+      const nonAssoc = expr.op === '-' || expr.op === '/' || expr.op === '%';
       return `${child(expr.left, prec)} ${expr.op} ${child(expr.right, prec, nonAssoc)}`;
     }
     case 'Comparison':
-      return `${child(expr.left, 2)} ${expr.op} ${child(expr.right, 2)}`;
+      return `${child(expr.left, 4)} ${expr.op} ${child(expr.right, 4)}`;
+    case 'Logical': {
+      const prec = expr.op === 'or' ? 2 : 3;
+      return `${child(expr.left, prec)} ${expr.op} ${child(expr.right, prec)}`;
+    }
     case 'Conditional':
       return `${child(expr.test, 1, true)} ? ${child(expr.consequent, 1, true)} : ${emitEmlExpression(expr.alternate)}`;
     case 'Range':
@@ -109,7 +115,7 @@ export function emitEmlExpression(expr: Expression): string {
     case 'Matrix':
       return `<M>(${emitEmlExpression(expr.data)})`;
     case 'Transpose':
-      return `${child(expr.operand, 6)}^T`;
+      return `${child(expr.operand, 8)}^T`;
     case 'List':
       return `[${expr.elements.map(emitEmlExpression).join(', ')}]`;
     case 'Await':
@@ -121,9 +127,9 @@ export function emitEmlExpression(expr: Expression): string {
     case 'Set':
       return `{${expr.elements.map(emitEmlExpression).join(', ')}}`;
     case 'Subscript':
-      return `${child(expr.object, 6)}[${emitEmlExpression(expr.index)}]`;
+      return `${child(expr.object, 8)}[${emitEmlExpression(expr.index)}]`;
     case 'Attribute':
-      return `${child(expr.object, 6)}.${expr.attr}`;
+      return `${child(expr.object, 8)}.${expr.attr}`;
   }
 }
 
@@ -308,8 +314,19 @@ export function emitEmlStatement(stmt: Statement, bound: Set<string> = new Set()
     }
     case 'Raise':
       return stmt.exception ? `raise ${emitEmlExpression(stmt.exception)}` : 'raise';
-    case 'ClassDef':
-      throw new EmlEmitError(`Reverse Python->EML does not yet support class definitions ('class ${stmt.name}').`);
+    case 'ClassDef': {
+      // Fresh, class-local `bound` scope — isolated from the enclosing scope,
+      // same reasoning as FunctionDef (Phase E1): a class-level assignment (a
+      // class variable) must not be confused with a same-named module-level
+      // binding. Nested method bodies don't need any special handling here —
+      // the `FunctionDef` case above already builds its OWN fresh `fnBound`
+      // from its params regardless of what's passed in, so method isolation
+      // falls out for free.
+      const lines: string[] = [`class ${stmt.name}:`];
+      const classBound = new Set<string>();
+      for (const s of stmt.body) lines.push(indent(emitEmlStatement(s, classBound)));
+      return lines.join('\n');
+    }
   }
 }
 

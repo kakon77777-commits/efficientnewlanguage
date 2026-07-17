@@ -17,11 +17,13 @@ export type PyTokenType =
   | 'MINUSEQ' // -=
   | 'STAREQ' // *=
   | 'SLASHEQ' // /=
+  | 'PERCENTEQ' // %=
   | 'POW' // **
   | 'PLUS'
   | 'MINUS'
   | 'STAR'
   | 'SLASH'
+  | 'PERCENT'
   | 'LPAREN'
   | 'RPAREN'
   | 'LBRACKET'
@@ -151,6 +153,7 @@ export function lexPython(source: string): PyToken[] {
       ['-=', 'MINUSEQ'],
       ['*=', 'STAREQ'],
       ['/=', 'SLASHEQ'],
+      ['%=', 'PERCENTEQ'],
       ['==', 'EQEQ'],
       ['!=', 'NE'],
       ['>=', 'GE'],
@@ -230,6 +233,7 @@ export function lexPython(source: string): PyToken[] {
       '-': 'MINUS',
       '*': 'STAR',
       '/': 'SLASH',
+      '%': 'PERCENT',
       '(': 'LPAREN',
       ')': 'RPAREN',
       '[': 'LBRACKET',

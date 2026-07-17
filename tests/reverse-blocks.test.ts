@@ -9,11 +9,15 @@ import { transpilePythonToEml, roundTripFromPython } from '@eml/transpiler-eml';
  * `d[k] = v` / `d[k] += v`), Phase C (attribute access + bare `import`, incl.
  * the same `AssignTarget` widening extended to `obj.attr = v`), and Phase D
  * (`try`/`except`/`finally` + `raise`, incl. the conservative per-part
- * `bound`-scope handling and the `pass` regression fix), and Phase E1
- * (function definitions + `return`, incl. the `@cold`->`@functools.cache`
- * decorator recognition, the auto-synthesized `import functools` skip, and
- * the fresh function-local `bound` scope — the first construct isolated in
- * BOTH directions, not just going out).
+ * `bound`-scope handling and the `pass` regression fix), Phase E1 (function
+ * definitions + `return`, incl. the `@cold`->`@functools.cache` decorator
+ * recognition, the auto-synthesized `import functools` skip, and the fresh
+ * function-local `bound` scope — the first construct isolated in BOTH
+ * directions, not just going out), and Phase E2 (`class` — minimal viable
+ * OOP, the FINAL phase: methods are ordinary `FunctionDef` nodes and
+ * `self.attr` is an ordinary `Attribute`, so this phase needed almost no new
+ * code — every Phase 0-7 construct now round-trips except the permanent
+ * `@hot` exception).
  * `tests/bidirectional.test.ts`'s fixture loop already exercises this via the
  * committed fixture set (16-27); this file adds direct coverage for shapes
  * those fixtures don't specifically pin down, most importantly the
@@ -303,9 +307,49 @@ describe('reverse Python->EML — function definitions (Phase E1)', () => {
   });
 });
 
-describe('reverse Python->EML — still out of scope this round (regression guard)', () => {
-  it('a class definition still fails', () => {
-    const r = transpilePythonToEml('class Foo:\n    x = 1\n');
-    expect(r.ok).toBe(false);
+describe('reverse Python->EML — class definitions (Phase E2, final phase)', () => {
+  it('a Counter class round-trips (mirrors fixture 29): methods, self.attr assignment, compound self.attr update, return', () => {
+    const py =
+      'class Counter:\n' +
+      '    def __init__(self, start):\n' +
+      '        self.value = start\n' +
+      '    def increment(self):\n' +
+      '        self.value = self.value + 1\n' +
+      '    def get(self):\n' +
+      '        return self.value\n\n' +
+      'c = Counter(0)\n' +
+      'c.increment()\n' +
+      'c.increment()\n' +
+      'result = c.get()\n' +
+      'print(result)\n';
+    const rt = roundTripFromPython(py);
+    expect(rt.ok, rt.message + '\n' + JSON.stringify(rt.steps, null, 2)).toBe(true);
+  });
+
+  it('a class-level assignment (a class variable) alongside methods round-trips', () => {
+    const py =
+      'class Config:\n' +
+      '    version = 1\n' +
+      '    def __init__(self, name):\n' +
+      '        self.name = name\n' +
+      '    def describe(self):\n' +
+      '        return self.name\n\n' +
+      'c = Config("demo")\n' +
+      'x = c.describe()\n' +
+      'print(x)\n';
+    const rt = roundTripFromPython(py);
+    expect(rt.ok, rt.message + '\n' + JSON.stringify(rt.steps, null, 2)).toBe(true);
+  });
+
+  it('a module-level bound name does not false-positive "already bound" for a same-named fresh class-level variable (scope isolated going in)', () => {
+    // If the class body wrongly shared/cloned the caller's `bound` set
+    // instead of getting a fresh one, this inner `x = 5` would see the outer
+    // `x` as already-bound and emit the reversed-arrow form instead of the
+    // declare-sigil form.
+    const py = 'x = 100\nclass Foo:\n    x = 5\n\nprint(x)\n';
+    const rt = roundTripFromPython(py);
+    expect(rt.ok, rt.message + '\n' + JSON.stringify(rt.steps, null, 2)).toBe(true);
+    const eml = reverse(py);
+    expect(eml).toContain('x^+5');
   });
 });

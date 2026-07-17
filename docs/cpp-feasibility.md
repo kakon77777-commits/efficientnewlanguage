@@ -63,10 +63,24 @@ EML constructs the C++ subset can't express:
 - **`/` is C++ division** (integer division for integer operands), unlike
   Python's always-float `/`. The demos avoid division; a real backend would
   emit a typed division helper.
+- **`%` (Phase 9) requires integer operands in C++** — modulo on a `double` is
+  a compile error, unlike Python's, which also works on floats. This prototype
+  catches only the obvious case (a literal non-integer operand) and rejects it
+  with `E_CPP_UNSUPPORTED`; a non-literal (variable) float operand is the same
+  kind of accepted, undetected type-blindness `/` already has, since this
+  backend does no type inference. C++'s `%` is otherwise truncating like `/`,
+  not Python's floor-mod — irrelevant here since the emitted text is the same
+  raw `%`, and the divergence only matters for negative operands (out of
+  scope for this prototype's own stated non-goals).
 - **`auto`-returning functions can't be forward-declared**, so a function must be
   defined before its callers. Recursion (self or mutual) is therefore rejected
   with `E_CPP_UNSUPPORTED` (a real backend would emit a concrete return type).
 - Accumulators are `long long`; no big-integer overflow protection.
+- **`and`/`or` map to `&&`/`||` (Phase 9)**, which always yield `bool`. Python's `and`/`or` are
+  short-circuit but return an OPERAND (e.g. `0 and 5` is `0`, not `False`) — this prototype backend
+  narrows that to a plain boolean, a deliberate simplification (self-recursion hidden behind
+  `and`/`or`, e.g. `f() and f()`, is still correctly rejected as `E_CPP_UNSUPPORTED` — verified with
+  a dedicated test, not assumed, since the recursion-detection walker has a non-exhaustive fallback).
 
 ## Clang / LibTooling feasibility (the path to a real C⁺⁺⁺)
 

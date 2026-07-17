@@ -21,6 +21,7 @@ import type {
   FunctionDef,
   ReturnStatement,
   Temperature,
+  ClassDef,
 } from '@eml/types';
 import { lexPython, type PyToken, type PyTokenType } from './py-lexer';
 
@@ -45,6 +46,7 @@ const AUG: Partial<Record<PyTokenType, BinaryOperator>> = {
   MINUSEQ: '-',
   STAREQ: '*',
   SLASHEQ: '/',
+  PERCENTEQ: '%',
 };
 
 /** Python `range(a, b)` is exclusive; recover the EML inclusive end (b - 1). */
@@ -195,6 +197,7 @@ class PyParser {
     }
     if (this.check('AT') || this.checkName('def')) return this.parseFunctionDef();
     if (this.checkName('return')) return this.parseReturn();
+    if (this.checkName('class')) return this.parseClassDef();
     // `pass` has the exact same silent-mistranslation vulnerability
     // break/continue had before being recognized explicitly (see below): a
     // bare keyword immediately followed by end-of-line is indistinguishable
@@ -434,6 +437,21 @@ class PyParser {
     return { type: 'Return', value: this.parseExpr() };
   }
 
+  /** `class Name: <body>` — minimal viable OOP (Phase 7e/E2): no base classes,
+   *  no decorators. No special restriction on body statement shapes here —
+   *  same as the forward parser, which also defers the "methods/assignments
+   *  only" rule to semantic analysis, not grammar (`E_CLASS_BODY_UNSUPPORTED`
+   *  in `packages/transpiler-python/src/semantic.ts`). Methods are ordinary
+   *  nested `FunctionDef` nodes parsed by the existing `parseFunctionDef()` —
+   *  `self` is just an ordinary first parameter, nothing special here either. */
+  private parseClassDef(): ClassDef {
+    this.expectName('class');
+    const name = this.expect('NAME', 'class name').value;
+    this.expect('COLON', "':' after the class name");
+    const body = this.parseBlock();
+    return { type: 'ClassDef', name, body };
+  }
+
   // ── expressions ─────────────────────────────────────────────────────────────
 
   private parseExpr(): Expression {
@@ -441,15 +459,35 @@ class PyParser {
   }
 
   private parseTernary(): Expression {
-    const consequent = this.parseComparison();
+    const consequent = this.parseOr();
     if (this.checkName('if')) {
       this.next();
-      const test = this.parseComparison();
+      const test = this.parseOr();
       this.expectName('else');
       const alternate = this.parseTernary();
       return { type: 'Conditional', test, consequent, alternate };
     }
     return consequent;
+  }
+
+  private parseOr(): Expression {
+    let left = this.parseAnd();
+    while (this.checkName('or')) {
+      this.next();
+      const right = this.parseAnd();
+      left = { type: 'Logical', op: 'or', left, right };
+    }
+    return left;
+  }
+
+  private parseAnd(): Expression {
+    let left = this.parseComparison();
+    while (this.checkName('and')) {
+      this.next();
+      const right = this.parseComparison();
+      left = { type: 'Logical', op: 'and', left, right };
+    }
+    return left;
   }
 
   private parseComparison(): Expression {
@@ -485,8 +523,9 @@ class PyParser {
 
   private parseMultiplicative(): Expression {
     let left = this.parsePower();
-    while (this.check('STAR') || this.check('SLASH')) {
-      const op: BinaryOperator = this.next().type === 'STAR' ? '*' : '/';
+    while (this.check('STAR') || this.check('SLASH') || this.check('PERCENT')) {
+      const t = this.next().type;
+      const op: BinaryOperator = t === 'STAR' ? '*' : t === 'SLASH' ? '/' : '%';
       const right = this.parsePower();
       left = { type: 'Binary', op, left, right };
     }

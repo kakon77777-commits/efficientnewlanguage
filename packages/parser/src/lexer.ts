@@ -167,6 +167,11 @@ export function lex(source: string): Token[] {
       push('SLASHEQ', '/=', startPos, startLine, startCol);
       continue;
     }
+    if (at('%=')) {
+      advance(2);
+      push('PERCENTEQ', '%=', startPos, startLine, startCol);
+      continue;
+    }
 
     // sigma (summation keyword)
     if (c === 'Σ') {
@@ -223,6 +228,8 @@ export function lex(source: string): Token[] {
       while (isIdentPart(peek())) value += advance();
       let type: TokenType = 'IDENT';
       if (value === 'in') type = 'IN';
+      else if (value === 'and') type = 'AND';
+      else if (value === 'or') type = 'OR';
       else if (value === 'SUM') type = 'SIGMA';
       else if (value === 'def') type = 'DEF';
       else if (value === 'return') type = 'RETURN';
@@ -253,6 +260,7 @@ export function lex(source: string): Token[] {
       '-': 'MINUS',
       '*': 'STAR',
       '/': 'SLASH',
+      '%': 'PERCENT',
       '(': 'LPAREN',
       ')': 'RPAREN',
       '[': 'LBRACKET',

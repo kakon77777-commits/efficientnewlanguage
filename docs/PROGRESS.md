@@ -43,7 +43,7 @@
 | # | 項目 | 光譜 | 備註 |
 |---|---|---|---|
 | B-5 | 公開 conformance suite / fuzz testing | `███░░` 3 | MVP 完成 2026-07-16。`docs/conformance.md` 把既有兩層閘控（fixtures 精確文字對照 + examples 執行真相對照）包裝成外部可驗證文件，`pnpm eml test` 免 vitest 即可跑。缺口：fuzz/property testing 未做。 |
-| B-6 | 真實語料驗證（壓縮率/往返等價率 KPI） | `███░░` 3 | 2026-07-16 第一次正式量測發現反向 Python→EML 完全不支援區塊敘述句（詳見工作日誌），Neo 確認投入，同日完成 **Phase A**（if/elif/else、while、for...in）+ **Phase B1**（break/continue）+ **Phase B2**（dict/set 字面量 + subscript）+ **Phase C**（attribute access + `import module`）+ **Phase D**（try/except/finally + raise，`bound` 作用域刻意比 if/elif/else 更保守，照抄正向語意分析器自己的既有邏輯；順帶抓到 `pass` 跟 Phase A 修復前的 break/continue 一模一樣的靜默誤譯漏洞並修掉）。反向方向現在只剩 `def`/`class` 沒做。重新量測同 5 個真實檔案，這次有具體進展：`Decimal_to_binary_convertor` 從卡在第 1 行的 `try:` 一路推進到第 3 行卡在 `or` 布林運算子（另一個既有、非本輪範圍的缺口）。過程中也誠實發現一個全語言層級的既有邊界（非任何一輪的缺陷）：EML 從 Phase 0 開始就沒支援過跨行的括號類字面量。從「探索中」升到「MVP 完成」——反向方向的語法覆蓋已經非常完整，只剩 def/class 這個最後、最大的一塊（Phase E）。**同日再完成 Phase E1**：函式定義 + `return`（僅 `@cold`/中性子集）也雙向轉譯了。動工前先驗證出兩個關鍵發現：`@cold`/`@hot` 在正向 emitter 裡不對稱（`@cold` 是真 decorator，`@hot` 只是註解，而註解永遠不會被反向 lexer tokenize）——**`@hot` 是永久性、非暫緩的往返缺口**，跟 `async`/`await` 同一類；`import functools` 是正向語意分析器自動合成的樣板碼，反向解析器需特別跳過以免重複轉譯後多出一行。函式主體引入第一個「雙向都隔離」的 `bound` 作用域規則。重新量測同 5 個真實檔案：`Duplicate_files_remover` 從卡在 `def hashFile`（第 7 行）推進到 `with open(...) as file:`（第 11 行）——`with` 是全新、範圍外的另一個缺口，證明 `def` 現在真的能完整處理過去了。632 測試（原 620）。反向方向現在只剩 `class` 沒做（`@hot` 是函式支援範圍內的永久性例外，不是缺口）。 |
+| B-6 | 真實語料驗證（壓縮率/往返等價率 KPI） | `████░` 4 | 2026-07-16 第一次正式量測發現反向 Python→EML 完全不支援區塊敘述句（詳見工作日誌），Neo 確認投入，同日完成 **Phase A**（if/elif/else、while、for...in）+ **Phase B1**（break/continue）+ **Phase B2**（dict/set 字面量 + subscript）+ **Phase C**（attribute access + `import module`）+ **Phase D**（try/except/finally + raise，`bound` 作用域刻意比 if/elif/else 更保守，照抄正向語意分析器自己的既有邏輯；順帶抓到 `pass` 跟 Phase A 修復前的 break/continue 一模一樣的靜默誤譯漏洞並修掉）。反向方向現在只剩 `def`/`class` 沒做。重新量測同 5 個真實檔案，這次有具體進展：`Decimal_to_binary_convertor` 從卡在第 1 行的 `try:` 一路推進到第 3 行卡在 `or` 布林運算子（另一個既有、非本輪範圍的缺口）。過程中也誠實發現一個全語言層級的既有邊界（非任何一輪的缺陷）：EML 從 Phase 0 開始就沒支援過跨行的括號類字面量。從「探索中」升到「MVP 完成」——反向方向的語法覆蓋已經非常完整，只剩 def/class 這個最後、最大的一塊（Phase E）。**同日再完成 Phase E1**：函式定義 + `return`（僅 `@cold`/中性子集）也雙向轉譯了。動工前先驗證出兩個關鍵發現：`@cold`/`@hot` 在正向 emitter 裡不對稱（`@cold` 是真 decorator，`@hot` 只是註解，而註解永遠不會被反向 lexer tokenize）——**`@hot` 是永久性、非暫緩的往返缺口**，跟 `async`/`await` 同一類；`import functools` 是正向語意分析器自動合成的樣板碼，反向解析器需特別跳過以免重複轉譯後多出一行。函式主體引入第一個「雙向都隔離」的 `bound` 作用域規則。重新量測同 5 個真實檔案：`Duplicate_files_remover` 從卡在 `def hashFile`（第 7 行）推進到 `with open(...) as file:`（第 11 行）——`with` 是全新、範圍外的另一個缺口，證明 `def` 現在真的能完整處理過去了。632 測試（原 620）。反向方向現在只剩 `class` 沒做（`@hot` 是函式支援範圍內的永久性例外，不是缺口）。**2026-07-17 完成 Phase E2（最後一輪）**：`class`（最小可行 OOP）也雙向轉譯了，**收尾整個反向 Python→EML 轉譯器工程**——Phase 0–7 所有能往返的語法現在全部往返了，這是全系列最小的一輪（`ClassDef` 只是 `{ name, body }`，方法就是普通巢狀 `FunctionDef`，幾乎不需要新邏輯）。過程中訂正了 Phase E1 一個描述不夠精確的地方：`@hot` 的往返失敗其實是靜默的不一致（mismatch），不是拋出的解析錯誤。637 測試（原 632）。**從「MVP 完成」升到「打磨中」**——原因是：反向轉譯器本身的工程範圍已經完整封頂（沒有任何 Phase 0–7 語法還缺），但 B-6 這個 KPI 本身（真實語料能不能完整跑過 `eml compress`）還卡在另一層——這 5 個真實檔案目前的缺口（`%`、`or`、`with`、跨行字面量）**不是反向轉譯器的缺陷，而是 EML 語言本體目前就沒有的語法**（正向也沒有），要讓真實語料真的通過，需要的是語言本體擴充，不是這個系列的工程範圍；等 Neo 決定要不要往那個方向投入。 |
 | B-7 | AI 路徑（`eml suggest`）服務化前的安全/沙箱強化 | `░░░░░` 0 | 未開始（Phase 1 當時的 adversarial review 已經硬化過核心驗證器，但這裡指的是「服務化」前的額外強化）。 |
 
 ### C. AI / Agent 層（roadmap 認定的核心差異化）
@@ -70,8 +70,98 @@
 
 ---
 
+## Phase 9 — 語言本體擴充（real-corpus language gaps，`docs/roadmap.md` 對照編號）
+
+反向轉譯器工程（Phase 8 B-6）收尾後發現的新分類：B-6 那 5 個真實檔案卡住的部分缺口是 **EML 語言
+本體本身就沒有的語法**（雙向都沒有），不是反向工程的缺陷，需要另一輪、雙向都要動工的擴充。
+
+| # | 項目 | 光譜 | 備註 |
+|---|---|---|---|
+| 9-1 | `and`/`or` 布林組合子 | `█████` 5 | 完成 2026-07-17。全新 `LogicalExpression` AST 節點貫穿正向 lexer/parser/emitter + 6 個語意分析 walker + 反向 parser/emitter + 直譯器 + C⁺⁺⁺ prototype——比任何一輪反向轉譯器工程觸及的檔案都多，因為這是雙向 + 全分析層都要貫穿的新 Expression 型別。3 份獨立維護的 precedence table 要一致改號；3 個 walker 有非編譯期強制的 `default:` 兜底（跟 Phase 3b 漏掉 `Await` 同一類風險），都補上並用真測試鎖住。關鍵語意直接對照真實 Python 執行驗證：`and`/`or` 回傳的是運算元本身（不是永遠布林值），且是真短路，直譯器用「求值一次 left、依真假分支、right 不需要就真的不求值」實作，用一個「若被求值就會報錯」的呼叫式驗證過。C⁺⁺⁺ prototype 對應到 `&&`/`||`（記錄為已知簡化），但「藏在 and/or 後面的自我遞迴」仍正確被攔下，沒有變成生成壞 C++ 的破口。662 測試（原 637）。CLI 端到端驗證 + 重新量測同 5 個真實檔案：`Decimal_to_binary_convertor` 從卡在 `or`（第 3 行）推進到第 7 行的 `bin(dec)[2:]`——全新缺口（Python 序列切片，跟 EML 自己的 `[a:b]` 區間字面量是不同語意），證明 `and`/`or` 本身現在真的完整可用；`Leap_Year_Checker` 沒變化（符合預期，`%` 同行更早出現）。詳見 `docs/agent-handoff.md`「Phase 9」章節、`docs/EML-LANG-2026-v1.0.md` §5.8。 |
+| 9-2 | 數值取模 `%` | `█████` 5 | 完成 2026-07-17。跟 9-1 不同，`%` 重用既有 `Binary` 節點（只是擴充 `BinaryOperator`），不是新 Expression 型別——動工前直接讀過 6 個語意分析 walker + `OverlayAssign` 解析邏輯，證實全部已通用處理，零改動。真正的工作集中在兩個方向的 lexer/parser 新 token + 3 份 emitter 的 `nonAssoc` 判斷（`%` 跟 `-`/`/` 一樣非結合律）。**關鍵語意直接對照真實安裝的 Python（3.14.5）驗證**：Python `%` 是 floor-mod（取除數正負號，`-7 % 3 == 2`），跟 JS/C++ 原生 `%`（取被除數正負號，同式子是 `-1`）不同，`@eml/interp` 用 `((a % b) + b) % b` 技巧轉換；取模除以零丟 `ZeroDivisionError('division by zero')`（int/float 同一訊息，也是直接測真實 Python 才確認）。字串 `%`（printf 格式化）defer 成 `Unsupported`，不是拋錯或算錯。C⁺⁺⁺ prototype 加了字面量層級防護（非整數字面量直接 `E_CPP_UNSUPPORTED`，因為 C++ `%` 是整數限定）。677 測試（原 662）。全新閏年片段 CLI 端到端驗證通過（輸出 50，與真實 Python 一致）。重新量測同 5 個真實檔案，**兩個卡在 `%` 的檔案都有具體進展**：`Leap_Year_Checker` 推進到第 4 行三引號字串（對應項目 9-4）；`Calculate_age` 推進到第 21 行 `(not leap_year)`——**這輪意外發現的全新缺口**（`not` 一元布林反轉，之前被 `%` 擋住從沒量測到），列為新項目 9-8。詳見 `docs/agent-handoff.md`「Phase 9」章節、`docs/EML-LANG-2026-v1.0.md` §5.2。 |
+| 9-3 | 字串格式化（`%` 格式化 + `.format()`） | `░░░░░` 0 | 未開始，兩套獨立機制。 |
+| 9-4 | 三引號字串 `"""..."""` | `░░░░░` 0 | 未開始；`Leap_Year_Checker` 目前卡在這。 |
+| 9-5 | `print(x, end="")` 等關鍵字參數 | `░░░░░` 0 | 未開始，EML 目前無具名參數呼叫語法。 |
+| 9-6 | `with` / context manager | `░░░░░` 0 | 未開始，目前發現規模最大最複雜的一項（牽涉執行語意，非僅語法）。 |
+| 9-7 | 跨行括號類字面量 | `░░░░░` 0 | 未開始，全語言層級既有邊界（Phase B2 發現）。 |
+| 9-8 | `not` 布林一元反轉運算子 | `░░░░░` 0 | 未開始。2026-07-17 量測 9-2 時意外發現（`Calculate_age` 第 21 行 `(not leap_year)`，之前被 `%` 擋在更前面沒被量測到）。規模應該很小，跟 9-1 同一套機制（短路/真值反轉），只是一元不是二元。 |
+
+---
+
 ## 工作日誌（新到舊）
 
+- **2026-07-17** — 完成 **Phase 9 項目 2：數值取模 `%`**。跟項目 1（`and`/`or`）不同，`%` 重用既有
+  的 `Binary` 節點（只是把 `BinaryOperator` 型別加一個 `'%'`），不是新的 Expression 型別——動工前先
+  逐一直接讀過 6 個語意分析 walker（`semantic.ts`／`purity.ts` ×2／`importance.ts`／
+  `loop-classifier.ts`／`cts-generator`）+ `OverlayAssign` 的解析邏輯，證實它們全部已經對任何
+  `BinaryOperator` 通用處理——**零改動**。真正需要動工的集中在：兩個方向各自的 lexer/parser（新
+  token）+ 3 份 emitter 各自的 `nonAssoc` 判斷（`%` 跟 `-`/`/` 一樣是非結合律，`a % (b % c)`
+  一定要保留括號）。**關鍵語意直接對照真實安裝的 Python（3.14.5）驗證，不是憑空假設**：Python 的
+  `%` 是 **floor-mod**（結果取除數的正負號：`-7 % 3 == 2`），跟 JS／C++ 原生 `%`（取被除數正負號，
+  同一式子會是 `-1`）不同——`@eml/interp` 用 `((a % b) + b) % b` 這個技巧把 JS 的截斷取模轉成
+  Python 的 floor-mod（bigint、float 兩條路徑都驗證過好幾組正負號組合，包括浮點數）；取模除以零
+  丟出 `ZeroDivisionError('division by zero')`，這個訊息文字對 int/float 都一樣（也是直接測真實
+  Python 才確認，不是照抄 `/` 既有的依型別分訊息邏輯）。字串的 `%`（printf 風格格式化）刻意排除在
+  外，直譯器遇到會 defer 成 `Unsupported`，不是拋錯或算出錯的結果。C⁺⁺⁺ prototype 這輪加了一個
+  字面量層級的防護：`%` 的運算元如果是明顯的非整數字面量（例如 `1.5 % 2`），直接
+  `E_CPP_UNSUPPORTED` 拒絕——因為 C++ 的 `%` 是整數限定，套用在 `double` 上是編譯錯誤，這點跟本來
+  就相容 int/float 的 `/` 不一樣；非字面量（變數）的浮點數運算元仍抓不到，跟 `/` 既有的型別無知是
+  同一類、已記錄的缺口。677 測試（原 662）。全新的閏年判斷片段（`%` + 既有的 `and`/`or`，
+  `((y % 4 == 0) and (y % 100 != 0)) or (y % 400 == 0)`）做了完整 CLI 端到端驗證（`eml run` 輸出
+  50，與真實 Python 逐位元組一致）。重新量測同 5 個真實檔案，**兩個卡在 `%` 的檔案都有具體
+  進展**：`Leap_Year_Checker` 從卡在 `%`（第 3 行）推進到第 4 行的三引號字串
+  `"""..."""`——正好對應已知的項目 9-4；`Calculate_age` 從卡在 `%`（第 48 行）推進到第 21 行的
+  `(not leap_year)`——**這是本輪重新量測才意外發現的全新缺口**：Python 的 `not`
+  一元布林反轉運算子，原本被 `%` 擋在前面所以從沒被量測到過，規模應該很小（跟 `and`/`or`
+  同一套機制，只是一元不是二元），列為新的候選項目 9-8，誠實記錄發現而不是含糊帶過。詳見
+  `docs/agent-handoff.md`「Phase 9」章節、`docs/EML-LANG-2026-v1.0.md` §5.2。
+- **2026-07-17** — 完成 **Phase 9 項目 1：`and`/`or` 布林組合子**。反向轉譯器工程收尾後重新量測 5
+  個真實檔案，發現 `Decimal_to_binary_convertor`／`Leap_Year_Checker` 卡住的是 EML 語言本體本身就
+  沒有的語法（雙向都沒有），不是反向轉譯器的缺陷——新開一個 roadmap 分類（Phase 9：語言本體擴充，
+  雙向都要動工，跟 Phase 8 B-6 性質不同）。Neo 選擇從最小的一項開始，一項一項來。新增全新
+  `LogicalExpression` AST 節點，貫穿正向 lexer/parser/emitter、6 個語意分析 walker（`semantic.ts`／
+  `purity.ts` ×2／`importance.ts`／`loop-classifier.ts`／`cts-generator`）、反向 parser/emitter、
+  直譯器、C⁺⁺⁺ prototype——比任何一輪單向反向轉譯器工程觸及的檔案都多。動工前先用 Explore agent +
+  直接驗證每一份 precedence table，畫出精確觸點地圖：3 份獨立維護的 precedence()/child() 複本要
+  一致改號（緊、鬆：conditional=1、or=2、and=3、comparison/membership=4、加減=5、乘除=6、次方=7、
+  atom=8）；3 個 walker 有非編譯期強制的 `default:` 兜底——跟 Phase 3b 當年漏掉 `Await` case 同一類
+  風險，都補上並用真測試鎖住（不是憑空信任）。**關鍵語意直接對照真實 Python 執行驗證，不是憑空
+  假設**：`and`/`or` 回傳的是其中一個運算元本身，不是永遠布林值（`0 and 5` 回傳 `0`，不是
+  `False`），而且是真短路——直譯器實作成求值一次 left、依真假分支、right 不需要時真的不求值，用
+  一個「若真的被求值就會報錯」的呼叫式驗證過。C⁺⁺⁺ prototype 這輪對應到 `&&`/`||`（永遠回傳
+  bool，記錄為已知簡化），但「藏在 and/or 後面的自我遞迴」（`f() and f()`）仍正確被攔下，沒有變成
+  生成壞掉 C++ 的破口——這是這輪發現最危險的一個點，因為它的兜底邏輯（`default: return false`）
+  也不是編譯期強制的。`∧`/`∨` 額外接受為 Unicode 顯示形式（比照 `∈`→`in` 既有慣例）。過程中也在
+  自己寫的測試裡抓到一個真的 bug：一版「real Python execution parity」測試表用了自我參照的斷言
+  （永遠為真，沒測到任何東西），改成逐一手算的預期值。662 測試（原 637）。全新迴圈+布林條件片段
+  （`(i > 5 and i < 15) or i == 20`）做了完整 CLI 端到端驗證（`eml run` 輸出 10，與真實 Python
+  逐位元組一致）。重新量測同 5 個真實檔案：**誠實且具體的進展**——`Decimal_to_binary_convertor`
+  從卡在 `or`（第 3 行）推進到第 7 行的 `bin(dec)[2:]`——這是全新、不同的缺口（Python 的**序列
+  切片**語法，跟 EML 自己的 `[a:b]` 區間字面量是不同語意，正向反向都還沒有），證明 `and`/`or`
+  本身現在真的完整可用；`Leap_Year_Checker` 沒有變化（符合預期——`%` 在同一行比 `and`/`or` 更早
+  出現，lexer 階段就先擋下來了，不是回歸）。詳見 `docs/agent-handoff.md`「Phase 9」章節、
+  `docs/EML-LANG-2026-v1.0.md` §5.8。
+- **2026-07-17** — 完成反向 Python→EML **Phase E2（最後一輪）**：`class`（最小可行 OOP)也雙向
+  轉譯了，**收尾整個反向轉譯器工程**——Phase 0–7 所有能往返的語法現在全部往返了。動工前先直接驗證
+  AST + 正向解析器：`ClassDef` 就只是 `{ name, body }`——沒有基底類別、沒有 decorator，方法就是
+  普通的巢狀 `FunctionDef` 節點、`self` 就是普通的第一個參數，正向解析器自己的 `parseClassDef()`
+  也證實了這個對稱性（body 用跟其他區塊敘述句一樣的通用 `parseBlock()`，「只能放方法或賦值」這條
+  限制是語意分析階段才加的，不是文法層級)——所以這輪幾乎不需要新邏輯：一個 `class Name:` 開頭 +
+  emitter 裡一份全新、class-local 的 `bound` 作用域（巢狀方法本身不需要額外處理，因為
+  `FunctionDef` 自己的 case 本來就會建立自己的全新作用域)。這是整個系列裡最小的一輪，比 B1 還小。
+  過程中重新驗證 Phase E1 的一個舊測試（`tests/mcp-logic.test.ts` 拿 `class` 當「保證會在反向失敗」
+  的範例)時，發現一個值得訂正的細節：**`@hot` 的往返失敗其實是靜默的不一致（mismatch），不是拋出
+  的反向解析錯誤**——反向 lexer 本來就會丟掉註解，所以會把被拔掉 decorator 的 Python 順利解析成
+  一個中性函式，資訊遺失只會在比較 python1／python2 文字時才顯現出來；Phase E1 原本「不會收斂到
+  不動點」的描述本身沒錯，但沒講清楚實際機制，這輪把它說得更精確，§9/§11 也同步訂正。全新
+  `BankAccount`（deposit/withdraw + 餘額)片段做了完整 CLI 端到端驗證（`eml compress` → `eml
+  roundtrip` → `eml run`，120 == 120，輸出與真實 Python 逐位元組一致）。637 測試（原 632）。重新
+  量測同 5 個真實檔案：完全沒有變化（符合預期，5 個檔案沒有一個卡在 `class` 上，缺口仍是
+  `%`／`or`／`with`／跨行 dict 字面量）。**反向 Python→EML 轉譯器工程至此完整收尾**——只剩
+  `@temporal_loop`／`async`／`await`（永久單向)跟 `@hot`（函式支援範圍內永久性例外)留在轉譯不變式
+  之外；B-6 這個 KPI 本身要讓真實語料完整通過，卡的是 EML 語言本體目前就沒有的語法（`%`/`or`/
+  `with`/跨行字面量，正向也沒有)，不是反向轉譯器的缺陷，需要 Neo 決定要不要投入語言本體擴充。詳見
+  `docs/agent-handoff.md`「Phase 8 — reverse Python→EML, Phase A + B1 + B2 + C + D + E1 + E2」章節。
 - **2026-07-16** — 完成反向 Python→EML **Phase E1**：函式定義 + `return` 也雙向轉譯了（僅
   `@cold`/中性子集；`class` 明確排在獨立的未來 Phase E2）。詞法層只需新增一個 `AT`（`@`）token——
   自 Phase B2 的 `LBRACE`/`RBRACE` 以來第一個真正全新的 token。**動工前先直接讀正向原始碼驗證（不是
@@ -217,14 +307,23 @@
 ## 下一步排隊中
 
 roadmap 自己的建議優先序：**A-1（已完成）→ C-8（已完成）→ E-11 開放核心定價**。Neo 已確認投入反向
-Python→EML 的區塊敘述句擴充，Phase A（if/while/for）+ Phase B1（break/continue）+ Phase B2
-（dict/set/subscript）+ Phase C（attribute/import）+ Phase D（try/except/raise）+ Phase E1（函式
-定義 + return，`@cold`/中性子集）已交付——反向方向現在只剩 **Phase E2（`class`）** 沒做，這是最後
-一塊（Phase 7e 最小可行 OOP 在反向做一次），需要 Neo 確認是否投入。`@hot` 則是函式支援範圍內
-永久性、非暫緩的例外（詳見 §9/`docs/agent-handoff.md` Phase E1 小節），不會再被排進任何一輪。另外
-Phase B2 那輪也發現了一個獨立的候選項：跨行括號類字面量支援（全語言層級，非 Phase 制），要不要排進
-優先序也需要 Neo 決定；Phase E1 這輪則多發現一個獨立候選項：`with`/context manager 支援（
-`Duplicate_files_remover` 卡在這，同樣是全新、非任何一輪範圍內的缺口）。次要候選（皆為純工程、
-不需要商業判斷或品牌素材）：A-3 好裝好跑（npm 發佈/`npx eml`，注意實際 `npm publish` 需要 Neo 明確
-授權）、多做幾個真實移植案例（A-4，目前 2 個）、B-5 的 fuzz/property testing 缺口。E-11 開放核心
-定價需要商業判斷，非工程可單方面決定，暫不主動動工。
+Python→EML 的區塊敘述句擴充，Phase A 到 Phase E2（`class`）全部交付——**反向 Python→EML 轉譯器
+工程本身已經完整收尾**，Phase 0–7 所有能往返的語法現在全部往返了，只剩 `@temporal_loop`／
+`async`／`await`（永久單向）跟 `@hot`（函式支援範圍內永久性例外）留在轉譯不變式之外，這兩者都不會
+再被排進任何一輪。
+
+但 B-6 這個 KPI 本身（真實語料能不能完整跑過 `eml compress`）還沒達成——這幾輪陸續發現的獨立候選項
+都是 **EML 語言本體目前就沒有的語法（正向也沒有）**，不是反向轉譯器的缺陷，要讓真實語料真的通過需要
+語言本體擴充。Neo 已確認投入，開了新的 **Phase 9（語言本體擴充）** roadmap 分類，並選擇「從最小的
+開始、一項一項來」。**2026-07-17 完成 Phase 9 項目 1：`and`/`or` 布林組合子**（雙向 + 全分析層都
+貫穿了）——重新量測後，`Decimal_to_binary_convertor` 進展到第 7 行的 `bin(dec)[2:]`（Python 序列
+切片，全新缺口）。**同日再完成項目 2：數值取模 `%`**——重新量測後，`Leap_Year_Checker` 推進到第 4
+行三引號字串（對應項目 9-4），`Calculate_age` 推進到第 21 行 `(not leap_year)`（意外發現的全新
+缺口，新增為項目 9-8）。反向方向現在只剩 **項目 3-8 待做**：字串格式化（`%`格式化 + `.format()`，
+兩套機制）、三引號字串（`Leap_Year_Checker` 目前卡在這）、`print(x, end="")` 等關鍵字參數、
+`with`/context manager（目前發現規模最大最複雜的一項）、跨行括號類字面量（全語言層級，非 Phase
+制）、`not` 一元布林反轉（規模應該很小，跟項目 1 同一套機制）。這些要投入到什麼程度、下一項選哪
+個，都需要 Neo 決定——`not` 規模最小，是最直接的候選。次要候選（皆為純工程、不需要商業判斷或品牌
+素材）：A-3 好裝好跑（npm 發佈/`npx eml`，注意實際 `npm publish` 需要 Neo 明確授權）、多做幾個真實
+移植案例（A-4，目前 2 個)、B-5 的 fuzz/property testing 缺口。E-11 開放核心定價需要商業判斷，非
+工程可單方面決定，暫不主動動工。

@@ -21,15 +21,17 @@ function precedence(expr: Expression): number {
   switch (expr.type) {
     case 'Conditional':
       return 1;
+    case 'Logical':
+      return expr.op === 'or' ? 2 : 3;
     case 'Comparison':
     case 'Membership':
-      return 2;
+      return 4;
     case 'Binary':
-      return expr.op === '+' || expr.op === '-' ? 3 : 4;
+      return expr.op === '+' || expr.op === '-' ? 5 : 6;
     case 'Power':
-      return 5;
+      return 7;
     default:
-      return 6; // atoms, calls, transpose, matrix, sum, list, range, literals
+      return 8; // atoms, calls, transpose, matrix, sum, list, range, literals
   }
 }
 
@@ -58,11 +60,11 @@ function emitRangeEnd(end: Expression): string {
     return emitExpression(end.left);
   }
   const s = emitExpression(end);
-  // The `+1` binds at additive precedence; wrap ends that bind looser (<3:
-  // conditional, comparison, membership) so the adjustment applies to the whole
-  // bound. Tighter ends (identifier, additive, multiplicative, power) stay bare,
-  // preserving the canonical `range(1, N+1)` form.
-  return precedence(end) < 3 ? `(${s})+1` : `${s}+1`;
+  // The `+1` binds at additive precedence; wrap ends that bind looser (<5:
+  // conditional, or, and, comparison, membership) so the adjustment applies to
+  // the whole bound. Tighter ends (identifier, additive, multiplicative, power)
+  // stay bare, preserving the canonical `range(1, N+1)` form.
+  return precedence(end) < 5 ? `(${s})+1` : `${s}+1`;
 }
 
 export function emitExpression(expr: Expression): string {
@@ -76,16 +78,21 @@ export function emitExpression(expr: Expression): string {
     case 'Power':
       // Canonical EML form uses no spaces around `**` (e.g. `i**2`). `**` is
       // right-associative in Python, so a Power base must be parenthesized.
-      return `${child(expr.base, 5, true)}**${child(expr.exponent, 5)}`;
+      return `${child(expr.base, 7, true)}**${child(expr.exponent, 7)}`;
     case 'Binary': {
-      const prec = expr.op === '+' || expr.op === '-' ? 3 : 4;
-      // `-` and `/` are non-associative: an equal-precedence right operand must
-      // be parenthesized to preserve grouping (a - (b - c) != a - b - c).
-      const nonAssoc = expr.op === '-' || expr.op === '/';
+      const prec = expr.op === '+' || expr.op === '-' ? 5 : 6;
+      // `-`, `/`, and `%` are non-associative: an equal-precedence right
+      // operand must be parenthesized to preserve grouping (a - (b - c) !=
+      // a - b - c; a % (b % c) != a % b % c).
+      const nonAssoc = expr.op === '-' || expr.op === '/' || expr.op === '%';
       return `${child(expr.left, prec)} ${expr.op} ${child(expr.right, prec, nonAssoc)}`;
     }
     case 'Comparison':
-      return `${child(expr.left, 2)} ${expr.op} ${child(expr.right, 2)}`;
+      return `${child(expr.left, 4)} ${expr.op} ${child(expr.right, 4)}`;
+    case 'Logical': {
+      const prec = expr.op === 'or' ? 2 : 3;
+      return `${child(expr.left, prec)} ${expr.op} ${child(expr.right, prec)}`;
+    }
     case 'Conditional':
       // Python's `a if t else b`: test and consequent are or_test (cannot hold a
       // bare conditional); the alternate may stay bare (right-associative).
@@ -115,7 +122,7 @@ export function emitExpression(expr: Expression): string {
       // `await` binds at primary/postfix level (tighter than every binary,
       // comparison, conditional, and `**`), so a non-atomic argument MUST be
       // parenthesized: `await (a + b)`, not `await a + b` (= `(await a) + b`).
-      return `await ${child(expr.argument, 6)}`;
+      return `await ${child(expr.argument, 8)}`;
     case 'Dict':
       return `{${expr.entries.map((e) => `${emitExpression(e.key)}: ${emitExpression(e.value)}`).join(', ')}}`;
     case 'Set':
@@ -123,12 +130,12 @@ export function emitExpression(expr: Expression): string {
     case 'Subscript':
       // The index is already grouped by `[...]`; the object binds at postfix
       // precedence, so anything looser (e.g. `(a + b)[0]`) needs parens.
-      return `${child(expr.object, 6)}[${emitExpression(expr.index)}]`;
+      return `${child(expr.object, 8)}[${emitExpression(expr.index)}]`;
     case 'Attribute':
       // Same precedence reasoning as Subscript: the object binds at postfix
       // level, so a looser object (e.g. `(a + b).attr`) needs parens. The
       // attribute name itself is never aliased (it's a member, not a binding).
-      return `${child(expr.object, 6)}.${expr.attr}`;
+      return `${child(expr.object, 8)}.${expr.attr}`;
   }
 }
 

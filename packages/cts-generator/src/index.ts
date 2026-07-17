@@ -75,6 +75,7 @@ function collectIdents(expr: Expression, acc: Set<string>): void {
       break;
     case 'Binary':
     case 'Comparison':
+    case 'Logical':
       collectIdents(expr.left, acc);
       collectIdents(expr.right, acc);
       break;

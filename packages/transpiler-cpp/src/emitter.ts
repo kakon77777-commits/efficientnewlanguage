@@ -49,13 +49,15 @@ function precedence(expr: Expression): number {
   switch (expr.type) {
     case 'Conditional':
       return 1;
+    case 'Logical':
+      return expr.op === 'or' ? 2 : 3;
     case 'Comparison':
     case 'Membership':
-      return 2;
+      return 4;
     case 'Binary':
-      return expr.op === '+' || expr.op === '-' ? 3 : 4;
+      return expr.op === '+' || expr.op === '-' ? 5 : 6;
     default:
-      return 6; // atoms, calls, power (a function call), sum (a lambda), list, literals
+      return 8; // atoms, calls, power (a function call), sum (a lambda), list, literals
   }
 }
 
@@ -74,14 +76,33 @@ export function emitCppExpression(expr: Expression): string {
     case 'StringLiteral':
       return JSON.stringify(expr.value); // C++ accepts the same basic escapes
     case 'Power':
-      return `eml_pow(${child(expr.base, 6)}, ${emitCppExpression(expr.exponent)})`;
+      return `eml_pow(${child(expr.base, 8)}, ${emitCppExpression(expr.exponent)})`;
     case 'Binary': {
-      const prec = expr.op === '+' || expr.op === '-' ? 3 : 4;
-      const nonAssoc = expr.op === '-' || expr.op === '/';
+      // C++'s `%` is integer-only (a compile error on `double` operands),
+      // unlike Python's, which also works on floats. This backend does no
+      // type inference, so it can only catch the obvious case: a literal
+      // non-integer operand. A non-literal (variable) float operand is the
+      // same kind of accepted, documented type-blindness `/` already has.
+      if (
+        expr.op === '%' &&
+        [expr.left, expr.right].some((e) => e.type === 'NumberLiteral' && !Number.isInteger(e.value))
+      ) {
+        throw new CppEmitError('C⁺⁺⁺ `%` requires integer operands (a non-integer literal was used) — C++ modulo does not support floating-point types.');
+      }
+      const prec = expr.op === '+' || expr.op === '-' ? 5 : 6;
+      const nonAssoc = expr.op === '-' || expr.op === '/' || expr.op === '%';
       return `${child(expr.left, prec)} ${expr.op} ${child(expr.right, prec, nonAssoc)}`;
     }
     case 'Comparison':
-      return `${child(expr.left, 2)} ${expr.op} ${child(expr.right, 2)}`;
+      return `${child(expr.left, 4)} ${expr.op} ${child(expr.right, 4)}`;
+    case 'Logical': {
+      // C++ && / || always yield bool; Python's and/or yield an OPERAND
+      // (short-circuit value). This is a real, deliberate narrowing for this
+      // PROTOTYPE backend — see docs/cpp-feasibility.md's "Known divergences".
+      const prec = expr.op === 'and' ? 3 : 2;
+      const op = expr.op === 'and' ? '&&' : '||';
+      return `${child(expr.left, prec)} ${op} ${child(expr.right, prec)}`;
+    }
     case 'Conditional':
       return `(${child(expr.test, 1, true)} ? ${child(expr.consequent, 1, true)} : ${emitCppExpression(expr.alternate)})`;
     case 'Sum': {
@@ -226,6 +247,7 @@ function expressionCallsName(expr: Expression, name: string): boolean {
       return expressionCallsName(expr.base, name) || expressionCallsName(expr.exponent, name);
     case 'Binary':
     case 'Comparison':
+    case 'Logical':
       return expressionCallsName(expr.left, name) || expressionCallsName(expr.right, name);
     case 'Conditional':
       return (

@@ -35,6 +35,7 @@ function scanStatementExpr(stmt: Statement, visit: (e: Expression) => void): voi
         break;
       case 'Binary':
       case 'Comparison':
+      case 'Logical':
         walk(e.left);
         walk(e.right);
         break;

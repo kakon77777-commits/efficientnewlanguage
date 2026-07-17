@@ -32,6 +32,11 @@ const COUNTER_SRC =
   'c.increment()\n' +
   'c.get() => r\n' +
   'r^0\n';
+// `@hot` (Phase 2) is the one PERMANENTLY unrecoverable construct: the
+// forward emitter renders it as a comment, never a real decorator, so the
+// reverse Python->EML lexer (which never tokenizes comments) can't recover
+// it — unlike `class` (Phase E2), which now round-trips.
+const HOT_SRC = '@hot\ndef greet(name):\n    name^0\n    return name\n\ngreet(5)\n';
 
 function expectRealHash(env: { input_hash: string }, source: string): void {
   expect(env.input_hash).toBe(`sha256:${createHash('sha256').update(source).digest('hex')}`);
@@ -122,11 +127,28 @@ describe('@eml/mcp tools — envelope shape', () => {
     expect(env.warnings).toEqual([]);
   });
 
-  it('roundtrip: a forward-only construct (class) fails via result.ok/message, NOT via errors[]', () => {
+  it('roundtrip: class definitions round-trip too (Phase E2) — COUNTER_SRC reaches a fixpoint', () => {
     const env = roundtrip(COUNTER_SRC);
+    expect(env.tool).toBe('eml.roundtrip');
+    expect((env.result as any).ok).toBe(true);
+    expect(env.ok).toBe(true);
+    expect(env.errors).toEqual([]);
+    expect(env.warnings).toEqual([]);
+  });
+
+  it('roundtrip: a permanently-unrecoverable construct (@hot) fails via result.ok/message, NOT via errors[]', () => {
+    // `@hot` does NOT throw a reverse-parse error — the forward emitter renders
+    // it as a bare comment, so the reverse lexer (which never tokenizes
+    // comments) happily parses the decorator-stripped Python as a neutral
+    // function. The information loss only surfaces as a silent round-trip
+    // MISMATCH (python1, which still has the `@hot` comment, != python2,
+    // which doesn't) — not a hard parse failure. Verified directly rather
+    // than assumed: this is a more precise failure mode than "reverse
+    // Python->EML failed" would suggest.
+    const env = roundtrip(HOT_SRC);
     expect(env.ok).toBe(false);
     expect((env.result as any).ok).toBe(false);
-    expect((env.result as any).message).toContain('reverse Python->EML failed');
+    expect((env.result as any).message).toContain('round-trip MISMATCH');
     // The invariant this test locks in: roundtrip never populates errors/warnings,
     // even on failure — failure is only visible via result.ok/result.message.
     expect(env.errors).toEqual([]);

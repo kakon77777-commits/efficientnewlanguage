@@ -73,6 +73,7 @@ function scanExpression(expr: Expression, effects: string[], userFns: Set<string
       break;
     case 'Binary':
     case 'Comparison':
+    case 'Logical':
       scanExpression(expr.left, effects, userFns);
       scanExpression(expr.right, effects, userFns);
       break;
@@ -224,6 +225,7 @@ function collectCallsExpr(expr: Expression, into: Set<string>): void {
       break;
     case 'Binary':
     case 'Comparison':
+    case 'Logical':
       collectCallsExpr(expr.left, into);
       collectCallsExpr(expr.right, into);
       break;

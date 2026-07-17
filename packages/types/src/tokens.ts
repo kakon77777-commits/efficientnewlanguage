@@ -17,6 +17,7 @@ export type TokenType =
   | 'MINUS' // -
   | 'STAR' // *
   | 'SLASH' // /
+  | 'PERCENT' // %
   // grouping
   | 'LPAREN' // (
   | 'RPAREN' // )
@@ -44,9 +45,12 @@ export type TokenType =
   | 'MINUSEQ' // -=
   | 'STAREQ' // *=
   | 'SLASHEQ' // /=
+  | 'PERCENTEQ' // %=
   // keywords / special multi-char
   | 'SIGMA' // Σ or SUM — summation keyword
   | 'IN' // in or ∈ — range membership
+  | 'AND' // and or ∧ — boolean AND (short-circuit)
+  | 'OR' // or or ∨ — boolean OR (short-circuit)
   | 'MATRIX' // <M> — matrix constructor opener
   | 'DEF' // def — function definition keyword
   | 'RETURN' // return — function return keyword
