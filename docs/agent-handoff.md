@@ -1215,7 +1215,7 @@ than Phase B1.
   reverse Python→EML transpiler effort is now complete**: only `@temporal_loop`, `async`/`await`, and
   the permanent `@hot` exception remain outside the round-trip invariant.
 
-## Phase 9 — real-corpus language extension (item 1: `and`/`or`, item 2: `%`, item 8: `not`, item 3a: tuple + `%`-format, item 4: triple-quoted strings)
+## Phase 9 — real-corpus language extension (item 1: `and`/`or`, item 2: `%`, item 8: `not`, item 3a: tuple + `%`-format, item 4: triple-quoted strings, item 5: `print(x, end=...)`)
 
 Re-measuring the same 5 real B-6 corpus files after Phase 8's completion exposed that
 `Decimal_to_binary_convertor` and `Leap_Year_Checker` are blocked by a genuine LANGUAGE-level gap,
@@ -1604,6 +1604,62 @@ directions (nothing needed there either). The smallest round in this whole Phase
   restriction (§5.3) — not a new language gap. Whether that restriction is worth loosening is Neo's
   call, not assumed or acted on here. `docs/roadmap.md`'s item 3b entry was corrected accordingly
   (from "待做" to "already works, no action needed") rather than left stale.
+
+### Item 5 — `print(x, end=...)`, reverse-only (2026-07-18, same day)
+
+The first Phase 9 item that genuinely needed a NEW EML surface-syntax decision, unlike every prior
+item (`and`/`or`/`%`/`not`/tuples/triple-quotes all extend syntax Python already had). EML's only
+print mechanism is the `^0` sigil, bare-identifier-only **by deliberate design** (§5.3) — there is no
+existing token/shape to extend for a custom terminator. **Asked the user directly via
+AskUserQuestion rather than deciding unilaterally**: reverse-only — recognize `print(x, end=...)`
+when parsing real Python, but do NOT invent new forward EML syntax to express it. Chosen, approved
+direction (of three offered: reverse-only / invent new forward sigil / skip item 5 entirely).
+
+- **Consequence, confirmed by tracing the pipeline before planning**: `eml compress` still ultimately
+  FAILS for `Calculate_age`'s real line — but the failure moves from an opaque parser assertion
+  (`Expected RPAREN but found ASSIGN`) to an explicit "EML cannot express print's 'end' keyword
+  argument" message, the same fail-loud treatment `await`/`async`/Matrix-in-C++ already get. Real,
+  useful progress (a precise diagnostic of where EML's expressible subset ends) even though it
+  doesn't make this specific corpus line pass — stated plainly in the corpus re-test result below,
+  not glossed over.
+- **Scope confirmed much narrower than the initial "medium" estimate**, by directly tracing which AST
+  ever carries the new field: only `py-parser.ts` (produces `OutputStatement.end`) and
+  `eml-emitter.ts` (the only consumer — it's what throws) ever see it. `roundTripFromPython`'s
+  pipeline is pyParse → eml-emitter → (only if that succeeds) fresh forward `parse()` → semantic →
+  forward Python emitter — since eml-emitter throws whenever `end` is set, the pipeline never reaches
+  the forward side with it. So the forward parser/emitter, `@eml/interp`, all 7 semantic walkers/
+  cts-generator, and the C++ backend need **zero changes** — verified by directly reading every single
+  `case 'Output':` site (12 total) to confirm each only ever touches `stmt.value`, never `stmt.end`,
+  rather than trusting the trace alone.
+- **A second scope simplification found during research**: rather than teaching the ONE shared
+  `parseArgs()` (used by every call in the grammar) to tolerate `NAME '=' expr` kwarg syntax
+  generally — which would ripple through the `FunctionCall` AST type referenced by 12 files — `print`
+  gets a **dedicated statement-level parse function** (`parsePrintStatement()`), mirroring how
+  `py-parser.ts` already special-cases `sum(...)`/`range(...)`/`np....` before generic identifier/
+  call parsing. Dispatched from `parseStatement()`'s existing keyword chain (alongside if/while/for/
+  try/raise/async/def/return/class/pass/break/continue/import), replacing the old post-hoc check
+  (parse a generic expr, then check post-hoc if it happens to be a 1-arg call to `print`) — now dead
+  code once the new dispatch fires first, removed rather than left stale.
+- Deliberately strict, matching the real corpus need exactly and nothing more: exactly one positional
+  argument, optionally followed by exactly `, end = <expr>`. `print(a, b)` (multiple positional args)
+  and `print(x, sep=...)` (any other keyword) both fail loud with a clear `PyParseError` — confirmed
+  no existing test relied on either shape before making this stricter.
+- **Tests**: new `tests/phase9-print-end.test.ts` (10 tests) — `print(x)` (no kwarg) still parses
+  identically to before (a regression check for the parser restructure); `print(x, end="")` and
+  `print(x, end=some_var)` parse into an `Output` with `end` set; `print(a, b)`/`print(x, sep=",")`
+  fail loud at parse time; reverse-emit of ANY `end` value (including the semantically-redundant
+  `end="\n"`, deliberately not special-cased) fails with the specific new message, not a generic one;
+  the roundtrip pipeline reports the same failure, not a different one further down; a
+  `Calculate_age`-shaped snippet confirms the failure point moved from the old opaque parser assertion
+  to the new clear message. **744 tests total** (up from 734).
+- **Verification**: a fresh `print(x, end="")`-shaped CLI snippet through `eml compress` now fails
+  with the new, clear message instead of the old assertion — this item deliberately does not produce
+  a newly-successful `eml run`/`eml roundtrip` case the way prior items did, since the point is a
+  correctly-diagnosed permanent gap, not a new round-trip win. Re-ran the same 5 real B-6 corpus
+  files: `Calculate_age` still does not fully pass `eml compress` (expected, given the reverse-only
+  design) — its parse now succeeds all the way through the tuple/`%`-format/kwarg-syntax, failing
+  only at the deliberate, by-design emit-time restriction. The other 4 files show no change, as
+  expected (none use `print(..., end=...)`).
 
 ## Non-obvious design decisions (the gotchas)
 

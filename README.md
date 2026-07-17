@@ -190,13 +190,17 @@ matching Python exactly), numeric `%` (Python floor-mod, not JS/C++'s
 truncating mod), and unary `not` (always a real `bool`; the C++ backend
 always parenthesizes its operand since `!` binds tighter than comparison
 while Python's `not` binds looser) all shipped 2026-07-17; tuple literals
-and the `%` string-formatting operator (`%s`/`%d`/`%f`/`%%`), plus
-triple-quoted strings `'''...'''`/`"""..."""`, shipped 2026-07-18.
-(`.format()` turned out to need no separate work at all — it's an ordinary
-attribute-call, already generic since Phase 7c.) Keyword arguments,
-`with`/context managers, and multi-line bracketed literals are each their
-own future round (see `docs/roadmap.md`'s Phase 9). Arbitrary-Python
-compression (lossy, semantics-sensitive) remains an AI-assisted,
+and the `%` string-formatting operator (`%s`/`%d`/`%f`/`%%`), triple-quoted
+strings `'''...'''`/`"""..."""`, and `print(x, end=...)` all shipped
+2026-07-18. (`.format()` turned out to need no separate work at all — it's
+an ordinary attribute-call, already generic since Phase 7c.) `print`'s
+`end=` is deliberately reverse-only, by explicit choice: the reverse
+transpiler recognizes it, but EML's `^0` gains no new forward syntax to
+express a custom terminator, so `eml compress` still fails on it — with a
+precise message now, not an opaque parser error. `with`/context managers
+and multi-line bracketed literals are each their own future round (see
+`docs/roadmap.md`'s Phase 9). Arbitrary-Python compression (lossy,
+semantics-sensitive) remains an AI-assisted,
 suggestion-only layer for
 a later phase.
 

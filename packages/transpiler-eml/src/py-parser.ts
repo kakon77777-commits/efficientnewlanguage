@@ -22,6 +22,7 @@ import type {
   ReturnStatement,
   Temperature,
   ClassDef,
+  OutputStatement,
 } from '@eml/types';
 import { lexPython, type PyToken, type PyTokenType } from './py-lexer';
 
@@ -247,6 +248,16 @@ class PyParser {
       const modTok = this.expect('NAME', 'module name');
       return { type: 'Import', module: modTok.value };
     }
+    // `print(...)` gets a dedicated parse (Phase 9 item 5), mirroring how this
+    // file already special-cases `sum(...)`/`range(...)`/`np....` — rather
+    // than teaching the ONE shared `parseArgs()` (used by every call in the
+    // grammar) to tolerate keyword-argument syntax generally. EML's `^0` has
+    // no forward syntax for a custom print terminator (deliberately, by
+    // design — see docs/EML-LANG-2026-v1.0.md §5.3), so this only captures
+    // `end=` for `eml-emitter.ts` to fail loud on, never to express it.
+    if (this.checkName('print') && this.peek(1).type === 'LPAREN') {
+      return this.parsePrintStatement();
+    }
     // Parse the LHS as a general expression first, THEN check what follows —
     // rather than the old 2-token "NAME immediately followed by ASSIGN"
     // lookahead, which could only ever recognize a bare name. This is the
@@ -270,13 +281,34 @@ class PyParser {
       const value = this.parseExpr();
       return { type: 'AugmentedAssign', target, op: augOp, value };
     }
-    // `parsePostfix()` only ever builds a Call over an Identifier callee (see
-    // below); `expr.callee.type === 'Identifier'` is always true here, but
-    // spelled out since the shared FunctionCall type now also allows Attribute.
-    if (expr.type === 'Call' && expr.callee.type === 'Identifier' && expr.callee.name === 'print' && expr.args.length === 1) {
-      return { type: 'Output', value: expr.args[0]! };
-    }
     return { type: 'ExpressionStatement', expression: expr };
+  }
+
+  /** `print(x)` / `print(x, end=...)` (Phase 9 item 5) — deliberately strict:
+   *  exactly one positional argument, optionally followed by exactly
+   *  `, end = <expr>`. Anything else (extra positional args, any other
+   *  keyword, a trailing comma) fails loud rather than silently mis-parsing —
+   *  matching the real corpus need exactly and nothing more. */
+  private parsePrintStatement(): OutputStatement {
+    this.next(); // 'print'
+    this.expect('LPAREN');
+    const value = this.parseExpr();
+    let end: Expression | undefined;
+    if (this.check('COMMA')) {
+      this.next();
+      const kwTok = this.expect('NAME', "keyword argument name");
+      if (kwTok.value !== 'end') {
+        throw new PyParseError(
+          `Reverse Python->EML only supports print's 'end' keyword argument (found '${kwTok.value}').`,
+          kwTok.line,
+          kwTok.column,
+        );
+      }
+      this.expect('ASSIGN', "'=' after keyword argument name");
+      end = this.parseExpr();
+    }
+    this.expect('RPAREN');
+    return { type: 'Output', value, end };
   }
 
   /** Validates that an already-parsed expression collapses into a legal

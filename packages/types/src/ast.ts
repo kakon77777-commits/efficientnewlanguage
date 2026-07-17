@@ -251,6 +251,12 @@ export interface AugmentedAssignStatement extends NodeBase {
 export interface OutputStatement extends NodeBase {
   type: 'Output';
   value: Expression;
+  /** Reverse-only (Phase 9 item 5): captures Python's `print(x, end=...)`. EML
+   *  has no forward syntax to express a custom terminator, so this is never
+   *  set by the forward EML parser — only `py-parser.ts` sets it, and only
+   *  `eml-emitter.ts` ever inspects it (to fail loud rather than silently
+   *  drop it). */
+  end?: Expression;
 }
 
 /** A bare expression used as a statement, e.g. `x > 40 ? A : B`. */

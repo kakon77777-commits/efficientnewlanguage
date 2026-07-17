@@ -322,6 +322,14 @@ by zero')`, the same literal message for int and float operands alike. String-fo
 expressible — bind it first (`(a + b) => s` then `s^0`). (The reverse transpiler enforces the same
 restriction.)
 
+**Python's `print(x, end=...)` keyword argument is a deliberate, permanent, one-way exception (Phase
+9 item 5)**: the reverse transpiler recognizes and parses it (so it doesn't hit a confusing raw
+parser error), but `^0` has no forward EML syntax for a custom print terminator, and — asked
+directly, not decided unilaterally — none is being invented. So `eml compress` on a real Python
+program using `print(x, end=...)` always fails, with an explicit "EML cannot express print's `end`
+keyword argument" message, the same fail-loud treatment as `await`/`async`/numpy-in-C++. This is a
+precise diagnostic of where EML's expressible subset ends, not a partial or silent implementation.
+
 ### 5.4 `^T` — transpose; `<M>` — matrix
 
 `m^T` → `np.transpose(m)`; `<M>(d)` → `np.array(d)`. Both add `import numpy as np`
