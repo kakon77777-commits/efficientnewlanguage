@@ -420,6 +420,22 @@ export interface ClassDef extends NodeBase {
   body: Statement[];
 }
 
+/**
+ * `with <expr> [as <name>]: <body>` (Phase 9 item 6) — single context-manager,
+ * single optional target only (Python's multi-context `with a() as x, b() as
+ * y:` form is out of scope; the real corpus need is exactly this shape). No
+ * new "context manager" PyVal — the interpreter dispatches real `__enter__`/
+ * `__exit__` methods when the context value is a class instance (Phase 7e),
+ * matching the real protocol; anything else fails loud with the real Python
+ * `TypeError`, not a silent no-op.
+ */
+export interface WithStatement extends NodeBase {
+  type: 'With';
+  contextExpr: Expression;
+  target?: Identifier;
+  body: Statement[];
+}
+
 export type Statement =
   | OverlayAssign
   | AssignmentStatement
@@ -436,7 +452,8 @@ export type Statement =
   | ImportStatement
   | TryStatement
   | RaiseStatement
-  | ClassDef;
+  | ClassDef
+  | WithStatement;
 
 export interface Program extends NodeBase {
   type: 'Program';

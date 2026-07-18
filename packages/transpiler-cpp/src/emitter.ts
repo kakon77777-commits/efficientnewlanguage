@@ -244,6 +244,7 @@ export function emitCppStatement(stmt: Statement, listVars: Set<string> = new Se
     case 'Try':
     case 'Raise':
     case 'ClassDef':
+    case 'With':
       throw new CppEmitError(`'${stmt.type}' is not supported by the C⁺⁺⁺ prototype yet.`);
   }
 }
@@ -340,6 +341,8 @@ function statementCallsName(stmt: Statement, name: string): boolean {
       return stmt.exception ? expressionCallsName(stmt.exception, name) : false;
     case 'ClassDef':
       return stmt.body.some((s) => statementCallsName(s, name));
+    case 'With':
+      return expressionCallsName(stmt.contextExpr, name) || stmt.body.some((s) => statementCallsName(s, name));
   }
 }
 

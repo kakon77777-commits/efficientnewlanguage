@@ -213,6 +213,14 @@ export function emitStatement(stmt: Statement): string {
     }
     case 'Raise':
       return stmt.exception ? `raise ${emitExpression(stmt.exception)}` : 'raise';
+    case 'With': {
+      const header = stmt.target
+        ? `with ${emitExpression(stmt.contextExpr)} as ${stmt.target.name}:`
+        : `with ${emitExpression(stmt.contextExpr)}:`;
+      const lines: string[] = [header];
+      for (const s of stmt.body) lines.push(indent(emitStatement(s)));
+      return lines.join('\n');
+    }
     case 'FunctionDef': {
       const lines: string[] = [];
       // Decorators: @cold caches pure logic; @hot is a non-caching marker;

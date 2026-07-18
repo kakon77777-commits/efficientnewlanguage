@@ -83,7 +83,7 @@
 | 9-3b | `.format()` 方法呼叫 | `█████` 5 | **2026-07-18 查證：其實已經能用，不需要另外實作。** 這輪做項目 9-4 的語料重新量測時意外發現：`.format()` 本質上就是一個普通 attribute-call（Phase 7c 通用機制），零新程式碼正向解析、正向 emit、反向往返全都已經能動（直接測試驗證過）。跟 numpy `<M>`/`^T` 同一類，純 JS 直譯器不模擬其內部語意（`unsupported`），`eml run` defer 給真實 Python 執行——既有已接受模式，不是缺口。`Leap_Year_Checker` 真正卡點跟 `.format()` 無關，是既有的 `^0` 裸變數限制，非新語言缺口。 |
 | 9-4 | 三引號字串 `"""..."""` | `█████` 5 | 完成 2026-07-18。動工前直接讀過程式碼確認：`StringLiteral` AST 沒有引號風格欄位，正向/反向解析器、3 份 emitter、7 個語意分析 walker、直譯器全都已經通用處理字串——這輪純粹是 lexer 層級擴充，零 AST/parser/emitter/walker 改動，是這條 Phase 9 支線目前最輕量的一輪。兩個 lexer 的字串分支都新增「目前位置是否為 3 個連續同種引號字元」的檢查，是的話走三引號路徑，否則維持原本單引號路徑，兩條路徑共用同一份跳脫字元處理邏輯。**動工前直接驗證（不是假設）**：多行三引號字串內容的換行字元不會被縮排敏感的 lexer 誤判成 INDENT/DEDENT——字串讀取迴圈自己消耗掉每個字元（含換行），外層的縮排偵測邏輯只在自己專屬的换行分支才會觸發，字串迴圈跑完前根本不會把控制權交還給外層。734 測試（原 724）。全新 docstring 片段 CLI 端到端驗證通過。重新量測同 5 個真實檔案：`Leap_Year_Checker` 完全推進過 3 段 docstring，卡點換到 `.format()` 那行——追查後發現這不是新缺口（見上方 9-3b）；其餘 4 個檔案沒有變化。詳見 `docs/agent-handoff.md`「Phase 9」章節、`docs/EML-LANG-2026-v1.0.md` §5.11。 |
 | 9-5 | `print(x, end="")` 等關鍵字參數 | `█████` 5 | 完成 2026-07-18（純反向，刻意不設計新正向語法——直接問過 Neo，不是自己決定）。這是第一個真的需要發明全新 EML 具體語法的項目（`^0` 只認裸變數是刻意設計），選擇反向轉譯器認得 `print(x, end=...)`、但正向 EML 永遠沒有語法表達自訂結尾。後果：`eml compress` 對 `Calculate_age` 那行還是失敗，但失敗點從難懂的 parser 斷言變成清楚誠實的訊息，跟 `await`/`async`/C++ 版 numpy 同一套紀律。範圍比預估小很多：只有反向解析器（產生 `end` 欄位）+ 反向 EML emitter（唯一會檢查、丟錯的地方）需要動，正向解析器/emitter、直譯器、7 個語意分析 walker、C++ 後端全部零改動（逐一讀過 12 個 `case 'Output'` 現場確認過）。`print(...)` 拿到專屬解析函式（照抄 `sum`/`range`/`np` 的既有慣例），不改共用的 `parseArgs()`，共用的 `FunctionCall` 型別（12 檔案在用）完全不用動。744 測試（原 734）。CLI 端到端驗證通過。重新量測同 5 個真實檔案：`Calculate_age` 仍未完整通過 `eml compress`（設計上預期、可接受的結果），但失敗點精準落在刻意設計的限制上；其餘 4 個檔案沒有變化。詳見 `docs/agent-handoff.md`「Phase 9」章節、`docs/EML-LANG-2026-v1.0.md` §5.3。 |
-| 9-6 | `with` / context manager | `░░░░░` 0 | 未開始，目前發現規模最大最複雜的一項（牽涉執行語意，非僅語法）。 |
+| 9-6 | `with` / context manager | `█████` 5 | 完成 2026-07-19。動工前先把 `Duplicate_files_remover` 從第 11 行（`with`）逐行追蹤到 EOF，誠實確認：光做 `with` 沒辦法讓這個檔案完整通過 `eml compress`——第 26 行 `[f for f in os.listdir() if os.path.isfile(f)]` 是一個全新、之前從未被發現的**列表推導式**缺口（因為量測每次都卡在第 11 行，從沒真正走到過第 26 行），這輪範圍就做 `with` 本身，列表推導式列為新的未編號候選項目。照抄 Phase 7d（`try`/`except`）先例：EML 具體語法就是 Python 關鍵字語法原文照搬，直譯器做真正的 `__enter__`/`__exit__` 協定派送（重用 Phase 7e 既有的 `findMethod`/`runMethodBody`），連檢查順序（`__exit__` 比 `__enter__` 先檢查）跟例外抑制語意都直接對照真實安裝的 Python 驗證過。759 測試（原 744）。CLI 端到端驗證通過（含例外抑制分支）。重新量測同 5 個真實檔案：`Duplicate_files_remover` 完全推進過 `with`，卡點換到第 26 行列表推導式；其餘 4 個檔案沒有變化。詳見 `docs/agent-handoff.md`「Phase 9」章節、`docs/EML-LANG-2026-v1.0.md`「Phase 9 item 6」小節。 |
 | 9-7 | 跨行括號類字面量 | `░░░░░` 0 | 未開始，全語言層級既有邊界（Phase B2 發現）。 |
 | 9-8 | `not` 布林一元反轉運算子 | `█████` 5 | 完成 2026-07-17。跟 9-1 同一套機制家族（全新 `NotExpression` AST 節點，貫穿正向 lexer/parser/emitter + 7 個語意分析 walker——比 9-1 的 6 個多一個，因為 `cts-generator` 這輪從一開始就知道要補——+ 反向 parser + 直譯器），但兩點不同：Python 的 `not`永遠回傳真正的布林值（不像 `and`/`or`回傳運算元本身，這點更簡單），而且需要一個全新的優先權層級（這個系列第 4 次重新編號 3 份獨立 precedence table）。**這輪最關鍵的發現**：C++ 的 `!` 比較運算子的優先權順序跟 Python 的 `not` 完全相反——Python `not x > 5` 意思是 `not (x > 5)`（`not` 比較鬆），但真實 C++ 的 `!x > 5` 會解析成 `(!x) > 5`（`!` 比較緊）；沿用共用的 precedence 機制會靜默生成語法看起來合理、語意卻錯誤的 C++，所以 C++ 後端的 `Not` case 直接跳過 `child()`/`precedence()`，永遠把運算元包進括號（`!(...)`），用一個專門測試鎖住「`not x > 5` 必須生成 `!(x > 5)`，不能是錯的 `!x > 5`」。另外在自己寫測試時抓到一個真的 bug：`¬`Unicode 符號如果照抄 `∧`/`∨`的雙邊空格替換會在 `¬`出現在行首時插入多餘的縮排空格，讓縮排式 lexer 誤判——修成只留右邊空格。696 測試（原 677）。CLI 端到端驗證（閏年計數+否定片段，輸出 50 與真實 Python 一致）+ 重新量測同 5 個真實檔案：`Calculate_age` 從卡在 `not`（第 21 行）推進到第 48 行的 `(name, year)`元組字面量，是項目 9-3 的子細節（已在上方記錄），不是新缺口。詳見 `docs/agent-handoff.md`「Phase 9」章節、`docs/cpp-feasibility.md`、`docs/EML-LANG-2026-v1.0.md` §5.9。 |
 
@@ -91,6 +91,36 @@
 
 ## 工作日誌（新到舊）
 
+- **2026-07-19** — 完成 **Phase 9 項目 6：`with` / context manager**——這條支線最後一個未動工的
+  項目，原本標記「規模最大最複雜、牽涉 `__enter__`/`__exit__` 資源管理執行語意，不只是語法」。
+  動工前先把 `Duplicate_files_remover` 從第 11 行（`with open(filename, 'rb') as file:`）逐行追蹤
+  到 EOF 才動手，誠實確認一個關鍵事實：**光做 `with` 沒辦法讓這個檔案完整通過 `eml compress`**——
+  第 12-17 行（讀 buffer、`while(len(buf) > 0):`）都用既有機制能直接解析，但第 26 行
+  `filelist = [f for f in os.listdir() if os.path.isfile(f)]` 是一個**列表推導式（list
+  comprehension）**——這是全新、之前從未被發現、從未編號過的缺口（搜過 `docs/` 裡「comprehension」
+  字樣，零匹配；因為這個檔案的量測每次都卡在第 11 行的 `with`，從沒真正走到第 26 行過）。於是這輪
+  範圍就做 `with` 本身；列表推導式列為新的候選項目，誠實記錄而非直接動手做掉。也確認過：就算
+  `with` + 列表推導式都做了，這個檔案的 `eml run`（真正執行）還是會 defer——第 10 行
+  `hasher = hashlib.md5()` 命中直譯器既有的「未綁定模組 attribute 呼叫」`Unsupported` defer（跟
+  `.format()`/numpy 同一類），而 `open(...)` 本身命中的是硬性 `NameError`（比 attribute 呼叫的軟性
+  `Unsupported` 處理更嚴格一點的不一致，這輪只記錄不修）。**設計上照抄 Phase 7d（`try`/`except`/
+  `finally`）的先例**：動工前先完整讀過 Phase 7d 的實作，確認 EML 自己的 `with` 具體語法就是
+  Python 關鍵字語法原文照搬（不像 `^` sigil 系統，這點跟 `try`/`except` 一致）；直譯器做**真正的**
+  `__enter__`/`__exit__` 協定派送（重用 Phase 7e 既有的 `findMethod`/`runMethodBody`，不是另起
+  爐灶）——對象是使用者自訂類別的 instance，跟真實 Python 協定完全一致，連檢查順序都直接對照真實
+  安裝的 Python 驗證過（`__exit__` 缺失比 `__enter__` 缺失更早被檢查到,兩者都沒有時報「missed
+  __exit__ method」）；`__exit__` 回傳真值會抑制正在傳播的例外,也直接測真實 Python 驗證過
+  （`with Suppress(): raise ...` 之後不會有例外）。動工前也確認過一個容易忽略的細節：類別本體驗證
+  本來就不限制方法名稱（包括雙底線名稱),只是「除了 `__init__` 以外沒有任何 dunder 會被自動派送」
+  ——`with` 是這個類別系統第一次真的自動派送 `__enter__`/`__exit__` 這兩個 dunder。也發現了 C++
+  prototype 後端一個之前沒特別記錄的事實：`emitCppStatement` 本來就完全不支援任何 Python 層級的
+  控制流敘述句（`if`/`while`/`for`/`try` 全部都在既有的拒絕清單裡),只支援運算式層級的 Σ 迴圈——
+  `with` 只是加入這個既有清單,不是開先例。759 測試（原 744)。全新的 `__enter__`/`__exit__` + 例外
+  抑制片段做了完整 CLI 端到端驗證（`eml run` 輸出跟真實 Python 逐位元組一致,含抑制例外的分支)。
+  重新量測同 5 個真實檔案：`Duplicate_files_remover` 完全推進過 `with`（第 11 行),卡點換到第 26
+  行的列表推導式（全新、未編號的缺口);其餘 4 個檔案沒有變化,符合預期。詳見 `docs/agent-
+  handoff.md`「Phase 9」章節、`docs/EML-LANG-2026-v1.0.md`「Phase 9 item 6」小節、
+  `docs/roadmap.md`(列表推導式已記錄為新候選項目)。
 - **2026-07-18** — 完成 **Phase 9 項目 5：`print(x, end="")` 等關鍵字參數**（純反向，刻意不設計
   新正向語法）。這是 Phase 9 支線第一次真的碰到需要發明全新 EML 具體語法才能完整支援的項目——
   跟前面每一輪（`and`/`or`/`%`/`not`/元組/三引號字串）都不一樣，那些全部都是延伸 Python 本來就有
@@ -448,12 +478,18 @@ attribute-call，Phase 7c 早就支援；真正卡點是既有的 `^0` 裸變數
 正向語法——這是第一個真的需要發明全新 EML 具體語法的項目，語法設計決定直接用 AskUserQuestion
 問過 Neo：選了「只做反向、不設計新正向語法」）——重新量測後，`Calculate_age` 的解析現在完全推進過
 元組/`%`格式化/具名參數語法本身，卡在刻意設計的「EML 沒有語法表達自訂 print 結尾」限制上，這是
-設計上預期、可接受的結果，不是遺憾。反向方向現在只剩 **項目 6、7 待做**：`with`/context manager
-（目前發現規模最大最複雜的一項）、跨行括號類字面量（全語言層級，非 Phase 制）。另外還有一個從未
-編號、`and`/`or` 那輪意外發現的獨立缺口——`Decimal_to_binary_convertor` 卡住的 Python 序列切片
-`bin(dec)[2:]`，跟 EML 自己的 `[a:b]` 區間字面量語意不同，尚未排進 Phase 9 任何一個編號項目，值得
-提醒 Neo 之後決定要不要補一個新項目。這些要投入到什麼程度、下一項選哪個，都需要 Neo 決定——項目 6
-（`with`）是目前唯一還沒動工、規模最大最複雜的一項。次要候選（皆為純工程、不需要商業判斷或品牌
-素材）：A-3 好裝好跑（npm 發佈/`npx eml`，注意實際 `npm publish` 需要 Neo 明確授權）、多做幾個
-真實移植案例（A-4，目前 2 個)、B-5 的 fuzz/property testing 缺口。E-11 開放核心定價需要商業判斷，
-非工程可單方面決定，暫不主動動工。
+設計上預期、可接受的結果，不是遺憾。**2026-07-19 完成項目 6：`with` / context manager**——這條
+支線最後一個未動工的項目——動工前先把 `Duplicate_files_remover` 從第 11 行逐行追蹤到 EOF，確認光做
+`with` 沒辦法讓這個檔案完整通過，第 26 行 `[f for f in os.listdir() if os.path.isfile(f)]` 是一個
+全新的**列表推導式**缺口，之前從沒被量測到過。重新量測後，`Duplicate_files_remover` 完全推進過
+`with`，卡點換到第 26 行的列表推導式。反向方向現在只剩 **項目 7 待做**：跨行括號類字面量
+（全語言層級，非 Phase 制）。另外還有兩個從未編號的獨立缺口：`and`/`or` 那輪發現的
+`Decimal_to_binary_convertor` 卡住的 Python 序列切片 `bin(dec)[2:]`（跟 EML 自己的 `[a:b]` 區間
+字面量語意不同）、以及這輪 `with` 發現的 `Duplicate_files_remover` 卡住的**列表推導式**
+`[expr for x in iterable if cond]`（EML 目前完全沒有一般列表推導式語法，`Σ(...)` 只對應
+`sum(...)` 且限定 `range(...)`）。這些都尚未排進 Phase 9 任何一個編號項目，值得提醒 Neo 之後決定
+要不要補新項目、優先序為何。這些要投入到什麼程度、下一項選哪個，都需要 Neo 決定——列表推導式現在是
+`Duplicate_files_remover` 唯一剩下的卡點，是最直接的候選；項目 7（跨行括號類字面量）也還沒動工。
+次要候選（皆為純工程、不需要商業判斷或品牌素材）：A-3 好裝好跑（npm 發佈/`npx eml`，注意實際
+`npm publish` 需要 Neo 明確授權）、多做幾個真實移植案例（A-4，目前 2 個)、B-5 的 fuzz/property
+testing 缺口。E-11 開放核心定價需要商業判斷，非工程可單方面決定，暫不主動動工。

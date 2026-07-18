@@ -329,6 +329,20 @@ export function emitEmlStatement(stmt: Statement, bound: Set<string> = new Set()
     }
     case 'Raise':
       return stmt.exception ? `raise ${emitEmlExpression(stmt.exception)}` : 'raise';
+    case 'With': {
+      // Unlike `try` (which clones per-part since the body might fail
+      // partway through), `with`'s body always executes in full before any
+      // exception matters — same reasoning as `while`/`for` (Phase A): the
+      // SAME live `bound` set is used, and the `as` target is reliably bound
+      // afterward too.
+      const header = stmt.target
+        ? `with ${emitEmlExpression(stmt.contextExpr)} as ${stmt.target.name}:`
+        : `with ${emitEmlExpression(stmt.contextExpr)}:`;
+      if (stmt.target) bound.add(stmt.target.name);
+      const lines: string[] = [header];
+      for (const s of stmt.body) lines.push(indent(emitEmlStatement(s, bound)));
+      return lines.join('\n');
+    }
     case 'ClassDef': {
       // Fresh, class-local `bound` scope — isolated from the enclosing scope,
       // same reasoning as FunctionDef (Phase E1): a class-level assignment (a

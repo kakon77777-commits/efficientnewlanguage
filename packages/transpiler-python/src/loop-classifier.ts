@@ -138,6 +138,9 @@ function scanStatementExpr(stmt: Statement, visit: (e: Expression) => void): voi
       break;
     case 'ClassDef':
       break; // method bodies carry no loop-classifier metadata this round
+    case 'With':
+      walk(stmt.contextExpr);
+      break; // body is visited separately (see visitStmt)
   }
 }
 
@@ -186,6 +189,12 @@ export function classifyLoops(program: Program, fns: LoopFnInput[]): LoopFact[] 
       for (const s of stmt.body) visitStmt(s);
       for (const h of stmt.handlers) for (const s of h.body) visitStmt(s);
       for (const s of stmt.finallyBody) visitStmt(s);
+      return;
+    }
+    if (stmt.type === 'With') {
+      // with itself is not a loop kind either — keep recursing to find any
+      // nested loop construct in its body.
+      for (const s of stmt.body) visitStmt(s);
       return;
     }
   };

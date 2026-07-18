@@ -167,6 +167,10 @@ function walkStmt(stmt: Statement, bound: Set<string>, onCall: (name: string) =>
       // Method bodies are excluded from importance scoring this round (see
       // semantic.ts's resolveMethod) — no call sites to attribute here.
       break;
+    case 'With':
+      walkExpr(stmt.contextExpr, bound, onCall);
+      for (const s of stmt.body) walkStmt(s, bound, onCall);
+      break;
   }
 }
 

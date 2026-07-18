@@ -751,6 +751,55 @@ function runProgram(
           'raising anything other than a bare `raise`, `raise ExceptionClass`, or `raise ExceptionClass("msg")` is not modeled by the interpreter yet',
         );
       }
+      case 'With': {
+        // Real __enter__/__exit__ protocol dispatch (Phase 9 item 6), reusing
+        // the existing findMethod/runMethodBody machinery (Phase 7e) rather
+        // than building new dispatch — no built-in context manager (like a
+        // real `open()` file handle) is modeled, so this only works for a
+        // user-defined class instance with both methods defined, matching
+        // real Python's own protocol exactly (including its check ORDER —
+        // verified directly: a value missing both methods reports "missed
+        // __exit__ method" first, not __enter__).
+        const ctxVal = evalExpr(stmt.contextExpr, scope);
+        const exitMethod = ctxVal.k === 'instance' ? findMethod(ctxVal.classDef as ClassDef, '__exit__') : undefined;
+        if (!exitMethod) {
+          throw new PyError(
+            'TypeError',
+            `'${typeName(ctxVal)}' object does not support the context manager protocol (missed __exit__ method)`,
+          );
+        }
+        const enterMethod = findMethod((ctxVal as Extract<PyVal, { k: 'instance' }>).classDef as ClassDef, '__enter__');
+        if (!enterMethod) {
+          throw new PyError(
+            'TypeError',
+            `'${typeName(ctxVal)}' object does not support the context manager protocol (missed __enter__ method)`,
+          );
+        }
+        const instance = ctxVal as Extract<PyVal, { k: 'instance' }>;
+        const entered = runMethodBody(instance, enterMethod, []);
+        if (stmt.target) assign(scope, stmt.target.name, entered);
+        try {
+          for (const s of stmt.body) execStmt(s, scope);
+          runMethodBody(instance, exitMethod, [NONE, NONE, NONE]);
+        } catch (e) {
+          if (e instanceof PyError) {
+            // exc_type/exc_val as plain strings (not a real exception
+            // object) — the same deliberate simplification `except`'s own
+            // exception binding already uses; exc_tb is always NONE (no
+            // traceback model exists anywhere in this interpreter).
+            const suppressed = truthy(runMethodBody(instance, exitMethod, [STR(e.pyType), STR(e.message), NONE]));
+            if (!suppressed) throw e;
+          } else {
+            // Break/Continue/Return/Unsupported/StepLimit — with is an
+            // implicit finally, so __exit__ still runs before this
+            // propagates, matching real Python's guarantee for non-exception
+            // exits too.
+            runMethodBody(instance, exitMethod, [NONE, NONE, NONE]);
+            throw e;
+          }
+        }
+        return;
+      }
       case 'ClassDef':
         // Bind a first-class class value, parallel to how FunctionDef binds
         // {k:'func',...}. Methods are looked up from `def.body` by name at

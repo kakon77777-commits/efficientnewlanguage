@@ -69,8 +69,9 @@ export type TokenType =
   | 'EXCEPT' // except — catch a matching exception
   | 'FINALLY' // finally — always-run cleanup block
   | 'RAISE' // raise — raise (or re-raise) an exception
-  | 'AS' // as — bind a caught exception to a name (except ... as e)
+  | 'AS' // as — bind a caught exception to a name (except ... as e); also with ... as name
   | 'CLASS' // class — minimal viable OOP (Phase 7e)
+  | 'WITH' // with — context manager block (Phase 9 item 6)
   // block structure (Python-style significant indentation)
   | 'INDENT' // emitted when a logical line is more indented than the prior block
   | 'DEDENT' // emitted when indentation decreases back to an enclosing block

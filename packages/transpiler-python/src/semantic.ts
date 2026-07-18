@@ -394,6 +394,16 @@ export function analyzeSemantics(
       }
       case 'ClassDef':
         return resolveClass(stmt, scope, isModule);
+      case 'With': {
+        // Matches ForIn's "no new scope, live" reasoning, not Try's cautious
+        // clone — with's body always executes in full (0 or 1 times, not
+        // conditionally branching), so the `as` target is reliably bound
+        // afterward, the same way a for-loop's target is.
+        collectExpr(stmt.contextExpr);
+        if (stmt.target) declareIn(scope, stmt.target.name, isModule);
+        const body = stmt.body.map((s) => resolve(s, scope, inFunction, isModule, inLoop));
+        return { ...stmt, body };
+      }
     }
   };
 

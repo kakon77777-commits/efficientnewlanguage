@@ -270,6 +270,7 @@ export function lex(source: string): Token[] {
       else if (value === 'raise') type = 'RAISE';
       else if (value === 'as') type = 'AS';
       else if (value === 'class') type = 'CLASS';
+      else if (value === 'with') type = 'WITH';
       push(type, value, startPos, startLine, startCol);
       continue;
     }

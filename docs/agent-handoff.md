@@ -1215,7 +1215,7 @@ than Phase B1.
   reverse Python→EML transpiler effort is now complete**: only `@temporal_loop`, `async`/`await`, and
   the permanent `@hot` exception remain outside the round-trip invariant.
 
-## Phase 9 — real-corpus language extension (item 1: `and`/`or`, item 2: `%`, item 8: `not`, item 3a: tuple + `%`-format, item 4: triple-quoted strings, item 5: `print(x, end=...)`)
+## Phase 9 — real-corpus language extension (item 1: `and`/`or`, item 2: `%`, item 8: `not`, item 3a: tuple + `%`-format, item 4: triple-quoted strings, item 5: `print(x, end=...)`, item 6: `with`)
 
 Re-measuring the same 5 real B-6 corpus files after Phase 8's completion exposed that
 `Decimal_to_binary_convertor` and `Leap_Year_Checker` are blocked by a genuine LANGUAGE-level gap,
@@ -1660,6 +1660,99 @@ direction (of three offered: reverse-only / invent new forward sigil / skip item
   design) — its parse now succeeds all the way through the tuple/`%`-format/kwarg-syntax, failing
   only at the deliberate, by-design emit-time restriction. The other 4 files show no change, as
   expected (none use `print(..., end=...)`).
+
+### Item 6 — `with` / context managers (2026-07-19)
+
+The last unstarted Phase 9 item, previously flagged in the roadmap as "the biggest, most complex one
+— involves `__enter__`/`__exit__` execution semantics, not just syntax." The real corpus file is
+`Duplicate_files_remover_duplicatefileremover.py`, blocked at line 11: `with open(filename, 'rb') as
+file:`.
+
+- **Honest scoping finding from tracing the whole file before planning**: `with` support alone does
+  NOT get this file to a full `eml compress` pass. Lines 12-17 (buffer read/hash-update/hexdigest,
+  `while(len(buf) > 0):`) all parse fine with existing machinery — but line 26,
+  `filelist = [f for f in os.listdir() if os.path.isfile(f)]`, is a **list comprehension**, a
+  genuinely new, previously-uncatalogued gap (grepped `docs/` for "comprehension" — zero hits; this
+  was never reached by any earlier measurement, since line 11 always blocked first). This round
+  implements `with` only, matching its own designated scope; the list-comprehension gap is logged as
+  a new, unnumbered candidate in `docs/roadmap.md`, not silently folded in.
+- Also confirmed: even with BOTH `with` and comprehensions, this file's `eml run` (actual execution)
+  would still defer — `hasher = hashlib.md5()` (line 10, before the `with`) hits the interpreter's
+  generic `Unsupported` defer for unbound-module attribute calls (the same category as `.format()`/
+  numpy), while `open(...)` itself hits a hard `NameError` — a real, if minor, asymmetry versus the
+  softer `Unsupported` treatment attribute-calls get, noted but not fixed this round.
+- **Design precedent, confirmed by reading Phase D (`try`/`except`/`finally`) in full before writing
+  any code**: EML's own concrete syntax for Python control-flow keywords is just Python's keyword
+  syntax verbatim (no sigil translation) — `with` follows the identical pattern. Phase D also
+  established the right depth of realism to aim for: full syntactic round-trip + real interpreter
+  control-flow, with the "real" object-protocol edge (exception typing) deliberately shallow/
+  simplified rather than fabricated. `with`'s interpreter semantics follow the same principle.
+- **AST**: `WithStatement { contextExpr, target?, body }` — single context-manager, single optional
+  target only (Python's multi-context `with a() as x, b() as y:` form is out of scope; confirmed no
+  corpus or test evidence needs it).
+- **Forward lexer/parser + reverse parser**: a new `WITH` token (forward; the reverse lexer has no
+  keyword tokens at all, matching every other keyword) and a `parseWith()` in both directions,
+  mirroring `parseTry()`'s exact shape. `AS` already existed (added for `except ... as e`), reused
+  as-is.
+- **Emitters**: forward Python + reverse EML both emit plain `with EXPR as NAME:` text, mirroring
+  `Try`'s shape. The reverse EML emitter's `bound`-scope handling matches `ForIn`'s treatment, NOT
+  `Try`'s cautious per-branch clone — a `with`-body always executes in full before any exception
+  matters (unlike `try`, which can fail partway through), so the target uses the SAME live `bound`
+  set and stays reliably bound afterward. The C++ backend rejects `With` outright
+  (`E_CPP_UNSUPPORTED`), joining the EXISTING `If`/`While`/`ForIn`/`Try`/`Raise`/`ClassDef` rejection
+  group in `emitCppStatement` — a discovery worth noting: this prototype's C++ backend doesn't
+  support ANY Python-level control-flow statement (only expression-level Σ loops), a narrower scope
+  than might be assumed from the demo examples. `statementCallsName`'s non-exhaustive `With` case
+  still needed the real recursive body (self-recursion hidden inside a `with` body must still be
+  caught), verified with a dedicated test.
+- **Six semantic walkers** each got a `With` case mirroring their file's own `ForIn`/`Try` handling —
+  `semantic.ts` matches `ForIn`'s "no new scope, live" reasoning (not `Try`'s cautious clone), `as`
+  reliably bound afterward; `purity.ts` (both functions) and `importance.ts` recurse into
+  `contextExpr` + body; `loop-classifier.ts` needed changes in BOTH of its statement-walking
+  functions (confirmed by reading each): `scanStatementExpr`'s local dispatch gets
+  `walk(stmt.contextExpr)`, and the separate `visitStmt` (which recurses into nested bodies to find
+  loops) gets its own `With` case, mirroring `Try`'s block minus handlers/finally; `cts-generator`
+  gets `'control.with'` in the semantic-type classifier, and — a small, deliberate deviation from the
+  original plan, found to be more consistent during implementation — `stmt.contextExpr` (not `null`)
+  in `statementValue()`, since `with` has one clear "primary subject" expression the same way `If`/
+  `While` return `test` and `ForIn` returns `iterable`, unlike `Try` (genuinely no single expression,
+  several disjoint branches).
+- **The interpreter is where the real work went**: real `__enter__`/`__exit__` protocol dispatch,
+  reusing the EXISTING `findMethod`/`runMethodBody` closures (Phase 7e) rather than building new
+  dispatch machinery. Checks `__exit__` presence BEFORE `__enter__`, matching real Python's own check
+  order exactly — verified directly (not assumed) against the installed Python: a value missing both
+  methods reports `'<type>' object does not support the context manager protocol (missed __exit__
+  method)` first, only reporting "missed __enter__ method" once `__exit__` is confirmed present.
+  `__exit__(exc_type, exc_val, exc_tb)` is called unconditionally: `(NONE, NONE, NONE)` on normal
+  completion OR on any non-exception exit (`break`/`continue`/`return`/`Unsupported`/`StepLimit`
+  propagating through the body — `with` is an implicit `finally`, verified this matches real
+  Python's own guarantee); on a `PyError`, `exc_type`/`exc_val` are passed as plain strings
+  (`STR(e.pyType)`/`STR(e.message)`) — the SAME deliberate simplification `except`'s own exception
+  binding already uses, not a new shortcut; `exc_tb` is always `NONE` (no traceback model exists
+  anywhere in this interpreter). `__exit__` returning truthy suppresses the propagating exception —
+  verified directly against real Python (`with Suppress(): raise ...` completes with no exception
+  when `__exit__` returns `True`). Class-body validation was checked before assuming this would work:
+  confirmed a method may be given ANY name including a dunder (nothing rejects `__enter__`/`__exit__`
+  specifically) — the class system just doesn't auto-dispatch any dunder besides `__init__` anywhere
+  else, so `with` is genuinely the first place `__enter__`/`__exit__` get real, automatic dispatch.
+- **Tests**: new `tests/phase9-with.test.ts` (15 tests) — forward parse (with/without `as`);
+  forward/reverse emit round-trip (plain-text shape); real-Python execution parity for normal
+  completion (target bound to `__enter__`'s return value), an unsuppressed exception (passed to
+  `__exit__`, still propagates), and the suppression case; the two verified real-Python `TypeError`
+  messages (missing `__exit__` alone, missing `__enter__` alone, and — via the normal-completion
+  test's context — a plain non-instance value hitting "missed `__exit__`" first); the C++ rejection
+  test plus the `statementCallsName` self-recursion-hidden-inside-`with` guard test; reverse
+  round-trip of a `Duplicate_files_remover`-shaped `with open(...) as file:` snippet (isolated from
+  the file's OTHER separate gaps — hashlib, the list comprehension), a bare `with` with no `as`
+  target, and confirmation the `as` target stays bound after the block (matching a for-loop target).
+  **759 tests total** (up from 744).
+- **Verification**: a fresh CLI snippet using a real user-defined `__enter__`/`__exit__` class,
+  including the exception-suppression branch, matched real Python exactly via `eml run` (the one
+  behavior a naive implementation could easily get backwards, verified explicitly rather than
+  assumed correct). Re-ran the same 5 real B-6 corpus files: `Duplicate_files_remover` advanced
+  cleanly from the `with` statement (line 11) all the way to the list comprehension at line 26 — a
+  genuinely new, previously-uncatalogued gap, logged in `docs/roadmap.md` rather than silently
+  folded into this round's "done" claim. The other 4 files show no change, exactly as expected.
 
 ## Non-obvious design decisions (the gotchas)
 

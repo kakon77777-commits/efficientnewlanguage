@@ -23,6 +23,7 @@ import type {
   Temperature,
   ClassDef,
   OutputStatement,
+  WithStatement,
 } from '@eml/types';
 import { lexPython, type PyToken, type PyTokenType } from './py-lexer';
 
@@ -188,6 +189,7 @@ class PyParser {
     if (this.checkName('for')) return this.parseForIn();
     if (this.checkName('try')) return this.parseTry();
     if (this.checkName('raise')) return this.parseRaise();
+    if (this.checkName('with')) return this.parseWith();
     if (this.checkName('async')) {
       const t = this.peek();
       throw new PyParseError(
@@ -418,6 +420,23 @@ class PyParser {
       return { type: 'Raise' };
     }
     return { type: 'Raise', exception: this.parseExpr() };
+  }
+
+  /** `with <expr> [as <name>]: <body>` (Phase 9 item 6) — single context-
+   *  manager, single optional target only (matches the forward parser's
+   *  identical scope cut). */
+  private parseWith(): WithStatement {
+    this.expectName('with');
+    const contextExpr = this.parseExpr();
+    let target: Identifier | undefined;
+    if (this.checkName('as')) {
+      this.next();
+      const idTok = this.expect('NAME', 'with-statement target');
+      target = { type: 'Identifier', name: idTok.value };
+    }
+    this.expect('COLON', "':' after 'with'");
+    const body = this.parseBlock();
+    return { type: 'With', contextExpr, target, body };
   }
 
   /** `[@functools.cache] def name(params): <body>` — the only decorator shape

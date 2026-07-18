@@ -198,6 +198,10 @@ function scanStatement(stmt: Statement, effects: string[], userFns: Set<string>)
       // itself a side effect, and its methods are analyzed independently
       // (never, since they're excluded from fnRecords).
       break;
+    case 'With':
+      scanExpression(stmt.contextExpr, effects, userFns);
+      for (const s of stmt.body) scanStatement(s, effects, userFns);
+      break;
   }
 }
 
@@ -345,6 +349,10 @@ export function collectCalledNames(fn: FunctionDef): string[] {
         break;
       case 'ClassDef':
         break; // methods are analyzed independently, never via fnRecords
+      case 'With':
+        collectCallsExpr(stmt.contextExpr, names);
+        stmt.body.forEach(visit);
+        break;
     }
   };
   for (const stmt of fn.body) visit(stmt);

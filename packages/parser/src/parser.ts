@@ -31,6 +31,7 @@ import type {
   TryStatement,
   RaiseStatement,
   ClassDef,
+  WithStatement,
 } from '@eml/types';
 
 export class ParseError extends Error {
@@ -195,6 +196,9 @@ class Parser {
     }
     if (this.check('RAISE')) {
       return this.parseRaise();
+    }
+    if (this.check('WITH')) {
+      return this.parseWith();
     }
     if (this.check('CLASS')) {
       return this.parseClassDef();
@@ -451,6 +455,23 @@ class Parser {
       return { type: 'Raise' };
     }
     return { type: 'Raise', exception: this.parseExpression() };
+  }
+
+  /** Parse `with <expr> [as <name>]: <body>` (Phase 9 item 6) — single
+   *  context-manager, single optional target only; Python's multi-context
+   *  `with a() as x, b() as y:` form is out of scope (not corpus-driven). */
+  private parseWith(): WithStatement {
+    this.expect('WITH');
+    const contextExpr = this.parseExpression();
+    let target: Identifier | undefined;
+    if (this.check('AS')) {
+      this.next();
+      const idTok = this.expect('IDENT', "with-statement target");
+      target = { type: 'Identifier', name: idTok.value };
+    }
+    this.expect('COLON', "':' after 'with'");
+    const body = this.parseBlock('with');
+    return { type: 'With', contextExpr, target, body };
   }
 
   /**

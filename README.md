@@ -198,8 +198,14 @@ an ordinary attribute-call, already generic since Phase 7c.) `print`'s
 transpiler recognizes it, but EML's `^0` gains no new forward syntax to
 express a custom terminator, so `eml compress` still fails on it — with a
 precise message now, not an opaque parser error. `with`/context managers
-and multi-line bracketed literals are each their own future round (see
-`docs/roadmap.md`'s Phase 9). Arbitrary-Python compression (lossy,
+shipped 2026-07-19: EML's own concrete syntax is just Python's `with`
+keyword verbatim (matching `try`/`except`), and the interpreter dispatches
+real `__enter__`/`__exit__` methods on a user-defined class instance,
+matching Python's actual protocol (check order, exception-suppression
+semantics, and error messages all verified against a real installation).
+List comprehensions (a newly-discovered gap, not yet a numbered Phase 9
+item) and multi-line bracketed literals are each their own future round
+(see `docs/roadmap.md`'s Phase 9). Arbitrary-Python compression (lossy,
 semantics-sensitive) remains an AI-assisted,
 suggestion-only layer for
 a later phase.

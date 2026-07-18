@@ -209,6 +209,8 @@ function semanticTypeOf(stmt: Statement): string {
       return 'control.raise';
     case 'ClassDef':
       return 'class.def';
+    case 'With':
+      return 'control.with';
   }
 }
 
@@ -240,6 +242,11 @@ function statementValue(stmt: Statement): Expression | null {
       return null;
     case 'Raise':
       return stmt.exception ?? null;
+    case 'With':
+      // Unlike Try (genuinely no single expression — several disjoint
+      // branches), With has one clear "primary subject" expression, the same
+      // way If/While return `test` and ForIn returns `iterable`.
+      return stmt.contextExpr;
   }
 }
 

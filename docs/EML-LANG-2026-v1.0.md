@@ -647,9 +647,12 @@ ordinary `FunctionDefinition` nodes — `self` is an ordinary first parameter,
 nothing special grammatically. A class body may otherwise only contain a
 plain assignment (a class-level variable) — anything else is
 `E_CLASS_BODY_UNSUPPORTED`. No inheritance, no multiple inheritance, no
-method decorators (`@staticmethod`/`@classmethod`/`@property`), no dunder
-methods beyond `__init__` (no `__str__`/`__repr__`/`__eq__`/operator
-overloading). A `@cold`/`@hot`/`@temporal_loop` decorator on a method is
+method decorators (`@staticmethod`/`@classmethod`/`@property`). A method may
+be given ANY name, including a dunder — nothing in the class-body validation
+rejects it — but no dunder gets automatic runtime dispatch except `__init__`
+(construction) and, as of Phase 9 item 6, `__enter__`/`__exit__` (real
+dispatch via `with` — see below); `__str__`/`__repr__`/`__eq__`/operator
+overloading remain ordinary, never-auto-called methods. A `@cold`/`@hot`/`@temporal_loop` decorator on a method is
 diagnosed (`W_METHOD_DECORATOR_UNSUPPORTED`) and has no effect — method
 bodies are not analyzed by the cold/hot/purity/importance/crystallization
 stack this round (§6's per-function analysis applies only to top-level and
@@ -658,6 +661,46 @@ two unrelated classes' same-named methods colliding in that whole-program,
 bare-name-keyed analysis). `W_CLASS_REDECLARED` mirrors `W_FN_REDECLARED`.
 Instantiation (`Foo(args)`) is an ordinary function call grammatically —
 Python itself resolves class-vs-function at runtime.
+
+### Phase 9 item 6 — `with` / context managers
+
+`with <expr> [as <name>]: <body>` — single context-manager, single optional
+target only (Python's multi-context `with a() as x, b() as y:` form is out of
+scope, not corpus-driven). EML's own concrete syntax is Python's `with`
+keyword verbatim, the same "no sigil translation" treatment `try`/`except`
+already get. The `as` target, once bound, stays reliably bound after the
+block ends — matching a `for`-loop's target, not `try`'s more cautious
+per-branch scoping (a `with`-body always executes in full before any
+exception matters, unlike `try`, which can fail partway through).
+
+No context-manager `PyVal` is modeled — the interpreter dispatches REAL
+`__enter__`/`__exit__` methods when the context value is a class instance
+(Phase 7e) defining both, exactly matching real Python's protocol (checking
+`__exit__` presence before `__enter__`, both verified directly against the
+installed Python, not assumed):
+
+```
+'<type>' object does not support the context manager protocol (missed __exit__ method)
+'<type>' object does not support the context manager protocol (missed __enter__ method)
+```
+
+`__exit__(exc_type, exc_val, exc_tb)` is called unconditionally — with
+`(None, None, None)` on normal completion (or on a non-exception exit like
+`break`/`continue`/`return` from inside the body, matching `with`'s real
+`finally`-like guarantee), or with the propagating exception's type/message
+(as plain strings — the same deliberate simplification `except`'s own
+exception binding already uses; no traceback object is modeled, so `exc_tb`
+is always `None`) if the body raised. `__exit__` returning a truthy value
+suppresses that exception — verified directly against real Python
+(`with Suppress(): raise ...` completes with no exception when `__exit__`
+returns `True`).
+
+There is no built-in context manager (a real `open()` file handle, a lock,
+etc.) — `open(...)` itself is not modeled by the interpreter at all (a plain
+`NameError`, since it's never bound), so `with open(...) as f:` reverse-
+transpiles and forward-emits as plain text (the `with` statement itself is
+fully supported), but never actually *executes* under `eml run` — the same
+category of gap as numpy's `<M>`/`^T` or `.format()`.
 
 ### Diagnostics and back ends (Phase 7, all sub-phases)
 
@@ -764,10 +807,13 @@ expression kind that CAN round-trip now does. The only remaining forward-only co
 of the round-trip invariant) are `@temporal_loop` and `async`/`await`. **As of Phase 9 (2026-07-17),
 `and`/`or` (§5.8), numeric `%` (§5.2), and unary `not` (§5.9) also round-trip; as of the same Phase 9
 (item 3a), tuple literals and `%` string-formatting (§5.10) round-trip too; as of 2026-07-18 (item 4),
-triple-quoted strings (§5.11) round-trip as well** — each a genuinely new (or, for `%`, meaningfully
-extended) expression kind added AFTER the reverse-transpiler effort concluded, as items of a separate
-language-extension track (real B-6 corpus gaps beyond grammar completeness); both directions were
-built together for each of these, unlike Phase A–E2's reverse-only rounds.
+triple-quoted strings (§5.11) round-trip as well; the same day (item 6), `with`/context managers
+(§6's "Phase 9 item 6" subsection) round-trip too** — each a genuinely new (or, for `%`, meaningfully
+extended) expression/statement kind added AFTER the reverse-transpiler effort concluded, as items of a
+separate language-extension track (real B-6 corpus gaps beyond grammar completeness); both directions
+were built together for each of these, unlike Phase A–E2's reverse-only rounds. (Item 5,
+`print(x, end=...)`, is the one deliberate EXCEPTION — reverse-only by explicit choice, since it would
+otherwise require inventing new forward EML syntax; see §5.3.)
 **`@hot` is a permanent, structural round-trip gap within function support, not a deferred one**
 (distinct from `class`, which was merely not-yet-implemented until this phase): the forward Python
 emitter renders `@cold` as a real `@functools.cache` decorator but `@hot` as a bare **comment**
