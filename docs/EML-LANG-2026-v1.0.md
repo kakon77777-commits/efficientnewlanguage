@@ -834,13 +834,20 @@ of the round-trip invariant) are `@temporal_loop` and `async`/`await`. **As of P
 (item 3a), tuple literals and `%` string-formatting (§5.10) round-trip too; as of 2026-07-18 (item 4),
 triple-quoted strings (§5.11) round-trip as well; the same day (item 6), `with`/context managers
 (§6's "Phase 9 item 6" subsection) round-trip too; as of 2026-07-19 (item 7), multi-line bracketed
-literals and trailing commas (§5.12) round-trip too** — each a genuinely new (or, for `%`,
-meaningfully extended, or for item 7, purely lexical) expression/statement kind added AFTER the
-reverse-transpiler effort concluded, as items of a separate language-extension track (real B-6 corpus
-gaps beyond grammar completeness); both directions were built together for each of these, unlike
-Phase A–E2's reverse-only rounds. (Item 5,
+literals and trailing commas (§5.12) round-trip too; the same day, Python's `range(n)` single-
+argument shorthand (implicit start `0`) also round-trips** — each a genuinely new (or, for `%`,
+meaningfully extended, or for item 7/`range(n)`, purely lexical/parser-level with no new AST node)
+expression/statement kind added AFTER the reverse-transpiler effort concluded, as items of a separate
+language-extension track (real B-6 corpus gaps beyond grammar completeness); both directions were
+built together for each of these, unlike Phase A–E2's reverse-only rounds. (Item 5,
 `print(x, end=...)`, is the one deliberate EXCEPTION — reverse-only by explicit choice, since it would
 otherwise require inventing new forward EML syntax; see §5.3.)
+
+**Milestone (2026-07-19): `text_to_morse_code`, one of the 5 real B-6 corpus files tracked throughout
+this whole language-extension effort, reaches a full round-trip fixpoint (`eml roundtrip` succeeds,
+`python == canonical`) for the first time** — after the multi-line-bracket fix (item 7) and this
+`range(n)` fix cleared its two remaining gaps in succession. The other 4 corpus files still have real,
+open gaps (documented per-file in `docs/agent-handoff.md`'s "Phase 9" section and `docs/PROGRESS.md`).
 **`@hot` is a permanent, structural round-trip gap within function support, not a deferred one**
 (distinct from `class`, which was merely not-yet-implemented until this phase): the forward Python
 emitter renders `@cold` as a real `@functools.cache` decorator but `@hot` as a bare **comment**

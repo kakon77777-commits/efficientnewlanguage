@@ -1215,7 +1215,7 @@ than Phase B1.
   reverse Python→EML transpiler effort is now complete**: only `@temporal_loop`, `async`/`await`, and
   the permanent `@hot` exception remain outside the round-trip invariant.
 
-## Phase 9 — real-corpus language extension (item 1: `and`/`or`, item 2: `%`, item 8: `not`, item 3a: tuple + `%`-format, item 4: triple-quoted strings, item 5: `print(x, end=...)`, item 6: `with`, item 7: multi-line brackets)
+## Phase 9 — real-corpus language extension (item 1: `and`/`or`, item 2: `%`, item 8: `not`, item 3a: tuple + `%`-format, item 4: triple-quoted strings, item 5: `print(x, end=...)`, item 6: `with`, item 7: multi-line brackets, `range(n)` single-arg)
 
 Re-measuring the same 5 real B-6 corpus files after Phase 8's completion exposed that
 `Decimal_to_binary_convertor` and `Leap_Year_Checker` are blocked by a genuine LANGUAGE-level gap,
@@ -1819,6 +1819,43 @@ physical line.
   other 4 files show no change, exactly as expected. **This closes out every originally-numbered
   Phase 9 item (1 through 8)** — three independent, unnumbered candidates remain open:
   Python slice syntax, list comprehensions, and `range(n)`'s single-argument form.
+
+### `range(n)` single-argument shorthand (2026-07-19, same day) — first full B-6 corpus pass
+
+Compared the three remaining unnumbered candidates directly before choosing: Python slice syntax and
+list comprehensions both need a genuinely new `Expression` AST node threaded through the full
+7-walker/interpreter/3-emitter vertical slice this project pays for a new expression type (the same
+class of work as `Tuple`/`Not`). `range(n)`'s single-argument shorthand, confirmed by direct reading,
+is the smallest fix in this entire Phase 9 track: it reuses the EXISTING `RangeExpression` AST node
+completely unchanged — `range(n)` produces the identical node shape `range(0, n)` already does, just
+with an implicit literal `0` start — so it needed no new tokens, no semantic-walker changes, no
+emitter changes, and no interpreter changes. The entire fix is one function,
+`parseRangeCall()` in `packages/transpiler-eml/src/py-parser.ts`: check for a comma rather than
+requiring one, defaulting `start` to a literal `0` when absent, reusing the EXISTING `toInclusiveEnd()`
+helper unchanged. Reverse-only, matching `range(a, b)`'s own existing treatment — forward EML has no
+`range(...)` call syntax at all (it uses `[a:b]` directly as its own Range literal), so there's no
+forward-side work either. Deliberately scoped to 1-arg and the existing 2-arg forms only, not
+Python's 3-arg step form — EML's own `[a:b]` Range has no step concept at all, and grepping all 5 real
+corpus files' `range(...)` calls confirmed zero use of a 3rd argument anywhere.
+
+- **Tests**: new `tests/phase9-range-single-arg.test.ts` (6 tests) — `range(n)` parses to the exact
+  same AST shape as `range(0, n)`; the existing 2-argument form still works unchanged (a regression
+  check for the restructured function); `range(0)` is a genuinely empty iteration via the interpreter
+  (0 loop executions, matching real Python); a real-Python execution-parity test summing `range(5)`;
+  reverse round-trip of a `text_to_morse_code`-shaped `for i in range(length):` snippet. **776 tests
+  total** (up from 770).
+- **Verification**: a fresh `range(5)`-summing snippet went through the full real CLI pipeline —
+  `eml compress` → `eml roundtrip` → `eml run` — matching real Python exactly at every step.
+- **A genuine milestone, not just incremental progress**: re-running the same 5 real B-6 corpus files
+  showed `text_to_morse_code` — one of the 5 real corpus files tracked throughout this entire
+  language-extension effort — now reaches a **full round-trip fixpoint** (`eml roundtrip` reports
+  `OK ✓`, `python == canonical`) for the **first time**. The multi-line-bracket fix (item 7) and this
+  `range(n)` fix cleared its two remaining gaps in immediate succession, in the same day's work. This
+  is the first of the 5 corpus files to fully clear the B-6 KPI since the whole Phase 9 language-
+  extension track began. The other 4 files (`Calculate_age`, `Decimal_to_binary_convertor`,
+  `Duplicate_files_remover`, `Leap_Year_Checker`) each still have their own real, open, previously-
+  documented gaps — no change. Reverse direction now has exactly two open, unnumbered candidates left:
+  Python slice syntax and list comprehensions, neither started, priority undecided.
 
 ## Non-obvious design decisions (the gotchas)
 

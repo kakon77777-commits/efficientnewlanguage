@@ -208,11 +208,14 @@ newline, matching real Python) and trailing commas in any comma-list also
 shipped 2026-07-19 — the last originally-numbered Phase 9 item, purely
 lexer-level (a `bracketDepth` counter in both lexers), no AST/parser/
 emitter changes. This closes out every originally-numbered Phase 9 item
-(1 through 8); three independent, unnumbered candidates remain open and
-undecided: Python slice syntax (`x[2:]`), list comprehensions, and
-`range(n)`'s single-argument form (see `docs/roadmap.md`'s Phase 9).
-Arbitrary-Python compression (lossy, semantics-sensitive) remains an
-AI-assisted, suggestion-only layer for
+(1 through 8). The same day, `range(n)`'s single-argument shorthand
+shipped too — reusing the existing `RangeExpression` AST node unchanged,
+the smallest fix in the whole Phase 9 track — and pushed
+`text_to_morse_code` to the first full `eml roundtrip` pass among the 5
+tracked B-6 corpus files. Two independent, unnumbered candidates remain
+open and undecided: Python slice syntax (`x[2:]`) and list comprehensions
+(see `docs/roadmap.md`'s Phase 9). Arbitrary-Python compression (lossy,
+semantics-sensitive) remains an AI-assisted, suggestion-only layer for
 a later phase.
 
 Invoke via `pnpm eml <cmd>` in this repo, e.g. `pnpm eml explain examples/phase0/sum.eml`.

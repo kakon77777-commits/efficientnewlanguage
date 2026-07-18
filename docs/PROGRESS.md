@@ -91,6 +91,25 @@
 
 ## 工作日誌（新到舊）
 
+- **2026-07-19** — 完成**未編號候選：`range(n)` 單參數簡寫**，並達成**一個重要里程碑：
+  `text_to_morse_code` 第一次完整通過 `eml roundtrip`（往返不動點達成，`python == canonical`）**
+  ——這是 Phase 9 語言擴充支線追蹤至今的 5 個真實 B-6 語料檔案裡，第一個真正完整通過的。直接比較過
+  三個未編號候選的真實規模後選的：Python 切片語法、列表推導式都需要發明全新 `Expression` AST
+  節點、貫穿整條垂直切面（7 個語意分析 walker + 直譯器 + 3 份 emitter）；`range(n)` 經直接讀過
+  反向解析器確認是整條 Phase 9 支線裡規模最小的修復——完全重用既有的 `RangeExpression` AST 節點
+  （`range(n)` 產生的節點形狀跟 `range(0, n)` 一模一樣，只是隱含起點是字面量 `0`），不需要新
+  token、不碰語意分析 walker、不碰任何 emitter、不碰直譯器，只改了 `parseRangeCall()` 這一個
+  函式。跟 `range(a, b)` 一樣是純反向（正向 EML 本來就用自己的 `[a:b]` 區間字面量，沒有
+  `range(...)` 呼叫語法）。刻意只做單參數 + 既有兩參數形式，不做三參數 step 形式——EML 自己的
+  `[a:b]` 區間本來就沒有 step 概念，掃過全部 5 個真實語料檔案確認沒有任何一個用到三參數形式。
+  776 測試（原 770）。全新 `range(5)` 求和片段做了完整 CLI 端到端驗證（`eml compress` →
+  `eml roundtrip` → `eml run`，輸出跟真實 Python 逐位元組一致）。重新量測同 5 個真實檔案：
+  繼上一輪的跨行括號字面量修復之後，這輪的 `range(n)` 修復接連清掉了 `text_to_morse_code` 剩下
+  的兩個缺口，讓它成為整個 Phase 9 支線裡第一個真正完整通過 B-6 KPI 的真實語料檔案；其餘 4 個
+  檔案（`Calculate_age`、`Decimal_to_binary_convertor`、`Duplicate_files_remover`、
+  `Leap_Year_Checker`）仍然各自卡在自己已知的缺口上，沒有變化。反向方向現在只剩兩個未編號的獨立
+  候選：Python 切片語法跟列表推導式，兩者都還沒動工。詳見 `docs/agent-handoff.md`「Phase 9」
+  章節、`docs/EML-LANG-2026-v1.0.md` §9。
 - **2026-07-19** — 完成 **Phase 9 項目 7：跨行括號類字面量**——這是 Phase 9 支線**最後一個原本就
   有編號的項目**，做完之後項目 1-8 全部收尾。動工前先跟另外兩個未編號候選（Python 切片語法、
   列表推導式）比較過真實規模再選：那兩個都需要發明全新的 `Expression` AST 節點，貫穿這個專案每次
@@ -513,15 +532,21 @@ attribute-call，Phase 7c 早就支援；真正卡點是既有的 `^0` 裸變數
 一個 entry 有 trailing comma，純括號深度修復還不夠，於是同一輪也補上 trailing comma 支援。重新
 量測後，`text_to_morse_code` 從第 2 行一路推進到第 38 行 `for i in range(length):`——揭露第三個
 本輪意外發現的缺口：反向 `range(...)` 辨識只支援兩參數形式，不支援 Python 常見的單參數簡寫
-`range(n)`。**Phase 9 支線所有原本編號項目（1-8）現在全部完成**——反向方向沒有任何編號項目待做，
-只剩三個從未編號的獨立候選：`and`/`or` 那輪發現的 `Decimal_to_binary_convertor` 卡住的 Python
-序列切片 `bin(dec)[2:]`（中等規模，需要新 `SliceExpression` AST 節點 + 貫穿全分析層）、`with` 那輪
-發現的 `Duplicate_files_remover` 卡住的**列表推導式** `[expr for x in iterable if cond]`（中至大
-規模，需要新 AST 節點 + 從零設計 `if` 過濾子句文法，這個專案裡沒有先例）、以及這輪發現的
-`text_to_morse_code` 卡住的 **`range(n)` 單參數簡寫**（規模看起來很小，只需要放寬
-`parseRangeCall()` 的參數數量要求）。這些都尚未排進任何 Phase 9 編號項目，值得提醒 Neo 之後決定
-要不要補新項目、優先序為何——`range(n)` 單參數簡寫看起來是三者中最小的候選，但要投入到什麼程度、
-下一項選哪個，都需要 Neo 決定。次要候選（皆為純工程、不需要商業判斷或品牌素材）：A-3 好裝好跑
-（npm 發佈/`npx eml`，注意實際 `npm publish` 需要 Neo 明確授權）、多做幾個真實移植案例（A-4，
-目前 2 個)、B-5 的 fuzz/property testing 缺口。E-11 開放核心定價需要商業判斷，非工程可單方面
-決定，暫不主動動工。
+`range(n)`。**Phase 9 支線所有原本編號項目（1-8）現在全部完成**——反向方向沒有任何編號項目待做。**同日
+（2026-07-19）再完成這輪發現的未編號候選：`range(n)` 單參數簡寫**——跟切片語法、列表推導式比較過
+規模後選的，確認是三者中最小的候選：完全重用既有的 `RangeExpression` AST 節點，零新 token、零
+AST/語意層/emitter/直譯器改動，整個修正只在 `packages/transpiler-eml/src/py-parser.ts` 的
+`parseRangeCall()` 一個函式裡（放寬成「先解析第一個運算式，看有沒有逗號」，沒逗號就補上隱含的
+`0` 起點，重用既有的 `toInclusiveEnd()` helper）。6 個新測試全過。重新量測後，`text_to_morse_code`
+從第 38 行的 `range(length)` 完全推進到 EOF——**達成一個重要里程碑：這是 Phase 9 語言擴充支線
+開工以來，5 個追蹤中的真實語料檔案裡，第一個完整通過 `eml roundtrip`（`python == canonical` 
+fixpoint）的檔案**，用 CLI 直接驗證（`eml compress` → `eml roundtrip` 顯示 `OK ✓`）。
+
+反向方向現在只剩兩個從未編號的獨立候選：`and`/`or` 那輪發現的 `Decimal_to_binary_convertor` 卡住的
+Python 序列切片 `bin(dec)[2:]`（中等規模，需要新 `SliceExpression` AST 節點 + 貫穿全分析層）、`with`
+那輪發現的 `Duplicate_files_remover` 卡住的**列表推導式** `[expr for x in iterable if cond]`（中至
+大規模，需要新 AST 節點 + 從零設計 `if` 過濾子句文法，這個專案裡沒有先例）。這兩個都還沒排進任何
+Phase 9 編號項目，值得提醒 Neo 之後決定要不要補新項目、優先序為何、下一項選哪個。次要候選（皆為
+純工程、不需要商業判斷或品牌素材）：A-3 好裝好跑（npm 發佈/`npx eml`，注意實際 `npm publish` 需要
+Neo 明確授權）、多做幾個真實移植案例（A-4，目前 2 個)、B-5 的 fuzz/property testing 缺口。E-11
+開放核心定價需要商業判斷，非工程可單方面決定，暫不主動動工。

@@ -762,14 +762,23 @@ class PyParser {
     return { type: 'Sum', expr, iterator, range: iterable };
   }
 
+  /** `range(a, b)` (start, exclusive end) or Python's single-argument
+   *  shorthand `range(n)` (implicit start `0`) — no 3-arg step form, since
+   *  EML's own `[a:b]` Range has no step concept at all and no real corpus
+   *  file uses one. */
   private parseRangeCall(): RangeExpression {
     this.expectName('range');
     this.expect('LPAREN');
-    const start = this.parseExpr();
-    this.expect('COMMA', "',' in range()");
-    const endRaw = this.parseExpr();
+    const first = this.parseExpr();
+    if (this.check('COMMA')) {
+      this.next();
+      const endRaw = this.parseExpr();
+      this.expect('RPAREN');
+      return { type: 'Range', start: first, end: toInclusiveEnd(endRaw), inclusiveEnd: true };
+    }
     this.expect('RPAREN');
-    return { type: 'Range', start, end: toInclusiveEnd(endRaw), inclusiveEnd: true };
+    const zero: Expression = { type: 'NumberLiteral', raw: '0', value: 0 };
+    return { type: 'Range', start: zero, end: toInclusiveEnd(first), inclusiveEnd: true };
   }
 
   private parseNp(): Expression {
