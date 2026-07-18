@@ -171,6 +171,8 @@ export function emitCppExpression(expr: Expression): string {
       throw new CppEmitError('Attribute access `obj.attr` is not supported by the C⁺⁺⁺ prototype.');
     case 'Slice':
       throw new CppEmitError('Slice syntax `obj[a:b]` is not supported by the C⁺⁺⁺ prototype.');
+    case 'ListComp':
+      throw new CppEmitError('List comprehensions `[expr for x in iterable if cond]` are not supported by the C⁺⁺⁺ prototype (a dynamically-sized, filtered/mapped result has no model in this numeric-only prototype).');
   }
 }
 
@@ -301,6 +303,12 @@ function expressionCallsName(expr: Expression, name: string): boolean {
       return (
         (expr.start ? expressionCallsName(expr.start, name) : false) ||
         (expr.stop ? expressionCallsName(expr.stop, name) : false)
+      );
+    case 'ListComp':
+      return (
+        expressionCallsName(expr.expr, name) ||
+        expressionCallsName(expr.iterable, name) ||
+        (expr.condition ? expressionCallsName(expr.condition, name) : false)
       );
     default:
       return false;

@@ -7,6 +7,7 @@ import type {
   Identifier,
   RangeExpression,
   ListLiteral,
+  ListComprehension,
   SumExpression,
   MatrixExpression,
   FunctionCall,
@@ -832,14 +833,31 @@ class Parser {
     return { type: 'Range', start, end, inclusiveEnd: true };
   }
 
-  /** Parse `[...]` which may be a range `[a:b]` or a list `[1,2,3]`. */
-  private parseBracket(): RangeExpression | ListLiteral {
+  /** Parse `[...]` which may be a range `[a:b]`, a list comprehension
+   *  `[expr for x in iterable if cond]`, or a list `[1,2,3]`. */
+  private parseBracket(): RangeExpression | ListLiteral | ListComprehension {
     this.expect('LBRACKET');
     if (this.check('RBRACKET')) {
       this.next();
       return { type: 'List', elements: [] };
     }
     const first = this.parseExpression();
+    if (this.check('FOR')) {
+      this.next();
+      const iterTok = this.expect('IDENT', 'comprehension iterator');
+      const iterator: Identifier = { type: 'Identifier', name: iterTok.value };
+      this.expect('IN', "'in' in list comprehension");
+      // No ambiguity with a trailing 'if' filter — forward EML's own ternary
+      // uses '?'/':' (parseConditional), not the 'if'/'else' keyword form.
+      const iterable = this.parseExpression();
+      let condition: Expression | undefined;
+      if (this.check('IF')) {
+        this.next();
+        condition = this.parseExpression();
+      }
+      this.expect('RBRACKET', "']' after list comprehension");
+      return { type: 'ListComp', expr: first, iterator, iterable, condition };
+    }
     if (this.check('COLON')) {
       this.next();
       const end = this.parseExpression();

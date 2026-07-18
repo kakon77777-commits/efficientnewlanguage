@@ -194,6 +194,13 @@ export function analyzeSemantics(
         if (expr.start) collectExpr(expr.start);
         if (expr.stop) collectExpr(expr.stop);
         break;
+      case 'ListComp':
+        // `iterator` is never declared into scope — matches 'Sum' above (delegates to
+        // the target language's own non-leaking comprehension/generator scoping).
+        collectExpr(expr.expr);
+        collectExpr(expr.iterable);
+        if (expr.condition) collectExpr(expr.condition);
+        break;
       case 'Identifier':
       case 'NumberLiteral':
       case 'StringLiteral':

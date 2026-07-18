@@ -139,6 +139,11 @@ function collectIdents(expr: Expression, acc: Set<string>): void {
       if (expr.start) collectIdents(expr.start, acc);
       if (expr.stop) collectIdents(expr.stop, acc);
       break;
+    case 'ListComp':
+      collectIdents(expr.expr, acc);
+      collectIdents(expr.iterable, acc);
+      if (expr.condition) collectIdents(expr.condition, acc);
+      break;
   }
 }
 

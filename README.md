@@ -218,10 +218,17 @@ choice: forward EML's postfix `obj[...]` had no colon-detection at all, an
 empty grammar slot, so it now supports slicing on both sides, not just the
 reverse transpiler. A new `SliceExpression` AST node (not a reuse of
 `RangeExpression` — its bounds are optional, Range's are mandatory).
-One independent, unnumbered candidate remains open and undecided: list
-comprehensions (see `docs/roadmap.md`'s Phase 9). Arbitrary-Python
-compression (lossy, semantics-sensitive) remains an AI-assisted,
-suggestion-only layer for a later phase.
+List comprehensions (`[expr for x in iterable if cond]`) shipped the same
+day too, also bidirectional — the last known Phase 9 candidate, closing
+out every language-extension gap discovered across this whole track. A
+new `ListComprehension` AST node shares `SumExpression`'s existing
+"never scope-track the bound iterator" precedent, but generalizes to any
+iterable (Σ is range-only). The 4 corpus files still short of a full B-6
+pass now all share one identical root cause in different shapes: EML's
+`^0` output can only print a bare identifier. Whether to relax that is
+an open, undecided design question (see `docs/roadmap.md`'s Phase 9).
+Arbitrary-Python compression (lossy, semantics-sensitive) remains an
+AI-assisted, suggestion-only layer for a later phase.
 
 Invoke via `pnpm eml <cmd>` in this repo, e.g. `pnpm eml explain examples/phase0/sum.eml`.
 

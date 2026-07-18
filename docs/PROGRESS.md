@@ -91,6 +91,40 @@
 
 ## 工作日誌（新到舊）
 
+- **2026-07-19** — 完成**未編號候選：列表推導式 `[expr for x in iterable if cond]`，雙向——
+  這是整條 Phase 9 語言擴充支線裡最後一個未編號的獨立候選，做完之後這條支線已知的候選全部收尾**。
+  直接重新抓了真實語料（`Python-World/python-mini-projects` 的 `duplicatefileremover.py`）確認
+  `Duplicate_files_remover` 唯一需要的形式是 `filelist = [f for f in os.listdir() if
+  os.path.isfile(f)]`——一個 `for` 子句、一個 `if` 過濾子句、不轉換綁定變數，刻意只做這個形狀
+  （不支援巢狀推導式、不支援多個過濾子句，沒有語料證據）。**設計決定交給 Neo（AskUserQuestion）**：
+  正向 EML 的括號文法原本沒有 for/if 關鍵字（不像切片有現成的 `:` 慣用語），但 EML 本來就一直
+  直接沿用 Python 控制流關鍵字原文（`for...in`、`if/elif/else`、`try/except`、`with`、`class`），
+  所以這個也當同一類處理，跟 `print` 的 `end=`（真的要發明全新語法）不同類——Neo 選擇**雙向都做**。
+  新增 `ListComprehension` AST 節點——**跟既有的 `SumExpression`（Σ）共用同一個關鍵先例**：Σ 的
+  迭代變數從來沒被任何語意分析 walker 宣告進任何作用域，直接讓目標語言自己的不外洩 generator/
+  comprehension 語意接手，列表推導式的 `iterator` 也是同樣處理，不需要發明新作用域機制。但**不是
+  只是 Σ 模型的語法糖**：`SumExpression.range` 型別鎖定 `RangeExpression`，Σ 只能對數字區間迭代；
+  真實語料要對 `os.listdir()`（函式呼叫）迭代，是真正全新的能力——直譯器的 `iterableItems()`
+  （`ForIn` 已經在用）本來就泛化到 list/tuple/str，直接重用。**反向側精度層級需要小心**：反向
+  parser 自己的三元運算式是真實 Python 的 `a if t else b`（用 `if`/`else` 關鍵字），所以推導式的
+  `iterable`/`condition` 子運算式必須用比三元運算式低一級的精度解析（`parseOr()`），否則會把過濾
+  子句自己的 `if` 誤吃成三元運算式的 `if`；正向側沒有這個問題，因為正向 EML 三元運算式用 `?`/`:`。
+  貫穿 7 個語意分析 walker（比照 Sum 既有寫法，遞迴 `expr`/`iterable`/`condition`，永遠不碰
+  `iterator`；動工中重新確認 `pnpm typecheck` 只抓到直譯器一個編譯錯誤，7 個 walker 全部手動補上）+
+  直譯器（`evalListComp` 幾乎照抄 `evalSum`，只是用 `iterableItems()` 取代 `rangeInts()`）+ 3 份
+  emitter（C⁺⁺⁺ 原型拒絕，跟 Σ 本身有支援不同）。813 測試（原 798），第一次跑就全過，沒有意外。
+  全新的轉換/過濾/字串迭代片段做了完整 CLI 端到端驗證（`eml compress` → `eml roundtrip` → `eml
+  run`，輸出跟真實 Python 逐位元組一致）。**驗證了迭代變數真的不會外洩**：推導式結束後讀取該變數
+  會丟 `NameError`，跟真實 Python 3 完全一致。**誠實重新量測同 5 個真實檔案**：
+  `Duplicate_files_remover` 的列表推導式本身已完全解除——`eml compress` 完整重建到
+  `print("Deleted Files")` 那行才停——但**沒有達成完整通過**：卡點換成同一類既有限制的另一個實例
+  （直接印字串字面量，不是裸變數）。其餘 3 個仍卡住的檔案沒有變化，卡點也都是這個既有限制的不同
+  實例；`text_to_morse_code` 維持完整通過，沒有回歸。**這條 Phase 9 支線目前所有已知、已發現的
+  獨立候選（編號 1-8 + 未編號的 `range(n)`、切片語法、列表推導式）現在全部收尾**——反向方向沒有
+  任何已知未動工的語言缺口候選。**值得記錄但這輪刻意不動手的觀察**：剩下卡住的 4 個檔案，卡點
+  現在全部歸結到同一個根因——EML 的 `^0` 輸出只能印裸變數。要不要投入放寬這個限制、放寬到什麼
+  程度，是全新的語言設計決定，需要 Neo 之後判斷。詳見 `docs/agent-handoff.md`「Phase 9」章節、
+  `docs/EML-LANG-2026-v1.0.md` §5.14。
 - **2026-07-19** — 完成**未編號候選：Python 切片語法（`obj[a:b]`），雙向**。直接抓了真實語料
   （`Python-World/python-mini-projects` 的 `decimal_to_binary.py`）確認 `Decimal_to_binary_convertor`
   唯一需要的形式是 `bin(dec)[2:]`——只有起點。跟列表推導式比較過規模後選的：列表推導式還要從零
@@ -586,9 +620,24 @@ fixpoint）的檔案**，用 CLI 直接驗證（`eml compress` → `eml roundtri
 `Leap_Year_Checker` 卡點也是同一個既有限制，跟切片無關；`Duplicate_files_remover` 仍卡在列表推導式；
 `text_to_morse_code` 維持完整通過，沒有回歸。
 
-反向方向現在只剩**一個**從未編號的獨立候選：`with` 那輪發現的 `Duplicate_files_remover` 卡住的
-**列表推導式** `[expr for x in iterable if cond]`（中至大規模，需要新 AST 節點 + 從零設計 `if`
-過濾子句文法，這個專案裡沒有先例）。是否投入、何時投入需要 Neo 決定。次要候選（皆為
-純工程、不需要商業判斷或品牌素材）：A-3 好裝好跑（npm 發佈/`npx eml`，注意實際 `npm publish` 需要
-Neo 明確授權）、多做幾個真實移植案例（A-4，目前 2 個)、B-5 的 fuzz/property testing 缺口。E-11
-開放核心定價需要商業判斷，非工程可單方面決定，暫不主動動工。
+**同日（2026-07-19）再完成這條支線最後一個未編號候選：列表推導式，雙向**——新增 `ListComprehension`
+AST 節點，跟既有的 `SumExpression`（Σ）共用「迭代變數從不宣告進任何作用域，直接讓目標語言自己的
+不外洩語意接手」這個關鍵先例，但 `iterable` 是真正泛型的運算式（不像 Σ 鎖定 `RangeExpression`），
+對應真實語料要對 `os.listdir()` 迭代的全新需求。**設計決定交給 Neo（AskUserQuestion）**：正向 EML
+本來就一直直接沿用 Python 控制流關鍵字原文（`for...in`、`if/elif/else`、`try/except`、`with`、
+`class`），所以這個也當同一類處理，Neo 選擇雙向都做。813 測試（原 798），全新 CLI 端到端驗證通過，
+且驗證了迭代變數真的不會外洩（讀取會丟 `NameError`，跟真實 Python 3 一致）。**誠實重新量測同 5 個
+真實檔案**：`Duplicate_files_remover` 的列表推導式本身完全解除——`eml compress` 完整重建到
+`print("Deleted Files")` 那行才停——但同樣**沒有達成完整通過**：卡點換成同一個既有限制
+（EML 的 `^0` 只能印裸變數）的另一個實例（這次是直接印字串字面量）。其餘 3 個仍卡住的檔案沒有
+變化；`text_to_morse_code` 維持完整通過。
+
+**這條 Phase 9 支線目前所有已知、已發現的獨立候選（編號 1-8 + 未編號的 `range(n)`、切片語法、
+列表推導式）現在全部收尾**——反向方向沒有任何已知未動工的語言缺口候選。**值得記錄但刻意不主動
+動手的觀察**：剩下卡住的 4 個檔案（`Calculate_age`、`Decimal_to_binary_convertor`、
+`Duplicate_files_remover`、`Leap_Year_Checker`），卡點現在全部歸結到同一個根因——EML 的 `^0`
+輸出只能印裸變數，不能表達任何運算式/呼叫/字面量。要不要投入放寬這個限制、放寬到什麼程度（只放寬
+到字面量？還是任意運算式？），是全新的語言設計決定，需要 Neo 之後判斷，不是工程可以單方面擴大
+範圍的。次要候選（皆為純工程、不需要商業判斷或品牌素材）：A-3 好裝好跑（npm 發佈/`npx eml`，注意
+實際 `npm publish` 需要 Neo 明確授權）、多做幾個真實移植案例（A-4，目前 2 個)、B-5 的 fuzz/
+property testing 缺口。E-11 開放核心定價需要商業判斷，非工程可單方面決定，暫不主動動工。

@@ -154,6 +154,10 @@ export function emitExpression(expr: Expression): string {
       // Only ever reached via Subscript's `${...}[${emitExpression(expr.index)}]` above —
       // a bare Slice has no Python expression form of its own.
       return `${expr.start ? emitExpression(expr.start) : ''}:${expr.stop ? emitExpression(expr.stop) : ''}`;
+    case 'ListComp': {
+      const cond = expr.condition ? ` if ${emitExpression(expr.condition)}` : '';
+      return `[${emitExpression(expr.expr)} for ${aliasIdentifier(expr.iterator.name)} in ${emitExpression(expr.iterable)}${cond}]`;
+    }
   }
 }
 

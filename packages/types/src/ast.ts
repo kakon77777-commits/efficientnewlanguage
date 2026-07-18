@@ -109,6 +109,21 @@ export interface SumExpression extends NodeBase {
   range: RangeExpression;
 }
 
+/** `[expr for x in iterable if cond]` — Python list comprehension. `condition` is optional.
+ *  Exactly one `for` clause, one optional `if` filter — no nested comprehensions, no multiple
+ *  filters (no corpus evidence for either). Unlike `SumExpression` (which only ever iterates a
+ *  numeric `RangeExpression`), `iterable` is a general `Expression` — a real corpus need iterates
+ *  a function call's result. `iterator` is never declared into the enclosing scope by any semantic
+ *  walker, matching `SumExpression`'s existing "don't scope-track it, delegate to the target
+ *  language's own non-leaking construct" precedent. Phase 9. */
+export interface ListComprehension extends NodeBase {
+  type: 'ListComp';
+  expr: Expression;
+  iterator: Identifier;
+  iterable: Expression;
+  condition?: Expression;
+}
+
 /** `callee` widens to `Identifier | AttributeExpression` in Phase 7c so
  *  `math.sqrt(x)` / `obj.method(x)` parse as a Call over an Attribute. */
 export interface FunctionCall extends NodeBase {
@@ -213,7 +228,8 @@ export type Expression =
   | SetLiteral
   | SubscriptExpression
   | AttributeExpression
-  | SliceExpression;
+  | SliceExpression
+  | ListComprehension;
 
 /**
  * The shapes an assignment (`=>` arrow form, or a compound `+=`/`-=`/`*=`/`/=`)

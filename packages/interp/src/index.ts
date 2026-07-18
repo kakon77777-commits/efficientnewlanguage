@@ -257,6 +257,8 @@ function runProgram(
         return LIST(rangeInts(expr, scope));
       case 'Sum':
         return evalSum(expr, scope);
+      case 'ListComp':
+        return evalListComp(expr, scope);
       case 'Call':
         return evalCall(expr, scope);
       case 'Matrix':
@@ -407,6 +409,21 @@ function runProgram(
       result: pyRepr(acc),
     });
     return acc;
+  };
+
+  /** `[expr for x in iterable if cond]` (Phase 9) — mirrors `evalSum` but reuses
+   *  `iterableItems()` (already generalizes over list/tuple/str, not just a numeric
+   *  range) and collects into a list instead of summing, with an optional filter. */
+  const evalListComp = (expr: Extract<Expression, { type: 'ListComp' }>, scope: Scope): PyVal => {
+    const items = iterableItems(evalExpr(expr.iterable, scope));
+    const result: PyVal[] = [];
+    for (const item of items) {
+      tick();
+      const iterScope: Scope = { vars: new Map([[expr.iterator.name, item]]), parent: scope };
+      if (expr.condition && !truthy(evalExpr(expr.condition, iterScope))) continue;
+      result.push(evalExpr(expr.expr, iterScope));
+    }
+    return LIST(result);
   };
 
   const evalCall = (expr: Extract<Expression, { type: 'Call' }>, scope: Scope): PyVal => {

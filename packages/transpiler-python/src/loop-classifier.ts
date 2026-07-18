@@ -98,6 +98,11 @@ function scanStatementExpr(stmt: Statement, visit: (e: Expression) => void): voi
         if (e.start) walk(e.start);
         if (e.stop) walk(e.stop);
         break;
+      case 'ListComp':
+        walk(e.expr);
+        walk(e.iterable);
+        if (e.condition) walk(e.condition);
+        break;
       default:
         break;
     }

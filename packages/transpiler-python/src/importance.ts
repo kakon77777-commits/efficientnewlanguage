@@ -111,6 +111,11 @@ function walkExpr(expr: Expression, bound: Set<string>, onCall: (name: string) =
       if (expr.start) walkExpr(expr.start, bound, onCall);
       if (expr.stop) walkExpr(expr.stop, bound, onCall);
       break;
+    case 'ListComp':
+      walkExpr(expr.expr, bound, onCall);
+      walkExpr(expr.iterable, bound, onCall);
+      if (expr.condition) walkExpr(expr.condition, bound, onCall);
+      break;
     default:
       break;
   }

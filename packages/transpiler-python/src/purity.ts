@@ -134,6 +134,11 @@ function scanExpression(expr: Expression, effects: string[], userFns: Set<string
       if (expr.start) scanExpression(expr.start, effects, userFns);
       if (expr.stop) scanExpression(expr.stop, effects, userFns);
       break;
+    case 'ListComp':
+      scanExpression(expr.expr, effects, userFns);
+      scanExpression(expr.iterable, effects, userFns);
+      if (expr.condition) scanExpression(expr.condition, effects, userFns);
+      break;
     case 'Identifier':
     case 'NumberLiteral':
     case 'StringLiteral':
@@ -297,6 +302,11 @@ function collectCallsExpr(expr: Expression, into: Set<string>): void {
     case 'Slice':
       if (expr.start) collectCallsExpr(expr.start, into);
       if (expr.stop) collectCallsExpr(expr.stop, into);
+      break;
+    case 'ListComp':
+      collectCallsExpr(expr.expr, into);
+      collectCallsExpr(expr.iterable, into);
+      if (expr.condition) collectCallsExpr(expr.condition, into);
       break;
     default:
       break;

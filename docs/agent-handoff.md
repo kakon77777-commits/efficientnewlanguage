@@ -1215,7 +1215,7 @@ than Phase B1.
   reverse Python→EML transpiler effort is now complete**: only `@temporal_loop`, `async`/`await`, and
   the permanent `@hot` exception remain outside the round-trip invariant.
 
-## Phase 9 — real-corpus language extension (item 1: `and`/`or`, item 2: `%`, item 8: `not`, item 3a: tuple + `%`-format, item 4: triple-quoted strings, item 5: `print(x, end=...)`, item 6: `with`, item 7: multi-line brackets, `range(n)` single-arg, slice syntax)
+## Phase 9 — real-corpus language extension (item 1: `and`/`or`, item 2: `%`, item 8: `not`, item 3a: tuple + `%`-format, item 4: triple-quoted strings, item 5: `print(x, end=...)`, item 6: `with`, item 7: multi-line brackets, `range(n)` single-arg, slice syntax, list comprehensions — ALL KNOWN CANDIDATES CLOSED)
 
 Re-measuring the same 5 real B-6 corpus files after Phase 8's completion exposed that
 `Decimal_to_binary_convertor` and `Leap_Year_Checker` are blocked by a genuine LANGUAGE-level gap,
@@ -1945,6 +1945,91 @@ explicitly rejects a `Slice` index as an assignment target rather than silently 
   blocked on list comprehensions, no change. `text_to_morse_code` keeps its full pass from last round,
   no regression. Reverse direction now has exactly ONE open, unnumbered candidate left: list
   comprehensions.
+
+### List comprehensions (2026-07-19, same day again) — the LAST Phase 9 candidate closes out
+
+`[expr for x in iterable if cond]`. Real corpus need, re-confirmed against the fetched file
+(`Python-World/python-mini-projects`'s `duplicatefileremover.py`): exactly one comprehension in the
+whole file, `filelist = [f for f in os.listdir() if os.path.isfile(f)]` — one `for` clause, one `if`
+filter, no transform on the bound variable. Deliberately scoped to exactly that shape: no nested
+comprehensions, no multiple filters (zero corpus evidence for either, matching this whole track's
+"no speculative generality" discipline).
+
+**Design fork put to Neo via AskUserQuestion**: forward EML has zero bracket-keyword grammar to extend
+(unlike slice's reused `:` idiom — this really is new grammar territory). But EML has always copied
+Python's own control-flow keywords verbatim (`for...in`, `if/elif/else`, `try/except`, `with`, `class`)
+rather than inventing sigils — so doing the same for `[expr for x in iterable if cond]` isn't in the
+same category as `print`'s `end=` (which genuinely had no natural EML equivalent to reuse). **Neo chose
+bidirectional**: forward EML also learns the same comprehension syntax.
+
+**Key precedent found by direct research, not assumed**: `SumExpression` (Σ) already establishes
+"don't scope-track a bound variable at all, delegate to the target language's own non-leaking
+construct" — every semantic walker's `Sum` case recurses into `expr`/`range` but never touches
+`iterator`; it's never `declareIn()`'d anywhere. The forward Python emitter just emits a real Python
+generator expression, so Python's own PEP-289 non-leaking scoping does the work implicitly. A list
+comprehension's `iterator` gets the IDENTICAL non-treatment — no new scoping mechanism needed.
+
+**But this is not just new syntax over Σ's execution model** — `SumExpression.range` is typed
+`RangeExpression` specifically (the reverse parser's `parseSum()` hard-rejects any non-`Range`
+iterable); the real corpus need iterates `os.listdir()` (a `Call`, arbitrary iterable), a genuinely new
+capability. The interpreter already generalizes this for free: `iterableItems()` (used today by
+`ForIn`) already handles `list`/`tuple`/`str`, not just integers from a range.
+
+**Reverse-side precedence hazard, confirmed by direct reading before implementing**: the reverse
+parser's own ternary is real Python's `a if t else b` (`parseTernary()`, `checkName('if')`) — so
+parsing the comprehension's `iterable`/`condition` sub-expressions with full expression precedence
+would mis-consume a trailing `if` filter as a ternary's own `if`, then choke looking for `else`. Both
+are parsed one level below ternary (`parseOr()`) instead. The forward side has zero such hazard:
+forward EML's own ternary uses `?`/`:` (`parseConditional()`), never the `if`/`else` keyword form, so
+`iterable`/`condition` there use full `parseExpression()` safely.
+
+- **AST**: `ListComprehension { expr, iterator, iterable, condition? }` added to the `Expression` union
+  in `packages/types/src/ast.ts`, placed next to `SumExpression` (its closest conceptual sibling).
+- **Forward + reverse parsers**: both bracket-literal parsers (`parseBracket()`/`parseList()`) now check
+  for a `for` keyword right after the first expression — before falling back to their existing
+  `COLON`-for-Range (forward only) or comma-list-for-List behavior, all unchanged.
+- **Emitters**: Python/EML emitters both emit `[expr for iterator in iterable]` + ` if condition` when
+  present (mirroring Σ's `sum(expr for iterator in range)` shape). The C⁺⁺⁺ prototype REJECTS it —
+  unlike Σ, which the prototype DOES emit as a real for-loop (Σ only ever produces a scalar; a
+  comprehension produces a dynamically-sized, filtered/mapped result, outside this minimal numeric
+  prototype's scope).
+- **Semantic walkers**: all 7 mirror `Sum`'s exact existing case — recurse into `expr`/`iterable`/
+  `condition`, NEVER `iterator`. Re-ran `pnpm typecheck` right after the AST/parser/emitter changes to
+  confirm which files the compiler actually catches for a missing case: exactly one, again
+  (`interp/src/index.ts`'s `evalExpr`) — matching the slice round's finding exactly. Every walker case
+  was added manually rather than trusting the type checker.
+- **Interpreter**: new `evalListComp`, essentially `evalSum` with `iterableItems()` swapped in for
+  `rangeInts()` and a result list instead of a running sum, with an optional filter check per item.
+- **Tests**: new `tests/phase9-list-comprehension.test.ts` (15 tests) — forward parse of both forms
+  (with/without filter) plus regression checks that plain `List`/`Range` literals still parse
+  unchanged; forward-emit round-trip; real-Python execution parity for a transforming comprehension, a
+  filtering comprehension, and string iteration; **a dedicated test confirming the iterator does NOT
+  leak into the enclosing scope** (reading it afterward raises `NameError` in the interpreter, matching
+  real Python 3 exactly — this is a genuinely new scoping behavior no other EML construct has, since
+  `ForIn`'s target and `with`'s `as` target both stay bound after their block); C++ rejection plus a
+  self-recursion-hidden-inside-a-comprehension test (asserting the diagnostic says "Recursive function",
+  not a generic "not supported" message, proving `expressionCallsName`'s new case actually recurses);
+  reverse round-trip of the exact corpus line. **813 tests total** (up from 798). All passed on the
+  first run — no surprises this round.
+- **Verification**: a comprehension-bearing snippet went through the full real CLI pipeline (`eml
+  compress` → `eml roundtrip` → `eml run`) matching real Python exactly, byte-for-byte, for both a
+  transforming and a filtering comprehension. Separately compress/roundtrip-checked the exact
+  `os.listdir()`-shaped corpus line in isolation — passes cleanly at the syntax level.
+- **Honest corpus result — the LAST Phase 9 candidate closes out, but no new full pass**: re-running
+  the same 5 real B-6 corpus files, `Duplicate_files_remover`'s comprehension line now fully clears —
+  `eml compress` reconstructs the ENTIRE file up through it and beyond, stopping only at
+  `print("Deleted Files")`: a bare string-literal print argument, tripping the exact same pre-existing
+  "`^0` requires a bare identifier" limitation as the other 3 blocked files — just a third concrete
+  shape of it (a literal, not a call or a formatted expression this time). `Calculate_age`/
+  `Decimal_to_binary_convertor`/`Leap_Year_Checker` are unchanged (same blockers as last round).
+  `text_to_morse_code` keeps its full pass, no regression. **Every known Phase 9 language-extension
+  candidate discovered across this entire track is now closed** (items 1–8, plus `range(n)`, slice
+  syntax, and list comprehensions) — reverse direction has no known, unstarted language-gap candidate
+  left. **One observation worth recording, deliberately not acted on this round**: all 4 still-blocked
+  corpus files now share the IDENTICAL root cause (`^0`'s bare-identifier-only restriction) in
+  different concrete shapes. Whether to relax that restriction — and how far (string literals only? any
+  expression?) — is a genuinely new language-design decision for Neo to make, not something to
+  speculatively expand into on this round's own initiative.
 
 ## Non-obvious design decisions (the gotchas)
 

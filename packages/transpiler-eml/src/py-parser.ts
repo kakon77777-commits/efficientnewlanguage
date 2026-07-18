@@ -6,6 +6,7 @@ import type {
   RangeExpression,
   SumExpression,
   ListLiteral,
+  ListComprehension,
   DictLiteral,
   SetLiteral,
   SubscriptExpression,
@@ -708,16 +709,37 @@ class PyParser {
     throw new PyParseError(`Unexpected token ${t.type} ('${t.value}')`, t.line, t.column);
   }
 
-  private parseList(): ListLiteral {
+  /** `[]` (empty) / `[expr for x in iterable if cond]` (list comprehension) / `[1, 2, 3]` (list). */
+  private parseList(): ListLiteral | ListComprehension {
     this.expect('LBRACKET');
-    const elements: Expression[] = [];
-    if (!this.check('RBRACKET')) {
-      elements.push(this.parseExpr());
-      while (this.check('COMMA')) {
+    if (this.check('RBRACKET')) {
+      this.next();
+      return { type: 'List', elements: [] };
+    }
+    const first = this.parseExpr();
+    if (this.checkName('for')) {
+      this.next();
+      const iterTok = this.expect('NAME', 'comprehension iterator');
+      const iterator: Identifier = { type: 'Identifier', name: iterTok.value };
+      this.expectName('in');
+      // Parsed one level below ternary (parseOr, not parseExpr) — this parser's own
+      // ternary is real Python's `a if t else b` (parseTernary, checkName('if')), so a
+      // full-precedence parse here would mis-consume the comprehension's own `if`
+      // filter as a ternary's `if` and then choke looking for `else`.
+      const iterable = this.parseOr();
+      let condition: Expression | undefined;
+      if (this.checkName('if')) {
         this.next();
-        if (this.check('RBRACKET')) break; // trailing comma (Phase 9 item 7)
-        elements.push(this.parseExpr());
+        condition = this.parseOr();
       }
+      this.expect('RBRACKET', "']' after list comprehension");
+      return { type: 'ListComp', expr: first, iterator, iterable, condition };
+    }
+    const elements: Expression[] = [first];
+    while (this.check('COMMA')) {
+      this.next();
+      if (this.check('RBRACKET')) break; // trailing comma (Phase 9 item 7)
+      elements.push(this.parseExpr());
     }
     this.expect('RBRACKET');
     return { type: 'List', elements };

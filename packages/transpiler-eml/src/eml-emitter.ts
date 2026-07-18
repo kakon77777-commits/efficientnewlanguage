@@ -142,6 +142,10 @@ export function emitEmlExpression(expr: Expression): string {
       return `${child(expr.object, 9)}.${expr.attr}`;
     case 'Slice':
       return `${expr.start ? emitEmlExpression(expr.start) : ''}:${expr.stop ? emitEmlExpression(expr.stop) : ''}`;
+    case 'ListComp': {
+      const cond = expr.condition ? ` if ${emitEmlExpression(expr.condition)}` : '';
+      return `[${emitEmlExpression(expr.expr)} for ${expr.iterator.name} in ${emitEmlExpression(expr.iterable)}${cond}]`;
+    }
   }
 }
 
