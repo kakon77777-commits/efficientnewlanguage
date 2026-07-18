@@ -223,10 +223,26 @@ day too, also bidirectional — the last known Phase 9 candidate, closing
 out every language-extension gap discovered across this whole track. A
 new `ListComprehension` AST node shares `SumExpression`'s existing
 "never scope-track the bound iterator" precedent, but generalizes to any
-iterable (Σ is range-only). The 4 corpus files still short of a full B-6
-pass now all share one identical root cause in different shapes: EML's
-`^0` output can only print a bare identifier. Whether to relax that is
-an open, undecided design question (see `docs/roadmap.md`'s Phase 9).
+iterable (Σ is range-only). This closed out every known Phase 9
+language-extension candidate.
+
+**Core grammar relaxation, the same day again (not a Phase 9 item):**
+`^0` now accepts any expression, not just a bare identifier —
+`(a + b)^0`, `f(x)^0`, `"literal"^0` all work, forward and reverse. The
+fix turned out to be a small, two-file change (the forward parser's
+`OutputStatement` construction site, and `eml-emitter.ts`'s type check)
+thanks to an existing carve-out already in `parsePower()`: `CARET`
+immediately followed by the literal digit `0` was never consumed as a
+power operation, so a trailing `^0` always survives parsing intact
+regardless of the expression's shape. `print(x, end=...)` (item 5)
+remains a separate, still-fully-intact permanent limitation. Re-running
+the 5 real B-6 corpus files: `Decimal_to_binary_convertor`,
+`Duplicate_files_remover`, and `Leap_Year_Checker` all newly reach a
+full round-trip pass, joining `text_to_morse_code` — **4 of 5 tracked
+corpus files now fully pass**, up from 1. `Calculate_age` remains
+blocked only by item 5's `end=` limitation, unchanged. See
+`docs/roadmap.md`'s "Core 語法放寬" section.
+
 Arbitrary-Python compression (lossy, semantics-sensitive) remains an
 AI-assisted, suggestion-only layer for a later phase.
 

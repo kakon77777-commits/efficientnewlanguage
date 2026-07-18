@@ -189,7 +189,7 @@ OverlaySuffix  ::= "^" OverlayOperator OverlayPayload?
 OverlayOperator ::= "+" | "-" | "*" | "/" | "0" | "T"
 OverlayPayload ::= Expression
 
-OutputStatement ::= Identifier "^0"   (* operand must be a bare identifier *)
+OutputStatement ::= Expression "^0"   (* any expression, as of 2026-07-19 — see §5.3 *)
 
 (* ── Expressions ── *)
 Expression     ::= ConditionalExpression
@@ -325,17 +325,40 @@ by zero')`, the same literal message for int and float operands alike. String-fo
 
 ### 5.3 `^0` — output
 
-`x^0` → `print(x)`. The operand MUST be a bare identifier; `print(<expression>)` is not directly
-expressible — bind it first (`(a + b) => s` then `s^0`). (The reverse transpiler enforces the same
-restriction.)
+`x^0` → `print(x)`. **As of 2026-07-19, the operand may be any expression** — `(a + b)^0`, `f(x)^0`,
+`"literal"^0` — not just a bare identifier (§5.3's own prior text said the opposite; see the Core
+grammar relaxation note below). The reverse transpiler already parsed `print(<any expression>, end=...)`
+freely; the fix was in exactly two places — the forward parser's `OutputStatement` construction (only
+ever gated on a narrow `IDENT`+`CARET` lookahead before this round) and `eml-emitter.ts`'s `Output` case
+(which threw on a non-`Identifier` value). Safe to widen at any expression depth because of an existing
+carve-out in `parsePower()`: `CARET` immediately followed by the literal digit `0` is never consumed as
+a power operation, so a trailing `^0` always survives intact after `parseExpression()`, regardless of
+what precedes it.
 
-**Python's `print(x, end=...)` keyword argument is a deliberate, permanent, one-way exception (Phase
-9 item 5)**: the reverse transpiler recognizes and parses it (so it doesn't hit a confusing raw
-parser error), but `^0` has no forward EML syntax for a custom print terminator, and — asked
-directly, not decided unilaterally — none is being invented. So `eml compress` on a real Python
-program using `print(x, end=...)` always fails, with an explicit "EML cannot express print's `end`
-keyword argument" message, the same fail-loud treatment as `await`/`async`/numpy-in-C++. This is a
-precise diagnostic of where EML's expressible subset ends, not a partial or silent implementation.
+**Python's `print(x, end=...)` keyword argument remains a deliberate, permanent, one-way exception
+(Phase 9 item 5), untouched by this relaxation**: the reverse transpiler recognizes and parses it (so
+it doesn't hit a confusing raw parser error), but `^0` has no forward EML syntax for a custom print
+terminator, and — asked directly, not decided unilaterally — none is being invented. So `eml compress`
+on a real Python program using `print(x, end=...)` still always fails, with an explicit "EML cannot
+express print's `end` keyword argument" message (`eml-emitter.ts` checks this BEFORE the now-removed
+value-type check), the same fail-loud treatment as `await`/`async`/numpy-in-C++. This is a precise
+diagnostic of where EML's expressible subset ends, not a partial or silent implementation.
+
+**Core grammar relaxation, not a Phase 9 language-extension item (2026-07-19, same day again).** After
+Phase 9's language-extension track fully closed out (§5.14), re-running the 5 real B-6 corpus files
+showed the 4 still-blocked files sharing this ONE identical root cause in different shapes — a call
+(`Decimal_to_binary_convertor`'s `.format(...)`), a bare string literal (`Duplicate_files_remover`'s
+`print('Deleted Files')`), and a `%`-format binary expression (`Leap_Year_Checker`'s `.format()` — same
+category as a call — and `Calculate_age`'s `%`-expression, though that file's blocker is really `end=`).
+Unlike every other Phase 9 item, this touches `OutputStatement`'s own EBNF production directly
+(`docs/EML-LANG-2026-v1.0.md`'s Appendix grammar, now `OutputStatement ::= Expression "^0"`), not a
+corpus-driven addendum — Neo confirmed pursuing it, deferring the much larger EML-APL/Nova Operator IR
+bridge to its own future project. **Milestone**: re-running the same 5 real B-6 corpus files,
+`Decimal_to_binary_convertor`, `Duplicate_files_remover`, and `Leap_Year_Checker` ALL newly reach a full
+round-trip fixpoint — **4 of the 5 tracked corpus files now fully pass B-6**, up from 1
+(`text_to_morse_code`). `Calculate_age` remains blocked at its `end=""` line, exactly as expected (the
+separate, still-intact item 5 limitation) — confirmed via a dedicated regression test that this round
+did not silently touch that decision.
 
 ### 5.4 `^T` — transpose; `<M>` — matrix
 
@@ -990,6 +1013,15 @@ language-extension candidate is now closed** (items 1–8, plus `range(n)`, slic
 comprehensions) — the 4 still-blocked corpus files all now share this one identical root cause in
 different shapes. Whether to relax `^0`'s bare-identifier restriction — and how far — is a new,
 undecided language-design question, deliberately not opened this round.
+
+**Milestone (2026-07-19, same day again): relaxing `^0` to accept any expression (§5.3) — a Core
+grammar change, not a Phase 9 item — pushes 3 more corpus files to a full pass in one round.**
+`Decimal_to_binary_convertor`, `Duplicate_files_remover`, and `Leap_Year_Checker` ALL newly reach a full
+`eml roundtrip` fixpoint, joining `text_to_morse_code` — **4 of the 5 tracked B-6 corpus files now fully
+pass**, up from 1 just two rounds ago. `Calculate_age` remains blocked, exactly as expected: its first
+print statement has BOTH the now-fixed non-identifier-value issue AND the separate, still-fully-intact
+`print(x, end=...)` limitation (item 5) — `eml-emitter.ts` checks `end` before the value's type, so this
+file's blocker is unchanged, confirmed via a dedicated regression test.
 
 **Known whole-language boundary, not a Phase B2 gap**: neither transpilation direction has ever
 supported a bracketed literal (`[...]`, `{...}`, a call's `(...)`) spanning multiple physical lines —

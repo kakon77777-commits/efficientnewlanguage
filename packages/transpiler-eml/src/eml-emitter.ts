@@ -248,9 +248,6 @@ export function emitEmlStatement(stmt: Statement, bound: Set<string> = new Set()
           "EML cannot express print's 'end' keyword argument — there is no forward syntax for a custom print terminator.",
         );
       }
-      if (stmt.value.type !== 'Identifier') {
-        throw new EmlEmitError('EML output (^0) requires a bare identifier; cannot express print(<expression>).');
-      }
       return `${emitEmlExpression(stmt.value)}^0`;
     case 'ExpressionStatement':
       return emitEmlExpression(stmt.expression);

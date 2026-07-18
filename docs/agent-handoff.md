@@ -2031,6 +2031,110 @@ forward EML's own ternary uses `?`/`:` (`parseConditional()`), never the `if`/`e
   expression?) — is a genuinely new language-design decision for Neo to make, not something to
   speculatively expand into on this round's own initiative.
 
+## Core grammar relaxation — `^0` accepts any expression (2026-07-19, same day again)
+
+**Not a Phase 9 item** — deliberately not numbered into that track, because unlike every Phase 9
+candidate, this touches `OutputStatement`'s own EBNF production directly
+(`docs/EML-LANG-2026-v1.0.md`'s Appendix grammar, `OutputStatement ::= Identifier "^0"` → now
+`Expression "^0"`), a Core-language rule that predates Phase 9 entirely, not a corpus-driven addendum.
+Neo confirmed pursuing this specific fix after Phase 9 fully closed, deferring the much larger
+EML-APL/Nova Operator IR bridge (reviewed the same day from a separate whitepaper + package, see
+memory) to its own future project.
+
+**Direct research flipped the risk assessment from "core redesign" to "small, safe, two-file fix."**
+The restriction turned out to be enforced in exactly one place per direction, not scattered:
+
+- **Reverse** (`packages/transpiler-eml/src/py-parser.ts`'s `parsePrintStatement()`) already parsed
+  `print(<any expression>, end=...)` with zero type restriction on `value` — a real corpus print
+  statement already produced `Output{value: <any Expression>}` in the AST, no change needed.
+- The restriction was enforced ONLY by **`eml-emitter.ts`'s `Output` case**
+  (`if (stmt.value.type !== 'Identifier') throw ...`, re-serializing the AST back to EML text) and
+  **the forward parser**, which had literally no grammar production for `EXPR^0` where EXPR isn't a
+  bare identifier (`OutputStatement` was only ever constructed at one site, gated on
+  `this.check('IDENT') && this.peek(1).type === 'CARET'`).
+- The **AST** (`OutputStatement.value: Expression` — always general), the **forward Python emitter**
+  (`` `print(${emitExpression(stmt.value)})` ``), the **interpreter**
+  (`evalExpr(stmt.value, scope)`), and **all 7 semantic walkers** already treated `Output.value` as a
+  fully general `Expression` with zero identifier-specific logic anywhere — confirmed by reading every
+  one of their `Output`/`'^0'` cases directly. **Zero changes needed in any of them.**
+
+**The forward-parser widening turned out to be low-risk specifically because of an existing carve-out
+already in the grammar** — this is the key discovery that changed the whole plan. `parsePower()`
+(`packages/parser/src/parser.ts`) has always had:
+```ts
+private parsePower(): Expression {
+  const base = this.parsePostfix();
+  if (this.check('CARET')) {
+    const n = this.peek(1);
+    if (n.type === 'NUMBER' && Number(n.value) !== 0) { /* consume as Power */ }
+    if (n.type === 'IDENT' && n.value === 'T') { /* consume as Transpose */ }
+  }
+  return base;
+}
+```
+`Number(n.value) !== 0` is a deliberate existing exclusion: `CARET` immediately followed by the literal
+digit `0` is NEVER consumed as a power operation, at any depth of the precedence chain, regardless of
+how the surrounding expression is built (traced this through several real shapes by hand before
+implementing — a bare identifier, a parenthesized binary expression, a `%`-format binary expression
+nested inside `parseMultiplicative`, and a `Logical` `or` expression nested inside `parseConditional` —
+in every case the trailing `CARET NUMBER('0')` survives intact all the way back up to
+`parseExpression()`'s caller). This means the existing `parseStatement()` fallback
+(`const expr = this.parseExpression();`, the SAME path already shared by plain `ExpressionStatement`,
+`=>` assignment, and compound-assign) always leaves a trailing `^0` dangling after ANY expression —
+detecting it right there is a small, additive, unambiguous check, not a statement-dispatch rework. The
+existing narrow fast path (`IDENT` immediately followed by `CARET`, `classifyOverlay()`'s `'output'`
+branch) stays completely untouched, so the common case (`x^0`) has zero regression risk.
+
+**This also made "any expression" (not a narrower whitelist of just what the corpus needs) the natural
+scope, at zero extra cost** — restricting to specific expression types would need *additional* code (a
+type check to reject everything else) for no benefit, since the disambiguation is already uniform
+regardless of expression shape. There was no real design fork to present here once this was understood.
+
+**Confirmed via `roundTripFromPython`'s actual pipeline (`packages/transpiler-eml/src/index.ts`) that
+BOTH fixes are required, not optional** — unlike item 5's `print(end=)`, which is deliberately
+reverse-only forever. `roundTripFromPython` reverse-parses, emits EML text via `eml-emitter.ts`, THEN
+forward-parses that EML text via `transpileEmlToPython` and compares its Python re-emission against the
+canonical Python. Relaxing only `eml-emitter.ts` (letting it emit `EXPR^0` text) without teaching the
+forward parser to read it back would have made step 3 fail with a NEW "forward EML->Python failed"
+error instead of succeeding — bidirectional was mandatory here for the corpus KPI to move at all.
+
+- **The fix**: `packages/parser/src/parser.ts`'s `parseStatement()` fallback gained one new check right
+  after the existing `parseExpression()` call — a trailing `CARET` + `NUMBER('0')` produces
+  `{ type: 'Output', value: expr }`. `packages/transpiler-eml/src/eml-emitter.ts`'s `Output` case lost
+  its `stmt.value.type !== 'Identifier'` throw — now unconditionally emits
+  `${emitEmlExpression(stmt.value)}^0` (the `stmt.end !== undefined` check, item 5's permanent
+  limitation, stays first and unchanged).
+- **Two pre-existing tests hard-coded the OLD restriction as a passing assertion** — caught immediately
+  by re-running the full suite after the two-file fix, exactly as expected: `tests/reverse-regression.test.ts`
+  had a `'print of a compound expression'` case asserting `transpilePythonToEml('print(a + b)').ok`
+  is `false` — removed entirely (no longer an "inexpressible construct", the file's own stated purpose).
+  `tests/phase9-slice.test.ts` had a test from the slice round explicitly documenting the OLD
+  `Decimal_to_binary_convertor` limitation as an "honest, expected result" — flipped to assert full
+  round-trip success now, with a comment pointing at this round.
+- **Tests**: new `tests/phase9-output-any-expression.test.ts` (11 tests) — forward parse of a bare
+  string literal, a parenthesized binary expression, and a call expression, all producing the correct
+  `Output` shape; a plain `x^0` still parsing identically via the untouched fast path (regression);
+  real-Python execution parity for all three non-identifier shapes; reverse round-trip of the three
+  real corpus-exact print lines (`Duplicate_files_remover`'s bare string literal,
+  `Decimal_to_binary_convertor`'s `.format()` call, `Leap_Year_Checker`'s `.format()` call); and a
+  dedicated regression guard confirming `Calculate_age`'s real corpus line (non-identifier value AND
+  `end=`) still fails with the SAME `end=`-specific message as before — proving this round didn't
+  silently touch item 5's already-decided permanent limitation. **823 tests total** (up from 813,
+  net of the one removed obsolete test). All new tests passed on the first run.
+- **Verification**: a hand-written `.eml` file exercising all three non-identifier shapes went through
+  `eml run`, matching real Python byte-for-byte. A fresh `.py` file went through `eml compress` → `eml
+  roundtrip`, both succeeding — `eml compress`'s output didn't even need the defensive parens used in
+  the hand-written `.eml` test file (e.g. `s.format(n)^0`, no wrapping needed), confirming the
+  precedence-chain analysis held for the real emitted shape, not just the hand-traced cases.
+- **Milestone — honest corpus result**: re-running the same 5 real B-6 corpus files,
+  `Decimal_to_binary_convertor`, `Duplicate_files_remover`, and `Leap_Year_Checker` ALL newly reach a
+  full `eml roundtrip` pass, joining `text_to_morse_code` — **4 of the 5 tracked B-6 corpus files now
+  fully pass**, up from 1 just two rounds ago. `Calculate_age` remains blocked, exactly as predicted
+  before implementing: its first print statement has BOTH the now-fixed non-identifier-value issue AND
+  the separate, still-fully-intact `print(x, end=...)` limitation (item 5) — `eml-emitter.ts` checks
+  `end` before the value's type, so this file's blocker is completely unchanged, confirmed by the
+  dedicated regression test rather than just assumed.
+
 ## Non-obvious design decisions (the gotchas)
 
 ### 1. Two-stage AST: `OverlayAssign` is resolved by semantics

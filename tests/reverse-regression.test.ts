@@ -15,10 +15,6 @@ describe('reverse path rejects inexpressible constructs', () => {
   it('power with exponent 0 (collides with ^0 output)', () => {
     expect(transpilePythonToEml('y = x ** 0').ok).toBe(false);
   });
-  it('print of a compound expression', () => {
-    expect(transpilePythonToEml('print(a + b)').ok).toBe(false);
-    expect(transpilePythonToEml('print(f(x))').ok).toBe(false);
-  });
   it('augmented assignment with a compound RHS', () => {
     expect(transpilePythonToEml('x += a + b').ok).toBe(false);
   });

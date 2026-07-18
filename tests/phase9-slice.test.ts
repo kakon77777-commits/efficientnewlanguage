@@ -188,12 +188,11 @@ describe('Phase 9 — reverse Python->EML: slice round-trip', () => {
     expect(rt.ok, rt.message + '\n' + JSON.stringify(rt.steps, null, 2)).toBe(true);
   });
 
-  it('the EXACT Decimal_to_binary_convertor line still fails — but on the pre-existing '
-    + '"bare identifier only" print restriction, not on slice (honest, expected result)', () => {
+  it('the EXACT Decimal_to_binary_convertor line round-trips fully (once a separate, later '
+    + 'round relaxed `^0`\'s bare-identifier restriction — see phase9-output-any-expression.test.ts)', () => {
     const py = 'dec = 10\nbinary = bin(dec)[2:]\nprint("Binary: {}".format(binary))\n';
     const rt = roundTripFromPython(py);
-    expect(rt.ok).toBe(false);
-    expect(rt.message).toContain('EML output (^0) requires a bare identifier');
+    expect(rt.ok, rt.message + '\n' + JSON.stringify(rt.steps, null, 2)).toBe(true);
   });
 
   it('reverse-parses `bin(dec)[2:]` directly into a Subscript/Slice shape', () => {

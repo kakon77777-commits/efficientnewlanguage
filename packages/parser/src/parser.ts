@@ -261,6 +261,16 @@ class Parser {
       const value = this.parseExpression();
       return { type: 'AugmentedAssign', target, op: compoundOp, value };
     }
+    // `EXPR^0` for any expression, not just a bare identifier (the narrow
+    // `IDENT`+`CARET` fast path above already handles that common case). Safe
+    // and unambiguous at any precedence depth: `parsePower()` never consumes a
+    // `CARET` immediately followed by the literal digit `0` as a power
+    // operation, so `parseExpression()` always leaves it dangling here.
+    if (this.check('CARET') && this.peek(1).type === 'NUMBER' && this.peek(1).value === '0') {
+      this.next(); // CARET
+      this.next(); // NUMBER 0
+      return { type: 'Output', value: expr };
+    }
     return { type: 'ExpressionStatement', expression: expr };
   }
 
