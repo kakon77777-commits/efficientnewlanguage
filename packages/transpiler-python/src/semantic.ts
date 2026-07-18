@@ -190,6 +190,10 @@ export function analyzeSemantics(
       case 'Attribute':
         collectExpr(expr.object);
         break;
+      case 'Slice':
+        if (expr.start) collectExpr(expr.start);
+        if (expr.stop) collectExpr(expr.stop);
+        break;
       case 'Identifier':
       case 'NumberLiteral':
       case 'StringLiteral':

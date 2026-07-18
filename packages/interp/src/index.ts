@@ -269,8 +269,20 @@ function runProgram(
         return DICT(expr.entries.map((e) => ({ key: evalExpr(e.key, scope), value: evalExpr(e.value, scope) })));
       case 'Set':
         return SET(expr.elements.map((e) => evalExpr(e, scope)));
-      case 'Subscript':
-        return subscriptGet(evalExpr(expr.object, scope), evalExpr(expr.index, scope));
+      case 'Subscript': {
+        const obj = evalExpr(expr.object, scope);
+        if (expr.index.type === 'Slice') {
+          const start = expr.index.start ? evalExpr(expr.index.start, scope) : undefined;
+          const stop = expr.index.stop ? evalExpr(expr.index.stop, scope) : undefined;
+          return sliceGet(obj, start, stop);
+        }
+        return subscriptGet(obj, evalExpr(expr.index, scope));
+      }
+      case 'Slice':
+        // Only ever meaningful as a Subscript's `index` (intercepted above before
+        // falling through to a bare evalExpr call) — reaching this case bare would
+        // be an EML-internal invariant violation, not a modeled Python error.
+        throw new Error('internal error: bare Slice expression outside Subscript');
       case 'Attribute': {
         // A bare Identifier object may be an unbound module name (`math`) —
         // resolve via readVar (never throws) rather than evalExpr, so that
@@ -303,7 +315,13 @@ function runProgram(
       return v;
     }
     if (target.type === 'Subscript') {
-      return subscriptGet(evalExpr(target.object, scope), evalExpr(target.index, scope));
+      const obj = evalExpr(target.object, scope);
+      if (target.index.type === 'Slice') {
+        const start = target.index.start ? evalExpr(target.index.start, scope) : undefined;
+        const stop = target.index.stop ? evalExpr(target.index.stop, scope) : undefined;
+        return sliceGet(obj, start, stop);
+      }
+      return subscriptGet(obj, evalExpr(target.index, scope));
     }
     // Attribute target read (part of `+=` etc.) — same defer as evalExpr's Attribute case.
     return evalExpr(target, scope);
@@ -316,6 +334,16 @@ function runProgram(
       return;
     }
     if (target.type === 'Subscript') {
+      if (target.index.type === 'Slice') {
+        // Real Python supports slice assignment (splicing an iterable into a
+        // sub-range) — genuinely valid, just not modeled by this interpreter
+        // (no corpus evidence needs it). Defer rather than silently misinterpreting
+        // the Slice as a plain index.
+        throw new Unsupported(
+          'slice assignment',
+          'obj[a:b] = ... runs only under a real Python runtime (not modeled by the interpreter yet)',
+        );
+      }
       subscriptSet(evalExpr(target.object, scope), evalExpr(target.index, scope), value);
       return;
     }
@@ -944,6 +972,36 @@ function subscriptGet(obj: PyVal, index: PyVal): PyVal {
     return entry.value;
   }
   throw new PyError('TypeError', `'${typeName(obj)}' object is not subscriptable`);
+}
+
+/** Resolve a slice bound's PyVal to a plain number (Phase 9) — int/bool only, like `normalizeIndex`. */
+function sliceIndexNumber(v: PyVal): number {
+  if (v.k === 'int') return Number(v.v);
+  if (v.k === 'bool') return v.v ? 1 : 0;
+  throw new PyError('TypeError', `slice indices must be integers, not ${typeName(v)}`);
+}
+
+/** Clamp a slice bound into `[0, length]`, resolving a negative index and defaulting to
+ *  `fallback` when the bound is omitted — Python slicing never raises `IndexError` for an
+ *  out-of-range bound, unlike a plain `obj[i]` subscript. */
+function clampSliceBound(v: PyVal | undefined, length: number, fallback: number): number {
+  if (v === undefined) return fallback;
+  const raw = sliceIndexNumber(v);
+  const resolved = raw < 0 ? raw + length : raw;
+  return Math.max(0, Math.min(length, resolved));
+}
+
+/** `obj[start:stop]` read (Phase 9) — list/tuple/str only, no step form (see `SliceExpression`). */
+function sliceGet(obj: PyVal, startVal: PyVal | undefined, stopVal: PyVal | undefined): PyVal {
+  let length: number;
+  if (obj.k === 'list' || obj.k === 'tuple') length = obj.v.length;
+  else if (obj.k === 'str') length = [...obj.v].length;
+  else throw new PyError('TypeError', `'${typeName(obj)}' object is not subscriptable`);
+  const start = clampSliceBound(startVal, length, 0);
+  const stop = clampSliceBound(stopVal, length, length);
+  if (obj.k === 'str') return STR([...obj.v].slice(start, stop).join(''));
+  if (obj.k === 'list') return LIST(obj.v.slice(start, stop));
+  return TUPLE(obj.v.slice(start, stop));
 }
 
 /** `obj[index] = value` write (Phase 7b) — list (in place) + dict (insert-or-update). */

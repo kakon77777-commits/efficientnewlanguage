@@ -130,6 +130,10 @@ function scanExpression(expr: Expression, effects: string[], userFns: Set<string
       // only the Call case above treats an attribute *call* as one.
       scanExpression(expr.object, effects, userFns);
       break;
+    case 'Slice':
+      if (expr.start) scanExpression(expr.start, effects, userFns);
+      if (expr.stop) scanExpression(expr.stop, effects, userFns);
+      break;
     case 'Identifier':
     case 'NumberLiteral':
     case 'StringLiteral':
@@ -289,6 +293,10 @@ function collectCallsExpr(expr: Expression, into: Set<string>): void {
       break;
     case 'Attribute':
       collectCallsExpr(expr.object, into);
+      break;
+    case 'Slice':
+      if (expr.start) collectCallsExpr(expr.start, into);
+      if (expr.stop) collectCallsExpr(expr.stop, into);
       break;
     default:
       break;

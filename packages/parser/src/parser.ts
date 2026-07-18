@@ -25,6 +25,7 @@ import type {
   SetLiteral,
   SubscriptExpression,
   AttributeExpression,
+  SliceExpression,
   ImportStatement,
   AssignTarget,
   ExceptHandler,
@@ -695,10 +696,21 @@ class Parser {
         expr = call;
       } else if (t.type === 'LBRACKET') {
         this.next(); // [
-        const index = this.parseExpression();
-        this.expect('RBRACKET', "']' after subscript index");
-        const sub: SubscriptExpression = { type: 'Subscript', object: expr, index };
-        expr = sub;
+        let start: Expression | undefined;
+        if (!this.check('COLON')) start = this.parseExpression();
+        if (this.check('COLON')) {
+          this.next();
+          let stop: Expression | undefined;
+          if (!this.check('RBRACKET')) stop = this.parseExpression();
+          this.expect('RBRACKET', "']' after slice");
+          const slice: SliceExpression = { type: 'Slice', start, stop };
+          const sub: SubscriptExpression = { type: 'Subscript', object: expr, index: slice };
+          expr = sub;
+        } else {
+          this.expect('RBRACKET', "']' after subscript index");
+          const sub: SubscriptExpression = { type: 'Subscript', object: expr, index: start! };
+          expr = sub;
+        }
       } else if (t.type === 'DOT') {
         this.next(); // .
         const attrTok = this.expect('IDENT', 'attribute name');

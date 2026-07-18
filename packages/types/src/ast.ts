@@ -166,7 +166,8 @@ export interface SetLiteral extends NodeBase {
   elements: Expression[];
 }
 
-/** `obj[index]`, e.g. `d["k"]`, `lst[0]`, `lst[-1]`. Phase 7b. */
+/** `obj[index]`, e.g. `d["k"]`, `lst[0]`, `lst[-1]`. Phase 7b. `index` may also be a
+ *  `SliceExpression` (Phase 9). */
 export interface SubscriptExpression extends NodeBase {
   type: 'Subscript';
   object: Expression;
@@ -178,6 +179,15 @@ export interface AttributeExpression extends NodeBase {
   type: 'Attribute';
   object: Expression;
   attr: string;
+}
+
+/** `obj[start:stop]`, e.g. `bin(dec)[2:]`. Either bound may be omitted (Python slice syntax) —
+ *  only ever valid as a `Subscript`'s `index`. No step form: EML's own `[a:b]` Range has no step
+ *  concept, and no corpus evidence needs one. Phase 9. */
+export interface SliceExpression extends NodeBase {
+  type: 'Slice';
+  start?: Expression;
+  stop?: Expression;
 }
 
 export type Expression =
@@ -202,7 +212,8 @@ export type Expression =
   | DictLiteral
   | SetLiteral
   | SubscriptExpression
-  | AttributeExpression;
+  | AttributeExpression
+  | SliceExpression;
 
 /**
  * The shapes an assignment (`=>` arrow form, or a compound `+=`/`-=`/`*=`/`/=`)

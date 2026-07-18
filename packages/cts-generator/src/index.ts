@@ -135,6 +135,10 @@ function collectIdents(expr: Expression, acc: Set<string>): void {
     case 'Attribute':
       collectIdents(expr.object, acc);
       break;
+    case 'Slice':
+      if (expr.start) collectIdents(expr.start, acc);
+      if (expr.stop) collectIdents(expr.stop, acc);
+      break;
   }
 }
 

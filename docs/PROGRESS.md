@@ -91,6 +91,36 @@
 
 ## 工作日誌（新到舊）
 
+- **2026-07-19** — 完成**未編號候選：Python 切片語法（`obj[a:b]`），雙向**。直接抓了真實語料
+  （`Python-World/python-mini-projects` 的 `decimal_to_binary.py`）確認 `Decimal_to_binary_convertor`
+  唯一需要的形式是 `bin(dec)[2:]`——只有起點。跟列表推導式比較過規模後選的：列表推導式還要從零
+  設計 `if` 過濾子句文法（這個專案裡沒有先例）+ 一個不能外洩迴圈變數的全新作用域規則，切片只需要
+  兩個可省略的子運算式，是較小的候選。**設計決定交給 Neo（AskUserQuestion）**：正向 EML 的 postfix
+  `obj[...]` 原本完全沒有冒號偵測，這個文法位置是空的、沒有衝突風險——Neo 選擇**雙向都做**，正向
+  EML 也學會 `obj[a:b]`／`obj[a:]`／`obj[:b]`／`obj[:]`。新增 `SliceExpression` AST 節點（`start`/
+  `stop` 皆可省略）——**沒有重用既有的 `RangeExpression`**：Range 的邊界都必填、語意也不同（切片是
+  從既有序列取子序列，Range 是產生一串整數給迭代用）。貫穿 7 個語意分析 walker + 直譯器 + 3 份
+  emitter。**動工中發現一個值得記住的風險**：這 7 個 walker 裡有兩個是**非窮盡的**（`purity.ts`
+  的 `collectCallsExpr` 有 `default:` 分支，另外幾個是 void 回傳、TypeScript 不會強制窮盡）——
+  `pnpm typecheck` 在只做完 AST/parser/emitter 之後只抓到 1 個編譯錯誤（直譯器的 `evalExpr`），這
+  7 個 walker 完全沒被編譯器攔到，漏加 `case 'Slice'` 會是靜默的分析缺口、不是編譯錯誤，所以每個
+  都手動補上，風險較高的那個（`collectCallsExpr`）額外寫了專屬測試鎖住（把遞迴呼叫藏進切片邊界裡，
+  斷言 C++ 後端真的抓到「Recursive function」而不是漏抓後才卡在「Subscript access」）。直譯器的
+  `sliceGet` 做真正的 Python 切片語意（負索引、越界永遠 clamp、不丟 `IndexError`——這是切片跟一般
+  subscript 索引的關鍵語意差異）。切片賦值（`lst[a:b] = ...`）刻意排除，直譯器遇到時丟
+  `Unsupported`，不是靜默誤處理。798 測試（原 776）。全新字串/列表切片、負索引、越界 clamp 片段做
+  了完整 CLI 端到端驗證（`eml compress` → `eml roundtrip` → `eml run`，輸出跟真實 Python 逐位元組
+  一致）——過程中抓到一個測試方法上的失誤並修正：`eml run <file>` 一律把 `<file>` 當作 EML 原始碼
+  解析（走 `transpileEmlToPython`），不是真實 Python，直接餵一個 `.py` 檔案進去不會乾淨報錯，而是
+  靜默把裸 `=` 解析成別的東西；真正吃真實 `.py` 檔案的是 `eml compress`／`eml roundtrip`。**誠實
+  重新量測同 5 個真實檔案**：`Decimal_to_binary_convertor` 的切片本身完全解除——`eml compress` 不
+  再卡在 `bin(dec)[2:]`——但**沒有達成第二個完整通過**（跟規劃時的樂觀預期不同）：卡點那一行把切片
+  結果包進 `.format()` 再直接 `print()`，命中一個完全獨立、早就存在的既有限制——EML 的 `^0` 只能
+  印裸變數，不能表達 `print(<運算式>)`（跟 `Calculate_age` 卡住的 `print(x, end=...)` 同一類）。
+  `Leap_Year_Checker` 卡點也是同一個既有限制，跟切片無關。`Duplicate_files_remover` 仍卡在列表
+  推導式；`text_to_morse_code` 維持上一輪的完整通過，沒有回歸。反向方向現在只剩**一個**未編號的
+  獨立候選：列表推導式。詳見 `docs/agent-handoff.md`「Phase 9」章節、`docs/EML-LANG-2026-v1.0.md`
+  §5.13、§9。
 - **2026-07-19** — 完成**未編號候選：`range(n)` 單參數簡寫**，並達成**一個重要里程碑：
   `text_to_morse_code` 第一次完整通過 `eml roundtrip`（往返不動點達成，`python == canonical`）**
   ——這是 Phase 9 語言擴充支線追蹤至今的 5 個真實 B-6 語料檔案裡，第一個真正完整通過的。直接比較過
@@ -542,11 +572,23 @@ AST/語意層/emitter/直譯器改動，整個修正只在 `packages/transpiler-
 開工以來，5 個追蹤中的真實語料檔案裡，第一個完整通過 `eml roundtrip`（`python == canonical` 
 fixpoint）的檔案**，用 CLI 直接驗證（`eml compress` → `eml roundtrip` 顯示 `OK ✓`）。
 
-反向方向現在只剩兩個從未編號的獨立候選：`and`/`or` 那輪發現的 `Decimal_to_binary_convertor` 卡住的
-Python 序列切片 `bin(dec)[2:]`（中等規模，需要新 `SliceExpression` AST 節點 + 貫穿全分析層）、`with`
-那輪發現的 `Duplicate_files_remover` 卡住的**列表推導式** `[expr for x in iterable if cond]`（中至
-大規模，需要新 AST 節點 + 從零設計 `if` 過濾子句文法，這個專案裡沒有先例）。這兩個都還沒排進任何
-Phase 9 編號項目，值得提醒 Neo 之後決定要不要補新項目、優先序為何、下一項選哪個。次要候選（皆為
+**同日（2026-07-19）再完成這輪的未編號候選：Python 切片語法，雙向**——跟列表推導式比較過規模後選的
+（列表推導式還要從零設計 `if` 過濾子句文法+不外洩迴圈變數的新作用域規則，切片只需要兩個可省略的子
+運算式，較小）。新增 `SliceExpression` AST 節點（沒有重用 `RangeExpression`，因為 Range 邊界都必填、
+語意也不同），貫穿 7 個語意分析 walker + 直譯器 + 3 份 emitter。**設計決定交給 Neo（AskUserQuestion）**：
+正向 EML 的 postfix `obj[...]` 原本沒有冒號偵測，這個文法位置是空的，Neo 選擇雙向都做（`obj[a:b]`／
+`obj[a:]`／`obj[:b]`／`obj[:]` 正向也支援）。**動工中發現一個值得記住的風險**：7 個 walker 裡有兩個
+是非窮盡的（有 `default:` 分支或 void 回傳），`pnpm typecheck` 完全抓不到漏加的 `case`，每個都手動
+補上並用專屬測試驗證。798 測試（原 776）。全新 CLI 端到端驗證通過。**誠實重新量測同 5 個真實檔案**：
+`Decimal_to_binary_convertor` 的切片本身完全解除，但**沒有達成第二個完整通過**（跟規劃時的樂觀預期
+不同）——卡點那一行把切片結果包進 `.format()` 再直接 `print()`，命中一個完全獨立、早就存在的既有
+限制（EML 的 `^0` 只能印裸變數，跟 `Calculate_age` 卡住的 `print(x, end=...)` 同一類）。
+`Leap_Year_Checker` 卡點也是同一個既有限制，跟切片無關；`Duplicate_files_remover` 仍卡在列表推導式；
+`text_to_morse_code` 維持完整通過，沒有回歸。
+
+反向方向現在只剩**一個**從未編號的獨立候選：`with` 那輪發現的 `Duplicate_files_remover` 卡住的
+**列表推導式** `[expr for x in iterable if cond]`（中至大規模，需要新 AST 節點 + 從零設計 `if`
+過濾子句文法，這個專案裡沒有先例）。是否投入、何時投入需要 Neo 決定。次要候選（皆為
 純工程、不需要商業判斷或品牌素材）：A-3 好裝好跑（npm 發佈/`npx eml`，注意實際 `npm publish` 需要
 Neo 明確授權）、多做幾個真實移植案例（A-4，目前 2 個)、B-5 的 fuzz/property testing 缺口。E-11
 開放核心定價需要商業判斷，非工程可單方面決定，暫不主動動工。

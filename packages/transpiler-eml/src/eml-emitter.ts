@@ -140,6 +140,8 @@ export function emitEmlExpression(expr: Expression): string {
       return `${child(expr.object, 9)}[${emitEmlExpression(expr.index)}]`;
     case 'Attribute':
       return `${child(expr.object, 9)}.${expr.attr}`;
+    case 'Slice':
+      return `${expr.start ? emitEmlExpression(expr.start) : ''}:${expr.stop ? emitEmlExpression(expr.stop) : ''}`;
   }
 }
 

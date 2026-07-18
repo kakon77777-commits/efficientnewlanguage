@@ -94,6 +94,10 @@ function scanStatementExpr(stmt: Statement, visit: (e: Expression) => void): voi
       case 'Attribute':
         walk(e.object);
         break;
+      case 'Slice':
+        if (e.start) walk(e.start);
+        if (e.stop) walk(e.stop);
+        break;
       default:
         break;
     }

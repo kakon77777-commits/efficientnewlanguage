@@ -482,6 +482,49 @@ real-world Python style), included in the same round rather than deferred since 
 and tiny, unlike the larger, independent real-corpus gaps discovered elsewhere and tracked in
 `docs/roadmap.md` (Python slice syntax, list comprehensions, and `range(n)`'s single-argument form).
 
+### 5.13 Slice syntax (Phase 9, bidirectional)
+
+`obj[start:stop]` — either bound may be omitted (`obj[a:]`, `obj[:b]`, `obj[:]`), no step form. A new
+`SliceExpression { start?, stop? }` node, used only as a `Subscript`'s `index` — deliberately NOT a
+reuse of `RangeExpression` (whose `start`/`end` are mandatory and represent a different operation:
+generating a sequence of integers to iterate over, vs. selecting a sub-sequence of an existing
+collection). Real corpus need, directly verified against the source file
+(`Python-World/python-mini-projects`'s `decimal_to_binary.py`): exactly one form,
+`bin(dec)[2:]` — start only. **Bidirectional by explicit choice**: unlike `range(n)`/`print(end=)`,
+forward EML's postfix `obj[...]` had zero colon-detection before this round (`parsePostfix()`'s
+`LBRACKET` branch always parsed a single expression) — an empty, collision-free grammar slot, so
+Neo chose to teach forward EML the same slice forms, not just the reverse transpiler.
+
+```eml
+lst^+[1, 2, 3, 4, 5]
+lst[1:3] => sub
+sub^0
+lst[-2:] => neg
+neg^0
+```
+→
+```python
+lst = [1, 2, 3, 4, 5]
+sub = lst[1:3]
+print(sub)
+neg = lst[-2:]
+print(neg)
+```
+
+* **Semantics** (interpreter): a real Python slice — negative bounds resolve relative to length, and
+  an out-of-range bound **clamps** rather than raising `IndexError` (the key semantic difference from
+  a plain `obj[i]` subscript, where an out-of-range index DOES raise). Works over `list`/`tuple`/`str`.
+* **Slice assignment is out of scope** (`lst[a:b] = other` — real Python splices an iterable into a
+  sub-range, a different operation with zero corpus evidence): the interpreter raises `Unsupported`
+  (defers to a real Python run) rather than silently misinterpreting the `Slice` index as a plain one.
+* **Vertical slice, mirroring `RangeExpression`'s existing handling almost field-for-field** (its
+  `start`/`stop` are optional, `Range`'s `start`/`end` are not) across all 7 semantic walkers, the
+  interpreter, and 3 emitters (the C⁺⁺⁺ prototype rejects it, matching `Range`'s own rejection). Two of
+  those walkers (`purity.ts`'s `collectCallsExpr`, `importance.ts`'s `walkExpr`) are **non-exhaustive**
+  (a `default:` fallback, or a void return type TypeScript does not check for exhaustiveness) — a
+  missing case there is a silent under-analysis bug, not a compile error, so each got a dedicated test
+  (the C++ self-recursion-hidden-inside-a-slice-bound test) rather than relying on `pnpm typecheck`.
+
 ---
 
 ## 6. Functions, cold/hot, crystallization, importance (Phase 2)
@@ -835,11 +878,14 @@ of the round-trip invariant) are `@temporal_loop` and `async`/`await`. **As of P
 triple-quoted strings (§5.11) round-trip as well; the same day (item 6), `with`/context managers
 (§6's "Phase 9 item 6" subsection) round-trip too; as of 2026-07-19 (item 7), multi-line bracketed
 literals and trailing commas (§5.12) round-trip too; the same day, Python's `range(n)` single-
-argument shorthand (implicit start `0`) also round-trips** — each a genuinely new (or, for `%`,
-meaningfully extended, or for item 7/`range(n)`, purely lexical/parser-level with no new AST node)
-expression/statement kind added AFTER the reverse-transpiler effort concluded, as items of a separate
-language-extension track (real B-6 corpus gaps beyond grammar completeness); both directions were
-built together for each of these, unlike Phase A–E2's reverse-only rounds. (Item 5,
+argument shorthand (implicit start `0`) also round-trips; the same day again, Python slice syntax
+(`obj[a:b]`/`obj[a:]`/`obj[:b]`/`obj[:]`, §5.13) round-trips too — bidirectional, unlike `range(n)`:
+forward EML's postfix `obj[...]` had no colon-detection at all before this round, an empty grammar
+slot with no collision risk, so it now supports the same slice forms as the reverse side** — each a
+genuinely new (or, for `%`, meaningfully extended, or for item 7/`range(n)`, purely lexical/parser-level
+with no new AST node) expression/statement kind added AFTER the reverse-transpiler effort concluded, as
+items of a separate language-extension track (real B-6 corpus gaps beyond grammar completeness); both
+directions were built together for each of these, unlike Phase A–E2's reverse-only rounds. (Item 5,
 `print(x, end=...)`, is the one deliberate EXCEPTION — reverse-only by explicit choice, since it would
 otherwise require inventing new forward EML syntax; see §5.3.)
 
@@ -863,6 +909,16 @@ error. Also note: the reverse path treats a bare `import functools` as auto-gene
 never reconstructs it as a literal EML import — the forward semantic analyzer auto-synthesizes
 exactly this import whenever a non-async `@cold` function exists, independent of any user-authored
 import, so preserving it literally would duplicate it on the next forward pass.
+**Honest result, slice round (2026-07-19, same day again): no second full pass, but genuine progress.**
+Slice syntax fully clears `Decimal_to_binary_convertor`'s `bin(dec)[2:]` line — `eml compress` no
+longer stops there — but the file still does not reach a full round-trip fixpoint, because that same
+line wraps the slice result in `.format(...)` and prints the call directly
+(`print("Binary: {}".format(bin(dec)[2:]))`), tripping a wholly separate, pre-existing limitation:
+EML's `^0` output statement can only express a bare identifier, never an inline expression/call (the
+same category as `Calculate_age`'s `print(x, end=...)` block — see §5.3). `Leap_Year_Checker` hits the
+same pre-existing limitation, unrelated to slicing. `Duplicate_files_remover` is still blocked on list
+comprehensions. `text_to_morse_code` keeps its full pass from last round, unaffected.
+
 **Known whole-language boundary, not a Phase B2 gap**: neither transpilation direction has ever
 supported a bracketed literal (`[...]`, `{...}`, a call's `(...)`) spanning multiple physical lines —
 confirmed via a real corpus test (a genuine third-party Python file whose dict literal is written

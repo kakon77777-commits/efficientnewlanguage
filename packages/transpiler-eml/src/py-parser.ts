@@ -10,6 +10,7 @@ import type {
   SetLiteral,
   SubscriptExpression,
   AttributeExpression,
+  SliceExpression,
   ComparisonOperator,
   BinaryOperator,
   IfStatement,
@@ -613,9 +614,19 @@ class PyParser {
         expr = { type: 'Call', callee: expr, args };
       } else if (this.check('LBRACKET')) {
         this.next(); // [
-        const index = this.parseExpr();
-        this.expect('RBRACKET', "']' after subscript index");
-        expr = { type: 'Subscript', object: expr, index };
+        let start: Expression | undefined;
+        if (!this.check('COLON')) start = this.parseExpr();
+        if (this.check('COLON')) {
+          this.next();
+          let stop: Expression | undefined;
+          if (!this.check('RBRACKET')) stop = this.parseExpr();
+          this.expect('RBRACKET', "']' after slice");
+          const slice: SliceExpression = { type: 'Slice', start, stop };
+          expr = { type: 'Subscript', object: expr, index: slice };
+        } else {
+          this.expect('RBRACKET', "']' after subscript index");
+          expr = { type: 'Subscript', object: expr, index: start! };
+        }
       } else if (this.check('DOT')) {
         this.next(); // .
         const attrTok = this.expect('NAME', 'attribute name');

@@ -107,6 +107,10 @@ function walkExpr(expr: Expression, bound: Set<string>, onCall: (name: string) =
       // A bare attribute READ (not a call) isn't itself a call site.
       walkExpr(expr.object, bound, onCall);
       break;
+    case 'Slice':
+      if (expr.start) walkExpr(expr.start, bound, onCall);
+      if (expr.stop) walkExpr(expr.stop, bound, onCall);
+      break;
     default:
       break;
   }

@@ -1215,7 +1215,7 @@ than Phase B1.
   reverse Python→EML transpiler effort is now complete**: only `@temporal_loop`, `async`/`await`, and
   the permanent `@hot` exception remain outside the round-trip invariant.
 
-## Phase 9 — real-corpus language extension (item 1: `and`/`or`, item 2: `%`, item 8: `not`, item 3a: tuple + `%`-format, item 4: triple-quoted strings, item 5: `print(x, end=...)`, item 6: `with`, item 7: multi-line brackets, `range(n)` single-arg)
+## Phase 9 — real-corpus language extension (item 1: `and`/`or`, item 2: `%`, item 8: `not`, item 3a: tuple + `%`-format, item 4: triple-quoted strings, item 5: `print(x, end=...)`, item 6: `with`, item 7: multi-line brackets, `range(n)` single-arg, slice syntax)
 
 Re-measuring the same 5 real B-6 corpus files after Phase 8's completion exposed that
 `Decimal_to_binary_convertor` and `Leap_Year_Checker` are blocked by a genuine LANGUAGE-level gap,
@@ -1856,6 +1856,95 @@ corpus files' `range(...)` calls confirmed zero use of a 3rd argument anywhere.
   `Duplicate_files_remover`, `Leap_Year_Checker`) each still have their own real, open, previously-
   documented gaps — no change. Reverse direction now has exactly two open, unnumbered candidates left:
   Python slice syntax and list comprehensions, neither started, priority undecided.
+
+### Python slice syntax (2026-07-19, same day again) — bidirectional, by Neo's explicit choice
+
+Directly fetched the real corpus file (`Python-World/python-mini-projects`'s
+`Decimal_to_binary_convertor_and_vice_versa/decimal_to_binary.py`) before scoping anything, per this
+project's "never fabricate corpus claims" discipline — confirmed the file's entire slice usage is one
+form, `bin(dec)[2:]` (start only, no stop, no step). Compared against list comprehensions (the other
+remaining candidate): comprehensions need a new `Expression` node PLUS a never-before-designed `if`
+filter-clause grammar PLUS a nested scope that must NOT leak its bound variable (unlike every existing
+EML construct) — genuinely bigger. Slice needs a new `Expression` node too (the same 7-walker/
+interpreter/3-emitter vertical slice `Tuple`/`Not` already paid for), but its `start`/`stop` are just
+two optional sub-expressions, mirroring `RangeExpression`'s existing `start`/`end` handling in every
+one of those files almost line-for-line — the smaller candidate.
+
+**Design fork put to Neo via AskUserQuestion** (a genuine new-forward-syntax decision, same class as
+item 5's `print(end=)` fork): forward EML's postfix `obj[...]` had zero colon-detection before this
+round (`parsePostfix()`'s `LBRACKET` branch always parsed a single expression, in both
+`packages/parser/src/parser.ts` and `packages/transpiler-eml/src/py-parser.ts`) — an empty grammar
+slot, no collision risk with anything existing. Neo chose **bidirectional**: forward EML also learns
+`obj[a:b]`/`obj[a:]`/`obj[:b]`/`obj[:]`, not just the reverse transpiler (unlike `range(n)`, where
+forward EML has no `range(...)` call syntax at all to extend).
+
+**Why a new `SliceExpression`, not a reuse of `RangeExpression`**: `Range`'s `start`/`end` are
+mandatory (every consumer assumes concrete bounds for iteration); slice bounds are optional by design
+and represent a different operation entirely (select a sub-sequence of an existing collection vs.
+generate a sequence of integers to iterate over). A separate `SliceExpression { start?, stop? }`, only
+ever valid as a `Subscript`'s `index`, is the correct minimal shape — confirmed via `AssignTarget`
+staying untouched (still just checks `expr.type === 'Subscript'` at the type level; the interpreter
+explicitly rejects a `Slice` index as an assignment target rather than silently mishandling it).
+
+- **AST**: `SliceExpression` added to `packages/types/src/ast.ts`'s `Expression` union.
+- **Forward + reverse parsers**: both `parsePostfix()`s' `LBRACKET` branch now parses an optional
+  start, checks for `COLON` (no new token — `COLON` already existed), and if present parses an
+  optional stop — otherwise falls back to the pre-existing plain-index behavior unchanged.
+- **Emitters**: Python/EML emitters both emit `${start}:${stop}` (either side blank when omitted,
+  identical text in both directions); the C⁺⁺⁺ prototype rejects `Slice` outright, mirroring `Range`'s
+  own rejection.
+- **Semantic walkers**: all 7 got a `case 'Slice'` mirroring their existing `Range` case, conditionally
+  recursing into `start`/`stop` only when present (the one structural difference from `Range`'s
+  unconditional recursion). **Two of these walkers are non-exhaustive** — `purity.ts`'s
+  `collectCallsExpr` has an explicit `default:` fallback, and several others (`scanExpression`,
+  `walkExpr`, `scanStatementExpr`'s local `walk`, `collectIdents`) are `void`-returning, so TypeScript
+  does NOT flag a missing case as a compile error the way it does for the interpreter's non-void
+  `evalExpr`. Confirmed this by running `pnpm typecheck` right after only the AST/parser/emitter
+  changes: exactly one error surfaced (`interp/src/index.ts`'s `evalExpr`), nothing in the 7 walker
+  files — meaning a missing `Slice` case there would have been a SILENT correctness gap, not a build
+  failure. Added every case manually and backed the risky ones (`collectCallsExpr`) with a dedicated
+  test (see below) rather than trusting the type checker alone.
+- **Interpreter**: `sliceGet`/`clampSliceBound`/`sliceIndexNumber` in `packages/interp/src/index.ts`
+  implement real Python slice semantics for `list`/`tuple`/`str` — negative bounds resolve relative to
+  length, and an out-of-range bound **clamps** (never `IndexError`, the key semantic difference from a
+  plain `obj[i]` subscript). `Slice` never becomes a `PyVal` kind — it's intercepted inside `evalExpr`'s
+  `'Subscript'` case (and `readTarget`'s) before ever reaching a generic `evalExpr(expr.index, scope)`
+  call. `writeTarget`'s `'Subscript'` case explicitly throws `Unsupported` for a `Slice` index (slice
+  assignment is real Python but a different, unmodeled operation — no corpus evidence needs it).
+- **Tests**: new `tests/phase9-slice.test.ts` (22 tests) — forward parse of all 4 slice shapes + a
+  plain non-colon index still parsing normally; forward-emit round-trip; real-Python execution parity
+  for string/list slicing, negative-index bounds, and out-of-range clamping; the interpreter rejecting
+  slice-assignment rather than corrupting state; C++ rejection PLUS a self-recursion-hidden-inside-a-
+  slice-bound test (a function call buried in a slice's `start` bound must still trip the "recursive
+  function" check via `expressionCallsName`'s new `Slice` case — verified by asserting the diagnostic
+  message says "Recursive function", not "Subscript access is not supported", which is what a missed
+  case would silently produce instead); reverse-parse of the exact `bin(dec)[2:]` shape; a reverse
+  round-trip test of the corpus-exact print statement that revealed the finding below. **798 tests
+  total** (up from 776).
+- **Verification**: a slice-bearing snippet went through the full real CLI pipeline — `eml compress` →
+  `eml roundtrip` → `eml run` — matching real Python exactly (list/string slicing, negative bounds).
+  Caught and corrected a testing-methodology mistake along the way: `eml run <file>` always treats
+  `<file>` as EML source (`transpileEmlToPython` under the hood), never raw Python — feeding it a `.py`
+  file directly does not error cleanly, it silently mis-parses a bare `=` as something else. `eml
+  compress`/`eml roundtrip` are the commands that take a real `.py` file; `eml run` needs genuine `.eml`
+  syntax written by hand (or produced by `eml compress --out`, without also feeding it back through a
+  `.py`-suffixed path — `cmdRun` writes its own temp file at
+  `.tmp/<basename-without-extension>.py`, which will collide with and silently overwrite a same-named
+  hand-written `.py` scratch file in the same directory).
+- **Honest corpus result — no second full pass, but genuine progress**: re-running the same 5 real B-6
+  corpus files, `Decimal_to_binary_convertor`'s slice line (`bin(dec)[2:]`) now fully clears `eml
+  compress` — but the file still does not reach a full round-trip fixpoint. The SAME line wraps the
+  slice in `.format(...)` and prints the call directly
+  (`print("Binary: {}".format(bin(dec)[2:]))`), tripping a wholly separate, pre-existing limitation:
+  EML's `^0` can only express a bare identifier, never an inline expression/call (the same category as
+  `Calculate_age`'s `print(x, end=...)` block, item 5). Confirmed this is genuinely a DIFFERENT,
+  unrelated gap — not a slice bug — by testing the isolated case (`binary = bin(dec)[2:]` then
+  `print(binary)`, which round-trips fully) against the corpus-exact wrapped case (which fails with the
+  bare-identifier message, not a slice-related one). `Leap_Year_Checker` hits the same pre-existing
+  bare-identifier limitation, unrelated to slicing, no change. `Duplicate_files_remover` is still
+  blocked on list comprehensions, no change. `text_to_morse_code` keeps its full pass from last round,
+  no regression. Reverse direction now has exactly ONE open, unnumbered candidate left: list
+  comprehensions.
 
 ## Non-obvious design decisions (the gotchas)
 

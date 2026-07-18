@@ -150,6 +150,10 @@ export function emitExpression(expr: Expression): string {
       // level, so a looser object (e.g. `(a + b).attr`) needs parens. The
       // attribute name itself is never aliased (it's a member, not a binding).
       return `${child(expr.object, 9)}.${expr.attr}`;
+    case 'Slice':
+      // Only ever reached via Subscript's `${...}[${emitExpression(expr.index)}]` above —
+      // a bare Slice has no Python expression form of its own.
+      return `${expr.start ? emitExpression(expr.start) : ''}:${expr.stop ? emitExpression(expr.stop) : ''}`;
   }
 }
 

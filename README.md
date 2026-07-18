@@ -212,11 +212,16 @@ emitter changes. This closes out every originally-numbered Phase 9 item
 shipped too — reusing the existing `RangeExpression` AST node unchanged,
 the smallest fix in the whole Phase 9 track — and pushed
 `text_to_morse_code` to the first full `eml roundtrip` pass among the 5
-tracked B-6 corpus files. Two independent, unnumbered candidates remain
-open and undecided: Python slice syntax (`x[2:]`) and list comprehensions
-(see `docs/roadmap.md`'s Phase 9). Arbitrary-Python compression (lossy,
-semantics-sensitive) remains an AI-assisted, suggestion-only layer for
-a later phase.
+tracked B-6 corpus files. Python slice syntax (`obj[a:b]`/`obj[a:]`/
+`obj[:b]`/`obj[:]`) shipped the same day too — bidirectional, by explicit
+choice: forward EML's postfix `obj[...]` had no colon-detection at all, an
+empty grammar slot, so it now supports slicing on both sides, not just the
+reverse transpiler. A new `SliceExpression` AST node (not a reuse of
+`RangeExpression` — its bounds are optional, Range's are mandatory).
+One independent, unnumbered candidate remains open and undecided: list
+comprehensions (see `docs/roadmap.md`'s Phase 9). Arbitrary-Python
+compression (lossy, semantics-sensitive) remains an AI-assisted,
+suggestion-only layer for a later phase.
 
 Invoke via `pnpm eml <cmd>` in this repo, e.g. `pnpm eml explain examples/phase0/sum.eml`.
 

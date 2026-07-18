@@ -169,6 +169,8 @@ export function emitCppExpression(expr: Expression): string {
       throw new CppEmitError('Subscript access `obj[index]` is not supported by the C⁺⁺⁺ prototype.');
     case 'Attribute':
       throw new CppEmitError('Attribute access `obj.attr` is not supported by the C⁺⁺⁺ prototype.');
+    case 'Slice':
+      throw new CppEmitError('Slice syntax `obj[a:b]` is not supported by the C⁺⁺⁺ prototype.');
   }
 }
 
@@ -295,6 +297,11 @@ function expressionCallsName(expr: Expression, name: string): boolean {
       return expressionCallsName(expr.object, name) || expressionCallsName(expr.index, name);
     case 'Attribute':
       return expressionCallsName(expr.object, name);
+    case 'Slice':
+      return (
+        (expr.start ? expressionCallsName(expr.start, name) : false) ||
+        (expr.stop ? expressionCallsName(expr.stop, name) : false)
+      );
     default:
       return false;
   }
