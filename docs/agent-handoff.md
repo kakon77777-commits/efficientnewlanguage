@@ -1215,7 +1215,7 @@ than Phase B1.
   reverse Python→EML transpiler effort is now complete**: only `@temporal_loop`, `async`/`await`, and
   the permanent `@hot` exception remain outside the round-trip invariant.
 
-## Phase 9 — real-corpus language extension (item 1: `and`/`or`, item 2: `%`, item 8: `not`, item 3a: tuple + `%`-format, item 4: triple-quoted strings, item 5: `print(x, end=...)`, item 6: `with`)
+## Phase 9 — real-corpus language extension (item 1: `and`/`or`, item 2: `%`, item 8: `not`, item 3a: tuple + `%`-format, item 4: triple-quoted strings, item 5: `print(x, end=...)`, item 6: `with`, item 7: multi-line brackets)
 
 Re-measuring the same 5 real B-6 corpus files after Phase 8's completion exposed that
 `Decimal_to_binary_convertor` and `Leap_Year_Checker` are blocked by a genuine LANGUAGE-level gap,
@@ -1753,6 +1753,72 @@ file:`.
   cleanly from the `with` statement (line 11) all the way to the list comprehension at line 26 — a
   genuinely new, previously-uncatalogued gap, logged in `docs/roadmap.md` rather than silently
   folded into this round's "done" claim. The other 4 files show no change, exactly as expected.
+
+### Item 7 — multi-line bracketed literals + trailing commas (2026-07-19, same day)
+
+The last originally-numbered Phase 9 item. Real corpus need: `text_to_morse_code_text_to_morse_code.py`
+opens a dict literal `symbols = {` on line 2 and closes it on line 29, one `"key": "value",` entry per
+physical line.
+
+- **Compared against the other 2 remaining candidates before choosing** (Python slice syntax
+  `bin(dec)[2:]`, blocking `Decimal_to_binary_convertor`; general list comprehensions, blocking
+  `Duplicate_files_remover`) via direct research: both need a genuinely new `Expression` AST node
+  threaded through the full "vertical slice" this project always pays for a new expression type — 7
+  semantic walkers + the interpreter + 3 emitters (the same class of work as `Tuple`/`Not`). Item 7,
+  by contrast, was confirmed by directly reading both lexers in full to be **purely lexer-level, zero
+  AST/parser/semantic-walker/interpreter/emitter impact** — the same shape as item 4, and the smallest
+  of the three.
+- **Root cause, confirmed by reading both lexers' full dispatch loop, not assumed**: neither lexer had
+  ANY bracket-depth tracking. Every `\n` unconditionally became a `NEWLINE` token and flipped
+  `atLineStart = true`; the next non-blank line then ran the indentation-detection block regardless of
+  whether it was still inside an unclosed bracket. Both lexers gained a `bracketDepth` counter
+  (incremented on `LPAREN`/`LBRACKET`/`LBRACE`, decremented — floored at 0, defensively — on the
+  matching close), gating the newline handler: a newline is only a real `NEWLINE` token (and only
+  flips `atLineStart`) when `bracketDepth === 0`. Since `atLineStart` is never set true while a bracket
+  is open, the indentation-detection block simply never fires mid-literal — no separate guard needed.
+  Reasoned through (not assumed) why this is safe for the cases that matter: a string's own content is
+  consumed entirely inside its own lexing branch before ever reaching the single-char dispatch, so
+  bracket-looking characters inside a string never affect `bracketDepth`; a `#`-comment is consumed to
+  end-of-line the same way; a blank line inside an open bracket is handled correctly for free (the
+  newline handler swallows it, no indentation check ever runs).
+- **Zero downstream changes** — confirmed, not assumed: `DictLiteral`/`ListLiteral`/`SetLiteral`/call-
+  argument lists already carry no "how many source lines did this span" information; once the lexer
+  stops emitting spurious tokens mid-literal, the EXISTING `parseBraceLiteral()`/`parseBracket()`/
+  `parseArgs()` parse identically.
+- **A small, closely-related gap discovered mid-round, folded in rather than deferred**: testing this
+  exact feature against the real corpus file revealed `text_to_morse_code`'s dict literal ends its
+  last entry with a trailing comma before the closing `}` (ordinary real-world Python style) — the
+  bracket-depth fix alone still didn't fully unblock it (`Unexpected token RBRACE`, since
+  `parseBracket()`/`parseBraceLiteral()`/`parseArgs()` never checked for an immediate close after
+  consuming a comma). Added trailing-comma support to all 4 comma-list parsing routines in BOTH
+  directions (`parseArgs`/`parseBracket`/`parseBraceLiteral`'s dict-entries loop/`parseBraceLiteral`'s
+  set-elements loop), verified on single-line literals too, not just multi-line ones. Unlike the
+  larger, independent gaps this session keeps discovering (Python slice syntax, list comprehensions,
+  and — found via THIS round's own corpus re-test, see below — `range(n)`'s single-argument form),
+  this one was small enough and tightly enough coupled to the round's own stated purpose (multi-line
+  literals are of limited real-world use without trailing-comma support, since virtually all
+  real-world multi-line Python literals end with one) to include rather than log separately — a
+  judgment call, not a silent scope-creep: called out explicitly here and in every other doc, not
+  buried.
+- **Tests**: new `tests/phase9-multiline-brackets.test.ts` (11 tests) — forward parse of multi-line
+  dict/list/call-args literals; a blank line AND a `#`-comment line interspersed inside a multi-line
+  dict (directly testing the "swallowed newline" reasoning, not just the happy path); nested multi-
+  line brackets (a dict whose value is itself a multi-line list, confirming the depth COUNTER, not a
+  boolean flag, is genuinely necessary); lexer-level tests confirming NO spurious `INDENT`/`DEDENT`/
+  `NEWLINE` tokens appear between the opening and closing bracket, in both lexers; a dedicated
+  trailing-comma test on single-line literals; forward-emit and reverse round-trip of a
+  `text_to_morse_code`-shaped multi-line dict. **770 tests total** (up from 759).
+- **Verification**: a fresh multi-line dict literal through `eml run` matched real Python exactly.
+  Re-ran the same 5 real B-6 corpus files — **genuine, honest progress**: `text_to_morse_code`
+  advanced from line 2 (the multi-line dict's opening brace) all the way to line 38 —
+  `for i in range(length):` — revealing a **third newly-discovered, previously-uncatalogued gap**:
+  the reverse parser's `parseRangeCall()` requires EXACTLY two arguments (`range(a, b)`) and has no
+  support for Python's common single-argument shorthand `range(n)` (implicit start `0`). Logged in
+  `docs/roadmap.md` alongside the other two open candidates rather than fixed here — this round's
+  scope was multi-line brackets (+ the tightly-coupled trailing-comma fix above), not `range()`. The
+  other 4 files show no change, exactly as expected. **This closes out every originally-numbered
+  Phase 9 item (1 through 8)** — three independent, unnumbered candidates remain open:
+  Python slice syntax, list comprehensions, and `range(n)`'s single-argument form.
 
 ## Non-obvious design decisions (the gotchas)
 

@@ -32,6 +32,10 @@ export function lex(source: string): Token[] {
   const indentStack: number[] = [0];
   /** True at the first column of a fresh logical line (drives INDENT/DEDENT). */
   let atLineStart = true;
+  /** Depth of unclosed `(`/`[`/`{` — while > 0, a newline is an implicit line
+   *  continuation (Phase 9 item 7): no NEWLINE token, no INDENT/DEDENT check,
+   *  matching real Python's own bracketed-literal continuation rule. */
+  let bracketDepth = 0;
 
   const peek = (o = 0): string => source[pos + o] ?? '';
   const at = (s: string, o = 0): boolean => source.startsWith(s, pos + o);
@@ -102,11 +106,14 @@ export function lex(source: string): Token[] {
       continue;
     }
 
-    // newline
+    // newline — an implicit line continuation while inside an unclosed
+    // bracket (Phase 9 item 7): swallow it silently, matching real Python.
     if (c === '\n') {
       advance();
-      push('NEWLINE', '\n', startPos, startLine, startCol);
-      atLineStart = true;
+      if (bracketDepth === 0) {
+        push('NEWLINE', '\n', startPos, startLine, startCol);
+        atLineStart = true;
+      }
       continue;
     }
 
@@ -300,7 +307,10 @@ export function lex(source: string): Token[] {
     };
     if (c in single) {
       advance();
-      push(single[c], c, startPos, startLine, startCol);
+      const type = single[c];
+      if (type === 'LPAREN' || type === 'LBRACKET' || type === 'LBRACE') bracketDepth++;
+      else if (type === 'RPAREN' || type === 'RBRACKET' || type === 'RBRACE') bracketDepth = Math.max(0, bracketDepth - 1);
+      push(type, c, startPos, startLine, startCol);
       continue;
     }
 

@@ -716,7 +716,10 @@ class Parser {
     const args: Expression[] = [];
     if (!this.check('RPAREN')) {
       args.push(this.parseExpression());
-      while (this.match('COMMA')) args.push(this.parseExpression());
+      while (this.match('COMMA')) {
+        if (this.check('RPAREN')) break; // trailing comma (Phase 9 item 7)
+        args.push(this.parseExpression());
+      }
     }
     this.expect('RPAREN');
     return args;
@@ -832,7 +835,10 @@ class Parser {
       return { type: 'Range', start: first, end, inclusiveEnd: true };
     }
     const elements: Expression[] = [first];
-    while (this.match('COMMA')) elements.push(this.parseExpression());
+    while (this.match('COMMA')) {
+      if (this.check('RBRACKET')) break; // trailing comma (Phase 9 item 7)
+      elements.push(this.parseExpression());
+    }
     this.expect('RBRACKET');
     return { type: 'List', elements };
   }
@@ -855,6 +861,7 @@ class Parser {
       const firstValue = this.parseExpression();
       const entries: DictLiteral['entries'] = [{ key: first, value: firstValue }];
       while (this.match('COMMA')) {
+        if (this.check('RBRACE')) break; // trailing comma (Phase 9 item 7)
         const key = this.parseExpression();
         this.expect('COLON', "':' in dict literal");
         const value = this.parseExpression();
@@ -864,7 +871,10 @@ class Parser {
       return { type: 'Dict', entries };
     }
     const elements: Expression[] = [first];
-    while (this.match('COMMA')) elements.push(this.parseExpression());
+    while (this.match('COMMA')) {
+      if (this.check('RBRACE')) break; // trailing comma (Phase 9 item 7)
+      elements.push(this.parseExpression());
+    }
     this.expect('RBRACE', "'}' after set literal");
     return { type: 'Set', elements };
   }

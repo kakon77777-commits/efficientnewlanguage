@@ -203,11 +203,16 @@ keyword verbatim (matching `try`/`except`), and the interpreter dispatches
 real `__enter__`/`__exit__` methods on a user-defined class instance,
 matching Python's actual protocol (check order, exception-suppression
 semantics, and error messages all verified against a real installation).
-List comprehensions (a newly-discovered gap, not yet a numbered Phase 9
-item) and multi-line bracketed literals are each their own future round
-(see `docs/roadmap.md`'s Phase 9). Arbitrary-Python compression (lossy,
-semantics-sensitive) remains an AI-assisted,
-suggestion-only layer for
+Multi-line bracketed literals (`{`/`[`/`(` implicitly continuing across a
+newline, matching real Python) and trailing commas in any comma-list also
+shipped 2026-07-19 — the last originally-numbered Phase 9 item, purely
+lexer-level (a `bracketDepth` counter in both lexers), no AST/parser/
+emitter changes. This closes out every originally-numbered Phase 9 item
+(1 through 8); three independent, unnumbered candidates remain open and
+undecided: Python slice syntax (`x[2:]`), list comprehensions, and
+`range(n)`'s single-argument form (see `docs/roadmap.md`'s Phase 9).
+Arbitrary-Python compression (lossy, semantics-sensitive) remains an
+AI-assisted, suggestion-only layer for
 a later phase.
 
 Invoke via `pnpm eml <cmd>` in this repo, e.g. `pnpm eml explain examples/phase0/sum.eml`.

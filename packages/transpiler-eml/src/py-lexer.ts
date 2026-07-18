@@ -76,6 +76,9 @@ export function lexPython(source: string): PyToken[] {
   // own documented simplification.
   const indentStack: number[] = [0];
   let atLineStart = true;
+  // Depth of unclosed `(`/`[`/`{` — while > 0, a newline is an implicit line
+  // continuation (Phase 9 item 7), mirroring the forward lexer's identical fix.
+  let bracketDepth = 0;
 
   const peek = (o = 0): string => src[pos + o] ?? '';
   const at = (s: string): boolean => src.startsWith(s, pos);
@@ -137,8 +140,10 @@ export function lexPython(source: string): PyToken[] {
     }
     if (c === '\n') {
       advance();
-      push('NEWLINE', '\n', l, cc);
-      atLineStart = true;
+      if (bracketDepth === 0) {
+        push('NEWLINE', '\n', l, cc);
+        atLineStart = true;
+      }
       continue;
     }
     if (c === '#') {
@@ -269,7 +274,10 @@ export function lexPython(source: string): PyToken[] {
     };
     if (c in single) {
       advance();
-      push(single[c]!, c, l, cc);
+      const type = single[c]!;
+      if (type === 'LPAREN' || type === 'LBRACKET' || type === 'LBRACE') bracketDepth++;
+      else if (type === 'RPAREN' || type === 'RBRACKET' || type === 'RBRACE') bracketDepth = Math.max(0, bracketDepth - 1);
+      push(type, c, l, cc);
       continue;
     }
 

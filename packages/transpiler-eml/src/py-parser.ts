@@ -634,6 +634,7 @@ class PyParser {
       args.push(this.parseExpr());
       while (this.check('COMMA')) {
         this.next();
+        if (this.check('RPAREN')) break; // trailing comma (Phase 9 item 7)
         args.push(this.parseExpr());
       }
     }
@@ -703,6 +704,7 @@ class PyParser {
       elements.push(this.parseExpr());
       while (this.check('COMMA')) {
         this.next();
+        if (this.check('RBRACKET')) break; // trailing comma (Phase 9 item 7)
         elements.push(this.parseExpr());
       }
     }
@@ -726,6 +728,7 @@ class PyParser {
       const entries: DictLiteral['entries'] = [{ key: first, value: firstValue }];
       while (this.check('COMMA')) {
         this.next();
+        if (this.check('RBRACE')) break; // trailing comma (Phase 9 item 7)
         const key = this.parseExpr();
         this.expect('COLON', "':' in dict literal");
         const value = this.parseExpr();
@@ -737,6 +740,7 @@ class PyParser {
     const elements: Expression[] = [first];
     while (this.check('COMMA')) {
       this.next();
+      if (this.check('RBRACE')) break; // trailing comma (Phase 9 item 7)
       elements.push(this.parseExpr());
     }
     this.expect('RBRACE', "'}' after set literal");

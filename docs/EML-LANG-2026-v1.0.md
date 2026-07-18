@@ -235,7 +235,14 @@ PrimaryExpression ::= Identifier
                     | "(" Expression ")"                (* plain grouping — NOT a 1-tuple, see TupleLiteral *)
 
 AwaitExpression ::= "await" PrimaryExpression
-ArgumentList   ::= Expression { "," Expression }
+(* A trailing comma before the closing bracket is accepted everywhere a
+   comma-list appears — ArgumentList, ListLiteral, DictLiteral, SetLiteral
+   (Phase 9 item 7, added alongside multi-line bracket support since
+   real-world multi-line literals almost always end with one, as the
+   `text_to_morse_code` corpus file itself does). Not shown explicitly in
+   each production below to keep them readable; treat every trailing `","`
+   in this section as `[ "," ]`. *)
+ArgumentList   ::= Expression { "," Expression } [ "," ]
 SumExpression  ::= "Σ" "(" Expression "," IteratorClause ")"
 IteratorClause ::= Identifier InOperator RangeExpression
 InOperator     ::= "in" | "∈"
@@ -248,9 +255,9 @@ ListLiteral    ::= "[" [ ArgumentList ] "]"
    tuple, `()` an empty one. Phase 9 item 3a. *)
 TupleLiteral   ::= "(" ")"
                  | "(" Expression "," [ ArgumentList ] [ "," ] ")"
-DictLiteral    ::= "{" [ DictEntry { "," DictEntry } ] "}"        (* empty `{}` is a dict, Python parity *)
+DictLiteral    ::= "{" [ DictEntry { "," DictEntry } [ "," ] ] "}"  (* empty `{}` is a dict, Python parity *)
 DictEntry      ::= Expression ":" Expression
-SetLiteral     ::= "{" Expression { "," Expression } "}"          (* an empty set has no literal — use `set()` *)
+SetLiteral     ::= "{" Expression { "," Expression } [ "," ] "}"  (* an empty set has no literal — use `set()` *)
 ```
 
 ---
@@ -456,6 +463,24 @@ INDENT/DEDENT tokens in either lexer, since the string-reading loop consumes emb
 directly and never returns control to the outer dispatch's indentation check until the closing
 delimiter is found — the same guarantee an ordinary string containing a stray literal newline already
 relied on before this phase.
+
+### 5.12 Multi-line bracketed literals + trailing commas (Phase 9 item 7)
+
+Any unclosed `(`/`[`/`{` makes a following newline an implicit line continuation — no `NEWLINE`
+token, no INDENT/DEDENT check — matching real Python's own rule and letting a dict/list/set/call-args
+literal span any number of physical lines, one entry per line being the common real-world style. Like
+item 4, this is purely lexer-level: both lexers gained a `bracketDepth` counter (incremented on an
+open bracket, decremented on its matching close), gating the newline handler and, transitively, the
+whole indentation-detection block, which never re-runs mid-literal once `bracketDepth > 0`. No new
+AST node, and no parser/semantic-walker/interpreter/emitter changes — `DictLiteral`/`ListLiteral`/
+`SetLiteral`/call-argument lists already carried no "how many source lines did this span"
+information. A trailing comma before the closing bracket (`[1, 2,]`, `{k: v,}`, `f(a, b,)`) is
+accepted everywhere a comma-list appears, on single-line literals too, not just multi-line ones — a
+small, closely-related gap discovered while testing THIS exact feature against the real corpus file
+(`text_to_morse_code`'s dict literal ends its last entry with a trailing comma before `}`, ordinary
+real-world Python style), included in the same round rather than deferred since it's tightly coupled
+and tiny, unlike the larger, independent real-corpus gaps discovered elsewhere and tracked in
+`docs/roadmap.md` (Python slice syntax, list comprehensions, and `range(n)`'s single-argument form).
 
 ---
 
@@ -808,10 +833,12 @@ of the round-trip invariant) are `@temporal_loop` and `async`/`await`. **As of P
 `and`/`or` (§5.8), numeric `%` (§5.2), and unary `not` (§5.9) also round-trip; as of the same Phase 9
 (item 3a), tuple literals and `%` string-formatting (§5.10) round-trip too; as of 2026-07-18 (item 4),
 triple-quoted strings (§5.11) round-trip as well; the same day (item 6), `with`/context managers
-(§6's "Phase 9 item 6" subsection) round-trip too** — each a genuinely new (or, for `%`, meaningfully
-extended) expression/statement kind added AFTER the reverse-transpiler effort concluded, as items of a
-separate language-extension track (real B-6 corpus gaps beyond grammar completeness); both directions
-were built together for each of these, unlike Phase A–E2's reverse-only rounds. (Item 5,
+(§6's "Phase 9 item 6" subsection) round-trip too; as of 2026-07-19 (item 7), multi-line bracketed
+literals and trailing commas (§5.12) round-trip too** — each a genuinely new (or, for `%`,
+meaningfully extended, or for item 7, purely lexical) expression/statement kind added AFTER the
+reverse-transpiler effort concluded, as items of a separate language-extension track (real B-6 corpus
+gaps beyond grammar completeness); both directions were built together for each of these, unlike
+Phase A–E2's reverse-only rounds. (Item 5,
 `print(x, end=...)`, is the one deliberate EXCEPTION — reverse-only by explicit choice, since it would
 otherwise require inventing new forward EML syntax; see §5.3.)
 **`@hot` is a permanent, structural round-trip gap within function support, not a deferred one**
