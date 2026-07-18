@@ -7,8 +7,8 @@ import {
   parseStream,
   findAnomalies,
   summarize,
-  PHOSPHOR_PROTO,
-  type PhosphorEvent,
+  EML_TRACE_PROTOCOL,
+  type TraceEvent,
 } from '@eml/trace';
 
 const fixedNow = () => '2026-01-01T00:00:00.000Z';
@@ -18,7 +18,7 @@ describe('@eml/trace — phosphor-jsonl-v1 emitter', () => {
     const em = createEmitter({ stream: 'eml', writer: 'w1', now: fixedNow });
     const a = em.emit('eml:compile', { file: 'x.eml' });
     const b = em.emit('eml:run');
-    expect(a.proto).toBe(PHOSPHOR_PROTO);
+    expect(a.proto).toBe(EML_TRACE_PROTOCOL);
     expect(a.stream).toBe('eml');
     expect(a.writer).toBe('w1');
     expect(a.ts).toBe('2026-01-01T00:00:00.000Z');
@@ -50,7 +50,7 @@ describe('@eml/trace — phosphor-jsonl-v1 emitter', () => {
   });
 
   it('multiSink fans out and isolates a failing sink', () => {
-    const buf: PhosphorEvent[] = [];
+    const buf: TraceEvent[] = [];
     const em = createEmitter({
       stream: 'eml',
       now: fixedNow,
@@ -99,7 +99,7 @@ describe('@eml/trace — phosphor-jsonl-v1 emitter', () => {
   });
 
   it('findAnomalies flags :failure / :errors segments (not just :error)', () => {
-    const mk = (type: string): PhosphorEvent => ({ stream: 'eml', proto: 'phosphor-jsonl-v1', seq: 0, ts: 't', type });
+    const mk = (type: string): TraceEvent => ({ stream: 'eml', proto: 'phosphor-jsonl-v1', seq: 0, ts: 't', type });
     expect(findAnomalies([mk('eml:failure')]).length).toBe(1);
     expect(findAnomalies([mk('eml:errors')]).length).toBe(1);
     expect(findAnomalies([mk('eml:ok')]).length).toBe(0);

@@ -48,6 +48,7 @@
   ],
   "specs": [
     { "id": "eml-v1", "path": "ai/specs/eml-v1.md", "format": "markdown", "role": "v1.0 spec digest" },
+    { "id": "eml-semantic-model-v1.5", "path": "ai/specs/eml-semantic-model-v1.5.md", "format": "markdown", "role": "self-contained AI-semantic spec: status vocabulary, twelve-loop taxonomy, bug/repair/criticality models" },
     { "id": "eml-grammar", "path": "ai/specs/eml-grammar.ebnf", "format": "ebnf", "role": "normative grammar" },
     { "id": "eml-ast-schema", "path": "ai/specs/eml-ast-schema.json", "format": "json-schema", "role": "AST schema" },
     { "id": "eml-trace-schema", "path": "ai/specs/eml-trace-schema.json", "format": "json-schema", "role": "phosphor-jsonl-v1 trace schema" },
@@ -101,7 +102,8 @@
     "Prefer canonical schemas (AST/trace/error) and eml-symbols.json over inferred behavior.",
     "ASCII canonical form is normative; Unicode (Σ ∈ ⇒ ²) is a display projection.",
     "Do not assume unbuilt capabilities; see corpus/deprecated-concepts.md. 'Efficient Meta-Language' is a superseded name.",
-    "Function definitions, @cold/@hot, @temporal_loop, async/await, and matrices are forward-only (not round-trippable).",
+    "Every capability claim carries a status label (implemented / partial / conceptual / planned); see ai/specs/eml-semantic-model-v1.5.md §2-3 before assuming something is built.",
+    "@hot (permanent, comment-marker only), @temporal_loop, and async/await are forward-only (not round-trippable). Plain function definitions/return, @cold, class, and matrices round-trip normally — do not cite the old 'all functions are forward-only' claim.",
     "AI learning is welcome (Apache-2.0); keep attribution. See ai/rights-spectrum.json.",
     "Call tools only with bounded EML input (<= 20000 chars)."
   ]

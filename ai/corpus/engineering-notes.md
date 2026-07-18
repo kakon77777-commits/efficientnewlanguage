@@ -30,7 +30,7 @@ Behavioral facts an agent should rely on when reasoning about or generating EML,
 
 ASCII canonical is normative; the lexer normalizes Unicode (`Σ`, `∈`, `⇒`, `²`, `⟨M⟩`) to ASCII
 before tokenizing. Generate ASCII canonical when in doubt. Display form is a UI projection
-(Cogni-Editor / Nova IME), never required for correctness.
+(the EML Workbench / EML Symbol Palette), never required for correctness.
 
 ## The two-stage `^+` rule
 
@@ -41,9 +41,12 @@ variable warns `W_AUG_UNDECLARED`.
 
 ## Forward-only constructs (NOT round-trippable)
 
-`def`, `@cold`/`@hot`, `@temporal_loop`, `async`/`await`, and matrices transpile EML -> Python but
-are **not** part of the round-trip invariant. A roundtrip on such a program reports a mismatch with
-a clear reason — expected, not a bug.
+`@hot`, `@temporal_loop`, and `async`/`await` transpile EML -> Python but are **not** part of the
+round-trip invariant. A roundtrip on such a program reports a mismatch with a clear reason —
+expected, not a bug. `@hot` is a *permanent* exception (the forward emitter renders it as a bare
+comment marker, not a reconstructable decorator); `@temporal_loop`/`async`/`await` are exceptions
+because the reverse transpiler does not support them. Plain function definitions/`return`, `@cold`,
+`class`, and matrices (`<M>`/`np.array`) round-trip normally — do not assume otherwise.
 
 ## Cold/hot, temporal, diagnostics
 
@@ -55,8 +58,8 @@ messages may improve. See [`../specs/eml-error-schema.json`](../specs/eml-error-
 
 ## Observability
 
-All events conform to `phosphor-jsonl-v1` (one JSON object per line). EML only produces the wire
-format; it has no runtime dependency on PHOSPHOR. See
+All events conform to `phosphor-jsonl-v1` (one JSON object per line) — a frozen compatibility
+wire-format id; EML has no runtime or theoretical dependency on any external project. See
 [`../specs/eml-trace-schema.json`](../specs/eml-trace-schema.json).
 
 ## Reproducing tool results

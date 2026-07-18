@@ -29,7 +29,7 @@ Concepts that reached the engineered, test-gated v1.0 surface and are safe to re
 | Diagnostic codes (7 errors, 8 warnings) | stable | spec Appendix A |
 | Cold/hot temperature + crystallization + importance | implemented | spec §8 |
 | Temporal loops (`@temporal_loop` + async) | implemented | spec §7 |
-| `loopKind` metadata (4 kinds) | implemented | grammar §6.5 |
+| `loopKind` metadata (6 tags: `basic_repeat`/`for_loop`, `while_loop`, `algebraic_sum`, `recursive`, `temporal` — 5 of the recovered 12-class taxonomy) | implemented | grammar §6.5, [`../specs/eml-semantic-model-v1.5.md`](../specs/eml-semantic-model-v1.5.md) §5 |
 | C++20 prototype back end | prototype (non-normative) | spec §11 |
 | 5-level BUG classifier | implemented | `@eml/bug-classifier` |
 | AICL machine layer + AIRS/AILP rights spectrum | this layer, v0.1 | `ai/` |

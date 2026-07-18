@@ -2,8 +2,8 @@
  * Python-faithful value model for the EML interpreter (`@eml/interp`).
  *
  * The interpreter is the browser-safe "execution truth" layer: it computes the
- * SAME results the transpiled Python would, so the Cogni-Editor can show a real
- * run + PHOSPHOR trace without a Python runtime. To stay faithful to Python we
+ * SAME results the transpiled Python would, so the EML Workbench can show a real
+ * run + trace without a Python runtime. To stay faithful to Python we
  * model its value distinctions explicitly:
  *
  *  - `int` uses **bigint** (Python ints are arbitrary precision; JS numbers are

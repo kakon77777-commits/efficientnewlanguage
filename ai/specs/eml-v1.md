@@ -126,8 +126,9 @@ def` + `await temporal_wait(...)` injects a self-contained asyncio runtime. Loop
 
 ## 9. Observability — `phosphor-jsonl-v1` (normative wire format)
 
-EML emits compile/run/temporal/bug events as the portable PHOSPHOR standard (one JSON object per
-line); it has no runtime dependency on PHOSPHOR. Envelope: `stream`, `proto`
+EML emits compile/run/temporal/bug events under the frozen compatibility wire-format id
+`phosphor-jsonl-v1` (one JSON object per line); EML has no runtime or theoretical dependency on any
+external project. Envelope: `stream`, `proto`
 (`"phosphor-jsonl-v1"`), `type` (`"domain:action"`), optional `seq`/`ts`/`mono`/`writer`, plus
 arbitrary payload. Consumers MUST treat `seq`/`ts`/`mono`/`writer` as optional. Execution
 vocabulary: `eml:compile:error`, `eml:run:start`, `eml:def`, `eml:assign`, `eml:augment`,
@@ -139,10 +140,13 @@ resolved|timeout|done`. Bug: `eml:bug`, `eml:bug:summary`. An anomaly is any eve
 
 ## 10. Reverse transpilation & round-trip (normative)
 
-The supported statement subset round-trips: `Python(subset) → EML → Python` is a fixpoint. The
-reverse path is a deterministic inverse of the emitter and **fails loudly** on inexpressible
-constructs. **Forward-only** (NOT part of the round-trip invariant): function definitions,
-`@cold`/`@hot`, `@temporal_loop`, `async`/`await`, matrices.
+The supported statement subset round-trips: `Python(subset) → EML → Python` is a fixpoint — this now
+covers plain function definitions/`return`, `@cold`, `class`, and matrices (`<M>`/`np.array`), not
+only the original Phase 0-1 subset. The reverse path is a deterministic inverse of the emitter and
+**fails loudly** on inexpressible constructs. **Forward-only** (NOT part of the round-trip
+invariant): `@hot` (permanent — the forward emitter renders it as a bare comment marker, not a
+reconstructable decorator), `@temporal_loop`, `async`/`await` (the reverse transpiler does not
+support them).
 
 ## 11. Back ends
 

@@ -11,7 +11,7 @@ import { findAnomalies } from '@eml/trace';
  * THE EXECUTION-TRUTH GATE. The browser interpreter (@eml/interp) is only sound
  * if it computes exactly what the transpiled Python computes. This suite runs
  * the SAME program through both and fails on any stdout divergence — so the
- * Cogni-Editor's in-browser "run + trace" can be trusted as execution truth, not
+ * EML Workbench's in-browser "run + trace" can be trusted as execution truth, not
  * decoration. Programs the interpreter intentionally cannot reproduce (numpy /
  * temporal) must report `unsupported` rather than silently produce a wrong value.
  */

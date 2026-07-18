@@ -1,12 +1,11 @@
 /**
- * @eml/trace — a self-contained, zero-dependency emitter conformant to the
- * PHOSPHOR portable event standard `phosphor-jsonl-v1`.
+ * @eml/trace — a self-contained, zero-dependency EML trace emitter, using the
+ * frozen wire-format protocol id `phosphor-jsonl-v1`.
  *
- * EML emits its compile/run/temporal/bug events as this standard so PHOSPHOR,
- * NOEMA, or any agent can consume an EML trace — WITHOUT a runtime dependency on
- * PHOSPHOR (decoupled by design; EML only produces the wire format). The shape
- * mirrors PHOSPHOR's `stream/phosphor-stream.ts` (Apache-2.0, EveMissLab) but is
- * an independent minimal re-implementation, not a copy.
+ * EML emits its compile/run/temporal/bug events under this protocol id so any
+ * external tool that already speaks it can consume an EML trace — but EML has
+ * no runtime dependency on any such tool; the id is a compatibility identifier
+ * only, not an integration requirement.
  *
  * Wire format: one JSON object per line. Envelope fields are fixed; everything
  * else is arbitrary domain payload.
@@ -15,13 +14,13 @@
  * `@eml/trace/node`.
  */
 
-export const PHOSPHOR_PROTO = 'phosphor-jsonl-v1';
+export const EML_TRACE_PROTOCOL = 'phosphor-jsonl-v1';
 
 /** One event = one JSONL line. */
-export interface PhosphorEvent {
+export interface TraceEvent {
   /** App / stream id, e.g. "eml". */
   stream: string;
-  /** Always {@link PHOSPHOR_PROTO}. */
+  /** Always {@link EML_TRACE_PROTOCOL}. */
   proto: string;
   /** Per-writer monotonic counter (NOT globally unique). */
   seq: number;
@@ -37,7 +36,7 @@ export interface PhosphorEvent {
   [field: string]: unknown;
 }
 
-export type Sink = (event: PhosphorEvent) => void;
+export type Sink = (event: TraceEvent) => void;
 
 export interface EmitterOptions {
   /** Stream id stamped on every event. */
@@ -52,18 +51,18 @@ export interface EmitterOptions {
 
 export interface Emitter {
   /** Emit an event of `type` with optional domain `fields`; returns the event. */
-  emit(type: string, fields?: Record<string, unknown>): PhosphorEvent;
+  emit(type: string, fields?: Record<string, unknown>): TraceEvent;
   /**
    * Intent-vs-actual check — the bug-signal primitive. Emits `{actual, expected,
    * ok}` and returns `ok`. A later consumer's anomaly scan keys on `ok === false`.
    */
   check(type: string, actual: unknown, expected: unknown, fields?: Record<string, unknown>): boolean;
   /** The in-memory buffer (only meaningful when using the default memory sink). */
-  readonly events: readonly PhosphorEvent[];
+  readonly events: readonly TraceEvent[];
 }
 
 /** A sink that appends to a caller-owned array. */
-export function memorySink(buffer: PhosphorEvent[]): Sink {
+export function memorySink(buffer: TraceEvent[]): Sink {
   return (e) => {
     buffer.push(e);
   };
@@ -91,16 +90,16 @@ export function multiSink(...sinks: Sink[]): Sink {
 }
 
 export function createEmitter(opts: EmitterOptions): Emitter {
-  const buffer: PhosphorEvent[] = [];
+  const buffer: TraceEvent[] = [];
   const sink = opts.sink ?? memorySink(buffer);
   const now = opts.now ?? (() => new Date().toISOString());
   let seq = 0;
   let mono = 0;
 
-  const write = (type: string, fields: Record<string, unknown>): PhosphorEvent => {
-    const event: PhosphorEvent = {
+  const write = (type: string, fields: Record<string, unknown>): TraceEvent => {
+    const event: TraceEvent = {
       stream: opts.stream,
-      proto: PHOSPHOR_PROTO,
+      proto: EML_TRACE_PROTOCOL,
       seq: ++seq,
       ts: now(),
       type,
@@ -132,23 +131,23 @@ export function createEmitter(opts: EmitterOptions): Emitter {
 // ── Consumer helpers ────────────────────────────────────────────────────────
 
 /** Serialize events to JSONL text (one object per line, trailing newline). */
-export function toJsonl(events: readonly PhosphorEvent[]): string {
+export function toJsonl(events: readonly TraceEvent[]): string {
   return events.map((e) => JSON.stringify(e)).join('\n') + '\n';
 }
 
 /** Parse JSONL text back into events (blank lines skipped). */
-export function parseStream(text: string): PhosphorEvent[] {
+export function parseStream(text: string): TraceEvent[] {
   return text
     .split('\n')
     .filter((l) => l.trim() !== '')
-    .map((l) => JSON.parse(l) as PhosphorEvent);
+    .map((l) => JSON.parse(l) as TraceEvent);
 }
 
 /**
  * Bug signals: events that failed an intent check (`ok === false`), are an error
  * type (`:error` / `:fail`), or carry a non-zero exit `code`.
  */
-export function findAnomalies(events: readonly PhosphorEvent[]): PhosphorEvent[] {
+export function findAnomalies(events: readonly TraceEvent[]): TraceEvent[] {
   return events.filter(
     (e) =>
       e.ok === false ||
@@ -164,7 +163,7 @@ export interface StreamSummary {
   anomalies: number;
 }
 
-export function summarize(events: readonly PhosphorEvent[]): StreamSummary {
+export function summarize(events: readonly TraceEvent[]): StreamSummary {
   const byType: Record<string, number> = {};
   for (const e of events) byType[e.type] = (byType[e.type] ?? 0) + 1;
   return { total: events.length, byType, anomalies: findAnomalies(events).length };

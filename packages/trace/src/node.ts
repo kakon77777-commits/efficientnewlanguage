@@ -4,7 +4,7 @@
  */
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import type { Sink, PhosphorEvent } from './index';
+import type { Sink, TraceEvent } from './index';
 
 /**
  * Append events as JSONL to `path`, creating parent dirs on first write. Writes
@@ -12,7 +12,7 @@ import type { Sink, PhosphorEvent } from './index';
  */
 export function fileSink(path: string): Sink {
   let dirReady = false;
-  return (e: PhosphorEvent): void => {
+  return (e: TraceEvent): void => {
     try {
       if (!dirReady) {
         mkdirSync(dirname(path) || '.', { recursive: true });

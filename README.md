@@ -47,13 +47,19 @@ The full language reference is **[docs/EML-LANG-2026-v1.0.md](docs/EML-LANG-2026
 Current status at a glance: **[docs/PROGRESS.md](docs/PROGRESS.md)** (a living progress spectrum,
 updated on every completed or updated milestone).
 
+For the recovered EML 1.5 model — twelve loop classes, temporal state, five-level BUG handling,
+validated repair, and dynamic criticality — read
+**[EML 1.5 AI Semantic Specification](docs/EML-AI-SEMANTIC-SPEC-v1.5.md)**. It is deliberately
+self-contained and labels every capability as `implemented`, `partial`, `conceptual`, or `planned`.
+No external theory or companion project is required to understand EML.
+
 ## Launch — EML Studio
 
-One launchable entry point starts the visual **Cogni-Editor** workbench and opens
+One launchable entry point starts the visual **EML Workbench** and opens
 it in your browser (run-from-source, no build step): write EML on the left, see
 the Python expansion on the right, switch tabs to **Trace** (run it + watch the
 phosphor-jsonl-v1 events), **Functions** (cold/hot · importance · crystallization),
-AST, Diagnostics, and Meta — plus the **Nova IME** symbol palette (`Ctrl+Space`).
+AST, Diagnostics, and Meta — plus the **EML Symbol Palette** (`Ctrl+Space`).
 
 ```bash
 pnpm start                  # or:  pnpm studio
@@ -79,7 +85,7 @@ eml ast      <file> [--out f]   # alias of parse
 eml transpile <file> [--out f]  # EML/Py⁺ -> Python
 eml transpile <file> --target cpp  # EML/C⁺⁺⁺ -> C++ (Phase 4 prototype)
 eml run      <file>             # transpile and execute via python
-eml cts      <file> [--out f]   # PHOSPHOR-compatible CTS (JSON)
+eml cts      <file> [--out f]   # EML semantic table (CTS JSON)
 eml check    <file>             # diagnostics only
 eml explain  <file>             # human-readable symbol + node breakdown
 eml compress  <file.py>         # reverse: Python (subset) -> EML/Py⁺
@@ -93,10 +99,11 @@ eml test     [--dir d]          # run golden fixtures
 
 ## Execution truth — run + trace (Phase 5)
 
-EML programs are observable as a **PHOSPHOR `phosphor-jsonl-v1` trace**. A browser-safe,
+EML programs are observable as an **EML `phosphor-jsonl-v1` trace** (a frozen compatibility
+wire-format id, not an external runtime dependency). A browser-safe,
 Python-faithful interpreter (`@eml/interp`) computes the *same* values the transpiled Python
 computes — so you can run a program and watch its trace **without** a Python runtime (the
-Cogni-Editor's **Trace tab** does exactly this). Equivalence is not asserted, it is *gated*:
+EML Workbench's **Trace tab** does exactly this). Equivalence is not asserted, it is *gated*:
 the test suite runs every example through both the interpreter and a real `python` and fails on
 any divergence, and `eml trace --run` bakes that proof into the artifact as an `eml:equiv` event:
 
@@ -144,7 +151,7 @@ needs `ANTHROPIC_API_KEY`) — but **every suggestion is gated by an
 execution-based round-trip validator**: the suggested EML is compiled back to
 Python and run against the original on test inputs; if the result differs, the
 suggestion is rejected. The LLM proposes, the validator disposes — and source is
-never overwritten. The browser editor adds **Nova IME** (`Ctrl+Space`) for
+never overwritten. The browser editor adds an **EML Symbol Palette** (`Ctrl+Space`) for
 low-friction symbol input.
 
 ## Bidirectional & round-trip validation
@@ -313,12 +320,12 @@ packages/
   transpiler-cpp/    EML/C⁺⁺⁺ -> C++ prototype (Phase 4; see docs/cpp-feasibility.md)
   ai-converter/      AI-assisted Python -> EML, validator-gated (Phase 1)
   symbols/           loads eml-symbols.json
-  cts-generator/     PHOSPHOR CTS output
-  trace/             phosphor-jsonl-v1 event emitter (PHOSPHOR-compatible trace)
+  cts-generator/     EML semantic-table (CTS) output
+  trace/             phosphor-jsonl-v1 event emitter (EML's own trace format)
   bug-classifier/    BUG 5-level classifier, mapped back to EML source (Phase 3)
   interp/            browser-safe execution-truth interpreter + trace producer (Phase 5)
   cli/               the `eml` command
-  cogni-editor/      dual-state view (EML | Python | AST) + Trace panel (PHOSPHOR phosphor-jsonl-v1) + Functions panel (cold/hot · importance · crystallization)
+  workbench/         dual-state view (EML | Python | AST) + Trace panel (phosphor-jsonl-v1) + Functions panel (cold/hot · importance · crystallization)
   lsp/               Language Server Protocol server — diagnostics/hover/completion (Phase 8)
   vscode-extension/  minimal VS Code client for @eml/lsp (dev prototype, not published; Phase 8)
   mcp/               Model Context Protocol server — 7 agent-callable tools (Phase 8)
@@ -337,7 +344,7 @@ See [docs/architecture.md](docs/architecture.md), the
 ## Design principles
 
 - **Optional enhancement** — symbolize high-value regions, not everything.
-- **Machine-first, human-adaptive** — symbols for machines, projection (Cogni-Editor) for humans.
+- **Machine-first, human-adaptive** — symbols for machines, projection (EML Workbench) for humans.
 - **Round-trip first** — deterministic, rule-based, testable. No LLM in the core transpilation chain.
 
 ## AI-native layer — AICL + AIRS/AILP

@@ -1,8 +1,8 @@
 /**
- * PHOSPHOR-compatible Cross-reference / Comment / Symbol table (CTS).
+ * The EML semantic table: Cross-reference / Comment / Symbol table (CTS).
  *
- * The CTS is a *required* MVP output (not a decorative extra). It lets
- * PHOSPHOR show semantic mapping, symbol dependencies, and execution trace,
+ * The CTS is a *required* MVP output (not a decorative extra). It lets a
+ * consumer show semantic mapping, symbol dependencies, and execution trace,
  * not just results. Shape follows the whitepaper Appendix C.
  */
 
@@ -27,8 +27,8 @@ export interface CtsNode {
 /**
  * Dynamic-compiler importance score (whitepaper §8.5, MVP de-scaled form):
  * `score = w1*callFrequency + w2*riskLevel + w3*dependencyDepth`.
- * Components are reported raw alongside the normalized composite so PHOSPHOR can
- * decide whether to trace, require tests, or allow agent refactors.
+ * Components are reported raw alongside the normalized composite so a future
+ * policy can decide whether to trace, require tests, or allow agent refactors.
  */
 export interface CtsImportance {
   /** How many call sites reference this function across the program. */
@@ -64,8 +64,8 @@ export interface CtsFunction {
 /**
  * Loop classification (whitepaper §8.4, MVP de-scaled form of the "twelve loop
  * kinds"). Each loop-like construct is tagged with a `loopKind` plus whether it
- * is deterministic and provably terminating — metadata an agent/PHOSPHOR can use
- * without a runtime.
+ * is deterministic and provably terminating — metadata an agent or trace
+ * consumer can use without a runtime.
  */
 export interface CtsLoop {
   /** e.g. 'algebraic_sum' | 'temporal' | 'recursive' | 'basic_repeat'. */

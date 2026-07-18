@@ -96,10 +96,10 @@ function spawnPnpm(args) {
 }
 
 function startStudio() {
-  console.log('🧊🔥 EML Cogni-Editor 啟動中…');
+  console.log('🧊🔥 EML Workbench 啟動中…');
   // Port comes from vite.config (which reads EML_STUDIO_PORT too), so the child
   // and this launcher agree on the URL without fragile `--` arg forwarding.
-  const child = spawnPnpm(['--filter', '@eml/cogni-editor', 'dev']);
+  const child = spawnPnpm(['--filter', '@eml/workbench', 'dev']);
   child.on('exit', (code) => process.exit(code ?? 0));
   for (const sig of ['SIGINT', 'SIGTERM']) {
     process.on(sig, () => {

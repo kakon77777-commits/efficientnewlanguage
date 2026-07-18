@@ -6,7 +6,7 @@
  * supported Unicode symbols to their canonical ASCII equivalents so that:
  *   - the tokenizer stays simple,
  *   - Git diffs / tests / agent edits work on stable ASCII,
- *   - Nova IME / Cogni-Editor can do the Unicode projection in the UI layer.
+ *   - the EML Symbol Palette / EML Workbench can do the Unicode projection in the UI layer.
  *
  * `Σ` is intentionally left as-is; the lexer recognizes it directly (and also
  * accepts the ASCII keyword `SUM`).

@@ -1,5 +1,5 @@
 import './style.css';
-import { attachNovaIme } from './nova-ime';
+import { attachSymbolPalette } from './symbol-palette';
 import { transpileEmlToPython, CrystalCache } from '@eml/transpiler-python';
 import { parse } from '@eml/parser';
 import type { CtsFunction, Program } from '@eml/types';
@@ -10,7 +10,7 @@ import {
   roundTripFromPython,
 } from '@eml/transpiler-eml';
 import { interpretProgram, type InterpResult } from '@eml/interp';
-import { summarize, findAnomalies, toJsonl, type PhosphorEvent } from '@eml/trace';
+import { summarize, findAnomalies, toJsonl, type TraceEvent } from '@eml/trace';
 
 // Persistent crystallization cache (whitepaper §7.3), stored in localStorage so
 // cold logic crystallized in one session is a cache hit in the next. The cache
@@ -85,7 +85,7 @@ let direction: Direction = 'eml2py';
 const inputArea = el('textarea', { id: 'eml', spellcheck: 'false' });
 const exampleSelect = el('select', { id: 'examples' });
 const dirButton = el('button', { id: 'dir', class: 'dirbtn' });
-const novaHint = el('span', { class: 'novahint', title: 'open symbol palette (or Ctrl+Space)' }, '⌃Space symbols');
+const paletteHint = el('span', { class: 'symbol-palette-hint', title: 'open symbol palette (or Ctrl+Space)' }, '⌃Space symbols');
 
 const statusBadge = el('span', { class: 'badge' }, 'ready');
 const rtBadge = el('span', { class: 'badge' }, '⇄');
@@ -140,9 +140,9 @@ app.append(
   el(
     'header',
     {},
-    el('h1', {}, 'Cogni-Editor ', el('span', { class: 'dim' }, '· EML 2026')),
+    el('h1', {}, 'EML Workbench ', el('span', { class: 'dim' }, '· EML 2026')),
     dirButton,
-    novaHint,
+    paletteHint,
     el('span', { class: 'spacer' }),
     el('label', { for: 'examples' }, 'example'),
     exampleSelect,
@@ -352,7 +352,7 @@ function renderFunctions(fns: CtsFunction[]): void {
 }
 
 /** Per-event presentation: icon, short label, detail string, and a colour class. */
-function describeEvent(e: PhosphorEvent): { icon: string; label: string; detail: string; cls: string } {
+function describeEvent(e: TraceEvent): { icon: string; label: string; detail: string; cls: string } {
   const f = e as Record<string, unknown>;
   const s = (k: string): string => (f[k] === undefined ? '' : String(f[k]));
   switch (e.type) {
@@ -482,8 +482,8 @@ dirButton.addEventListener('click', () => {
   render();
 });
 
-const nova = attachNovaIme(inputArea, render);
-novaHint.addEventListener('click', () => nova.open());
+const symbolPalette = attachSymbolPalette(inputArea, render);
+paletteHint.addEventListener('click', () => symbolPalette.open());
 applyDirectionLabels();
 refreshExamples();
 inputArea.value = EXAMPLES.eml2py['Cold / Hot functions']!;

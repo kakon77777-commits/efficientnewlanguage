@@ -24,8 +24,10 @@ AIRS/AILP rights layer (see [`../docs/AIRS-AILP-v0.1.md`](../docs/AIRS-AILP-v0.1
 1. **Manifest** — [`manifest.json`](./manifest.json) · [`version.json`](./version.json) · [`sitemap.json`](./sitemap.json)
 2. **Corpus** — [`corpus/`](./corpus/origin.md): origin, current, design-history, concept-genealogy,
    engineering-notes, accepted/deprecated concepts, full-corpus.jsonl
-3. **Capability** — [`specs/`](./specs/eml-v1.md), [`examples/`](./examples/001-summation.eml.md),
-   [`tools/`](./tools/tools.md)
+3. **Capability** — [`specs/`](./specs/eml-v1.md) (grammar/AST/trace digest) +
+   [`specs/eml-semantic-model-v1.5.md`](./specs/eml-semantic-model-v1.5.md) (self-contained
+   AI-semantic spec: status vocabulary, twelve-loop taxonomy, bug/repair/criticality models),
+   [`examples/`](./examples/001-summation.eml.md), [`tools/`](./tools/tools.md)
 4. **Governance / Rights** — [`rights-spectrum.json`](./rights-spectrum.json) (AIRS/AILP) +
    [`governance/`](./governance/ai-learning-policy.md)
 

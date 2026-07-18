@@ -1,9 +1,10 @@
 /**
  * @eml/interp — a deterministic, browser-safe interpreter for the EML supported
- * subset that doubles as a PHOSPHOR `phosphor-jsonl-v1` trace producer.
+ * subset that doubles as an EML `phosphor-jsonl-v1` trace producer (a frozen
+ * compatibility wire-format id, not an external runtime dependency).
  *
- * WHY THIS EXISTS (the iron rule: "PHOSPHOR trace is the execution-truth layer,
- * not decorative UI"): the Cogni-Editor runs in the browser and cannot launch
+ * WHY THIS EXISTS (the iron rule: "trace is the execution-truth layer, not
+ * decorative UI"): the EML Workbench runs in the browser and cannot launch
  * Python, yet the whitepaper's workbench vision (§13.1) is "open → type EML →
  * see Python → EXECUTE → trace → explain". So we compute the program's REAL
  * values here, faithfully to CPython (see `values.ts`), and emit a trace as we
@@ -32,7 +33,7 @@ import type {
   Diagnostic,
 } from '@eml/types';
 import { transpileEmlToPython } from '@eml/transpiler-python';
-import { createEmitter, findAnomalies, type Emitter, type PhosphorEvent } from '@eml/trace';
+import { createEmitter, findAnomalies, type Emitter, type TraceEvent } from '@eml/trace';
 import {
   type PyVal,
   PyError,
@@ -81,7 +82,7 @@ export interface InterpResult {
   /** stdout split into lines (no trailing empty element). */
   outputLines: string[];
   /** The phosphor-jsonl-v1 event stream. */
-  events: PhosphorEvent[];
+  events: TraceEvent[];
   /** Runtime error (Python exception class + message), if execution faulted. */
   error?: { type: string; message: string };
   /** Constructs that prevented full execution (numpy / temporal). */

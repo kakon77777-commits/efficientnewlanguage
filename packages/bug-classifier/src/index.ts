@@ -3,8 +3,8 @@
  *
  * The MVP de-scaling records and classifies; it NEVER auto-fixes. For each issue
  * it reports: a severity LEVEL, the EML source location, the affected node, the
- * Python expansion, and a suggested fix direction. Output doubles as a
- * PHOSPHOR-conformant event stream via {@link emitBugReport}.
+ * Python expansion, and a suggested fix direction. Output doubles as an
+ * EML phosphor-jsonl-v1 event stream via {@link emitBugReport}.
  *
  * Two inputs are supported:
  *  - compile-time {@link Diagnostic}s (mapped back to EML source via spans + CTS),
@@ -311,7 +311,7 @@ export function classifyPythonError(input: RuntimeClassifyInput): ClassifiedBug 
   };
 }
 
-// ── PHOSPHOR trace emission ───────────────────────────────────────────────────
+// ── EML trace emission ────────────────────────────────────────────────────────
 
 /**
  * Emit a {@link BugReport} as `phosphor-jsonl-v1` events: one `eml:bug` per bug

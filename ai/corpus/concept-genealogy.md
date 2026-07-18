@@ -38,8 +38,11 @@ not assume EML supports a capability just because early prose gestured at it.
 ## Reduced (降階 — scoped down from an ambitious concept)
 
 - **"Twelve loop kinds"** -> **`loopKind` metadata**. The MVP does not implement twelve runtime loop
-  types; it statically tags each loop-like construct as `algebraic_sum`, `basic_repeat`, `temporal`,
-  or `recursive`, with `deterministic` / `terminating` heuristic flags. Do not assume more.
+  types; it statically tags each loop-like construct as `algebraic_sum`, `basic_repeat`, `for_loop`,
+  `while_loop`, `temporal`, or `recursive` (5 of the 12 recovered semantic classes), with
+  `deterministic` / `terminating` heuristic flags. See
+  [`../specs/eml-semantic-model-v1.5.md`](../specs/eml-semantic-model-v1.5.md) §5 for the full
+  taxonomy and status labels. Do not assume more.
 
 ## Suggestion-only (deliberately outside the deterministic core)
 
@@ -48,9 +51,9 @@ not assume EML supports a capability just because early prose gestured at it.
 
 ## Metaphor vs. feature
 
-- **"Execution is the interface" / PHOSPHOR** — a real, serializable trace format (`phosphor-jsonl-v1`),
-  not merely decorative UI. EML *produces* the wire format; it has no runtime dependency on the
-  PHOSPHOR project (decoupled by design).
+- **"Execution is the interface"** — a real, serializable EML trace format (`phosphor-jsonl-v1`),
+  not merely decorative UI. `phosphor-jsonl-v1` is a frozen compatibility wire-format id; EML has no
+  runtime or theoretical dependency on any external project.
 - **"Base space / manager", "AI rights spectrum"** — these appear in the author's papers (see
   `docs/AIRS-AILP-v0.1.md`) as conceptual framing; within EML the concrete artifact is
   [`../rights-spectrum.json`](../rights-spectrum.json), a declaration layer (not enforcement).

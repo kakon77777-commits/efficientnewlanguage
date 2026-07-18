@@ -23,8 +23,12 @@ old name or assuming an unbuilt capability.
 
 ## Scoped-down capabilities (do not over-assume)
 
-- **"Twelve loop kinds" as a runtime system** — never implemented as runtime. Reduced to static
-  `loopKind` metadata with 4 tags (see [`concept-genealogy.md`](./concept-genealogy.md)).
+- **"Twelve loop kinds" as a runtime system** — never implemented as runtime. Static `loopKind`
+  metadata currently recognizes 5 of the 12 semantic classes (basic repetition, conditional,
+  algebraic, recursive, temporal — tagged `basic_repeat`/`for_loop`, `while_loop`, `algebraic_sum`,
+  `recursive`, `temporal`); the other 7 remain `conceptual` with no accepted surface syntax. See the
+  recovered full taxonomy and status labels in
+  [`../specs/eml-semantic-model-v1.5.md`](../specs/eml-semantic-model-v1.5.md) §5.
 - **Arbitrary-Python -> EML compression as a core feature** — the deterministic reverse path only
   covers a **supported subset**. General lossy compression is AI-assisted, suggestion-only, and NOT
   part of the round-trip invariant.
@@ -36,6 +40,8 @@ old name or assuming an unbuilt capability.
 
 ## Round-trip exclusions (forward-only, by design)
 
-Function definitions, `@cold`/`@hot`, `@temporal_loop`, `async`/`await`, and matrices are
-forward-only. They are not "deprecated", but a roundtrip over them is expected to report a mismatch —
-this is intended behavior, not a defect.
+`@hot` (permanent — comment-marker only), `@temporal_loop`, and `async`/`await` (the reverse
+transpiler does not support them) are forward-only. They are not "deprecated", but a roundtrip over
+them is expected to report a mismatch — this is intended behavior, not a defect. Plain function
+definitions/`return`, `@cold`, `class`, and matrices are **not** in this list — they round-trip; do
+not assume otherwise (see [`engineering-notes.md`](./engineering-notes.md)).

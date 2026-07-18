@@ -3,7 +3,7 @@
 # Example 003 — Cold / hot functions
 
 `@cold` pure logic becomes cacheable (`@functools.cache`, auto-imported); `@hot` is a marker only.
-Functions are **forward-only** (see Round-trip).
+Function definitions and `@cold` round-trip. `@hot` has one documented cosmetic exception.
 
 ## EML
 
@@ -54,10 +54,13 @@ greet(total)
 
 ## Round-trip
 
-`ok: false` — **expected**. Function definitions, `@cold`/`@hot`, `async`/`await`, `@temporal_loop`,
-and matrices are **forward-only** constructs: they transpile EML → Python but are not part of the
-round-trip invariant. The reverse path fails loudly (the literal message reports the decorator `@`
-as inexpressible in the supported Python→EML subset).
+`ok: false` — **expected, but narrower than it looks**. Function definitions and `class` ARE fully
+bidirectional; the ONLY reason this specific example doesn't round-trip is `@hot`, which has no
+Python equivalent and is rendered forward as a bare comment (`# @hot: dynamic state — not cached`)
+for human readability. Comments aren't tokenized, so the reverse leg can't recover the decorator —
+a permanent, purely cosmetic one-line difference, not a functional one. Matrices (`<M>`/`np.array`)
+round-trip too; only `@temporal_loop` and `async`/`await` remain genuinely forward-only (the
+reverse transpiler does not support them).
 
 ## Trace event types
 

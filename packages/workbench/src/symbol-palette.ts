@@ -1,10 +1,10 @@
 /**
- * Nova IME — a floating symbol palette for low-friction EML input.
+ * EML Symbol Palette — a floating symbol palette for low-friction EML input.
  * Ctrl+Space opens it; type a keyword (sum, transpose, out…), Enter inserts the
  * symbol/snippet at the cursor. Per whitepaper §3.4.
  */
 
-interface NovaEntry {
+interface SymbolPaletteEntry {
   /** Keywords that match this entry. */
   keys: string[];
   /** What is inserted. */
@@ -15,7 +15,7 @@ interface NovaEntry {
   caret?: number;
 }
 
-const ENTRIES: NovaEntry[] = [
+const ENTRIES: SymbolPaletteEntry[] = [
   { keys: ['sum', 'sigma', 'Σ'], insert: 'Σ(i^2, i in [1:N])', label: 'Σ  summation', caret: 2 },
   { keys: ['range', 'inrange', 'in', '∈'], insert: 'i in [1:N]', label: 'i in [1:N]  inclusive range' },
   { keys: ['transpose', 'T'], insert: 'm^T', label: 'm^T  transpose', caret: 1 },
@@ -40,21 +40,21 @@ function insertAtCursor(ta: HTMLTextAreaElement, text: string, caretOffset?: num
   ta.focus();
 }
 
-export function attachNovaIme(ta: HTMLTextAreaElement, onInsert: () => void): { open: () => void } {
-  if (ta.dataset['novaAttached']) return { open: () => {} };
-  ta.dataset['novaAttached'] = '1';
+export function attachSymbolPalette(ta: HTMLTextAreaElement, onInsert: () => void): { open: () => void } {
+  if (ta.dataset['symbolPaletteAttached']) return { open: () => {} };
+  ta.dataset['symbolPaletteAttached'] = '1';
   const panel = document.createElement('div');
-  panel.className = 'nova';
+  panel.className = 'symbol-palette';
   panel.style.display = 'none';
   const input = document.createElement('input');
-  input.className = 'nova-input';
+  input.className = 'symbol-palette-input';
   input.placeholder = 'symbol… (sum, transpose, out, range, matrix)';
   const list = document.createElement('div');
-  list.className = 'nova-list';
+  list.className = 'symbol-palette-list';
   panel.append(input, list);
   document.body.append(panel);
 
-  let filtered: NovaEntry[] = ENTRIES;
+  let filtered: SymbolPaletteEntry[] = ENTRIES;
   let active = 0;
 
   const render = (): void => {
@@ -62,7 +62,7 @@ export function attachNovaIme(ta: HTMLTextAreaElement, onInsert: () => void): { 
     let activeRow: HTMLDivElement | null = null;
     filtered.forEach((e, i) => {
       const row = document.createElement('div');
-      row.className = 'nova-row' + (i === active ? ' active' : '');
+      row.className = 'symbol-palette-row' + (i === active ? ' active' : '');
       row.textContent = e.label;
       row.addEventListener('mousedown', (ev) => {
         ev.preventDefault();

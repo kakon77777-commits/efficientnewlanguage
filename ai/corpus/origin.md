@@ -39,8 +39,8 @@ Two properties were load-bearing from the start and remain invariants (see
 1. **Determinism** — the core EML -> Python transpilation contains no LLM; it is rule-based and
    test-gated.
 2. **Round-trip faithfulness** — for the supported subset, `Python -> EML -> Python` reaches a
-   byte-identical fixpoint. The symbolic form is the machine-canonical artifact; the Cogni-Editor
-   projection and Unicode display are for humans.
+   byte-identical fixpoint. The symbolic form is the machine-canonical artifact; readable editor
+   projections and Unicode display are for humans.
 
 ## Transformation path
 

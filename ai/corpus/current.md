@@ -40,17 +40,17 @@ A **pnpm TypeScript monorepo**. The reference implementation packages:
 | `@eml/interp` | execution-truth interpreter (faithful to CPython, test-gated) + trace producer |
 | `@eml/trace` | phosphor-jsonl-v1 emitter/parser (browser-safe; node file sink isolated) |
 | `@eml/bug-classifier` | 5-level classifier (CRITICAL / MAJOR / MINOR / TRIVIAL / COSMETIC) |
-| `@eml/cts-generator`, `@eml/symbols`, `@eml/cli`, `@eml/cogni-editor` | CTS, symbol table, the `eml` command, editor |
+| `@eml/cts-generator`, `@eml/symbols`, `@eml/cli`, `@eml/workbench` | CTS, symbol table, the `eml` command, editor |
 
 By phase (each shipped with tests): Phase 0 Py+ transpiler; Phase 1 bidirectional + round-trip;
 Phase 2 cold/hot + crystallization; Phase 3 temporal loops + BUG classifier; Phase 4 loopKind +
-C++; Phase 5 execution-truth interpreter + PHOSPHOR trace. The suite (300+ cases) enforces an
+C++; Phase 5 execution-truth interpreter + trace. The suite (300+ cases) enforces an
 `interp == python` stdout-equivalence gate.
 
 ## Interfaces
 
 - **CLI** — `eml run|transpile|trace|compress|roundtrip|bugs` runs the full pipeline from source.
-- **Cogni-Editor** — browser projection editor + Nova IME + Trace panel.
+- **EML Workbench** — browser projection editor + EML Symbol Palette + Trace panel.
 - **Hosted AICL** — the live site `https://efficientnewlanguage.org` exposes this same toolchain as
   bounded HTTP tools at `/ai/tools/*` (parse, transpile both ways, interpret, trace, roundtrip).
   See [`../tools/tools.md`](../tools/tools.md).

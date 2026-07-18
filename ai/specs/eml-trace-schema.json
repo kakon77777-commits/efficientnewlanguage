@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://efficientnewlanguage.org/ai/specs/eml-trace-schema.json",
-  "title": "EML PHOSPHOR trace event (phosphor-jsonl-v1)",
-  "description": "Schema for ONE EML trace event. An EML trace is JSONL / NDJSON: one JSON object per line, each conforming to this schema. EML emits compile/run/temporal/bug events as the portable PHOSPHOR standard phosphor-jsonl-v1; it has no runtime dependency on PHOSPHOR. Envelope fields are fixed; everything else is arbitrary domain payload. Consumers MUST treat seq/ts/mono/writer as optional (the Python runtime emitter omits them). Aligned with EML-LANG-2026-v1.0 §8 and @eml/trace.",
+  "title": "EML trace event (phosphor-jsonl-v1)",
+  "description": "Schema for ONE EML trace event. An EML trace is JSONL / NDJSON: one JSON object per line, each conforming to this schema. EML emits compile/run/temporal/bug events under the frozen compatibility wire-format id phosphor-jsonl-v1; EML has no runtime or theoretical dependency on any external project. Envelope fields are fixed; everything else is arbitrary domain payload. Consumers MUST treat seq/ts/mono/writer as optional (the Python runtime emitter omits them). Aligned with EML-LANG-2026-v1.0 §8 and @eml/trace.",
   "x-canonical-domain": "efficientnewlanguage.org",
   "x-ai-layer-version": "0.1.0",
   "x-proto": "phosphor-jsonl-v1",

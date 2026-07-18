@@ -3,7 +3,7 @@
 # Example 005 — Recursion
 
 Self-recursive factorial via the ternary `?:`. `loopKind: recursive` (deterministic; not statically
-proven terminating). Forward-only.
+proven terminating).
 
 ## EML
 
@@ -35,7 +35,8 @@ print(x)
 
 ## Round-trip
 
-`ok: false` — **expected**: function definitions are forward-only.
+`ok: true` — verified live via `pnpm eml roundtrip`: this supported recursive-function form reaches
+the Python fixpoint.
 
 ## Trace event types
 

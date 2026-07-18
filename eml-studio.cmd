@@ -1,5 +1,5 @@
 @echo off
-REM EML Studio - double-click to launch the Cogni-Editor in your browser.
+REM EML Studio - double-click to launch the EML Workbench in your browser.
 REM Forwards any args to the launcher, e.g.  eml-studio.cmd run examples\phase0\sum.eml
 setlocal
 cd /d "%~dp0"

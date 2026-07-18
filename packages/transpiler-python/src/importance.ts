@@ -6,7 +6,7 @@ import type { Program, Statement, Expression, FunctionDef, CtsImportance } from 
  *   Importance = w1*callFrequency + w2*riskLevel + w3*dependencyDepth
  *
  * The three raw components are reported alongside a normalized 0..1 composite so
- * PHOSPHOR can decide whether to trace, require tests, or allow agent refactors.
+ * a future policy can decide whether to trace, require tests, or allow agent refactors.
  * Everything here is deterministic and rule-based — no profiling, no runtime.
  *
  * Determinism notes:

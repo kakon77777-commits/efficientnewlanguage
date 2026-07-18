@@ -1,6 +1,6 @@
 # EML-LANG-2026 — Language Specification v1.0
 
-**Project:** EML 2026 — Efficient Meta-Language
+**Project:** EML 2026 — Efficient New Language
 **Document:** Normative language specification (the single source of truth)
 **Status:** v1.0 (Phase 0–4 frozen surface)
 **Owner:** Neo.K (許筌崴) / EveMissLab（一言諾科技有限公司）
@@ -11,7 +11,7 @@ and whitepaper §4.2–4.4. Where this document and those disagree, **this docum
 > EML is **not** a replacement language. It is a deterministic, testable **semantic-overlay**
 > layer: it compresses high-frequency program intent into symbols and transpiles, rule-based and
 > reversibly, back to a standard language. The symbolic form is the machine-canonical artifact;
-> the Cogni-Editor projection and Unicode display are for humans.
+> readable editor projections and Unicode display forms are for humans.
 
 ---
 
@@ -25,6 +25,11 @@ and whitepaper §4.2–4.4. Where this document and those disagree, **this docum
   here (precedence, formatting, diagnostics) is what that implementation does and what the test
   suite (`tests/`, 512 cases) enforces.
 * §11 defines exactly what "v1.0" freezes and what remains non-normative / prototype.
+* The larger recovered EML 1.5 model (twelve loop classes, temporal state, BUG handling, validated
+  repair, and criticality) is defined in [`EML-AI-SEMANTIC-SPEC-v1.5.md`](EML-AI-SEMANTIC-SPEC-v1.5.md).
+  It labels implementation status explicitly and MUST NOT be used to invent syntax absent here.
+* EML is semantically self-contained. Package names, UI names, historical theories, and protocol
+  identifiers are optional interfaces or compatibility labels, not prerequisites for this spec.
 
 ---
 
@@ -46,7 +51,7 @@ Two invariants define the language:
 1. **Determinism.** The core chain is rule-based. No LLM participates in transpilation. The same
    source always produces the same output (byte-for-byte, including formatting).
 2. **Round-trip faithfulness.** For the supported statement subset, Python→EML→Python reaches a
-   fixpoint (`python1 == python2`). Functions and Phase 3+ constructs are forward-only (§9).
+   fixpoint (`python1 == python2`). The explicit remaining exceptions are documented in §9.
 
 A third, operational guarantee is added in v1.0:
 
@@ -896,10 +901,10 @@ async def wait_for_confirmation(flag):
 
 ## 8. Observability — `phosphor-jsonl-v1` trace (normative wire format)
 
-EML emits compile/run/temporal/bug events as the portable PHOSPHOR standard `phosphor-jsonl-v1`
-(one JSON object per line). EML only *produces* the wire format; it has no runtime dependency on
-PHOSPHOR (decoupled by design). The package `@eml/trace` is the reference emitter/parser
-(browser-safe core; node file sink isolated under `@eml/trace/node`).
+EML emits compile/run/temporal/bug events as JSONL under the frozen compatibility protocol id
+`phosphor-jsonl-v1` (one JSON object per line). This is an EML wire-format identifier and creates no
+runtime or theoretical dependency on an external project. The package `@eml/trace` is the reference
+emitter/parser (browser-safe core; node file sink isolated under `@eml/trace/node`).
 
 ### 8.1 Envelope
 
@@ -1081,7 +1086,7 @@ deterministic core.
 
 **Non-normative / may change without a major bump:** the C++ back end and its subset; the AI-assisted
 compression layer; importance weights and crystallization hashing internals; CLI help text;
-human-readable diagnostic *messages* (codes are stable, prose may improve); the Cogni-Editor UI.
+human-readable diagnostic *messages* (codes are stable, prose may improve); the EML Workbench UI.
 
 **Conformance.** A conforming **producer** MUST transpile the §3 grammar deterministically, apply
 §5 semantics, and emit §8 envelopes. A conforming **consumer** of EML traces MUST tolerate the
@@ -1276,6 +1281,6 @@ consumer flags them). Each carries its EML span, CTS node, Python expansion, and
 (semantic + emit + format) · `@eml/transpiler-eml` (reverse + round-trip) · `@eml/transpiler-cpp`
 (C++ prototype) · `@eml/interp` (execution-truth interpreter + trace) · `@eml/trace`
 (phosphor-jsonl-v1) · `@eml/bug-classifier` · `@eml/cts-generator` · `@eml/symbols` · `@eml/cli`
-(`eml`) · `@eml/cogni-editor` (Cogni-Editor + Nova IME + Trace panel).
+(`eml`) · `@eml/workbench` (EML Workbench + EML Symbol Palette + Trace panel).
 
 *End of EML-LANG-2026 v1.0.*

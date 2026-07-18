@@ -5,7 +5,7 @@
  * output stays a runnable standalone script (`eml run` works with no extra files).
  * It is a minimal asyncio wrapper — NOT a full state machine — that demonstrates
  * the five required properties: no busy-wait (asyncio.sleep), max_wait,
- * check_interval, timeout_action, and a PHOSPHOR (phosphor-jsonl-v1) trace.
+ * check_interval, timeout_action, and an EML (phosphor-jsonl-v1) trace.
  */
 export const TEMPORAL_RUNTIME_PREAMBLE = `# ── EML temporal runtime (Phase 3, whitepaper §8.2) ─────────────────────────
 import asyncio as _eml_asyncio, json as _eml_json, sys as _eml_sys, time as _eml_time

@@ -2,7 +2,7 @@
 
 # Example 004 — Closures (nested functions)
 
-A nested `def` captures the enclosing parameter `n` (lexical closure). Forward-only.
+A nested `def` captures the enclosing parameter `n` (lexical closure).
 
 ## EML
 
@@ -38,8 +38,8 @@ print(out)
 
 ## Round-trip
 
-`ok: false` — **expected**: function definitions are forward-only and not part of the round-trip
-invariant.
+`ok: true` — verified live via `pnpm eml roundtrip`: the supported nested-function subset reaches
+the Python fixpoint.
 
 ## Trace event types
 
