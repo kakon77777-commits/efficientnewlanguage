@@ -1,0 +1,23 @@
+# Self-authored for the EML case corpus (no external origin). A small,
+# genuinely useful temperature-unit converter exercising def/return, list
+# literals, list comprehensions, for-loops, and the EXPR^0(END_EXPR) custom
+# print terminator (suppressing the newline until we choose to emit one).
+
+def celsius_to_fahrenheit(c):
+    (c * 9 / 5) + 32 => f
+    return f
+
+def fahrenheit_to_celsius(f):
+    (f - 32) * 5 / 9 => c
+    return c
+
+celsius_readings^+[0, 20, 37, 100, -40]
+[celsius_to_fahrenheit(c) for c in celsius_readings] => fahrenheit_readings
+
+for reading in celsius_readings:
+    reading^0("C = ")
+    celsius_to_fahrenheit(reading)^0("F\n")
+
+fahrenheit_to_celsius(32) => freezing_c
+"Freezing point (32F) in Celsius: " + str(freezing_c) => message
+message^0

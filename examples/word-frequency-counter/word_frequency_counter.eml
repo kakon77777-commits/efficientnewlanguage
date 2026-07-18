@@ -1,0 +1,34 @@
+# Self-authored for the EML case corpus (no external origin). Counts word
+# frequency in a small pre-tokenized word list (no string method calls used —
+# every operation is directly expressible EML) via a dict literal, subscript
+# get/set, and `in` membership on both a list and a dict; then finds the most
+# frequent word with a manual comparison loop (kept to bare comparisons,
+# rather than relying on a sort/max-of-tuples builtin).
+
+words^+["the", "quick", "brown", "fox", "jumps", "over", "the", "lazy",
+        "dog", "the", "fox", "runs"]
+
+counts^+{}
+unique_words^+[]
+
+for word in words:
+    if word in counts:
+        counts[word] + 1 => counts[word]
+    else:
+        1 => counts[word]
+        unique_words + [word] => unique_words
+
+"Word frequencies:"^0
+for word in unique_words:
+    word^0(": ")
+    counts[word]^0("\n")
+
+best_word^+""
+best_count^+0
+for word in unique_words:
+    if counts[word] > best_count:
+        counts[word] => best_count
+        word => best_word
+
+"Most frequent word: " + best_word + " (" + str(best_count) + " times)" => message
+message^0

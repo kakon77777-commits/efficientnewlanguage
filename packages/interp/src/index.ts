@@ -161,6 +161,14 @@ function runProgram(
   const out: string[] = [];
   const unsupported: string[] = [];
   const module: Scope = { vars: new Map() };
+  // `True`/`False`/`None` lex as plain identifiers (Python keywords, but EML
+  // never reserves them) — the emitter passes them through unchanged since
+  // real Python already binds them, but this interpreter has its own scope
+  // and never pre-declared them, so a bare literal reference (as opposed to
+  // one produced by a comparison/`and`/`or`) threw a spurious NameError.
+  module.vars.set('True', BOOL(true));
+  module.vars.set('False', BOOL(false));
+  module.vars.set('None', NONE);
   /** functools.cache emulation for @cold (non-async) functions, keyed by repr(args). */
   const coldCache = new Map<string, PyVal>();
   let steps = 0;

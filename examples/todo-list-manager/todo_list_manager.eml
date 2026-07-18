@@ -1,0 +1,34 @@
+# Self-authored for the EML case corpus (no external origin). A small
+# class-based todo-list manager exercising `self` attribute state (lists),
+# list concatenation via `+` on `self` attributes, nested subscript writes
+# through an attribute (`self.done[index]`), and a range bound built from a
+# function call + arithmetic (`[0 : len(self.tasks) - 1]`).
+
+class TodoList:
+    def __init__(self):
+        [] => self.tasks
+        [] => self.done
+
+    def add_task(self, task):
+        self.tasks + [task] => self.tasks
+        self.done + [False] => self.done
+
+    def complete_task(self, index):
+        True => self.done[index]
+
+    def print_tasks(self):
+        for i in [0 : len(self.tasks) - 1]:
+            if self.done[i]:
+                "[x] " => status
+            else:
+                "[ ] " => status
+            status + self.tasks[i] => line
+            line^0
+
+TodoList() => todo
+todo.add_task("Write the case corpus plan")
+todo.add_task("Author three self-contained EML programs")
+todo.add_task("Wire up the corpus generation script")
+todo.complete_task(0)
+todo.complete_task(1)
+todo.print_tasks()
