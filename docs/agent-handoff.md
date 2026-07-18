@@ -2210,6 +2210,90 @@ used the default `'\n'`).
   `text_to_morse_code` — **all 5 tracked corpus files now fully clear the B-6 KPI**. This is the first
   time since this entire language-extension effort began that every measured real corpus file passes.
 
+## A-3 好裝好跑 — `@eml/cli` becomes installable/runnable via npm/npx (2026-07-19)
+
+With the B-6 KPI cleared, Neo set the next priority: commercialization + large-scale case testing
+before further corpus expansion. Asked to choose a concrete starting item among A-3 (npm packaging),
+A-4 (more real-world ports), and B-5 (fuzz/property testing) — Neo picked **A-3** (matches the
+roadmap's own stated philosophy: 先讓人能用 → 再讓 AI 能用 → 再讓它能賺).
+
+**The gap was real, not cosmetic.** Direct research found `@eml/cli` could not run outside this repo
+at all:
+- `packages/cli/package.json`'s `bin` pointed at raw `./src/index.ts` — Node cannot execute TypeScript
+  directly; the CLI only ever ran via `tsx packages/cli/src/index.ts` (root `package.json`'s `"eml"`
+  script), which requires cloning the repo and having `tsx` installed.
+- All 10 of the CLI's `@eml/*` dependencies used `workspace:*`, a protocol that only resolves inside
+  this pnpm workspace — an external `npm install`/`npx` consumer can't resolve them.
+- No build/bundle step existed anywhere (only `tsc --noEmit`, a typecheck producing no output).
+- `packages/cli/package.json` had no `files`/`license`/`repository`/`author`/`engines`; `src/index.ts`
+  had no shebang.
+
+**The fix**: added `esbuild` as a root devDependency; rewrote `packages/cli/package.json` — `bin` now
+points at `./dist/index.js`, added `files: ["dist"]`, `license`, `author`, `repository`, `engines:
+{"node": ">=20"}`; added a `build` script that bundles all 10 `@eml/*` workspace deps INLINE (correct —
+they're pure internal TS source with no publish of their own) while keeping the one genuine external
+npm dependency, `@anthropic-ai/sdk` (reachable via `@eml/ai-converter`), external via
+`--external:@anthropic-ai/sdk` and listed as the sole real `dependencies` entry; moved the 10 `@eml/*`
+entries to `devDependencies` (build-time only, now bundled); added `prepublishOnly: "npm run build"` so
+a future `npm publish` can never ship a stale `dist/`. Root `package.json` gained a `build:cli` script
+delegate and the `esbuild` devDependency; the existing `"eml"` dev script (`tsx
+packages/cli/src/index.ts`) was left untouched — this round adds a parallel publishable build, not a
+replacement for the dev inner loop.
+
+**A real bug, caught only by genuine external-install verification, not unit tests.** The plan's
+verification step 4 calls for simulating a real external install (`npm pack` + `npm install <tarball>`
+in a scratch directory completely outside the repo) rather than trusting in-repo tests alone — and it
+paid off immediately. `packages/symbols/src/index.ts` computed its `eml-symbols.json` path via
+`fileURLToPath(new URL('../../../eml-symbols.json', import.meta.url))` — a fixed 3-level-up relative
+walk from the module's own location, correct only when that file runs from its original position in
+the source tree. Once esbuild bundles it into `packages/cli/dist/index.js`, `import.meta.url` at
+runtime resolves to the bundle's own location (e.g. `node_modules/@eml/cli/dist/index.js` for an
+external consumer) — the same `../../../` offset then resolves to `node_modules/eml-symbols.json`,
+which doesn't exist. Running the packed tarball in a scratch directory threw exactly this: `Error:
+ENOENT: no such file or directory, open '...\node_modules\eml-symbols.json'`. No in-repo test could
+have caught this, since every in-repo test happens to run from a location where the original
+`../../../` walk still resolves correctly via the pnpm workspace's own file layout.
+
+Two static-JSON-import fix attempts were tried and abandoned first: `import EML_SYMBOLS_DATA from
+'../../../eml-symbols.json'` (relying on `resolveJsonModule`) and the same with an explicit `with {
+type: 'json' }` import attribute. Both failed identically in the dev (`tsx`) path with `SyntaxError:
+Unexpected reserved word` — esbuild's JSON-to-ESM transform generates one named export per top-level
+JSON key (to support `import {version} from './package.json'`-style usage), and `eml-symbols.json` has
+a top-level key literally named `"await"`, a JS reserved word that can never be a top-level binding
+name in any ES module. Renaming that key was considered and rejected — out of scope for a packaging
+fix, and other consumers may depend on the exact canonical key name.
+
+**The actual fix**: reverted to `readFileSync` + `JSON.parse` (never triggers esbuild's JSON-module
+transform, since it's just reading a string) but replaced the fragile fixed-depth relative path with a
+portable "walk up the directory tree looking for `eml-symbols.json`" helper (bounded to 6 levels), and
+extended `packages/cli/package.json`'s `build` script to copy `eml-symbols.json` next to `dist/index.js`
+after bundling (`node -e "require('fs').copyFileSync(...)"`, chained with `&&` — a `node -e` script
+defaults to CommonJS regardless of the package's own `"type": "module"`, so plain `require('fs')` works
+without any extra flag).
+
+**Verification, all real**: `pnpm typecheck` clean; dev path (`pnpm eml explain
+examples/phase0/sum.eml`) now succeeds with the correct symbol table printed (previously the reserved-
+word crash); `pnpm build:cli` produces `dist/index.js` (248kb, correct `#!/usr/bin/env node` shebang,
+zero `workspace:` residue) AND `dist/eml-symbols.json` alongside it; `node packages/cli/dist/index.js
+run examples/phase0/sum.eml` byte-for-byte matches `pnpm eml run examples/phase0/sum.eml` (`338350`
+both); `npm pack` in `packages/cli/` produces a 3-file tarball (`dist/index.js`, `dist/eml-symbols.json`,
+`package.json`); a fresh `npm install <tarball>` in a scratch directory completely outside the repo,
+followed by `npx eml run sample.eml` and `npx eml explain sample.eml`, both worked correctly with zero
+ENOENT — confirming the fix holds for a genuinely external consumer, not just this repo's own layout.
+The scratch install was uninstalled afterward to leave it clean. Full suite re-run: **835/835 tests
+pass, zero regressions**.
+
+**Explicitly out of scope this round** (logged as separate future candidates, not silently folded in):
+Node SEA (single native executable, per-OS binary blobs, its own build tooling — a deliverable layered
+ON TOP of a working bundled CLI, not a prerequisite); the "Python 端 runtime helper" (no existing
+artifact to extend — confirmed no `requirements.txt`/`pyproject.toml`/`python/` dir anywhere; the CLI's
+own `resolvePython()` already handles `EML_PYTHON` override + `python`/`py`/`python3` probing; what this
+roadmap phrase concretely means needs a clarifying question to Neo before scoping, not a guess); and
+`npm publish` itself — a real, public, irreversible action requiring Neo's separate explicit
+authorization plus a real package-naming decision (`@eml/cli` needs the `@eml` npm org scope, which may
+not exist — an unscoped name may be needed instead). This round proves the package would work once
+published; it stops short of the registry.
+
 ## Non-obvious design decisions (the gotchas)
 
 ### 1. Two-stage AST: `OverlayAssign` is resolved by semantics

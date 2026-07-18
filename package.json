@@ -18,9 +18,11 @@
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "tsc -p tsconfig.json --noEmit",
+    "build:cli": "pnpm --filter @eml/cli run build",
     "demo": "tsx packages/cli/src/index.ts run examples/phase0/sum.eml"
   },
   "devDependencies": {
+    "esbuild": "^0.24",
     "@eml/types": "workspace:*",
     "@eml/parser": "workspace:*",
     "@eml/transpiler-python": "workspace:*",

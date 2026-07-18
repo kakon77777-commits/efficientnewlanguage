@@ -1,10 +1,24 @@
 {
   "name": "@eml/cli",
   "version": "0.1.0",
+  "description": "EML 2026 command-line interface — compress/explain/run/trace EML and Python",
   "type": "module",
-  "bin": {
-    "eml": "./src/index.ts"
+  "license": "Apache-2.0",
+  "author": "Neo.K (許筌崴) / EveMissLab (一言諾科技有限公司)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kakon77777-commits/efficientnewlanguage.git",
+    "directory": "packages/cli"
   },
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "eml": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
@@ -14,7 +28,14 @@
       "default": "./src/index.ts"
     }
   },
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist/index.js --banner:js=\"#!/usr/bin/env node\" --external:@anthropic-ai/sdk && node -e \"require('fs').copyFileSync('../../eml-symbols.json', 'dist/eml-symbols.json')\"",
+    "prepublishOnly": "npm run build"
+  },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.105.0"
+  },
+  "devDependencies": {
     "@eml/types": "workspace:*",
     "@eml/parser": "workspace:*",
     "@eml/transpiler-python": "workspace:*",
@@ -25,6 +46,7 @@
     "@eml/symbols": "workspace:*",
     "@eml/trace": "workspace:*",
     "@eml/bug-classifier": "workspace:*",
-    "@eml/interp": "workspace:*"
+    "@eml/interp": "workspace:*",
+    "esbuild": "^0.24"
   }
 }

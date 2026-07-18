@@ -257,7 +257,19 @@ effort began. See `docs/roadmap.md`'s "Core 語法放寬" sections.
 Arbitrary-Python compression (lossy, semantics-sensitive) remains an
 AI-assisted, suggestion-only layer for a later phase.
 
-Invoke via `pnpm eml <cmd>` in this repo, e.g. `pnpm eml explain examples/phase0/sum.eml`.
+**`@eml/cli` is now installable/runnable outside this repo (2026-07-19).**
+`packages/cli` bundles into a single `dist/index.js` via `esbuild` (all
+internal `@eml/*` workspace packages inlined; the one genuine external
+dependency, `@anthropic-ai/sdk`, stays external), with a real
+`#!/usr/bin/env node` shebang and correct `bin`/`files`/`license`/
+`repository` metadata. Verified via `npm pack` + installing the tarball
+in a scratch directory completely outside the repo — `npx eml run
+<file>` and `npx eml explain <file>` both work standalone. `npm
+publish` itself is not yet done — that needs a separate explicit
+authorization and a package-naming decision. Node SEA (single native
+executable) and a Python-side runtime helper remain open follow-ups.
+
+Invoke via `pnpm eml <cmd>` in this repo (dev), e.g. `pnpm eml explain examples/phase0/sum.eml`.
 
 ## Supported syntax (Phase 0)
 
