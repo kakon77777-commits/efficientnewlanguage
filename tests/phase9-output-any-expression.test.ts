@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { parse } from '@eml/parser';
 import { transpileEmlToPython } from '@eml/transpiler-python';
 import { interpret } from '@eml/interp';
-import { transpilePythonToEml, roundTripFromPython } from '@eml/transpiler-eml';
+import { roundTripFromPython } from '@eml/transpiler-eml';
 
 /**
  * Core grammar relaxation (not a Phase 9 language-extension item — this touches
@@ -26,11 +26,14 @@ import { transpilePythonToEml, roundTripFromPython } from '@eml/transpiler-eml';
  * trailing `^0` dangling, regardless of the expression's shape, for the new
  * check to detect.
  *
- * `print(x, end=...)` (Phase 9 item 5) is a SEPARATE, still-fully-intact,
- * deliberate permanent limitation — untouched by this round. `eml-emitter.ts`
- * checks `stmt.end !== undefined` before the (now-removed) value-type check, so
- * a print with both a non-identifier value AND `end=` (like `Calculate_age`'s
- * real corpus line) still fails, on the same `end=`-specific message as before.
+ * `print(x, end=...)` (Phase 9 item 5) was a SEPARATE, deliberate permanent
+ * limitation at the time this round shipped — untouched here, `eml-emitter.ts`
+ * still checked `stmt.end !== undefined` before the (now-removed) value-type
+ * check. That decision was itself revisited the same day, in a follow-up round
+ * (see `tests/phase9-output-end.test.ts`): forward EML gained `EXPR^0(END_EXPR)`
+ * syntax, so `Calculate_age`'s real corpus line — which has BOTH a
+ * non-identifier value (fixed by THIS round) and `end=` (fixed by the
+ * follow-up) — now fully round-trips.
  */
 
 function resolvePython(): string | null {
@@ -122,11 +125,10 @@ describe('Phase 9 — reverse Python->EML: real corpus print lines round-trip', 
   });
 });
 
-describe("Phase 9 — Calculate_age's end= line stays blocked, unchanged (regression guard)", () => {
-  it('a print with BOTH a non-identifier value AND end= still fails, on the SAME end=-specific message', () => {
+describe("Phase 9 — Calculate_age's line: full round-trip now that BOTH gaps are fixed", () => {
+  it('a print with a non-identifier value AND end= now fully round-trips (see phase9-output-end.test.ts)', () => {
     const py = 'name = "Alice"\nyear = 30\nprint("%s is %d" % (name, year), end="")\n';
-    const r = transpilePythonToEml(py);
-    expect(r.ok).toBe(false);
-    expect(r.error).toContain("EML cannot express print's 'end' keyword argument");
+    const rt = roundTripFromPython(py);
+    expect(rt.ok, rt.message + '\n' + JSON.stringify(rt.steps, null, 2)).toBe(true);
   });
 });

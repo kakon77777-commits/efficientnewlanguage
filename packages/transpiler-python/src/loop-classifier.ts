@@ -118,6 +118,7 @@ function scanStatementExpr(stmt: Statement, visit: (e: Expression) => void): voi
       break;
     case 'Output':
       walk(stmt.value);
+      if (stmt.end !== undefined) walk(stmt.end);
       break;
     case 'ExpressionStatement':
       walk(stmt.expression);

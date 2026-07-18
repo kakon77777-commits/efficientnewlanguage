@@ -189,8 +189,10 @@ export function emitStatement(stmt: Statement): string {
       return `${emitTarget(stmt.target)} = ${emitExpression(stmt.value)}`;
     case 'AugmentedAssign':
       return `${emitTarget(stmt.target)} ${stmt.op}= ${emitExpression(stmt.value)}`;
-    case 'Output':
-      return `print(${emitExpression(stmt.value)})`;
+    case 'Output': {
+      const endArg = stmt.end !== undefined ? `, end=${emitExpression(stmt.end)}` : '';
+      return `print(${emitExpression(stmt.value)}${endArg})`;
+    }
     case 'ExpressionStatement':
       return emitExpression(stmt.expression);
     case 'Return':

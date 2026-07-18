@@ -152,6 +152,7 @@ function scanStatement(stmt: Statement, effects: string[], userFns: Set<string>)
       // `x^0` -> print(...), an I/O effect.
       effects.push('輸出語句 ^0（print，I/O 副作用）');
       scanExpression(stmt.value, effects, userFns);
+      if (stmt.end !== undefined) scanExpression(stmt.end, effects, userFns);
       break;
     case 'Assignment':
     case 'AugmentedAssign':
@@ -324,8 +325,10 @@ export function collectCalledNames(fn: FunctionDef): string[] {
     switch (stmt.type) {
       case 'Output':
       case 'Return':
-        if (stmt.type === 'Output') collectCallsExpr(stmt.value, names);
-        else if (stmt.value) collectCallsExpr(stmt.value, names);
+        if (stmt.type === 'Output') {
+          collectCallsExpr(stmt.value, names);
+          if (stmt.end !== undefined) collectCallsExpr(stmt.end, names);
+        } else if (stmt.value) collectCallsExpr(stmt.value, names);
         break;
       case 'Assignment':
       case 'AugmentedAssign':

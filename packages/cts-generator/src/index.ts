@@ -298,6 +298,10 @@ export function generateCts(input: CtsInput): Cts {
     const value = statementValue(stmt);
     const deps = new Set<string>();
     if (value) collectIdents(value, deps);
+    // `statementValue()` returns Output's `value` only (the primary subject, matching
+    // every other multi-field statement) — fold in `end`'s identifiers separately so a
+    // variable referenced only inside a custom print terminator isn't silently missed.
+    if (stmt.type === 'Output' && stmt.end !== undefined) collectIdents(stmt.end, deps);
 
     const semanticType = semanticTypeOf(stmt);
     // Dependencies use emitted (aliased) Python names so they cross-reference

@@ -126,6 +126,7 @@ function walkStmt(stmt: Statement, bound: Set<string>, onCall: (name: string) =>
   switch (stmt.type) {
     case 'Output':
       walkExpr(stmt.value, bound, onCall);
+      if (stmt.end !== undefined) walkExpr(stmt.end, bound, onCall);
       break;
     case 'Assignment':
     case 'AugmentedAssign':

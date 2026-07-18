@@ -213,7 +213,7 @@ class Parser {
         const idTok = this.next(); // IDENT
         this.next(); // CARET
         this.next(); // NUMBER 0
-        return { type: 'Output', value: { type: 'Identifier', name: idTok.value } };
+        return { type: 'Output', value: { type: 'Identifier', name: idTok.value }, end: this.parseOptionalOutputEnd() };
       }
       if (kind === 'overlay-assign') {
         const idTok = this.next(); // IDENT
@@ -269,9 +269,21 @@ class Parser {
     if (this.check('CARET') && this.peek(1).type === 'NUMBER' && this.peek(1).value === '0') {
       this.next(); // CARET
       this.next(); // NUMBER 0
-      return { type: 'Output', value: expr };
+      return { type: 'Output', value: expr, end: this.parseOptionalOutputEnd() };
     }
     return { type: 'ExpressionStatement', expression: expr };
+  }
+
+  /** `^0(END_EXPR)` — an optional custom print terminator (Core grammar relaxation,
+   *  matching Python's `print(x, end=...)`). Zero collision risk: `^0` previously
+   *  required the very next token to be `NEWLINE`/`DEDENT`/`EOF`, so `LPAREN` here
+   *  was already a guaranteed parse error in every prior program. */
+  private parseOptionalOutputEnd(): Expression | undefined {
+    if (!this.check('LPAREN')) return undefined;
+    this.next(); // (
+    const end = this.parseExpression();
+    this.expect('RPAREN', "')' after custom print terminator");
+    return end;
   }
 
   /**

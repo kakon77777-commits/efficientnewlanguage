@@ -2135,6 +2135,81 @@ error instead of succeeding — bidirectional was mandatory here for the corpus 
   `end` before the value's type, so this file's blocker is completely unchanged, confirmed by the
   dedicated regression test rather than just assumed.
 
+## Core grammar relaxation (続) — `print(x, end=...)` gains forward syntax, 5/5 corpus files pass (2026-07-19, same day again)
+
+After the `^0`-any-expression round, `Calculate_age` was the ONLY still-blocked B-6 corpus file, and its
+sole remaining gap was `print(x, end=...)` — item 5's own deliberate, previously-permanent decision
+(asked directly at the time; Neo chose reverse-only, no forward syntax). Neo asked to revisit that
+decision now, given the momentum from the `^0` relaxation, and specifically asked that if this turned
+out to be genuinely hard, it should be documented/publicized as a known open problem rather than left
+silently unaddressed — so the research phase here was framed as "is this a real wall, or tractable?"
+before touching any code.
+
+**Research (an Explore agent + my own follow-up direct reads) found it tractable, not a wall.** Forward
+EML has NO general keyword-argument-call syntax anywhere: `parseArgs()` (ordinary function calls,
+`packages/parser/src/parser.ts`) returns `Expression[]` and only ever calls `parseExpression()` in a
+comma loop — no `IDENT '=' expr` lookahead. `parseDecoratorArgs()`/`parseDecoratorArg()` (which DOES
+support `name=value` for `@decorator(...)`) is a wholly separate mechanism with its own `DecoratorArg`
+type, never shared with `parseArgs()`. So relaxing `end=` does NOT require inventing kwargs for the
+whole language — it can be scoped entirely to `^0`'s own dedicated grammar, matching the precedent the
+project already set when item 5 was first built (it deliberately used a standalone `parsePrintStatement()`
+rather than teaching the shared `parseArgs()` kwargs, for exactly this reason).
+
+**Confirmed zero collision risk before writing any code**: `^0`'s grammar today is exactly
+`OutputStatement ::= Expression "^0"` (both the fast `IDENT`+`CARET` path and the general `EXPR^0`
+fallback from the previous round) — the statement-end check (`expectStatementEnd()`) requires the very
+next token to be `NEWLINE`/`DEDENT`/`EOF`, so `^0(` or `^0,` were ALREADY guaranteed parse errors in
+every existing program. No ambiguity to design around.
+
+**Design fork put to Neo via AskUserQuestion**: the new syntax is `EXPR^0(END_EXPR)` (the terminator
+expression in parens right after `^0`, e.g. `msg^0("")`) — chosen over a comma-separated
+`EXPR^0, END_EXPR` for being visually unambiguous and matching the project's existing "parens = extra
+info slot right after a sigil" precedent (`^+(...)`).
+
+**The interpreter change turned out much smaller than a first pass estimated.**
+`packages/interp/src/index.ts`'s `write(text)` (pushes into `out: string[]`) has exactly ONE call site
+in the entire file — inside `case 'Output'`. `finalize()` did `out.map(s => s + '\n').join('')`. Since
+there's only one caller, moving the terminator decision into `write(text, end = '\n')` itself (push
+`text + end` directly) and simplifying `finalize()` to `out.join('')` was a ~4-line change across two
+functions, not a structural rewrite — byte-identical output for every existing program (which only ever
+used the default `'\n'`).
+
+- **The fix**: `packages/parser/src/parser.ts` gained one shared `parseOptionalOutputEnd()` helper,
+  called from both `Output`-construction sites (the fast `IDENT`+`CARET` path and the general `EXPR^0`
+  fallback) — parses an optional `(END_EXPR)` trailing the `^0`. `eml-emitter.ts`'s `Output` case emits
+  the `(END_EXPR)` suffix instead of throwing. `transpiler-python/src/emitter.ts`'s `Output` case emits
+  `, end=${...}` when present. The interpreter's `write`/`finalize` refactor above, plus the `Output`
+  case evaluating `stmt.end` (defaulting to `'\n'`) and passing it through. `transpiler-cpp/src/emitter.ts`
+  gained an explicit rejection for `stmt.end !== undefined` (this is now forward-reachable, unlike
+  before) plus `statementCallsName`'s `Output` case checking `end` too (mirroring this whole track's
+  established `expressionCallsName`-coverage pattern). All 4 remaining semantic walkers
+  (`semantic.ts`, `purity.ts` ×2, `importance.ts`, `loop-classifier.ts`) gained a `stmt.end` recursion
+  alongside their existing `stmt.value` one; `cts-generator.ts`'s dependency-collection call site
+  (NOT `statementValue()` itself, which stays `value`-only, matching every other multi-field statement's
+  "one primary subject" pattern) also folds in `stmt.end`'s identifiers.
+- **Two pre-existing test files hard-coded the OLD "permanent limitation" as a passing assertion** —
+  caught immediately re-running the suite, exactly the established pattern from every prior relaxation
+  this session: `tests/phase9-print-end.test.ts` had 4 tests asserting `eml compress`/`roundTripFromPython`
+  always fails on `end=` — all 4 flipped to assert success (the file's own header comment updated to
+  explain the decision was revisited). `tests/phase9-output-any-expression.test.ts` had 1 regression test
+  asserting `Calculate_age` "stays blocked, unchanged" — flipped to assert full round-trip.
+- **Tests**: new `tests/phase9-output-end.test.ts` (12 tests) — forward parse of `x^0("")` via both
+  construction paths, an arbitrary-expression terminator, and a plain `x^0` regression (still
+  `end: undefined`); forward-emit round-trip; real-Python execution parity for two sequential prints
+  landing on the same output line (one suppressing the newline) AND the exact Calculate_age line shape;
+  reverse round-trip of the exact corpus print line and the full two-print tail; C++ rejection plus a
+  self-recursion-hidden-inside-`end` test (asserting the diagnostic says "Recursive function", proving
+  `statementCallsName`'s new `end` check actually fires). **835 tests total** (up from 823). All new
+  tests passed on the first run.
+- **Verification**: a hand-written `.eml` file with two sequential `^0(...)` prints went through `eml
+  run`, matching real Python byte-for-byte (`Alice is here` on one line). A fresh `.py` file went
+  through `eml compress` → `eml roundtrip`, both succeeding.
+- **Milestone — the single biggest one of the whole B-6 corpus-tracking effort**: re-running the same 5
+  real B-6 corpus files, `Calculate_age` NOW FULLY PASSES `eml roundtrip`, joining
+  `Decimal_to_binary_convertor`, `Duplicate_files_remover`, `Leap_Year_Checker`, and
+  `text_to_morse_code` — **all 5 tracked corpus files now fully clear the B-6 KPI**. This is the first
+  time since this entire language-extension effort began that every measured real corpus file passes.
+
 ## Non-obvious design decisions (the gotchas)
 
 ### 1. Two-stage AST: `OverlayAssign` is resolved by semantics

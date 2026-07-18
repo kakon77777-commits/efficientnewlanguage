@@ -242,13 +242,10 @@ export function emitEmlStatement(stmt: Statement, bound: Set<string> = new Set()
       bound.add(stmt.target.name);
       return `${stmt.target.name}^${stmt.op}${emitEmlExpression(stmt.value)}`;
     }
-    case 'Output':
-      if (stmt.end !== undefined) {
-        throw new EmlEmitError(
-          "EML cannot express print's 'end' keyword argument — there is no forward syntax for a custom print terminator.",
-        );
-      }
-      return `${emitEmlExpression(stmt.value)}^0`;
+    case 'Output': {
+      const endSuffix = stmt.end !== undefined ? `(${emitEmlExpression(stmt.end)})` : '';
+      return `${emitEmlExpression(stmt.value)}^0${endSuffix}`;
+    }
     case 'ExpressionStatement':
       return emitEmlExpression(stmt.expression);
     case 'FunctionDef': {

@@ -289,6 +289,7 @@ export function analyzeSemantics(
       }
       case 'Output': {
         collectExpr(stmt.value);
+        if (stmt.end !== undefined) collectExpr(stmt.end);
         symbols.add('^0');
         return stmt;
       }

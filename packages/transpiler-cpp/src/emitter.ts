@@ -206,6 +206,9 @@ export function emitCppStatement(stmt: Statement, listVars: Set<string> = new Se
       return `${stmt.target.name} ${stmt.op}= ${emitCppExpression(stmt.value)};`;
     }
     case 'Output':
+      if (stmt.end !== undefined) {
+        throw new CppEmitError('A custom print terminator (`EXPR^0(END_EXPR)`) is not supported by the C⁺⁺⁺ prototype.');
+      }
       if (stmt.value.type === 'List' || (stmt.value.type === 'Identifier' && listVars.has(stmt.value.name))) {
         throw new CppEmitError('Outputting a list is not supported by the C⁺⁺⁺ prototype (std::vector has no std::ostream operator<<).');
       }
@@ -324,8 +327,9 @@ function statementCallsName(stmt: Statement, name: string): boolean {
         (stmt.target.type !== 'Identifier' && expressionCallsName(stmt.target, name))
       );
     case 'OverlayAssign':
-    case 'Output':
       return expressionCallsName(stmt.value, name);
+    case 'Output':
+      return expressionCallsName(stmt.value, name) || (stmt.end !== undefined && expressionCallsName(stmt.end, name));
     case 'ExpressionStatement':
       return expressionCallsName(stmt.expression, name);
     case 'Return':

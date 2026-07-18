@@ -669,3 +669,45 @@ value」（這輪修好了）跟「`end=""` 具名參數」（項目 5 既有的
 鎖住「這輪沒有不小心動到項目 5 的決定」。詳見 `docs/agent-handoff.md`「Core 語法放寬」章節、
 `docs/EML-LANG-2026-v1.0.md` §5.3、§9。
 
+---
+
+## Core 語法放寬（續）：`print(x, end=...)` 支援正向語法 `EXPR^0(END_EXPR)` — 已完成 2026-07-19（同日再一輪）— 5/5 全部通過
+
+`^0` 放寬那輪之後，`Calculate_age` 是唯一剩下卡住的檔案，卡點就是項目 5（`print(x, end=...)`）—— 這
+是一個 Neo 之前明確決定過的**永久、單向限制**：問過直接不決定發明正向語法。這輪 Neo 主動要求重新
+研究這個決定，因為切片/列表推導式那幾輪的動能顯示很多「看起來麻煩」的限制其實都可以用小範圍修正
+解決。**直接研究（Explore agent + 我自己後續補查）確認這是可以做的，不是撞牆**：正向 EML 完全沒有
+一般性的具名參數呼叫語法（`parseArgs()` 純位置參數；decorator 的具名參數是完全獨立的機制），所以
+不需要為了 `end=` 發明整個語言的具名參數系統，範圍可以完全收在 `^0` 自己的專屬文法裡。確認零衝突
+風險：`^0` 消耗完 `CARET NUMBER('0')` 後，下一個 token 現在規定必須是 NEWLINE/DEDENT/EOF，所以
+`^0` 後面接 `LPAREN` 現在保證是既有的 parse error，不會跟任何現有程式衝突。
+
+**設計決定交給 Neo（AskUserQuestion）**：新語法選了 `EXPR^0(END_EXPR)`（終結符運算式接在 `^0`
+後面的括號裡，例如 `msg^0("")`），而不是逗號分隔的 `EXPR^0, END_EXPR`——視覺上最不會跟任何東西
+混淆，也呼應專案裡已有的「括號 = 緊接在 sigil 後面的額外資訊欄位」慣用語（`^+(...)`）。
+
+**直譯器的修正比原本預估的小很多**：`packages/interp/src/index.ts` 的 `write(text)`（把文字塞進
+`out: string[]`）整個檔案裡只有**一個**呼叫點——就在 `Output` case 裡。`finalize()` 原本統一對
+`out` 裡每一筆補上 `\n`。因為只有一個呼叫者，把換行符號的決定權移進 `write(text, end = '\n')`
+自己（直接 push `text + end`），`finalize()` 簡化成單純 `out.join('')`，是一個約 4 行的小修正，
+不是「結構性重寫」——對所有既有程式（永遠只用預設 `'\n'`）輸出逐位元組不變。
+
+**修正**：正向 parser（`parser.ts`）在兩個既有的 `Output` 建構點（`IDENT`+`CARET` 快速路徑 + 這個
+支線稍早新增的通用 `EXPR^0` fallback）都加上一個新的 `parseOptionalOutputEnd()` 共用 helper，解析
+`^0` 後面可省略的 `(END_EXPR)`；`eml-emitter.ts` 的 `Output` case 改成 emit `end` 而非拋錯；正向
+Python emitter 加上 `, end=${...}`；直譯器如上述小改；C++ 後端明確拒絕帶 `end` 的 Output（`end`
+現在正向可達，之前不可能出現在 C++ 路徑）+ `statementCallsName` 補上 `end` 的遞迴檢查；4 個語意
+分析 walker（`semantic.ts`、`purity.ts` 兩處、`importance.ts`、`loop-classifier.ts`）+
+`cts-generator.ts` 的 deps 收集都補上對 `stmt.end` 的遞迴。12 個新測試（`tests/
+phase9-output-end.test.ts`），外加修正 2 個既有測試檔案裡斷言舊「永久限制」的測試（`tests/
+phase9-print-end.test.ts` 4 個測試從「預期失敗」翻轉成「現在完整通過」；`tests/
+phase9-output-any-expression.test.ts` 1 個「Calculate_age 仍卡住」的回歸測試翻轉成「現在完整
+通過」）。835 測試（原 823）。全新的自訂終結符片段（兩個 print 接續在同一行）做了完整 CLI 端到端
+驗證（`eml compress` → `eml roundtrip` → `eml run`，輸出跟真實 Python 逐位元組一致）。
+
+**重新量測同 5 個真實檔案，達成整條 B-6 語料追蹤工程裡最大的里程碑**：`Calculate_age` **完整通過
+`eml roundtrip`**，加上原本就通過的 `Decimal_to_binary_convertor`、`Duplicate_files_remover`、
+`Leap_Year_Checker`、`text_to_morse_code`——**5 個追蹤中的真實 B-6 語料檔案，現在全部（5/5）完整
+通過**。這是這整個語言擴充+ B-6 語料追蹤工程開工以來，第一次達成語料庫的全數通過。詳見
+`docs/agent-handoff.md`「Core 語法放寬（續）」章節、`docs/EML-LANG-2026-v1.0.md` §5.3、§9。
+

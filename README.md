@@ -238,10 +238,21 @@ regardless of the expression's shape. `print(x, end=...)` (item 5)
 remains a separate, still-fully-intact permanent limitation. Re-running
 the 5 real B-6 corpus files: `Decimal_to_binary_convertor`,
 `Duplicate_files_remover`, and `Leap_Year_Checker` all newly reach a
-full round-trip pass, joining `text_to_morse_code` — **4 of 5 tracked
-corpus files now fully pass**, up from 1. `Calculate_age` remains
-blocked only by item 5's `end=` limitation, unchanged. See
-`docs/roadmap.md`'s "Core 語法放寬" section.
+full round-trip pass, joining `text_to_morse_code` — 4 of 5 tracked
+corpus files fully passed, up from 1, with `Calculate_age` blocked only
+by item 5's `end=` limitation.
+
+**That limitation was itself relaxed the same day, in a follow-up
+round: `print(x, end=...)` now has forward syntax,
+`EXPR^0(END_EXPR)`** (e.g. `msg^0("")`) — chosen over a comma-separated
+form for matching the existing `^+(...)` "parens = extra info slot"
+precedent. Required no general keyword-argument-call syntax anywhere
+else in the language (ordinary calls stay positional-only); zero
+collision risk, since `^0` already required the next token to be a
+statement terminator. `Calculate_age` now fully passes too —
+**all 5 tracked B-6 corpus files pass**, the first time every measured
+real corpus file has cleared the KPI since this language-extension
+effort began. See `docs/roadmap.md`'s "Core 語法放寬" sections.
 
 Arbitrary-Python compression (lossy, semantics-sensitive) remains an
 AI-assisted, suggestion-only layer for a later phase.

@@ -175,8 +175,8 @@ function runProgram(
     if (++steps > maxSteps) throw new StepLimit(steps);
   };
 
-  const write = (text: string): void => {
-    out.push(text);
+  const write = (text: string, end = '\n'): void => {
+    out.push(text + end);
     emitter.emit('eml:output', { text });
   };
 
@@ -680,7 +680,8 @@ function runProgram(
         return;
       }
       case 'Output': {
-        write(pyStr(evalExpr(stmt.value, scope)));
+        const end = stmt.end !== undefined ? pyStr(evalExpr(stmt.end, scope)) : '\n';
+        write(pyStr(evalExpr(stmt.value, scope)), end);
         return;
       }
       case 'ExpressionStatement':
@@ -906,8 +907,9 @@ function runProgram(
   }
 
   function finalize(ok: boolean): InterpResult {
-    // Each `print()` (Output) emits its value followed by a newline.
-    const output = out.map((s) => s + '\n').join('');
+    // Each `write()` already embeds its own terminator (default '\n', or a
+    // custom one from Output.end) — just join.
+    const output = out.join('');
     return {
       ok,
       output,

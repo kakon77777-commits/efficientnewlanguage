@@ -189,7 +189,8 @@ OverlaySuffix  ::= "^" OverlayOperator OverlayPayload?
 OverlayOperator ::= "+" | "-" | "*" | "/" | "0" | "T"
 OverlayPayload ::= Expression
 
-OutputStatement ::= Expression "^0"   (* any expression, as of 2026-07-19 — see §5.3 *)
+OutputStatement ::= Expression "^0" [ "(" Expression ")" ]   (* any expression; optional custom
+                                                                 terminator, as of 2026-07-19 — §5.3 *)
 
 (* ── Expressions ── *)
 Expression     ::= ConditionalExpression
@@ -335,14 +336,18 @@ carve-out in `parsePower()`: `CARET` immediately followed by the literal digit `
 a power operation, so a trailing `^0` always survives intact after `parseExpression()`, regardless of
 what precedes it.
 
-**Python's `print(x, end=...)` keyword argument remains a deliberate, permanent, one-way exception
-(Phase 9 item 5), untouched by this relaxation**: the reverse transpiler recognizes and parses it (so
-it doesn't hit a confusing raw parser error), but `^0` has no forward EML syntax for a custom print
-terminator, and — asked directly, not decided unilaterally — none is being invented. So `eml compress`
-on a real Python program using `print(x, end=...)` still always fails, with an explicit "EML cannot
-express print's `end` keyword argument" message (`eml-emitter.ts` checks this BEFORE the now-removed
-value-type check), the same fail-loud treatment as `await`/`async`/numpy-in-C++. This is a precise
-diagnostic of where EML's expressible subset ends, not a partial or silent implementation.
+**Python's `print(x, end=...)` keyword argument (Phase 9 item 5) gained forward syntax the same day,
+in a follow-up round: `EXPR^0(END_EXPR)`.** Originally a deliberate, permanent, reverse-only exception
+— asked directly at the time, Neo chose not to invent forward syntax for it — that decision was
+revisited once `Calculate_age` became the ONLY still-blocked B-6 corpus file and its sole remaining gap
+turned out to be exactly this. `x^0("")` → `print(x, end="")`; the terminator expression goes in parens
+immediately after `^0` (chosen over a comma-separated form via AskUserQuestion, for being visually
+unambiguous and matching the existing "parens = extra info slot right after a sigil" precedent,
+`^+(...)`). Zero collision risk: `^0` previously required the very next token to be
+`NEWLINE`/`DEDENT`/`EOF`, so `LPAREN` there was already a guaranteed parse error in every prior program.
+This did NOT require inventing general keyword-argument-call syntax anywhere else — `parseArgs()`
+(ordinary function calls) stays positional-only, untouched; the fix is scoped entirely to `^0`'s own
+dedicated grammar. `OutputStatement ::= Expression "^0" [ "(" Expression ")" ]`.
 
 **Core grammar relaxation, not a Phase 9 language-extension item (2026-07-19, same day again).** After
 Phase 9's language-extension track fully closed out (§5.14), re-running the 5 real B-6 corpus files
@@ -968,9 +973,9 @@ across this whole track** — each a genuinely new (or, for `%`, meaningfully ex
 7/`range(n)`, purely lexical/parser-level with no new AST node) expression/statement kind added AFTER
 the reverse-transpiler effort concluded, as items of a separate language-extension track (real B-6
 corpus gaps beyond grammar completeness); both directions were built together for each of these, unlike
-Phase A–E2's reverse-only rounds. (Item 5, `print(x, end=...)`, is the one deliberate EXCEPTION —
-reverse-only by explicit choice, since it would otherwise require inventing new forward EML syntax; see
-§5.3.)
+Phase A–E2's reverse-only rounds. (Item 5, `print(x, end=...)`, was originally reverse-only by
+deliberate choice — Neo later revisited that decision the same day, once it became the sole remaining
+B-6 corpus gap; it too is bidirectional now, via `EXPR^0(END_EXPR)`; see §5.3.)
 
 **Milestone (2026-07-19): `text_to_morse_code`, one of the 5 real B-6 corpus files tracked throughout
 this whole language-extension effort, reaches a full round-trip fixpoint (`eml roundtrip` succeeds,
@@ -1022,6 +1027,18 @@ pass**, up from 1 just two rounds ago. `Calculate_age` remains blocked, exactly 
 print statement has BOTH the now-fixed non-identifier-value issue AND the separate, still-fully-intact
 `print(x, end=...)` limitation (item 5) — `eml-emitter.ts` checks `end` before the value's type, so this
 file's blocker is unchanged, confirmed via a dedicated regression test.
+
+**Milestone (2026-07-19, same day yet again): `print(x, end=...)` gains forward syntax
+(`EXPR^0(END_EXPR)`) — ALL 5 tracked B-6 corpus files now fully pass `eml roundtrip`.** This is the
+single biggest milestone of the whole B-6 corpus-tracking effort: after re-researching why
+`Calculate_age` — the last holdout — was still blocked, and confirming the fix was genuinely tractable
+(no keyword-argument-call redesign needed anywhere else in the language; zero grammar collision risk),
+Neo chose to revisit item 5's original "permanent, reverse-only" decision. `Calculate_age` now round-trips
+completely, joining `Decimal_to_binary_convertor`, `Duplicate_files_remover`, `Leap_Year_Checker`, and
+`text_to_morse_code` — every real corpus file measured since this whole language-extension effort began
+now fully clears the B-6 KPI. The interpreter's `write`/`finalize` also needed a small refactor to honor
+a custom terminator (moving the newline decision from `finalize()`'s uniform per-entry `+ '\n'` into
+`write(text, end)` itself) — safe because `write()` has exactly one call site in the entire file.
 
 **Known whole-language boundary, not a Phase B2 gap**: neither transpilation direction has ever
 supported a bracketed literal (`[...]`, `{...}`, a call's `(...)`) spanning multiple physical lines —
