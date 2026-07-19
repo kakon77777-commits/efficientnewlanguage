@@ -1,0 +1,32 @@
+# Self-authored for the EML case corpus (no external origin). For each
+# sample number, extracts digits via `%` (floor-mod) and `int(n / 10)`
+# (EML has no `//` floor-division token, so truncating a true-division
+# result via `int()` stands in for it on these non-negative inputs) inside
+# a `while` loop to build the digit sum, then repeats that same reduction
+# (a second, nested `while`) until a single digit remains — the "digital
+# root". `^+` seeds each accumulator once per outer iteration (reset) and
+# augments it on every inner-loop pass (add), the same declare-vs-augment
+# idiom as word-frequency-counter's `counts[word]`.
+
+numbers^+[4527, 918273, 60, 999999]
+
+for number in numbers:
+    number => n
+    digit_sum^+0
+    while n > 0:
+        n % 10 => digit
+        digit_sum^+digit
+        int(n / 10) => n
+
+    digit_sum => root
+    while root > 9:
+        root => m
+        new_root^+0
+        while m > 0:
+            m % 10 => d
+            new_root^+d
+            int(m / 10) => m
+        new_root => root
+
+    "Number " + str(number) + ": digit sum = " + str(digit_sum) + ", digital root = " + str(root) => line
+    line^0

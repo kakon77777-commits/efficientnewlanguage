@@ -1,0 +1,39 @@
+# Self-authored for the EML case corpus (no external origin). A shopping
+# cart as a list of `(item_name, unit_price, quantity)` tuples; computes
+# each line-item subtotal and the grand total via a loop with tuple
+# subscript access, then prints an itemized receipt using `%`-string
+# formatting. `"%.2f" % (x,)` was tried first and works under real Python,
+# but the interpreter's own `%`-formatter throws `ValueError: unsupported
+# format character '.'` (precision specs aren't modeled) — so amounts are
+# rounded to the nearest cent by hand (`int(x * 100 + 0.5)`) and rendered as
+# a zero-padded "dollars.cents" string via `%s`/`%d`, wrapped in a small
+# `format_money` helper to avoid repeating that logic per line.
+
+cart^+[("Coffee Beans (12oz)", 8.99, 2), ("Almond Milk", 3.49, 3),
+       ("Granola Bars (6-pack)", 4.25, 1), ("Bananas (lb)", 0.50, 6)]
+
+def format_money(amount):
+    int(amount * 100 + 0.5) => cents_total
+    int(cents_total / 100) => dollars
+    (cents_total % 100) => cents_rem
+    if cents_rem < 10:
+        "0" + str(cents_rem) => cents_str
+    else:
+        str(cents_rem) => cents_str
+    return str(dollars) + "." + cents_str
+
+grand_total^+0
+"Receipt:"^0
+for entry in cart:
+    entry[0] => name
+    entry[1] => unit_price
+    entry[2] => qty
+    (unit_price * qty) => subtotal
+    grand_total^+subtotal
+    format_money(subtotal) => price_str
+    ("%s x%d = $%s" % (name, qty, price_str)) => line
+    line^0
+
+format_money(grand_total) => total_str
+("Grand total: $" + total_str) => grand_line
+grand_line^0

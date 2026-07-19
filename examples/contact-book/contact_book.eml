@@ -1,0 +1,50 @@
+# Self-authored for the EML case corpus (no external origin). A class-based
+# contact book exercising a dict literal + subscript get/set through a
+# `self` attribute (`self.contacts`, name -> phone number), a parallel list
+# of names grown via `existing + [item] => existing` (the same dict +
+# key-list idiom as word-frequency-counter/library-catalog/inventory-
+# tracker), and `try`/`except KeyError` for looking up a contact that was
+# never added. `remove_contact` truly drops the key (not just a boolean
+# flag) by rebuilding the dict from the filtered name list, since the
+# interpreter models no `del`/`.pop()`.
+
+class ContactBook:
+    def __init__(self):
+        {} => self.contacts
+        [] => self.names
+
+    def add_contact(self, name, phone):
+        phone => self.contacts[name]
+        self.names + [name] => self.names
+
+    def lookup(self, name):
+        try:
+            return self.contacts[name]
+        except KeyError:
+            return "no contact named " + name
+
+    def remove_contact(self, name):
+        [n for n in self.names if n != name] => remaining
+        {} => rebuilt
+        for n in remaining:
+            self.contacts[n] => rebuilt[n]
+        rebuilt => self.contacts
+        remaining => self.names
+
+ContactBook() => book
+book.add_contact("Alice Chen", "555-0142")
+book.add_contact("Bob Diaz", "555-0198")
+book.add_contact("Carla Nunez", "555-0173")
+
+book.lookup("Alice Chen") => alice_number
+"Alice Chen: " + alice_number => line1
+line1^0
+
+book.lookup("Dana Kim") => missing_result
+"Dana Kim: " + missing_result => line2
+line2^0
+
+book.remove_contact("Bob Diaz")
+book.lookup("Bob Diaz") => bob_status
+"Bob Diaz: " + bob_status => line3
+line3^0

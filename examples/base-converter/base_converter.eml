@@ -1,0 +1,24 @@
+# Self-authored for the EML case corpus (no external origin). Converts
+# decimal integers to their binary and octal string representations by
+# manual repeated division-and-remainder (no `bin()`/`oct()`/`hex()` — the
+# digit string is built by hand via `%`, integer division, and string
+# concatenation).
+
+def to_base(n, base):
+    if n == 0:
+        return "0"
+    n => value
+    "" => digits
+    while value > 0:
+        value % base => remainder
+        str(remainder) + digits => digits
+        int(value / base) => value
+    return digits
+
+numbers^+[156, 2024, 45]
+
+for number in numbers:
+    to_base(number, 2) => binary_form
+    to_base(number, 8) => octal_form
+    "Decimal " + str(number) + " -> binary " + binary_form + ", octal " + octal_form => line
+    line^0

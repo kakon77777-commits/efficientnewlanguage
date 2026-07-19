@@ -1,0 +1,32 @@
+# Self-authored for the EML case corpus (no external origin). Rotates a
+# sample list left and right by a given amount using Python slice syntax and
+# concatenation (`lst[a:b] + lst[c:d]`), for two different sample lists and
+# rotation amounts.
+
+playlist^+["Intro", "Verse1", "Chorus", "Verse2", "Bridge", "Outro"]
+len(playlist) => n
+shift^+2
+
+(playlist[shift:n] + playlist[0:shift]) => rotated_left
+(playlist[n - shift:n] + playlist[0:n - shift]) => rotated_right
+
+"Playlist: " + str(playlist) => msg1
+msg1^0
+"Rotated left by " + str(shift) + ": " + str(rotated_left) => msg2
+msg2^0
+"Rotated right by " + str(shift) + ": " + str(rotated_right) => msg3
+msg3^0
+
+queue^+[101, 102, 103, 104, 105]
+len(queue) => m
+shift2^+3
+
+(queue[shift2:m] + queue[0:shift2]) => queue_left
+(queue[m - shift2:m] + queue[0:m - shift2]) => queue_right
+
+"Queue: " + str(queue) => msg4
+msg4^0
+"Rotated left by " + str(shift2) + ": " + str(queue_left) => msg5
+msg5^0
+"Rotated right by " + str(shift2) + ": " + str(queue_right) => msg6
+msg6^0

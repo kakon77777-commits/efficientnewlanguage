@@ -1,0 +1,51 @@
+# Self-authored for the EML case corpus (no external origin). A class-based
+# parking lot tracker exercising `self` attribute list state (`self.slots`,
+# a fixed-size list of booleans), a `for` loop whose range upper bound is a
+# full expression (`[0 : self.capacity - 1]`, the same idiom as
+# todo-list-manager's `[0 : len(self.tasks) - 1]`), a `return` from inside a
+# `for` loop, and `try`/`except`/`raise ValueError` for parking in a full
+# lot.
+
+class ParkingLot:
+    def __init__(self, capacity):
+        capacity => self.capacity
+        [False, False, False, False, False] => self.slots
+
+    def park(self, vehicle):
+        for i in [0 : self.capacity - 1]:
+            if not self.slots[i]:
+                True => self.slots[i]
+                return i
+        raise ValueError("parking lot is full")
+
+    def leave(self, slot_number):
+        False => self.slots[slot_number]
+
+ParkingLot(5) => lot
+lot.park("ABC-123") => spot1
+"ABC-123 parked in slot " + str(spot1) => line1
+line1^0
+
+lot.park("XYZ-789") => spot2
+"XYZ-789 parked in slot " + str(spot2) => line2
+line2^0
+
+lot.leave(spot1)
+"ABC-123 left slot " + str(spot1) => line3
+line3^0
+
+lot.park("QRS-456") => spot3
+"QRS-456 parked in slot " + str(spot3) => line4
+line4^0
+
+lot.park("LMN-321") => spot4
+lot.park("DEF-654") => spot5
+lot.park("GHI-987") => spot6
+"Lot now has vehicles in slots: " + str(lot.slots) => line5
+line5^0
+
+try:
+    lot.park("TUV-111")
+except ValueError:
+    "Could not park TUV-111: lot is full" => msg
+    msg^0

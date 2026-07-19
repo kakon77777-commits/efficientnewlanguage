@@ -1,0 +1,57 @@
+# Self-authored for the EML case corpus (no external origin). Encodes a
+# sample message with a fixed-shift Caesar cipher, then decodes it back.
+# Character shifting is done via a 26-letter lookup table + a linear scan
+# for the source index, not `ord`/`chr` — those genuinely crash with a raw
+# NameError in the browser interpreter rather than gracefully deferring
+# (see this case's README), so this design keeps the whole program
+# interpreter-computable end to end.
+
+LOWER^+"abcdefghijklmnopqrstuvwxyz"
+UPPER^+"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+def index_of(ch, alphabet):
+    for idx in [0:25]:
+        if alphabet[idx] == ch:
+            return idx
+    return 0 - 1
+
+def shift_char(ch, alphabet, amount):
+    index_of(ch, alphabet) => idx
+    (idx + amount) % 26 => shifted_idx
+    return alphabet[shifted_idx]
+
+message^+"Meet me at the old bridge at midnight"
+shift^+7
+
+encoded^+""
+for ch in message:
+    if ch == " ":
+        encoded + " " => encoded
+    elif ch in LOWER:
+        shift_char(ch, LOWER, shift) => shifted
+        encoded + shifted => encoded
+    elif ch in UPPER:
+        shift_char(ch, UPPER, shift) => shifted
+        encoded + shifted => encoded
+    else:
+        encoded + ch => encoded
+
+decoded^+""
+for ch in encoded:
+    if ch == " ":
+        decoded + " " => decoded
+    elif ch in LOWER:
+        shift_char(ch, LOWER, 0 - shift) => shifted
+        decoded + shifted => decoded
+    elif ch in UPPER:
+        shift_char(ch, UPPER, 0 - shift) => shifted
+        decoded + shifted => decoded
+    else:
+        decoded + ch => decoded
+
+"Original: " + message => line1
+line1^0
+"Encoded:  " + encoded => line2
+line2^0
+"Decoded:  " + decoded => line3
+line3^0

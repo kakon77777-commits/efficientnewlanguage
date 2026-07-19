@@ -1,0 +1,32 @@
+# Self-authored for the EML case corpus (no external origin). Computes the
+# greatest common divisor via the iterative Euclidean algorithm (a `while`
+# loop, not recursion — recursion is already covered elsewhere in this
+# corpus) and derives the least common multiple from the GCD, for a few
+# realistic number pairs (e.g. scheduling: two events recurring every 48 and
+# 18 days next coincide on their LCM).
+
+def gcd(a, b):
+    a => x
+    b => y
+    while y != 0:
+        x % y => remainder
+        y => x
+        remainder => y
+    return x
+
+def lcm(a, b):
+    gcd(a, b) => shared
+    int((a * b) / shared) => result
+    return result
+
+pairs^+[(48, 18), (252, 105), (17, 5)]
+
+for pair in pairs:
+    pair[0] => a
+    pair[1] => b
+    gcd(a, b) => g
+    lcm(a, b) => l
+    "gcd(" + str(a) + ", " + str(b) + ") = " + str(g) => gcd_line
+    gcd_line^0
+    "lcm(" + str(a) + ", " + str(b) + ") = " + str(l) => lcm_line
+    lcm_line^0

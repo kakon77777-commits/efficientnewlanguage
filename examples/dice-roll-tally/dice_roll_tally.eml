@@ -1,0 +1,28 @@
+# Self-authored for the EML case corpus (no external origin). Tallies a
+# fixed, hardcoded sequence of dice-roll values (EML's interpreter models
+# no RNG, so no real randomness is used) into a dict keyed by face 1-6 via
+# subscript read/write, then finds the most-frequent face with a manual
+# comparison loop (deliberately avoiding a sorted()/max()-of-tuples builtin
+# the interpreter doesn't model).
+
+rolls^+[3, 5, 1, 6, 6, 2, 4, 6, 1, 5, 3, 6, 2, 4, 6, 1, 5, 3, 6, 2]
+
+tally^+{1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0}
+
+for roll in rolls:
+    tally[roll] + 1 => tally[roll]
+
+"Dice roll tally:"^0
+for face in [1:6]:
+    face^0(": ")
+    tally[face]^0("\n")
+
+best_face^+0
+best_count^+0
+for face in [1:6]:
+    if tally[face] > best_count:
+        tally[face] => best_count
+        face => best_face
+
+"Face " + str(best_face) + " appeared most often (" + str(best_count) + " times)" => message
+message^0

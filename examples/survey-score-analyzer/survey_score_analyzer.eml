@@ -1,0 +1,30 @@
+# Self-authored for the EML case corpus (no external origin). Analyzes a
+# small customer-satisfaction survey — (respondent_name, score) tuples on a
+# 1-10 scale — by splitting respondents into satisfied/unsatisfied via two
+# list comprehensions, averaging all scores with a plain `^+` accumulation
+# loop, and previewing the first two respondents with EML's native
+# `[0:2]` slice literal (not a `range()` call).
+
+responses^+[("Grace Liu", 9), ("Marcus Webb", 4), ("Priya Anand", 8),
+            ("Tomas Alvarez", 6), ("Nadia Hussein", 10), ("Ben Okafor", 3)]
+
+[entry for entry in responses if entry[1] >= 7] => satisfied
+[entry for entry in responses if entry[1] < 7] => unsatisfied
+
+total^+0
+for entry in responses:
+    entry[1] => score
+    total^+score
+
+total / len(responses) => average
+
+"Survey results from " + str(len(responses)) + " respondents" => header
+header^0
+"Satisfied: " + str(len(satisfied)) + ", Unsatisfied: " + str(len(unsatisfied)) => tally
+tally^0
+"Average score: " + str(average) => avg_line
+avg_line^0
+
+responses[0:2] => preview
+"First two respondents: " + str(preview) => preview_line
+preview_line^0

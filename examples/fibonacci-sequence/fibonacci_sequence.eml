@@ -1,0 +1,25 @@
+# Self-authored for the EML case corpus (no external origin). Generates the
+# first N Fibonacci numbers iteratively — two running variables updated in a
+# `while` loop — not via recursion, which is already covered elsewhere in
+# this corpus.
+
+def first_n_fibonacci(n):
+    sequence^+[]
+    a^+0
+    b^+1
+    count^+0
+    while count < n:
+        sequence + [a] => sequence
+        a + b => next_value
+        b => a
+        next_value => b
+        count^+1
+    return sequence
+
+first_n_fibonacci(15) => fib_sequence
+"First 15 Fibonacci numbers: " + str(fib_sequence) => sequence_message
+sequence_message^0
+
+fib_sequence[len(fib_sequence) - 1] => last_value
+"15th Fibonacci number: " + str(last_value) => last_message
+last_message^0

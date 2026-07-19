@@ -1,0 +1,10 @@
+# Self-authored for the EML case corpus (no external origin). Prints a
+# 5-row triangular pattern of asterisks using nested for-loops over EML's
+# native [a:b] range literal (the inner loop's upper bound is the outer
+# loop variable itself) and string concatenation to build each row.
+
+for row in [1:5]:
+    "" => line
+    for col in [1:row]:
+        line + "*" => line
+    line^0

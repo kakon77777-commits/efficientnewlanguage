@@ -1,0 +1,21 @@
+# Self-authored for the EML case corpus (no external origin). Checks whether
+# each of several sample words/phrases is a palindrome. The native EML `[a:b]`
+# range/slice grammar has no Python-style step form, so `s[::-1]` is not
+# available (verified empirically); the reverse is instead built manually by
+# walking the string back-to-front with a counted loop and concatenation.
+
+candidates^+["level", "radar", "python", "deified", "civic", "transpiler"]
+
+length^+0
+reversed_word^+""
+
+for word in candidates:
+    len(word) => length
+    "" => reversed_word
+    for i in [0:length-1]:
+        word[length - 1 - i] => ch
+        reversed_word + ch => reversed_word
+    if word == reversed_word:
+        word^0(" -> palindrome\n")
+    else:
+        word^0(" -> not a palindrome\n")

@@ -1,0 +1,51 @@
+# Self-authored for the EML case corpus (no external origin). Title-cases
+# a sample sentence without any interpreter-deferred string method
+# (`.split`/`.join`/`.upper` all genuinely defer to real Python in the
+# browser interpreter — see this case's README) — split, uppercase, and
+# rejoin are all done by hand: a manual scan builds the word list
+# (`existing + [item] => existing`, the same growth idiom used by
+# `simple-stack`/`prime-checker`), a 26-letter lookup table uppercases each
+# word's first character, and a manual loop rejoins the words with single
+# spaces. Keeps the whole program interpreter-computable.
+
+sentence^+"the quick brown fox jumps over the lazy dog"
+LOWER^+"abcdefghijklmnopqrstuvwxyz"
+UPPER^+"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+def to_upper(ch):
+    for idx in [0:25]:
+        if LOWER[idx] == ch:
+            return UPPER[idx]
+    return ch
+
+words^+[]
+current^+""
+for ch in sentence:
+    if ch == " ":
+        words + [current] => words
+        "" => current
+    else:
+        current + ch => current
+words + [current] => words
+
+capitalized_words^+[]
+for word in words:
+    word[0] => first
+    to_upper(first) => first_up
+    word[1:] => rest
+    first_up + rest => new_word
+    capitalized_words + [new_word] => capitalized_words
+
+title_cased^+""
+is_first^+True
+for word in capitalized_words:
+    if is_first:
+        title_cased + word => title_cased
+        False => is_first
+    else:
+        title_cased + " " + word => title_cased
+
+"Original:    " + sentence => line1
+line1^0
+"Capitalized: " + title_cased => line2
+line2^0

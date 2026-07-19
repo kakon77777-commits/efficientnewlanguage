@@ -1,0 +1,29 @@
+# Self-authored for the EML case corpus (no external origin). Simulates a
+# fixed, hardcoded sequence of rock-paper-scissors rounds (EML's interpreter
+# models no RNG, so no real randomness is used) and determines each round's
+# winner via if/elif/else, plus a running score tally for both players via
+# the declare-or-augment `^+` sigil (declares once before the loop, then
+# augments inside it).
+
+rounds^+[("rock", "scissors"), ("paper", "paper"), ("scissors", "rock"),
+         ("rock", "rock"), ("paper", "rock"), ("scissors", "paper")]
+
+player_one_score^+0
+player_two_score^+0
+
+for round in rounds:
+    round[0] => p1
+    round[1] => p2
+    if p1 == p2:
+        "Tie" => outcome
+    elif (p1 == "rock" and p2 == "scissors") or (p1 == "paper" and p2 == "rock") or (p1 == "scissors" and p2 == "paper"):
+        "Player 1 wins" => outcome
+        player_one_score^+1
+    else:
+        "Player 2 wins" => outcome
+        player_two_score^+1
+    "P1: " + p1 + " vs P2: " + p2 + " -> " + outcome => line
+    line^0
+
+"Final score - Player 1: " + str(player_one_score) + ", Player 2: " + str(player_two_score) => summary
+summary^0

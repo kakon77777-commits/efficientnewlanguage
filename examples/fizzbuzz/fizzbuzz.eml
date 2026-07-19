@@ -1,0 +1,15 @@
+# Self-authored for the EML case corpus (no external origin). Classic
+# FizzBuzz over a fixed 1-30 range using EML's native inclusive range
+# literal [a:b] (never Python's range(...) call, which is not
+# round-trip-stable), `%` modulo comparisons, and if/elif/else dispatch.
+
+for n in [1:30]:
+    if n % 15 == 0:
+        "FizzBuzz" => line
+    elif n % 3 == 0:
+        "Fizz" => line
+    elif n % 5 == 0:
+        "Buzz" => line
+    else:
+        str(n) => line
+    line^0

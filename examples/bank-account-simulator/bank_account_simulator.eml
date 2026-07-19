@@ -1,0 +1,42 @@
+# Self-authored for the EML case corpus (no external origin). A class-based
+# bank account simulator exercising `self` attribute state (a numeric
+# balance), and `try`/`except`/`raise ValueError` for an insufficient-funds
+# withdrawal (mirroring the `raise ValueError(...)` idiom used for an
+# invalid move in mvp-tic-tac-toe's `tic_tac_toe.eml`).
+
+class BankAccount:
+    def __init__(self, owner, balance):
+        owner => self.owner
+        balance => self.balance
+
+    def deposit(self, amount):
+        self.balance + amount => self.balance
+
+    def withdraw(self, amount):
+        if amount > self.balance:
+            raise ValueError("insufficient funds")
+        self.balance - amount => self.balance
+
+    def get_balance(self):
+        return self.balance
+
+BankAccount("Alice Chen", 500) => account
+"Opening balance for " + account.owner + ": " + str(account.get_balance()) => line1
+line1^0
+
+account.deposit(150)
+"After depositing 150: " + str(account.get_balance()) => line2
+line2^0
+
+account.withdraw(200)
+"After withdrawing 200: " + str(account.get_balance()) => line3
+line3^0
+
+try:
+    account.withdraw(1000)
+except ValueError:
+    "Withdrawal of 1000 failed: insufficient funds" => msg
+    msg^0
+
+"Final balance: " + str(account.get_balance()) => line4
+line4^0

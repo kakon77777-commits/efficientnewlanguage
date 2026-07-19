@@ -1,0 +1,29 @@
+# Self-authored for the EML case corpus (no external origin). Run-length
+# encodes a sample DNA-style base sequence (a genuine RLE use case in
+# bioinformatics) by tracking the current character and its run count in a
+# loop, then formatting each run with a tuple + `%`-string-format.
+
+sequence^+"AAAAGGGGCCCCTTTTAAAAGGA"
+len(sequence) => length
+
+sequence[0] => current
+count^+1
+encoded^+""
+
+for i in [1:length-1]:
+    sequence[i] => ch
+    if ch == current:
+        count^+1
+    else:
+        "%d%s" % (count, current) => piece
+        encoded + piece => encoded
+        ch => current
+        1 => count
+
+"%d%s" % (count, current) => piece
+encoded + piece => encoded
+
+"Original: " + sequence => line1
+line1^0
+"Encoded:  " + encoded => line2
+line2^0

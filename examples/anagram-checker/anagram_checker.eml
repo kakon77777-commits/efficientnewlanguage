@@ -1,0 +1,38 @@
+# Self-authored for the EML case corpus (no external origin). Checks
+# whether each of several sample word pairs are anagrams of each other by
+# building a per-letter frequency dict for each word manually (loop + dict
+# subscript get/set) and comparing the two dicts with `==`.
+
+pairs^+[
+    ("listen", "silent"),
+    ("evil", "vile"),
+    ("dormitory", "dirtyroom"),
+    ("night", "thing"),
+    ("cat", "dog"),
+]
+
+for pair in pairs:
+    pair[0] => word1
+    pair[1] => word2
+
+    freq1^+{}
+    for ch in word1:
+        if ch in freq1:
+            freq1[ch] + 1 => freq1[ch]
+        else:
+            1 => freq1[ch]
+
+    freq2^+{}
+    for ch in word2:
+        if ch in freq2:
+            freq2[ch] + 1 => freq2[ch]
+        else:
+            1 => freq2[ch]
+
+    (freq1 == freq2) => is_anagram
+    if is_anagram:
+        word1^0(" & ")
+        word2^0(" -> anagrams\n")
+    else:
+        word1^0(" & ")
+        word2^0(" -> not anagrams\n")

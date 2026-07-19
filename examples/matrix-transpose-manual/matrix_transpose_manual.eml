@@ -1,0 +1,27 @@
+# Self-authored for the EML case corpus (no external origin). Transposes a
+# small 2x3 matrix (a plain Python-style list of lists, not EML's `<M>`/`^T`
+# matrix overlay) via nested loops and manual index bookkeeping: the outer
+# loop walks destination rows (source columns), the inner loop walks source
+# rows, and each destination row is built with list growth via `+` (no
+# `.append()`). Loop bounds use EML's native `[a:b]` counted-range literal
+# rather than a `range(...)` call, so the program stays round-trip stable.
+
+matrix^+[[2, 7, 1], [9, 4, 6]]
+
+len(matrix) => rows
+len(matrix[0]) => cols
+
+transposed^+[]
+for j in [0:cols - 1]:
+    new_row^+[]
+    for i in [0:rows - 1]:
+        new_row + [matrix[i][j]] => new_row
+    transposed + [new_row] => transposed
+
+"Original matrix:"^0
+for row in matrix:
+    row^0
+
+"Transposed matrix:"^0
+for row in transposed:
+    row^0

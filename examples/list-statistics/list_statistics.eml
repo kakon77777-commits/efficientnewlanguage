@@ -1,0 +1,38 @@
+# Self-authored for the EML case corpus (no external origin). Computes the
+# minimum, maximum, sum, and average of a sample list of numbers, entirely
+# via a manual single-pass loop (deliberately avoiding `min()`/`max()`/`sum()`
+# builtins — `sum()` in particular was verified to break EML's reverse
+# transpiler, which expects a generator-expression argument). The average is
+# then rounded to 2 decimal places by hand (`int(x * 100 + 0.5)` then divide
+# by 100), since `%.2f`-style precision specs are not modeled by the
+# interpreter's own `%` formatter.
+
+temperatures^+[68, 72, 65, 90, 58, 77, 81, 63]
+
+total^+0
+count^+0
+temperatures[0] => minimum
+temperatures[0] => maximum
+
+for reading in temperatures:
+    total^+reading
+    count^+1
+    if reading < minimum:
+        reading => minimum
+    if reading > maximum:
+        reading => maximum
+
+total / count => raw_average
+int(raw_average * 100 + 0.5) => scaled
+scaled / 100 => average
+
+"Readings: " + str(temperatures) => msg1
+msg1^0
+"Minimum: " + str(minimum) => msg2
+msg2^0
+"Maximum: " + str(maximum) => msg3
+msg3^0
+"Sum: " + str(total) => msg4
+msg4^0
+"Average: " + str(average) => msg5
+msg5^0

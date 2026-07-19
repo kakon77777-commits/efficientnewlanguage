@@ -1,0 +1,20 @@
+# Self-authored for the EML case corpus (no external origin). Reverses a
+# handful of sample strings manually, character by character, since native
+# EML has no `[::-1]` step-slice.
+
+samples^+["Hello World", "EML Transpiler", "Neo.K", "EveMissLab 2026"]
+
+length^+0
+reversed_str^+""
+
+for text in samples:
+    len(text) => length
+    "" => reversed_str
+    for i in [0:length-1]:
+        text[length - 1 - i] => ch
+        reversed_str + ch => reversed_str
+
+    "Original: " + text => line1
+    line1^0
+    "Reversed: " + reversed_str => line2
+    line2^0

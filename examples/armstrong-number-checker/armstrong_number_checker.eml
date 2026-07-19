@@ -1,0 +1,31 @@
+# Self-authored for the EML case corpus (no external origin). Checks whether
+# numbers are Armstrong numbers (sum of each digit raised to the power of the
+# digit count equals the number itself), using digit extraction via `%` and
+# integer division, and a manual power loop (the `^` power operator only
+# accepts a literal exponent, not a variable one, so a variable exponent uses
+# plain repeated multiplication instead).
+
+def power(base, exponent):
+    1 => result
+    0 => count
+    while count < exponent:
+        result * base => result
+        count + 1 => count
+    return result
+
+def is_armstrong(n):
+    len(str(n)) => num_digits
+    n => remaining
+    0 => total
+    while remaining > 0:
+        remaining % 10 => digit
+        total + power(digit, num_digits) => total
+        int(remaining / 10) => remaining
+    return total == n
+
+samples^+[153, 370, 9474, 123]
+
+for sample in samples:
+    is_armstrong(sample) => result
+    sample^0(": ")
+    result^0("\n")

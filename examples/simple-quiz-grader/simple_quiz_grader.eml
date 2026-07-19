@@ -1,0 +1,40 @@
+# Self-authored for the EML case corpus (no external origin). Grades a
+# 5-question quiz from (question, correct_answer, given_answer) tuples
+# using `and`/`or`/`not` boolean logic (a skipped/blank answer and a
+# non-blank mismatch both count as incorrect via `or`; only a non-blank
+# exact match counts as correct via `not`), prints per-question feedback,
+# and computes a final percentage via true `/` division (no floor-mod
+# involved).
+
+quiz^+[("Capital of France", "Paris", "Paris"),
+       ("Largest planet in the solar system", "Jupiter", "Saturn"),
+       ("Result of 6 times 7", "42", "42"),
+       ("Chemical symbol for gold", "Au", ""),
+       ("Year World War II ended", "1945", "1945")]
+
+correct_count^+0
+total^+0
+
+for entry in quiz:
+    entry[0] => question
+    entry[1] => correct_answer
+    entry[2] => given_answer
+    total^+1
+
+    given_answer == "" => is_blank
+    (not is_blank) and (given_answer != correct_answer) => is_wrong_answer
+    is_blank or is_wrong_answer => is_incorrect
+    not is_incorrect => is_correct
+
+    if is_correct:
+        correct_count^+1
+        "correct" => result
+    else:
+        "incorrect (expected " + correct_answer + ")" => result
+
+    question + ": " + result => line
+    line^0
+
+(correct_count / total) * 100 => percentage
+"Final score: " + str(correct_count) + "/" + str(total) + " (" + str(percentage) + "%)" => summary
+summary^0

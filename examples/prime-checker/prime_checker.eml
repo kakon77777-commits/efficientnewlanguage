@@ -1,0 +1,32 @@
+# Self-authored for the EML case corpus (no external origin). Checks
+# primality by trial division for a handful of sample numbers, then builds
+# the full list of primes up to 30 via a loop + list-literal growth (the
+# `list + [item] => list` idiom — no `.append()`, which is not modeled).
+
+def is_prime(n):
+    if n < 2:
+        return False
+    2 => divisor
+    True => verdict
+    while divisor * divisor <= n:
+        if n % divisor == 0:
+            False => verdict
+            break
+        divisor + 1 => divisor
+    return verdict
+
+samples^+[7, 12, 29, 91, 97]
+
+for sample in samples:
+    is_prime(sample) => result
+    sample^0(": ")
+    result^0("\n")
+
+primes^+[]
+for candidate in [2:30]:
+    is_prime(candidate) => flag
+    if flag:
+        primes + [candidate] => primes
+
+"Primes up to 30: " + str(primes) => summary
+summary^0

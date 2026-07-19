@@ -1,0 +1,27 @@
+# Self-authored for the EML case corpus (no external origin). Buckets a
+# sample task list — (task_name, priority_number) tuples on a 1-10 scale —
+# into high/medium/low priority lists using three separate list
+# comprehensions, each filtering on `entry[1]` with its own threshold `if`
+# condition (a single `for` + at most one `if` per comprehension, EML's
+# comprehension limit).
+
+tasks^+[("Deploy hotfix to production", 9), ("Write quarterly report", 4),
+        ("Reply to client email", 6), ("Refactor auth module", 8),
+        ("Water the office plants", 1), ("Update API documentation", 5),
+        ("Fix flaky CI test", 7), ("Archive old support tickets", 2)]
+
+[entry for entry in tasks if entry[1] >= 8] => high_priority
+[entry for entry in tasks if entry[1] >= 4 and entry[1] < 8] => medium_priority
+[entry for entry in tasks if entry[1] < 4] => low_priority
+
+"High priority:"^0
+for entry in high_priority:
+    entry[0]^0
+
+"Medium priority:"^0
+for entry in medium_priority:
+    entry[0]^0
+
+"Low priority:"^0
+for entry in low_priority:
+    entry[0]^0

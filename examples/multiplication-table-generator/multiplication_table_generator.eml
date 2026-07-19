@@ -1,0 +1,20 @@
+# Self-authored for the EML case corpus (no external origin). Prints a
+# 1-10 multiplication table via nested for-loops over EML's native [a:b]
+# range literal, %-string-formatting (`%d`) to render each product, and a
+# manual left-pad (a while loop plus string concatenation — the
+# interpreter's `%` operator deliberately supports no width/flags, only
+# `%s`/`%d`/`%f`/`%%`, so a fixed-width `%4d` is not usable here) to keep
+# columns aligned.
+
+def pad_left(text, width):
+    while len(text) < width:
+        " " + text => text
+    return text
+
+for row in [1:10]:
+    "" => line
+    for col in [1:10]:
+        row * col => product
+        "%d" % (product,) => digits
+        line + pad_left(digits, 4) => line
+    line^0

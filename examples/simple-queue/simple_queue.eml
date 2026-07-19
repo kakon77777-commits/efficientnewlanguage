@@ -1,0 +1,46 @@
+# Self-authored for the EML case corpus (no external origin). A class-based
+# FIFO queue exercising `self.items` list state grown via `existing +
+# [item] => existing` (no `.append()` builtin) and shrunk from the front
+# manually: `dequeue` reads index 0, then reassigns
+# `self.items[1 : len(self.items)] => self.items` to drop it (no `.pop(0)`
+# builtin).
+
+class Queue:
+    def __init__(self):
+        [] => self.items
+
+    def enqueue(self, item):
+        self.items + [item] => self.items
+
+    def dequeue(self):
+        self.items[0] => front
+        self.items[1 : len(self.items)] => self.items
+        return front
+
+    def is_empty(self):
+        return len(self.items) == 0
+
+Queue() => line_queue
+line_queue.enqueue("Maria")
+line_queue.enqueue("Tomas")
+line_queue.enqueue("Wei")
+"Queue after enqueuing 3 people: " + str(line_queue.items) => line1
+line1^0
+
+line_queue.dequeue() => served1
+"Now serving: " + served1 => line2
+line2^0
+
+line_queue.dequeue() => served2
+"Now serving: " + served2 => line3
+line3^0
+
+"Remaining in queue: " + str(line_queue.items) => line4
+line4^0
+
+line_queue.dequeue() => served3
+"Now serving: " + served3 => line5
+line5^0
+
+"Is empty now? " + str(line_queue.is_empty()) => line6
+line6^0

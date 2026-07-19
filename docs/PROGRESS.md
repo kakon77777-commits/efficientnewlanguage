@@ -91,6 +91,82 @@
 
 ## 工作日誌（新到舊）
 
+- **2026-07-19** — 完成**案例庫擴充：11 → 50 個自撰真實案例 + `/cases` 分頁**。Neo 指示先驗證
+  EML 1.5 改名沒壞（見下一條記錄），再回頭把之前開發的 Phase 9 語法糖（列表推導式、`and`/`or`、
+  `not`、`%`、元組等）拿去做「實戰案例測試」，過程中先浮現兩個真正的網站 bug（Neo 各自回報）：
+  (1) `/cases` 案例清單的連結同分頁開啟一份裸 markdown、沒有回到網站的路徑，修成
+  `target="_blank" rel="noreferrer"`；(2) 更深層的頂部導覽列「點擊沒反應」——`Nav.tsx` 裡其實
+  早就寫好 `hrefFor()`（正確把 `symbols`/`architecture`/`opensource` 導到 `/docs#id`、其餘導到
+  `/app#id`）卻從未接上實際的 `<a href>`（半成品遺留），修好後順手也修掉同一類的 logo 連結
+  （`#top`→`/`，因為 `id="top"` 只存在於首頁/工程頁）跟「Try it」按鈕（`#playground`→
+  `/app#playground`）。同時把兩個 repo 停在 `2026-06-30` 的公開 manifest/version 版本日期同步
+  更新。接著派出 **6 個平行背景 agent**，每個負責一批不重疊的案例主題（數學/數字 7 個、
+  class-based/OOP 6 個、字串處理 7 個、清單/集合 7 個、模擬/圖案 6 個、資料分析 6 個，共 39
+  個新案例），每個 agent 都用同一套驗證流程（`eml transpile`→`eml run`→`eml trace --run` 確認
+  `eml:equiv ok:true`→`eml roundtrip`→最後才寫 `--deterministic` 黃金 trace）自我把關，共同briefing
+  裡整理了本次工作階段累積的所有 EML 語法陷阱（`^+`/`^-`/`^*`/`^/` 右側只能是裸 primary、
+  一元負號只能接數字字面量不能接識別字、EML 的 `/` 永遠是浮點除法沒有整除運算子、`%.2f` 這類帶
+  精度的格式化字元不被直譯器建模、`set()`/`&`/`|`/`.intersection()`/`.union()` 不被建模、
+  `del`/`.pop()`/`.append()` 不存在、正確的成長慣用語是 `existing + [item] => existing`）。
+  **全部 39 個案例個別驗證通過後，重新跑整個 repo 的 `npx vitest run` 才發現一個更深層的問題**：
+  repo 有一個獨立於各案例自我驗證之外的全庫「execution-truth gate」（`tests/interp.test.ts`），
+  嚴格要求 `examples/` 底下每個程式在瀏覽器直譯器裡的輸出必須跟真實 Python **逐字元相同**，唯一
+  例外是 `phase3-temporal/wait.eml`（numpy/temporal，`UNSUPPORTED_EXAMPLES` 白名單僅此一筆）。
+  4 個新案例落在這道閘之外：`quadratic-solver`（`math.sqrt` 優雅延遲執行）、`string-reverser`
+  （`.swapcase()` 優雅延遲）、`word-capitalizer`（`.split`/`.join`/`.upper` 優雅延遲）、
+  `caesar-cipher`（`ord`/`chr` 直接丟 `NameError`，不是優雅延遲而是真正當機）。沒有選擴大白名單
+  （這條閘存在的目的正是讓「瀏覽器直譯器 = 執行真相」這句話可信，過去 46 個案例全部零例外地
+  完整支援），而是逐一重新設計成 100% 直譯器可算：`quadratic-solver` 改用 EML 原生的分數次方
+  運算子（`discriminant^0.5`，符合規格書 §6「float exponent permitted」，比原本 `import math` 更
+  貼近本輪主題本身在測的「特別語法糖」）取代 `math.sqrt`；`string-reverser` 拿掉非必要的
+  `.swapcase()` 花絮，只留反轉本身；`word-capitalizer`／`caesar-cipher` 改用手刻的 26 字母查表
+  +線性掃描（`LOWER`/`UPPER` 字串 + `in` 成員測試 + 逐格比對找索引），完全不靠 `ord`/`chr`/
+  `.upper()`。全部改完重新跑 CLI 五步驟 + 重新產生黃金 trace + 更新對應 README，`npx vitest run`
+  **43 個測試檔、961 個測試全綠**，案例庫維持「除了那唯一一個 numpy/temporal 例外之外零缺口」
+  的紀錄，50 個案例全部通過執行真相閘。另外建了 `/cases` 分頁（每頁 12 個、上一頁/下一頁/頁碼
+  按鈕、`?page=N` 同步進網址用 `history.replaceState`（不佔瀏覽器歷史）、重新整理仍保留頁碼、
+  過期頁碼自動夾回有效範圍），用暫時灌 50 筆假資料的方式驗證過分頁數學/跳頁/網址同步/夾回邏輯
+  沒問題後才還原檔案。
+- **2026-07-19** — 完成 **EML 1.5 回收：自足重寫版語意規格併入 + EML 自我去依賴改名**。Neo 從
+  OpenAI Codex 產出的回收包（兩份 git patch + 一份自足重寫版規格文件）發現
+  `docs/EML-LANG-2026-v1.0.md` 遺漏了本來就屬於他原始 EML 1.5 願景範疇的內容（在專案收斂成工程
+  MVP 時被壓縮掉，不是未來路線圖項目）。patch 本身因為 Codex 準備時間點早於同一天稍後才上線的
+  幾個改動（`Playground.tsx` 的 `@hot` 徽章修正、案例庫產生流程、`True`/`False`/`None` 直譯器
+  修正）而無法直接 `git am`，且假設的是不符合 Neo 實際資料夾結構的手足目錄佈局，所以全程手動
+  比對現狀重建，不套用 patch。Neo 明確拍板兩個決定：(1) **EML 必須自我完整**——不能在自己的文件
+  裡具名依賴其他產品線（PHOSPHOR、Cogni-Editor、Nova IME），而且比 patch 本身做得更徹底：連
+  實際的套件/目錄/識別字名稱都要真的改名，不只是文字敘述——`@eml/cogni-editor`→`@eml/workbench`
+  （目錄 `packages/cogni-editor`→`packages/workbench`）、`nova-ime.ts`/`attachNovaIme()`/
+  `NovaEntry`→`symbol-palette.ts`/`attachSymbolPalette()`/`SymbolPaletteEntry`、
+  `PhosphorEvent`/`PHOSPHOR_PROTO`→`TraceEvent`/`EML_TRACE_PROTOCOL`（線路格式字串本身
+  `"phosphor-jsonl-v1"` 維持不變，只改 TypeScript 端的名稱）；(2) 先把 EML 概念/規格本身做完，
+  案例庫規模化之後再做。**Phase 1**（機械但動到真實行為的改名）：目錄+套件名+檔名+匯出識別字+
+  CSS class 全部改完，更新所有依賴點（`scripts/launch.mjs`、`.claude/launch.json`、根
+  `tsconfig.json`、`eml-studio.cmd`/`.sh`），`pnpm install` 重新產生 lockfile，`pnpm typecheck`+
+  完整測試+真實啟動煙霧測試（工作台真的用新名字開啟、Ctrl+Space 真的還能開符號選字）全過。
+  **Phase 2**（語言 repo 文件）：新寫 `docs/EML-AI-SEMANTIC-SPEC-v1.5.md`（英文版，內容已在研究
+  階段抽取比對過中文原文 docx）+ `ai/specs/eml-semantic-model-v1.5.md` 鏡像，更新
+  `EML-LANG-2026-v1.0.md`/`README.md`/`docs/whitepaper.md`/根 `ai/` 層全部去品牌化+補 v1.5 指標，
+  **重新即時驗證**（不是照抄 patch 文字）修正 3 處過時的往返宣稱（`003-coldhot`/`004-closure`/
+  `005-recursion` 的 README）。**Phase 3**（網站 repo）：鏡像新規格檔、修同樣的過時往返宣稱、
+  `src/lib/examples.ts` 換上更豐富的 `SYMBOLS`（新增 family/status 欄）+ 新增 `LOOP_TAXONOMY`
+  （12 種迴圈分類表）、`Sections.tsx` 的符號表 UI 加對應欄位+新的迴圈分類表、新增對應 i18n
+  文案、手動（非套用 patch）調和 `Playground.tsx` 保留當天稍早才修好的 `@hot` 徽章邏輯、
+  `vite.config.ts`/`build-worker.mjs` 加 `EML_REPO` 環境變數覆寫（預設值用 Neo 實際的絕對路徑，
+  不用 patch 假設的手足目錄）。全程 `pnpm typecheck`/`npx vitest run`/`npx tsc --noEmit`/
+  `npm run build`/`npm run test:worker`（19/19）+ 真實瀏覽器檢查（`/docs#symbols` 新增欄位、
+  `@hot` 徽章、`/cases`）都過。兩個 repo 皆已 commit + push + 網站重新部署上線驗證。詳見
+  `docs/EML-AI-SEMANTIC-SPEC-v1.5.md`、`docs/whitepaper.md`。
+- **2026-07-16** — 完成**案例庫第一批：3 個自撰案例 + 網站 `/cases` 頁面**。在既有的
+  `mvp-tic-tac-toe`/`mvp-number-guessing-game`（真實移植）之外，新增第一批**自撰**案例——
+  `unit-temperature-converter`、`word-frequency-counter`、`todo-list-manager`——目標是把案例庫
+  規模化到「AI 原生訓練規模」，不是移植既有專案。網站 repo 新寫 `scripts/generate-corpus.mjs`，
+  在 `npm run build` 時自動從語言 repo 的 `examples/<slug>/` 目錄群產生
+  `public/ai/examples/*.eml.md` + `manifest.json` 的 `examples` 陣列 + `sitemap.xml`——語言 repo
+  的 `examples/` 從此變成案例庫的唯一真相來源，網站不需要手動維護案例清單。新建 `src/pages/
+  Cases.tsx` 案例索引頁，資料直接讀 `/ai/manifest.json`（跟給機器讀的語料同一份，不會脫節）。
+  順手修掉 2 處過時的「forward-only」宣稱。全程 build + worker test + 本機瀏覽器驗證通過，
+  Neo 確認後兩個 repo commit + push + 部署上線。
 - **2026-07-19** — 完成 **A-3 好裝好跑：`@eml/cli` npm/`npx eml` 打包半段（MVP）**。B-6 KPI
   5/5 全數達成後，Neo 定下下一階段優先序（商用化+大量案例測試優先，B-6 語料擴大在後），並在
   A-3/A-4/B-5 三個候選項目中選了 **A-3** 先做。直接研究確認這不是打磨項目、是真正的缺口：

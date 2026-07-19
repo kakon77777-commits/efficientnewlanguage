@@ -1,0 +1,53 @@
+# Self-authored for the EML case corpus (no external origin). A class-based
+# LIFO stack exercising `self.items` list state grown via `existing + [item]
+# => existing` (no `.append()` builtin) and shrunk manually: `pop` reads the
+# last element via `self.items[len(self.items) - 1]`, then reassigns
+# `self.items[0 : len(self.items) - 1] => self.items` to drop it (no `.pop()`
+# builtin).
+
+class Stack:
+    def __init__(self):
+        [] => self.items
+
+    def push(self, item):
+        self.items + [item] => self.items
+
+    def pop(self):
+        self.items[len(self.items) - 1] => top
+        self.items[0 : len(self.items) - 1] => self.items
+        return top
+
+    def peek(self):
+        return self.items[len(self.items) - 1]
+
+    def is_empty(self):
+        return len(self.items) == 0
+
+Stack() => stack
+stack.push("dinner plate")
+stack.push("soup bowl")
+stack.push("saucer")
+"Stack after pushing 3 items: " + str(stack.items) => line1
+line1^0
+
+stack.peek() => top_item
+"Current top: " + top_item => line2
+line2^0
+
+stack.pop() => popped1
+"Popped: " + popped1 => line3
+line3^0
+
+stack.pop() => popped2
+"Popped: " + popped2 => line4
+line4^0
+
+"Remaining stack: " + str(stack.items) => line5
+line5^0
+
+stack.pop() => popped3
+"Popped: " + popped3 => line6
+line6^0
+
+"Is empty now? " + str(stack.is_empty()) => line7
+line7^0

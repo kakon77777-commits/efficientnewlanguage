@@ -1,0 +1,24 @@
+# Self-authored for the EML case corpus (no external origin). Runs the
+# Collatz conjecture step (n/2 if even, 3n+1 if odd) until reaching 1, for a
+# few starting numbers, printing the full sequence and step count for each.
+
+def collatz_sequence(start):
+    start => n
+    [start] => sequence
+    while n != 1:
+        if n % 2 == 0:
+            int(n / 2) => n
+        else:
+            3 * n + 1 => n
+        sequence + [n] => sequence
+    return sequence
+
+starting_numbers^+[6, 11, 27]
+
+for start in starting_numbers:
+    collatz_sequence(start) => seq
+    len(seq) - 1 => step_count
+    "Start " + str(start) + ": " + str(step_count) + " steps" => summary
+    summary^0
+    "  Sequence: " + str(seq) => sequence_line
+    sequence_line^0

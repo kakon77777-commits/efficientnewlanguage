@@ -1,0 +1,35 @@
+# Self-authored for the EML case corpus (no external origin). Classifies a
+# day's hourly Celsius readings from a weather station into cold/mild/hot
+# bands using `and`/`or`/`not` boolean logic on threshold comparisons,
+# prints a `%`-formatted alert line per reading (tuple right-hand side, one
+# `%s`/`%d` substitution per field) that also flags severe extremes via
+# `or`, and tallies how many readings fall into each band.
+
+readings^+[-4, 6, 14, 22, 31, 9, 27, 38]
+
+cold_count^+0
+mild_count^+0
+hot_count^+0
+
+for temp in readings:
+    temp < 10 => is_cold
+    temp > 25 => is_hot
+    (not is_cold) and (not is_hot) => is_mild
+    (temp < 0) or (temp > 35) => is_severe
+
+    if is_cold:
+        "cold" => category
+        cold_count^+1
+    elif is_hot:
+        "hot" => category
+        hot_count^+1
+    else:
+        "mild" => category
+        mild_count^+1
+
+    is_severe ? "SEVERE" : "normal" => flag
+    "Reading %d C -> %s (%s)" % (temp, category, flag) => line
+    line^0
+
+"Cold: %d, Mild: %d, Hot: %d" % (cold_count, mild_count, hot_count) => summary
+summary^0

@@ -1,0 +1,27 @@
+# Self-authored for the EML case corpus (no external origin). Counts
+# vowels, consonants, and spaces in a sample sentence using a loop and `in`
+# membership tests against small literal string/set collections.
+
+sentence^+"the quick brown fox jumps over the lazy dog"
+vowels^+"aeiou"
+
+vowel_count^+0
+consonant_count^+0
+space_count^+0
+
+for ch in sentence:
+    if ch == " ":
+        space_count^+1
+    elif ch in vowels:
+        vowel_count^+1
+    else:
+        consonant_count^+1
+
+"Sentence: " + sentence => line1
+line1^0
+"Vowels: " + str(vowel_count) => line2
+line2^0
+"Consonants: " + str(consonant_count) => line3
+line3^0
+"Spaces: " + str(space_count) => line4
+line4^0

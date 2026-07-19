@@ -1,0 +1,47 @@
+# Self-authored for the EML case corpus (no external origin). A class-based
+# stock inventory tracker exercising a dict literal + subscript get/set
+# through a `self` attribute (`self.stock`), `in` membership on a dict
+# (Phase 7b), a parallel list of keys grown via `existing + [item] =>
+# existing` for ordered reporting (the same dict + key-list idiom as
+# word-frequency-counter's `counts` + `unique_words`), and `try`/`except`/
+# `raise ValueError` for an insufficient-stock removal.
+
+class Inventory:
+    def __init__(self):
+        {} => self.stock
+        [] => self.products
+
+    def add_stock(self, product, quantity):
+        if product in self.stock:
+            self.stock[product] + quantity => self.stock[product]
+        else:
+            quantity => self.stock[product]
+            self.products + [product] => self.products
+
+    def remove_stock(self, product, quantity):
+        if not (product in self.stock):
+            raise ValueError("no such product: " + product)
+        if self.stock[product] < quantity:
+            raise ValueError("insufficient stock for " + product)
+        self.stock[product] - quantity => self.stock[product]
+
+    def report(self):
+        for product in self.products:
+            product + ": " + str(self.stock[product]) + " units" => line
+            line^0
+
+Inventory() => warehouse
+warehouse.add_stock("USB-C Cable", 50)
+warehouse.add_stock("Wireless Mouse", 20)
+warehouse.add_stock("USB-C Cable", 30)
+warehouse.remove_stock("Wireless Mouse", 5)
+
+try:
+    warehouse.remove_stock("Wireless Mouse", 100)
+except ValueError:
+    "Could not remove 100 Wireless Mouse units: insufficient stock" => msg
+    msg^0
+
+"Current inventory:" => header
+header^0
+warehouse.report()

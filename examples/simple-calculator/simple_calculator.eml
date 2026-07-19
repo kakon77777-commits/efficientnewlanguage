@@ -1,0 +1,26 @@
+# Self-authored for the EML case corpus (no external origin). A basic
+# calculator dispatching on an operator string via if/elif/else for a
+# fixed list of (a, operator, b) sample tuples, with try/except guarding
+# division by zero.
+
+calculations^+[(6, "+", 4), (10, "-", 3), (7, "*", 8), (9, "/", 3), (5, "/", 0)]
+
+for calc in calculations:
+    calc[0] => a
+    calc[1] => op
+    calc[2] => b
+    try:
+        if op == "+":
+            a + b => result
+        elif op == "-":
+            a - b => result
+        elif op == "*":
+            a * b => result
+        elif op == "/":
+            a / b => result
+        else:
+            "unknown operator" => result
+        str(a) + " " + op + " " + str(b) + " = " + str(result) => line
+    except ZeroDivisionError:
+        str(a) + " " + op + " " + str(b) + " = undefined (division by zero)" => line
+    line^0

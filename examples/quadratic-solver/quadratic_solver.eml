@@ -1,0 +1,35 @@
+# Self-authored for the EML case corpus (no external origin). Solves
+# ax^2 + bx + c = 0 via the quadratic formula for a few sample coefficient
+# triples with real roots, using EML's own native fractional-exponent power
+# operator (`discriminant^0.5` -> `discriminant ** 0.5`, normative per
+# eml-v1.md section 6: "float exponent permitted") instead of importing
+# `math.sqrt` — keeps the case fully interpreter-computable (an unbound
+# `math.sqrt` call defers to real Python in the browser interpreter, which
+# would break the execution-truth gate). Unary minus on an identifier
+# (`-b`) is not supported by the parser (only on numeric literals), so
+# `0 - b` is used instead. The pair of roots is returned as a list, not a
+# bare tuple literal — assigning a bare tuple straight to a fresh variable
+# round-trips through `ident^+(a, b)`, which collides with EML's call-bind
+# grammar (`f^+(args)` means "call and bind"), so the fixpoint never
+# re-converges; a list literal has its own dedicated round-trip-safe
+# grammar production and avoids the collision.
+
+def solve_quadratic(a, b, c):
+    b * b - 4 * a * c => discriminant
+    discriminant^0.5 => root
+    (0 - b + root) / (2 * a) => x1
+    (0 - b - root) / (2 * a) => x2
+    [x1, x2] => roots
+    return roots
+
+coefficients^+[(1, -3, 2), (2, -7, 3), (1, -5, 6)]
+
+for triple in coefficients:
+    triple[0] => a
+    triple[1] => b
+    triple[2] => c
+    solve_quadratic(a, b, c) => roots
+    roots[0] => root1
+    roots[1] => root2
+    str(a) + "x^2 + " + str(b) + "x + " + str(c) + " = 0  ->  x1=" + str(root1) + ", x2=" + str(root2) => line
+    line^0
