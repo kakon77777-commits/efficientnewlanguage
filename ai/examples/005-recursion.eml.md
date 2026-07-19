@@ -1,4 +1,4 @@
-<!-- canonical: efficientnewlanguage.org/ai/examples/005-recursion | ai_layer_version: 0.1.0 | updated: 2026-06-30 -->
+<!-- canonical: efficientnewlanguage.org/ai/examples/005-recursion | ai_layer_version: 0.1.0 | updated: 2026-07-19 -->
 
 # Example 005 — Recursion
 

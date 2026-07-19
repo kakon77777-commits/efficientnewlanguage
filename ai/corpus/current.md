@@ -9,7 +9,7 @@ maintainer: Neo.K / EveMissLab
 status: active
 version: 0.1.0
 audience: ai-agent
-last_updated: 2026-07-01
+last_updated: 2026-07-19
 -->
 
 # EML Current Implementation

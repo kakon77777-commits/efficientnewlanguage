@@ -8,7 +8,7 @@ spec: EML-LANG-2026-v1.0
 maintainer: Neo.K / EveMissLab
 status: v1.0 (Phase 0-4 frozen surface)
 ai_layer_version: 0.1.0
-updated: 2026-06-30
+updated: 2026-07-19
 -->
 
 # EML v1 Specification (digest)

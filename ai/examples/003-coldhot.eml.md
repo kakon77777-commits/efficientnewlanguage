@@ -1,4 +1,4 @@
-<!-- canonical: efficientnewlanguage.org/ai/examples/003-coldhot | ai_layer_version: 0.1.0 | updated: 2026-06-30 -->
+<!-- canonical: efficientnewlanguage.org/ai/examples/003-coldhot | ai_layer_version: 0.1.0 | updated: 2026-07-19 -->
 
 # Example 003 — Cold / hot functions
 

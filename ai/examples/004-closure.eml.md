@@ -1,4 +1,4 @@
-<!-- canonical: efficientnewlanguage.org/ai/examples/004-closure | ai_layer_version: 0.1.0 | updated: 2026-06-30 -->
+<!-- canonical: efficientnewlanguage.org/ai/examples/004-closure | ai_layer_version: 0.1.0 | updated: 2026-07-19 -->
 
 # Example 004 — Closures (nested functions)
 
