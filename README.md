@@ -5,6 +5,20 @@
 > overlay that compresses high-frequency program intent into symbols and
 > transpiles back to standard languages.
 
+**EML formally splits into two profiles** (see
+[`docs/EML-P-PROFILE.md`](docs/EML-P-PROFILE.md),
+[`docs/EML-U-PROFILE.md`](docs/EML-U-PROFILE.md), and
+[`docs/EML-P-EML-U-COMPATIBILITY.md`](docs/EML-P-EML-U-COMPATIBILITY.md)):
+**EML-P** (Practical Execution Profile) is the stable, linear, executable
+subset — everything in this repo (parser, Python/C++ adapters, Workbench,
+CLI, LSP, MCP, case corpus) is EML-P, and Python is EML-P's first *reference
+adapter*, not EML's ontological boundary. **EML-U** (Universal Semantic
+Profile) is EML's original, broader theory — a universal semantic-overlay
+protocol for attaching structured meaning to arbitrary hosts (code, natural
+language, data, workflows, media), not just Python — currently in a
+theory-preservation stage with no engineering yet. Formally,
+EML-P ⊆ EML-U.
+
 **Phase 0 MVP** delivers the first hard closed loop:
 
 ```
@@ -319,7 +333,7 @@ packages/
   transpiler-eml/    reverse: Python (subset) -> EML + round-trip validators
   transpiler-cpp/    EML/C⁺⁺⁺ -> C++ prototype (Phase 4; see docs/cpp-feasibility.md)
   ai-converter/      AI-assisted Python -> EML, validator-gated (Phase 1)
-  symbols/           loads eml-symbols.json
+  symbols/           loads eml-symbols.json (EML-P's current symbol table; see docs/EML-P-PROFILE.md)
   cts-generator/     EML semantic-table (CTS) output
   trace/             phosphor-jsonl-v1 event emitter (EML's own trace format)
   bug-classifier/    BUG 5-level classifier, mapped back to EML source (Phase 3)

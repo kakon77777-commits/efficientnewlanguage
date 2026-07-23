@@ -1,3 +1,13 @@
+/**
+ * EML-P Workbench — a dual-pane EML-P Canonical Text ↔ Python Projection
+ * editor, plus the EML-P Symbol Palette (quick-input, Ctrl+Space), a Trace
+ * panel (phosphor-jsonl-v1 execution observation), and a Functions panel
+ * (cold/hot · importance · crystallization). This is the EML-P reference
+ * editor — it does not yet implement EML-U's Global Semantic Overlay
+ * authoring surface (arbitrary-content selection → semantic-node creation,
+ * anchors, multi-host projection). See docs/EML-P-PROFILE.md and
+ * docs/EML-U-PROFILE.md at the repo root for the full profile split.
+ */
 import './style.css';
 import { attachSymbolPalette } from './symbol-palette';
 import { transpileEmlToPython, CrystalCache } from '@eml/transpiler-python';
@@ -85,7 +95,7 @@ let direction: Direction = 'eml2py';
 const inputArea = el('textarea', { id: 'eml', spellcheck: 'false' });
 const exampleSelect = el('select', { id: 'examples' });
 const dirButton = el('button', { id: 'dir', class: 'dirbtn' });
-const paletteHint = el('span', { class: 'symbol-palette-hint', title: 'open symbol palette (or Ctrl+Space)' }, '⌃Space symbols');
+const paletteHint = el('span', { class: 'symbol-palette-hint', title: 'EML-P Symbol Palette — a quick-input tool for the current symbol table, not the full semantic-overlay authoring surface (that is EML-U). Ctrl+Space.' }, '⌃Space Symbol Palette');
 
 const statusBadge = el('span', { class: 'badge' }, 'ready');
 const rtBadge = el('span', { class: 'badge' }, '⇄');
@@ -95,8 +105,8 @@ const diagOut = el('div', { class: 'diag' });
 const metaOut = el('div', { class: 'meta' });
 const fnOut = el('div', { class: 'fns' });
 const traceOut = el('div', { class: 'trace' });
-const inHead = el('div', { class: 'pane-head' }, 'EML / Py⁺', statusBadge);
-const outHead = el('div', { class: 'pane-head' }, 'Python', rtBadge);
+const inHead = el('div', { class: 'pane-head' }, 'EML-P Canonical Text', statusBadge);
+const outHead = el('div', { class: 'pane-head' }, 'Python Projection', rtBadge);
 
 const tabNames = ['Trace', 'Functions', 'AST', 'Diagnostics', 'Meta'] as const;
 const tabPanes: Record<string, HTMLElement> = {
@@ -170,13 +180,13 @@ function refreshExamples(): void {
 function applyDirectionLabels(): void {
   if (direction === 'eml2py') {
     dirButton.textContent = 'EML → Python';
-    inHead.firstChild!.textContent = 'EML / Py⁺';
-    outHead.firstChild!.textContent = 'Python';
+    inHead.firstChild!.textContent = 'EML-P Canonical Text';
+    outHead.firstChild!.textContent = 'Python Projection';
     outCode.className = 'code python';
   } else {
     dirButton.textContent = 'Python → EML';
-    inHead.firstChild!.textContent = 'Python';
-    outHead.firstChild!.textContent = 'EML / Py⁺';
+    inHead.firstChild!.textContent = 'Python Projection';
+    outHead.firstChild!.textContent = 'EML-P Canonical Text';
     outCode.className = 'code';
   }
 }

@@ -29,6 +29,16 @@ function findSymbolsFile(startDir: string): string {
 
 const SYMBOLS_PATH = findSymbolsFile(dirname(fileURLToPath(import.meta.url)));
 
+// eml-symbols.json is EML-P's current symbol table (21 entries, flat
+// symbol -> {name, category, python, description, namespace}) — see
+// docs/EML-P-PROFILE.md. It is host-bound (each entry's `python` field is
+// the only emission target) and has no version/schema marker of its own.
+// Consumers (this module, the LSP completion provider) iterate its keys
+// directly via Object.entries(), so do not add a top-level sibling key
+// (e.g. "version") to the JSON itself — it would be silently treated as a
+// 22nd symbol. EML-P Phase P2's candidate symbols and EML-U's eventual
+// host-neutral semantic registry (docs/EML-U-PROFILE.md) will both live in
+// new files/versions rather than mutating these 21 existing keys.
 export const EML_SYMBOLS: EmlSymbolTable = JSON.parse(
   readFileSync(SYMBOLS_PATH, 'utf8'),
 ) as EmlSymbolTable;
