@@ -1,0 +1,23 @@
+# Self-authored for the EML case corpus (no external origin). Generates the
+# first 8 rows of Pascal's triangle — each row built from the previous one
+# via a manual scan and list growth via `+` (no `.append()`, not modeled).
+
+def next_row(previous):
+    row^+[1]
+    len(previous) => n
+    for i in [1 : n - 1]:
+        previous[i - 1] + previous[i] => value
+        row + [value] => row
+    row + [1] => row
+    return row
+
+triangle^+[[1]]
+7 => rows_to_add
+for step in [1 : rows_to_add]:
+    triangle[len(triangle) - 1] => last_row
+    next_row(last_row) => new_row
+    triangle + [new_row] => triangle
+
+for row in triangle:
+    str(row) => line
+    line^0

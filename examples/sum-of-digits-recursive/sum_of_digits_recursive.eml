@@ -1,0 +1,16 @@
+# Self-authored for the EML case corpus (no external origin). Computes the
+# digit sum of sample numbers via genuine recursion — the recursive
+# counterpart to examples/digit-sum-calculator/'s iterative `while`-loop
+# version. `int(n / 10)` stands in for floor division (EML has no `//`
+# token, same idiom as digit-sum-calculator).
+
+def digit_sum(n):
+    if n < 10:
+        return n
+    return n % 10 + digit_sum(int(n / 10))
+
+numbers^+[4527, 918273, 60, 999999, 7]
+for number in numbers:
+    digit_sum(number) => result
+    "Digit sum of " + str(number) + " = " + str(result) => line
+    line^0

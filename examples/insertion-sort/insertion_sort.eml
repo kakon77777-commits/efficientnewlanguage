@@ -1,0 +1,21 @@
+# Self-authored for the EML case corpus (no external origin). Insertion sort
+# over a fixed sample list — builds the sorted prefix one element at a time
+# by shifting larger elements right — the third simple sort in the corpus
+# alongside examples/bubble-sort/ and examples/selection-sort/. No
+# `sorted()`/`.sort()` builtin, both interpreter-deferred.
+
+numbers^+[29, 10, 14, 37, 14, 5, 88]
+len(numbers) => n
+
+for i in [1 : n - 1]:
+    numbers[i] => key
+    i - 1 => j
+    while j >= 0 and numbers[j] > key:
+        numbers[j] => numbers[j + 1]
+        j - 1 => j
+    key => numbers[j + 1]
+
+"Original: [29, 10, 14, 37, 14, 5, 88]" => msg1
+msg1^0
+"Sorted:   " + str(numbers) => msg2
+msg2^0

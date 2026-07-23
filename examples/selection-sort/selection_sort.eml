@@ -1,0 +1,23 @@
+# Self-authored for the EML case corpus (no external origin). Selection sort
+# over a fixed sample list: for each position, scans the remainder for the
+# minimum and swaps it into place once — a different strategy from
+# examples/bubble-sort/'s repeated adjacent-element swap. No `sorted()`/
+# `.sort()` builtin, both interpreter-deferred.
+
+numbers^+[64, 25, 12, 22, 11, 90, 34]
+len(numbers) => n
+
+for i in [0 : n - 2]:
+    i => min_index
+    for j in [i + 1 : n - 1]:
+        if numbers[j] < numbers[min_index]:
+            j => min_index
+    if min_index != i:
+        numbers[i] => temp
+        numbers[min_index] => numbers[i]
+        temp => numbers[min_index]
+
+"Original: [64, 25, 12, 22, 11, 90, 34]" => msg1
+msg1^0
+"Sorted:   " + str(numbers) => msg2
+msg2^0

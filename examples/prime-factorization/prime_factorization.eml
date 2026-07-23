@@ -1,0 +1,24 @@
+# Self-authored for the EML case corpus (no external origin). Finds the
+# prime factorization (with multiplicity) of sample numbers via trial
+# division — a manual nested `while` loop building the factor list via
+# `list + [item] => list` growth (no `.append()`, not modeled) — no external
+# number-theory library.
+
+def prime_factors(number):
+    number => remaining
+    factors^+[]
+    2 => divisor
+    while divisor * divisor <= remaining:
+        while remaining % divisor == 0:
+            factors + [divisor] => factors
+            int(remaining / divisor) => remaining
+        divisor + 1 => divisor
+    if remaining > 1:
+        factors + [remaining] => factors
+    return factors
+
+samples^+[60, 97, 360, 1000000, 17]
+for sample in samples:
+    prime_factors(sample) => result
+    str(sample) + " = " + str(result) => line
+    line^0

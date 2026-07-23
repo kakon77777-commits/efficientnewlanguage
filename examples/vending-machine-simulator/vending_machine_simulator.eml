@@ -1,0 +1,33 @@
+# Self-authored for the EML case corpus (no external origin). Simulates a
+# vending machine processing a fixed sequence of purchases — each purchase
+# inserts a list of coins, accumulates a balance, and either dispenses the
+# item (with change) or reports the shortfall — using parallel lists for the
+# product catalog (name/price) rather than a dict-of-dict or class.
+
+product_names^+["Soda", "Chips", "Candy", "Water"]
+product_prices^+[150, 200, 100, 125]
+
+def find_price(name):
+    -1 => price
+    for i in [0 : len(product_names) - 1]:
+        if product_names[i] == name:
+            product_prices[i] => price
+    return price
+
+def vend(name, coins):
+    find_price(name) => price
+    0 => balance
+    for coin in coins:
+        balance + coin => balance
+    if balance >= price:
+        balance - price => change
+        "Dispensed " + name + " (price " + str(price) + "); change: " + str(change) => msg
+    else:
+        price - balance => shortfall
+        "Insufficient funds for " + name + "; need " + str(shortfall) + " more" => msg
+    msg^0
+
+vend("Soda", [100, 25, 25])
+vend("Chips", [100, 50])
+vend("Candy", [25, 25, 25, 25])
+vend("Water", [100])

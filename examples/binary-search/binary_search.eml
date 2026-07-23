@@ -1,0 +1,31 @@
+# Self-authored for the EML case corpus (no external origin). Binary search
+# over a fixed pre-sorted sample list via a manual `while` loop tracking
+# low/high/mid indices — no `bisect` module. `int((low + high) / 2)` stands
+# in for floor division (EML has no `//` token, same idiom used by
+# examples/digit-sum-calculator/).
+
+sorted_numbers^+[3, 8, 15, 22, 34, 41, 56, 63, 79, 91]
+
+def binary_search(target):
+    0 => low
+    len(sorted_numbers) - 1 => high
+    -1 => found_index
+    while low <= high:
+        int((low + high) / 2) => mid
+        if sorted_numbers[mid] == target:
+            mid => found_index
+            break
+        elif sorted_numbers[mid] < target:
+            mid + 1 => low
+        else:
+            mid - 1 => high
+    return found_index
+
+targets^+[34, 100, 3, 91, 50]
+for target in targets:
+    binary_search(target) => idx
+    if idx >= 0:
+        "Found " + str(target) + " at index " + str(idx) => msg
+    else:
+        str(target) + " not found" => msg
+    msg^0

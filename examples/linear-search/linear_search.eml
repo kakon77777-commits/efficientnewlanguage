@@ -1,0 +1,25 @@
+# Self-authored for the EML case corpus (no external origin). Linear search
+# over a fixed unsorted sample list — a single scanning loop with `break` on
+# the first match — the natural counterpart to examples/binary-search/'s
+# pre-sorted, divide-and-conquer approach. The sample list deliberately
+# repeats one value (89) to demonstrate that linear search returns the
+# *first* occurrence.
+
+numbers^+[47, 12, 89, 3, 56, 23, 89, 71]
+
+def linear_search(target):
+    -1 => found_index
+    for i in [0 : len(numbers) - 1]:
+        if numbers[i] == target:
+            i => found_index
+            break
+    return found_index
+
+targets^+[56, 100, 47, 89, 71]
+for target in targets:
+    linear_search(target) => idx
+    if idx >= 0:
+        "Found " + str(target) + " at index " + str(idx) => msg
+    else:
+        str(target) + " not found" => msg
+    msg^0

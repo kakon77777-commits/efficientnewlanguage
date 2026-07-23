@@ -1,0 +1,16 @@
+# Self-authored for the EML case corpus (no external origin). Computes
+# factorials of 0 through 10 via genuine self-recursion (a function calling
+# itself) rather than an iterative loop — the corpus's other recursion-shaped
+# candidates (fibonacci-sequence, gcd-lcm-calculator, armstrong-number-checker's
+# `power`) all turned out iterative on inspection, so this is the first case
+# to actually exercise a function calling itself.
+
+def factorial(n):
+    if n <= 1:
+        return 1
+    return n * factorial(n - 1)
+
+for i in [0:10]:
+    factorial(i) => result
+    str(i) + "! = " + str(result) => line
+    line^0

@@ -1,0 +1,21 @@
+# Self-authored for the EML case corpus (no external origin). Simulates a
+# single elevator serving a fixed queue of floor requests, moving one floor
+# per step toward its current target — a state machine tracking only the
+# current floor, no external scheduler/GUI.
+
+requests^+[5, 1, 8, 3]
+0 => current_floor
+
+for request in requests:
+    "Request: go to floor " + str(request) => header
+    header^0
+    while current_floor != request:
+        if current_floor < request:
+            current_floor + 1 => current_floor
+            "Moving up to floor " + str(current_floor) => line
+        else:
+            current_floor - 1 => current_floor
+            "Moving down to floor " + str(current_floor) => line
+        line^0
+    "Arrived at floor " + str(current_floor) => arrived
+    arrived^0

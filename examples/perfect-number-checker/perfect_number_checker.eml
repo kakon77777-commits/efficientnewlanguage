@@ -1,0 +1,17 @@
+# Self-authored for the EML case corpus (no external origin). Checks whether
+# sample numbers are perfect numbers (the sum of their proper divisors
+# equals the number itself) via trial division — no external number-theory
+# library.
+
+def is_perfect(n):
+    0 => divisor_sum
+    for i in [1 : n - 1]:
+        if n % i == 0:
+            divisor_sum + i => divisor_sum
+    return divisor_sum == n
+
+samples^+[6, 28, 12, 496, 100, 8128]
+for sample in samples:
+    is_perfect(sample) => result
+    str(sample) + ": " + str(result) => line
+    line^0

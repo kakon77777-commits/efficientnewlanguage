@@ -1,0 +1,36 @@
+# Self-authored for the EML case corpus (no external origin). Merges two
+# already-sorted sample lists into one sorted list via the classic
+# two-pointer merge (the building block behind merge sort) — no `sorted()`
+# builtin.
+
+def merge_sorted(list_a, list_b):
+    merged^+[]
+    0 => i
+    0 => j
+    len(list_a) => len_a
+    len(list_b) => len_b
+    while i < len_a and j < len_b:
+        if list_a[i] <= list_b[j]:
+            merged + [list_a[i]] => merged
+            i + 1 => i
+        else:
+            merged + [list_b[j]] => merged
+            j + 1 => j
+    while i < len_a:
+        merged + [list_a[i]] => merged
+        i + 1 => i
+    while j < len_b:
+        merged + [list_b[j]] => merged
+        j + 1 => j
+    return merged
+
+first^+[1, 4, 6, 9, 15]
+second^+[2, 3, 5, 8, 10, 20]
+merge_sorted(first, second) => result
+
+"First:  " + str(first) => msg1
+msg1^0
+"Second: " + str(second) => msg2
+msg2^0
+"Merged: " + str(result) => msg3
+msg3^0

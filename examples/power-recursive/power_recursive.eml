@@ -1,0 +1,19 @@
+# Self-authored for the EML case corpus (no external origin). Computes
+# base^exponent for a non-negative integer exponent via genuine recursion —
+# the recursive counterpart to examples/armstrong-number-checker/'s iterative
+# `power` helper (the `^` operator only accepts a literal exponent, not a
+# variable one, so a variable exponent is hand-rolled here recursively
+# instead).
+
+def power(base, exponent):
+    if exponent == 0:
+        return 1
+    return base * power(base, exponent - 1)
+
+pairs^+[(2, 10), (3, 4), (5, 0), (7, 3), (10, 6)]
+for pair in pairs:
+    pair[0] => base
+    pair[1] => exponent
+    power(base, exponent) => result
+    str(base) + "^" + str(exponent) + " = " + str(result) => line
+    line^0
