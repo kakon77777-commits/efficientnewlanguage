@@ -1,0 +1,30 @@
+# Self-authored for the EML case corpus (no external origin). Simulates a
+# subway turnstile — a 2-state machine (locked/unlocked) driven by a fixed
+# sequence of coin/push events, tracking coins collected and rejected
+# pushes — a smaller, more textbook-flavored state machine than the
+# corpus's existing examples/traffic-light-simulator/,
+# examples/vending-machine-simulator/, and examples/elevator-simulator/.
+
+events^+["push", "coin", "push", "push", "coin", "coin", "push", "push"]
+
+"locked" => state
+0 => coins_collected
+0 => rejected_pushes
+
+for event in events:
+    if event == "coin":
+        coins_collected + 1 => coins_collected
+        "unlocked" => state
+        "Coin inserted -> unlocked" => line
+    elif state == "unlocked":
+        "locked" => state
+        "Push accepted -> passed through, now locked" => line
+    else:
+        rejected_pushes + 1 => rejected_pushes
+        "Push rejected -> still locked" => line
+    line^0
+
+"Coins collected: " + str(coins_collected) => summary1
+summary1^0
+"Rejected pushes: " + str(rejected_pushes) => summary2
+summary2^0

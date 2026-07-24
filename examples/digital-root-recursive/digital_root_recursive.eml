@@ -1,0 +1,22 @@
+# Self-authored for the EML case corpus (no external origin). Repeatedly
+# sums a number's digits, recursively, until a single digit remains (its
+# "digital root") — a deliberate contrast with the corpus's existing
+# examples/sum-of-digits-recursive/, which sums digits only once.
+
+def sum_digits(n):
+    if n < 10:
+        return n
+    return n % 10 + sum_digits(int(n / 10))
+
+def digital_root(n):
+    sum_digits(n) => total
+    if total < 10:
+        return total
+    return digital_root(total)
+
+numbers^+[12345, 999, 8, 0, 132189]
+
+for n in numbers:
+    digital_root(n) => root
+    str(n) + " -> digital root " + str(root) => line
+    line^0

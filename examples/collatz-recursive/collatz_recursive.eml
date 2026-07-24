@@ -1,0 +1,20 @@
+# Self-authored for the EML case corpus (no external origin). Counts
+# Collatz-conjecture steps to reach 1 via genuine self-recursion, returning
+# only the step count — a deliberate contrast with the corpus's existing
+# examples/collatz-sequence/, which is iterative and returns the full
+# sequence. `27` is the classic short-input-long-sequence example (111
+# steps), included to show the recursion handles real depth, not just toys.
+
+def collatz_steps(n):
+    if n == 1:
+        return 0
+    if n % 2 == 0:
+        return 1 + collatz_steps(int(n / 2))
+    return 1 + collatz_steps(3 * n + 1)
+
+starting_numbers^+[6, 11, 27, 1]
+
+for start in starting_numbers:
+    collatz_steps(start) => steps
+    str(start) + " reaches 1 in " + str(steps) + " steps" => line
+    line^0

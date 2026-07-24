@@ -1,0 +1,37 @@
+# Self-authored for the EML case corpus (no external origin). Searches a
+# fixed pre-sorted list via jump search — jump ahead in fixed-size blocks
+# (`sqrt(n)` sized, via EML's native fractional-exponent power operator
+# `n^0.5`, same idiom as examples/quadratic-solver/), then linear-scan the
+# one block that could contain the target — a distinct search strategy from
+# the corpus's existing examples/binary-search/ and examples/linear-search/.
+# No `min()` builtin (interpreter-deferred): block bounds are clamped by
+# hand instead.
+
+def jump_search(items, target):
+    len(items) => n
+    n^0.5 => step_f
+    int(step_f) => step
+    step => block_end
+    0 => block_start
+    while block_end < n and items[block_end - 1] < target:
+        block_end => block_start
+        block_start + step => block_end
+    if block_end > n:
+        n => block_end
+    block_start => i
+    while i < block_end:
+        if items[i] == target:
+            return i
+        i + 1 => i
+    return -1
+
+items^+[3, 8, 15, 22, 34, 41, 56, 63, 79, 91, 100, 108, 121]
+targets^+[34, 100, 3, 91, 999]
+
+for target in targets:
+    jump_search(items, target) => idx
+    if idx >= 0:
+        "Found " + str(target) + " at index " + str(idx) => line
+    else:
+        "Not found: " + str(target) => line
+    line^0

@@ -1,0 +1,20 @@
+# Self-authored for the EML case corpus (no external origin). Checks
+# whether a string is a palindrome via genuine self-recursion (compare the
+# outer characters, then recurse on the inner substring via slice syntax)
+# — a deliberate contrast with the corpus's existing iterative
+# examples/palindrome-checker/.
+
+def is_palindrome(s):
+    len(s) => n
+    if n <= 1:
+        return True
+    if s[0] != s[n - 1]:
+        return False
+    return is_palindrome(s[1:n - 1])
+
+words^+["racecar", "hello", "level", "python", "a", ""]
+
+for word in words:
+    is_palindrome(word) => result
+    "'" + word + "' -> " + str(result) => line
+    line^0

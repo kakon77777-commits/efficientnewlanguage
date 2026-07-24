@@ -1,0 +1,33 @@
+# Self-authored for the EML case corpus (no external origin). Simulates a
+# keypad door lock — 3 states (locked/unlocked/alarm) driven by a fixed
+# sequence of PIN attempts, locking out into an alarm state after 3
+# consecutive wrong attempts (streak resets on any correct entry) — a
+# richer state machine than the corpus's 2-state
+# examples/turnstile-simulator/. Once in alarm, further input is ignored
+# (a deliberately simplified toy model: no separate reset/unlock-the-alarm
+# event is modeled).
+
+"4821" => correct_pin
+attempts^+["1234", "4821", "0000", "9999", "1111", "4821"]
+
+"locked" => state
+0 => wrong_streak
+
+for attempt in attempts:
+    if state == "alarm":
+        "ALARM: ignoring further input (" + attempt + ")" => line
+        line^0
+    elif attempt == correct_pin:
+        "unlocked" => state
+        0 => wrong_streak
+        "Correct PIN " + attempt + " -> unlocked" => line
+        line^0
+    else:
+        wrong_streak + 1 => wrong_streak
+        if wrong_streak >= 3:
+            "alarm" => state
+            "Wrong PIN " + attempt + " -> ALARM triggered (3 failures)" => line
+            line^0
+        else:
+            "Wrong PIN " + attempt + " (" + str(wrong_streak) + " failed attempt(s))" => line
+            line^0

@@ -1,0 +1,29 @@
+# Self-authored for the EML case corpus (no external origin). Solves Tower
+# of Hanoi for a fixed number of disks via genuine multi-call self-recursion
+# (two recursive calls per invocation, each returning its own list of moves,
+# combined by the caller via `+`) — a deeper recursion shape than the
+# corpus's single-recursive-call cases (examples/factorial-recursive/,
+# examples/euclidean-gcd-recursive/). No shared mutable move-list: EML has
+# no `.append()`, and mutating a module-level list from inside a recursive
+# function would shadow it locally anyway (same as real Python without
+# `global`), so each call returns its own moves instead.
+
+def hanoi(n, source, target, auxiliary):
+    if n == 1:
+        return [[source, target]]
+    hanoi(n - 1, source, auxiliary, target) => left_moves
+    [[source, target]] => middle_move
+    hanoi(n - 1, auxiliary, target, source) => right_moves
+    return left_moves + middle_move + right_moves
+
+3 => disk_count
+hanoi(disk_count, "A", "C", "B") => moves
+
+for move in moves:
+    move[0] => src
+    move[1] => dst
+    "Move disk from " + src + " to " + dst => line
+    line^0
+
+"Total moves: " + str(len(moves)) => summary
+summary^0

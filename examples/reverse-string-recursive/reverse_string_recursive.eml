@@ -1,0 +1,17 @@
+# Self-authored for the EML case corpus (no external origin). Reverses a
+# string via genuine self-recursion (last character + recursive reverse of
+# the rest, via slice syntax) — a deliberate contrast with the corpus's
+# existing iterative examples/string-reverser/.
+
+def reverse_string(s):
+    len(s) => n
+    if n <= 1:
+        return s
+    return s[n - 1] + reverse_string(s[0:n - 1])
+
+words^+["hello", "EML", "a", "", "racecar"]
+
+for word in words:
+    reverse_string(word) => reversed_word
+    "'" + word + "' -> '" + reversed_word + "'" => line
+    line^0

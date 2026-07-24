@@ -1,0 +1,28 @@
+# Self-authored for the EML case corpus (no external origin). Recursive
+# version of binary search over the same fixed pre-sorted list and targets
+# as examples/binary-search/ — same algorithm and same inputs, expressed
+# via self-recursion instead of a `while` loop, so the two cases are
+# directly comparable.
+
+def binary_search(items, target, low, high):
+    if low > high:
+        return -1
+    int((low + high) / 2) => mid
+    if items[mid] == target:
+        return mid
+    elif items[mid] < target:
+        return binary_search(items, target, mid + 1, high)
+    else:
+        return binary_search(items, target, low, mid - 1)
+
+items^+[3, 8, 15, 22, 34, 41, 56, 63, 79, 91]
+targets^+[34, 100, 3, 91, 50]
+len(items) => n
+
+for target in targets:
+    binary_search(items, target, 0, n - 1) => idx
+    if idx >= 0:
+        "Found " + str(target) + " at index " + str(idx) => line
+    else:
+        "Not found: " + str(target) => line
+    line^0

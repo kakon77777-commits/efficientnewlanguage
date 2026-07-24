@@ -1,0 +1,30 @@
+# Self-authored for the EML case corpus (no external origin). Non-
+# comparison sort: counts occurrences of each value over a small known
+# range, then reconstructs the sorted list from the counts — a genuinely
+# different algorithmic family from the corpus's existing comparison-based
+# sorts (bubble/selection/insertion/merge/quicksort).
+
+def counting_sort(items, max_value):
+    counts^+[]
+    0 => i
+    while i <= max_value:
+        counts + [0] => counts
+        i + 1 => i
+    for value in items:
+        counts[value] + 1 => counts[value]
+    result^+[]
+    0 => v
+    while v <= max_value:
+        0 => copies
+        while copies < counts[v]:
+            result + [v] => result
+            copies + 1 => copies
+        v + 1 => v
+    return result
+
+numbers^+[4, 2, 2, 8, 3, 3, 1, 0, 5]
+"Before: " + str(numbers) => msg1
+msg1^0
+counting_sort(numbers, 8) => sorted_numbers
+"After:  " + str(sorted_numbers) => msg2
+msg2^0

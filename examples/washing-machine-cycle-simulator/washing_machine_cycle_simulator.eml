@@ -1,0 +1,26 @@
+# Self-authored for the EML case corpus (no external origin). Simulates a
+# washing machine cycling through fixed stages (fill -> wash -> rinse ->
+# spin -> done), each stage running for its own fixed duration and
+# accumulating a running total — a multi-stage cyclic state machine,
+# distinct from the corpus's 2-state
+# examples/turnstile-simulator/ and the position-tracking
+# examples/elevator-simulator/.
+
+stages^+["fill", "wash", "rinse", "spin", "done"]
+durations^+[3, 8, 4, 5, 0]
+
+0 => total_time
+
+for i in [0:4]:
+    stages[i] => stage
+    durations[i] => duration
+    if stage != "done":
+        "Stage: " + stage + " (" + str(duration) + " min)" => line
+        line^0
+        total_time + duration => total_time
+    else:
+        "Cycle complete." => line
+        line^0
+
+"Total cycle time: " + str(total_time) + " minutes" => summary
+summary^0

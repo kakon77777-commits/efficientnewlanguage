@@ -1,0 +1,19 @@
+# Self-authored for the EML case corpus (no external origin). Computes the
+# greatest common divisor via Euclid's algorithm through genuine
+# self-recursion — distinct from the corpus's earlier gcd-lcm-calculator,
+# whose gcd/lcm turned out iterative on inspection (the same distinction
+# factorial-recursive's own header comment makes).
+
+def gcd(a, b):
+    if b == 0:
+        return a
+    return gcd(b, a % b)
+
+pairs^+[[48, 18], [1071, 462], [17, 5], [100, 75], [0, 9]]
+
+for pair in pairs:
+    pair[0] => a
+    pair[1] => b
+    gcd(a, b) => result
+    str(a) + ", " + str(b) + " -> gcd = " + str(result) => line
+    line^0
