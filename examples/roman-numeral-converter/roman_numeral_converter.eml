@@ -1,0 +1,28 @@
+# Self-authored for the EML case corpus (no external origin). Converts
+# integers to Roman numerals greedily: walk a value/symbol table from
+# largest to smallest, subtracting and appending while the value still
+# fits. The subtractive forms (CM, CD, XC, XL, IX, IV) are table entries
+# rather than special cases, which is what keeps the loop this short.
+# Distinct from the corpus's examples/base-converter/, which is positional
+# (repeated division by a radix) rather than table-driven.
+
+def to_roman(number):
+    values^+[1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1]
+    symbols^+["M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"]
+    number => remaining
+    "" => result
+    0 => i
+    len(values) => n
+    while i < n:
+        while remaining >= values[i]:
+            result + symbols[i] => result
+            remaining - values[i] => remaining
+        i + 1 => i
+    return result
+
+numbers^+[1, 4, 9, 14, 40, 90, 400, 1994, 2026, 3999]
+
+for number in numbers:
+    to_roman(number) => roman
+    str(number) + " -> " + roman => line
+    line^0

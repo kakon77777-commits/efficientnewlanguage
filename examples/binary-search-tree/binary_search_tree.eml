@@ -1,0 +1,54 @@
+# Self-authored for the EML case corpus (no external origin). Builds a
+# binary search tree by insertion, then recovers the values in sorted order
+# via recursive in-order traversal — the corpus's first tree structure.
+#
+# The tree is three parallel lists indexed by node number (`values`,
+# `lefts`, `rights`, with -1 meaning "no child") rather than linked node
+# objects. That keeps every write a single-level subscript assignment
+# (`new_index => lefts[current]`), which is the shape EML's assignment
+# targets model directly.
+
+def in_order(values, lefts, rights, node, out):
+    if node == -1:
+        return out
+    in_order(values, lefts, rights, lefts[node], out) => out
+    out + [values[node]] => out
+    in_order(values, lefts, rights, rights[node], out) => out
+    return out
+
+values^+[]
+lefts^+[]
+rights^+[]
+
+items^+[50, 30, 70, 20, 40, 60, 80, 35]
+
+for item in items:
+    len(values) => new_index
+    values + [item] => values
+    lefts + [-1] => lefts
+    rights + [-1] => rights
+    if new_index > 0:
+        0 => current
+        1 => searching
+        while searching == 1:
+            if item < values[current]:
+                if lefts[current] == -1:
+                    new_index => lefts[current]
+                    0 => searching
+                else:
+                    lefts[current] => current
+            else:
+                if rights[current] == -1:
+                    new_index => rights[current]
+                    0 => searching
+                else:
+                    rights[current] => current
+
+in_order(values, lefts, rights, 0, []) => sorted_values
+
+"Inserted:  " + str(items) => msg1
+msg1^0
+"In-order:  " + str(sorted_values) => msg2
+msg2^0
+"Root " + str(values[0]) + ", left child " + str(values[lefts[0]]) + ", right child " + str(values[rights[0]]) => msg3
+msg3^0

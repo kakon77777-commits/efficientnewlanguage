@@ -1,0 +1,56 @@
+# Self-authored for the EML case corpus (no external origin). Levenshtein
+# edit distance: the fewest single-character insertions, deletions or
+# substitutions that turn one string into another, computed with the
+# classic 2D dynamic-programming table. The corpus's first bottom-up DP
+# table (examples/fibonacci-memoized/ is top-down memoization instead).
+#
+# `min()` is interpreter-deferred, so the three-way minimum is picked by
+# hand with two comparisons — the same reason examples/jump-search/ clamps
+# its block bound manually.
+
+def edit_distance(a, b):
+    len(a) => n
+    len(b) => m
+    table^+[]
+    0 => i
+    while i <= n:
+        row^+[]
+        0 => j
+        while j <= m:
+            row + [0] => row
+            j + 1 => j
+        table + [row] => table
+        i + 1 => i
+    0 => i
+    while i <= n:
+        i => table[i][0]
+        i + 1 => i
+    0 => j
+    while j <= m:
+        j => table[0][j]
+        j + 1 => j
+    1 => i
+    while i <= n:
+        1 => j
+        while j <= m:
+            if a[i - 1] == b[j - 1]:
+                table[i - 1][j - 1] => table[i][j]
+            else:
+                table[i - 1][j] => best
+                if table[i][j - 1] < best:
+                    table[i][j - 1] => best
+                if table[i - 1][j - 1] < best:
+                    table[i - 1][j - 1] => best
+                best + 1 => table[i][j]
+            j + 1 => j
+        i + 1 => i
+    return table[n][m]
+
+pairs^+[["kitten", "sitting"], ["flaw", "lawn"], ["eml", "email"], ["same", "same"], ["", "abc"]]
+
+for pair in pairs:
+    pair[0] => a
+    pair[1] => b
+    edit_distance(a, b) => distance
+    "'" + a + "' -> '" + b + "' : " + str(distance) => line
+    line^0

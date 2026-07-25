@@ -1,0 +1,41 @@
+# Self-authored for the EML case corpus (no external origin). Finds every
+# prime up to a limit via the Sieve of Eratosthenes — build a flag list,
+# then repeatedly cross off multiples of each surviving prime. A different
+# strategy from the corpus's existing examples/prime-checker/ (which tests
+# one number at a time by trial division) and
+# examples/prime-factorization/: the sieve computes the whole range at
+# once, trading memory for far fewer divisions.
+
+def sieve(limit):
+    is_prime^+[]
+    0 => i
+    while i <= limit:
+        is_prime + [True] => is_prime
+        i + 1 => i
+    False => is_prime[0]
+    False => is_prime[1]
+    2 => p
+    while p * p <= limit:
+        if is_prime[p]:
+            p * p => multiple
+            while multiple <= limit:
+                False => is_prime[multiple]
+                multiple + p => multiple
+        p + 1 => p
+    primes^+[]
+    2 => n
+    while n <= limit:
+        if is_prime[n]:
+            primes + [n] => primes
+        n + 1 => n
+    return primes
+
+50 => limit
+sieve(limit) => primes
+
+"Primes up to " + str(limit) + ":" => header
+header^0
+str(primes) => listing
+listing^0
+"Count: " + str(len(primes)) => summary
+summary^0

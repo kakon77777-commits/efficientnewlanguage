@@ -1,0 +1,33 @@
+# Self-authored for the EML case corpus (no external origin). The third and
+# last member of this corpus's Fibonacci trio: iterative
+# (examples/fibonacci-sequence/), naive double recursion
+# (examples/fibonacci-recursive/), and now memoized recursion — the same
+# recursive shape as the naive version plus a dict cache, which collapses
+# it from exponential to linear.
+#
+# fib(50) is the point of this case: the naive version would need roughly
+# 40 billion calls to reach it and is simply not runnable, while memoized
+# it costs 49 cached entries. The result also exceeds 32 bits, exercising
+# EML's arbitrary-precision integers.
+
+def fib_memo(n, memo):
+    if n <= 1:
+        return n
+    if n in memo:
+        return memo[n]
+    fib_memo(n - 1, memo) + fib_memo(n - 2, memo) => value
+    value => memo[n]
+    return value
+
+memo^+{}
+
+for i in [0:15]:
+    fib_memo(i, memo) => result
+    "fib(" + str(i) + ") = " + str(result) => line
+    line^0
+
+fib_memo(50, memo) => big
+"fib(50) = " + str(big) => big_line
+big_line^0
+"Memo holds " + str(len(memo)) + " cached entries" => summary
+summary^0

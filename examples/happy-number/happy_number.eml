@@ -1,0 +1,34 @@
+# Self-authored for the EML case corpus (no external origin). Tests
+# whether a number is "happy": repeatedly replace it with the sum of the
+# squares of its digits, and it is happy if that process reaches 1.
+# Unhappy numbers instead fall into a cycle forever, so the loop needs
+# genuine cycle detection — a dict-as-set of already-seen values, the same
+# idiom as examples/duplicate-remover/. Without it this program would not
+# terminate on any unhappy input, which makes the `seen` check the most
+# load-bearing line in the file.
+
+def sum_of_digit_squares(n):
+    0 => total
+    n => remaining
+    while remaining > 0:
+        remaining % 10 => digit
+        total + digit * digit => total
+        int(remaining / 10) => remaining
+    return total
+
+def is_happy(n):
+    seen^+{}
+    n => current
+    while current != 1:
+        if current in seen:
+            return False
+        True => seen[current]
+        sum_of_digit_squares(current) => current
+    return True
+
+numbers^+[1, 7, 19, 4, 20, 100]
+
+for number in numbers:
+    is_happy(number) => happy
+    str(number) + " -> happy: " + str(happy) => line
+    line^0
