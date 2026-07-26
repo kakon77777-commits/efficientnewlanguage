@@ -1,0 +1,41 @@
+# Self-authored for the EML case corpus (no external origin). Naive
+# substring search: slide the pattern along the text one position at a
+# time and compare character by character, collecting EVERY match position
+# rather than just the first. The corpus's first pattern-matching case.
+#
+# Advancing by one position after a hit (not by the pattern length) is
+# what makes overlapping matches findable: "aba" occurs three times in
+# "abababa", at 0, 2 and 4, and a version that skipped ahead by the
+# pattern length would report only two of them. Both overlapping samples
+# below exist to pin that behavior down.
+
+def find_all(text, pattern):
+    positions^+[]
+    len(text) => n
+    len(pattern) => m
+    if m == 0:
+        return positions
+    if m > n:
+        return positions
+    0 => i
+    while i <= n - m:
+        1 => matched
+        0 => j
+        while j < m:
+            if text[i + j] != pattern[j]:
+                0 => matched
+                break
+            j + 1 => j
+        if matched == 1:
+            positions + [i] => positions
+        i + 1 => i
+    return positions
+
+searches^+[["abababa", "aba"], ["banana", "ana"], ["hello world", "o"], ["aaa", "b"], ["abc", "abcd"]]
+
+for search in searches:
+    search[0] => text
+    search[1] => pattern
+    find_all(text, pattern) => positions
+    "'" + pattern + "' in '" + text + "' -> " + str(positions) => line
+    line^0

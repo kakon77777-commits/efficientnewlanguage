@@ -1,0 +1,72 @@
+# Self-authored for the EML case corpus (no external origin). A binary
+# min-heap used as a priority queue: push sifts the new value UP toward the
+# root while it beats its parent, pop takes the root and sifts the last
+# element back DOWN. The corpus's first heap — and its first structure
+# where the tree is implicit: there are no child pointers at all, a node at
+# index i simply has children at 2i+1 and 2i+2, which is what
+# examples/binary-search-tree/ needs two explicit index lists to express.
+#
+# `heap_pop` returns [value, heap] because it must hand back two things:
+# the extracted minimum and the shrunken heap (shrinking rebuilds the list
+# by slice, which rebinds rather than mutating in place).
+
+def heap_push(heap, value):
+    heap + [value] => heap
+    len(heap) - 1 => child
+    while child > 0:
+        int((child - 1) / 2) => parent
+        if heap[child] < heap[parent]:
+            heap[child] => tmp
+            heap[parent] => heap[child]
+            tmp => heap[parent]
+            parent => child
+        else:
+            break
+    return heap
+
+def heap_pop(heap):
+    len(heap) => n
+    heap[0] => smallest
+    heap[n - 1] => moved
+    heap[0:n - 1] => heap
+    len(heap) => m
+    if m > 0:
+        moved => heap[0]
+        0 => parent
+        1 => sinking
+        while sinking == 1:
+            parent * 2 + 1 => left
+            parent * 2 + 2 => right
+            parent => target
+            if left < m and heap[left] < heap[target]:
+                left => target
+            if right < m and heap[right] < heap[target]:
+                right => target
+            if target == parent:
+                0 => sinking
+            else:
+                heap[parent] => tmp
+                heap[target] => heap[parent]
+                tmp => heap[target]
+                target => parent
+    return [smallest, heap]
+
+heap^+[]
+inputs^+[5, 3, 8, 1, 9, 2, 7]
+
+for value in inputs:
+    heap_push(heap, value) => heap
+    "push " + str(value) + " -> " + str(heap) => line
+    line^0
+
+drained^+[]
+while len(heap) > 0:
+    heap_pop(heap) => result
+    result[0] => smallest
+    result[1] => heap
+    drained + [smallest] => drained
+
+"Pushed:  " + str(inputs) => msg1
+msg1^0
+"Popped:  " + str(drained) => msg2
+msg2^0

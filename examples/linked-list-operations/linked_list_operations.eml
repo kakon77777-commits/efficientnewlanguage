@@ -1,0 +1,67 @@
+# Self-authored for the EML case corpus (no external origin). A singly
+# linked list built from two parallel lists — `values` holds the payloads,
+# `nexts` holds the index of each node's successor (-1 for "end of list")
+# — plus a `head` index. The same index-as-pointer representation as
+# examples/binary-search-tree/, one link per node instead of two.
+#
+# The point of the case is `reverse_list`: the classic three-pointer walk
+# that re-aims every link backwards in a single pass, without allocating
+# anything. It mutates `nexts` in place and returns only the NEW head,
+# because that is the one thing the caller cannot recompute for itself.
+#
+# `append_node` has to return all three of values/nexts/head, because
+# growing the two lists rebinds them rather than mutating in place.
+
+def to_list(values, nexts, head):
+    out^+[]
+    head => current
+    while current != -1:
+        out + [values[current]] => out
+        nexts[current] => current
+    return out
+
+def append_node(values, nexts, head, value):
+    len(values) => new_index
+    values + [value] => values
+    nexts + [-1] => nexts
+    if head == -1:
+        return [values, nexts, new_index]
+    head => current
+    while nexts[current] != -1:
+        nexts[current] => current
+    new_index => nexts[current]
+    return [values, nexts, head]
+
+def reverse_list(nexts, head):
+    -1 => previous
+    head => current
+    while current != -1:
+        nexts[current] => following
+        previous => nexts[current]
+        current => previous
+        following => current
+    return previous
+
+values^+[]
+nexts^+[]
+-1 => head
+
+for word in ["alpha", "beta", "gamma", "delta"]:
+    append_node(values, nexts, head, word) => state
+    state[0] => values
+    state[1] => nexts
+    state[2] => head
+
+"Built:    " + str(to_list(values, nexts, head)) => msg1
+msg1^0
+"head index " + str(head) + ", nexts " + str(nexts) => msg2
+msg2^0
+
+reverse_list(nexts, head) => head
+
+"Reversed: " + str(to_list(values, nexts, head)) => msg3
+msg3^0
+"head index " + str(head) + ", nexts " + str(nexts) => msg4
+msg4^0
+"values untouched: " + str(values) => msg5
+msg5^0

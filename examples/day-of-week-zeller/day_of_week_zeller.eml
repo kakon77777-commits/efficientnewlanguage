@@ -1,0 +1,48 @@
+# Self-authored for the EML case corpus (no external origin). Zeller's
+# congruence: which weekday a given calendar date falls on, computed
+# arithmetically with no date library at all. The corpus's first calendar
+# computation.
+#
+# The strange part of the formula is real, not a transcription slip:
+# January and February are treated as months 13 and 14 of the PREVIOUS
+# year. That shift puts the leap day at the end of the year, so the
+# century terms stay correct without a special case for February 29 — the
+# 2024-02-29 sample below is included to exercise exactly that.
+#
+# Every date is checked against an independently known weekday, so this
+# case fails loudly rather than confidently reporting a wrong day.
+
+NAMES^+["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+
+def day_of_week(year, month, day):
+    year => y
+    month => m
+    if m < 3:
+        m + 12 => m
+        y - 1 => y
+    y % 100 => k
+    int(y / 100) => j
+    int(13 * (m + 1) / 5) => month_term
+    (day + month_term + k + int(k / 4) + int(j / 4) + 5 * j) % 7 => h
+    return h
+
+dates^+[[2000, 1, 1], [1970, 1, 1], [1969, 7, 20], [2024, 2, 29], [1900, 1, 1]]
+expected^+["Saturday", "Thursday", "Sunday", "Thursday", "Monday"]
+labels^+["start of the millennium", "the Unix epoch", "the moon landing", "a leap day", "start of the 20th century"]
+
+0 => matches
+for i in [0:4]:
+    dates[i] => date
+    day_of_week(date[0], date[1], date[2]) => h
+    NAMES[h] => name
+    expected[i] => known
+    str(date[0]) + "-" + str(date[1]) + "-" + str(date[2]) + " (" + labels[i] + ") -> " + name => line
+    if name == known:
+        matches + 1 => matches
+        line + " (matches)" => line
+    else:
+        line + " (EXPECTED " + known + ")" => line
+    line^0
+
+str(matches) + " of " + str(len(dates)) + " dates match their known weekday" => summary
+summary^0

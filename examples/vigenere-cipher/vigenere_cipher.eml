@@ -1,0 +1,62 @@
+# Self-authored for the EML case corpus (no external origin). The Vigenere
+# cipher: instead of one fixed shift for the whole message, a repeating
+# keyword supplies a different shift per letter. A polyalphabetic
+# counterpart to examples/caesar-cipher/, and it borrows that case's
+# lookup-table idiom for the same reason — `ord`/`chr` crash with a raw
+# NameError in the browser interpreter rather than gracefully deferring,
+# so character positions come from a 26-letter table and a linear scan.
+#
+# The interesting property is visible in the output: 'a' occurs four times
+# in the plaintext and encodes to four DIFFERENT letters, because each one
+# meets a different position of the key. That is exactly what a
+# single-shift Caesar cipher cannot do, and why frequency analysis alone
+# does not break this.
+#
+# The key advances only on letters, so spaces do not consume key
+# positions — a space would otherwise desynchronise the key and make
+# decoding produce garbage.
+
+ALPHABET^+"abcdefghijklmnopqrstuvwxyz"
+
+def index_of(ch, alphabet):
+    for idx in [0:25]:
+        if alphabet[idx] == ch:
+            return idx
+    return 0 - 1
+
+def vigenere(text, key, direction):
+    "" => result
+    0 => key_pos
+    len(key) => key_len
+    for ch in text:
+        if ch in ALPHABET:
+            index_of(ch, ALPHABET) => text_idx
+            key[key_pos % key_len] => key_ch
+            index_of(key_ch, ALPHABET) => key_idx
+            (text_idx + direction * key_idx) % 26 => shifted
+            result + ALPHABET[shifted] => result
+            key_pos + 1 => key_pos
+        else:
+            result + ch => result
+    return result
+
+message^+"attack at dawn"
+key^+"lemon"
+
+vigenere(message, key, 1) => encoded
+vigenere(encoded, key, 0 - 1) => decoded
+
+"Key:      " + key => line1
+line1^0
+"Original: " + message => line2
+line2^0
+"Encoded:  " + encoded => line3
+line3^0
+"Decoded:  " + decoded => line4
+line4^0
+
+if decoded == message:
+    "Round-trip: decoded matches the original" => line5
+else:
+    "Round-trip: MISMATCH" => line5
+line5^0

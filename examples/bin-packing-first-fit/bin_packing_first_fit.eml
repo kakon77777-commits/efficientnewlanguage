@@ -1,0 +1,66 @@
+# Self-authored for the EML case corpus (no external origin). First-fit
+# bin packing: walk the items in order and drop each one into the first
+# bin it still fits in, opening a new bin only when none has room.
+#
+# The sample is chosen to make the greedy strategy visibly FAIL to be
+# optimal. Seven items totalling 30 units into bins of capacity 10 need at
+# least 3 bins, and 3 is genuinely achievable — {8,2}, {7,3}, {5,4,1} all
+# fill a bin exactly. First-fit uses 4, because early items settle into
+# bins in a way that strands capacity the later large items cannot use.
+#
+# Same lesson as examples/coin-change-dp/, from the opposite direction:
+# there the DP found what greedy missed, here nothing corrects the greedy
+# choice at all — it is simply reported honestly, which is what a packing
+# heuristic actually does in practice.
+
+def first_fit(sizes, capacity):
+    remaining^+[]
+    assignment^+[]
+    for size in sizes:
+        0 - 1 => chosen
+        0 => b
+        while b < len(remaining):
+            if remaining[b] >= size:
+                b => chosen
+                break
+            b + 1 => b
+        if chosen < 0:
+            len(remaining) => chosen
+            remaining + [capacity] => remaining
+        remaining[chosen] - size => remaining[chosen]
+        assignment + [chosen] => assignment
+    return [remaining, assignment]
+
+sizes^+[2, 5, 4, 7, 1, 3, 8]
+10 => capacity
+
+first_fit(sizes, capacity) => result
+result[0] => remaining
+result[1] => assignment
+
+0 => total
+for size in sizes:
+    total + size => total
+
+"Items:    " + str(sizes) => msg1
+msg1^0
+"Capacity: " + str(capacity) + " per bin, " + str(total) + " units total" => msg2
+msg2^0
+
+0 => b
+while b < len(remaining):
+    contents^+[]
+    0 => i
+    while i < len(sizes):
+        if assignment[i] == b:
+            contents + [sizes[i]] => contents
+        i + 1 => i
+    "  bin " + str(b) + ": " + str(contents) + " (" + str(remaining[b]) + " unused)" => line
+    line^0
+    b + 1 => b
+
+"First-fit used " + str(len(remaining)) + " bins" => msg3
+msg3^0
+int((total + capacity - 1) / capacity) => lower_bound
+"Lower bound is " + str(lower_bound) + " bins, and 3 is actually achievable: {8,2}, {7,3}, {5,4,1}" => msg4
+msg4^0

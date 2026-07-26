@@ -1,0 +1,43 @@
+# Self-authored for the EML case corpus (no external origin). Finds the
+# longest starting string every word in a list shares. Takes the first
+# word as a candidate prefix and shrinks it against each remaining word,
+# stopping early the moment it becomes empty — nothing can grow it back,
+# so there is no reason to look at the rest of the list.
+#
+# Worth contrasting with examples/longest-common-subsequence/: that one
+# allows gaps and needs a full 2D table, this one requires an unbroken run
+# from position 0 and needs no table at all. "Common" is doing very
+# different work in the two names.
+
+def longest_common_prefix(words):
+    len(words) => count
+    if count == 0:
+        return ""
+    words[0] => prefix
+    1 => i
+    while i < count:
+        words[i] => word
+        len(prefix) => limit
+        if len(word) < limit:
+            len(word) => limit
+        0 => j
+        while j < limit:
+            if prefix[j] != word[j]:
+                break
+            j + 1 => j
+        prefix[0:j] => prefix
+        if len(prefix) == 0:
+            break
+        i + 1 => i
+    return prefix
+
+groups^+[["flower", "flow", "flight"],
+         ["interspecies", "interstellar", "interstate"],
+         ["dog", "racecar", "car"],
+         ["single"],
+         ["same", "same", "same"]]
+
+for words in groups:
+    longest_common_prefix(words) => prefix
+    str(words) + " -> '" + prefix + "'" => line
+    line^0
