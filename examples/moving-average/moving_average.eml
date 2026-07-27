@@ -1,0 +1,94 @@
+# Self-authored for the EML case corpus (no external origin). The moving
+# average of a series over a sliding window, computed INCREMENTALLY: the
+# first window is summed once, and every window after it adds the entering
+# value and subtracts the leaving one.
+#
+# That is the whole point. Re-summing each window costs O(n*k); sliding
+# the total costs O(n) no matter how wide the window is. The naive version
+# is written out too, and the results compared, rather than the fast
+# version simply being asserted correct.
+#
+# But the speed is not free, and the float series below SHOWS the price.
+# A running total carries its rounding error forward: the fourth smoothed
+# temperature comes out 22.399999999999995 where summing that window
+# directly gives exactly 22.4. The two methods are algebraically identical
+# and numerically are not, because floating-point addition is not
+# associative and the sliding version adds in a different order.
+#
+# So the comparison uses a tolerance rather than `==` — not as caution,
+# but because exact equality is the wrong claim. Incremental updates buy
+# O(n) at the cost of accumulated drift; over a long enough series that
+# drift is worth periodically correcting with a fresh sum.
+
+def naive_moving_average(values, window):
+    len(values) => n
+    result^+[]
+    0 => start
+    while start + window <= n:
+        0 => total
+        0 => offset
+        while offset < window:
+            total + values[start + offset] => total
+            offset + 1 => offset
+        result + [total / window] => result
+        start + 1 => start
+    return result
+
+def sliding_moving_average(values, window):
+    len(values) => n
+    result^+[]
+    if window <= 0 or window > n:
+        return result
+    0 => total
+    0 => i
+    while i < window:
+        total + values[i] => total
+        i + 1 => i
+    result + [total / window] => result
+    window => i
+    while i < n:
+        total + values[i] - values[i - window] => total
+        result + [total / window] => result
+        i + 1 => i
+    return result
+
+def absolute(x):
+    if x < 0:
+        return 0 - x
+    return x
+
+readings^+[10, 20, 30, 40, 50, 60]
+3 => window
+
+sliding_moving_average(readings, window) => fast
+naive_moving_average(readings, window) => slow
+
+"Readings: " + str(readings) => msg1
+msg1^0
+"Window " + str(window) + " moving average: " + str(fast) => msg2
+msg2^0
+
+1 => agree
+0 => i
+while i < len(fast):
+    absolute(fast[i] - slow[i]) => difference
+    if difference > 0.0000001:
+        0 => agree
+    i + 1 => i
+
+if agree == 1:
+    "Sliding and re-summing agree on all " + str(len(fast)) + " windows" => msg3
+else:
+    "MISMATCH between sliding and re-summing" => msg3
+msg3^0
+
+"" => blank
+blank^0
+temperatures^+[18.5, 19.2, 21.7, 20.1, 22.8, 24.3, 23.9]
+sliding_moving_average(temperatures, 3) => smoothed
+"Temperatures: " + str(temperatures) => msg4
+msg4^0
+"Smoothed (window 3): " + str(smoothed) => msg5
+msg5^0
+"A window wider than the series returns nothing: " + str(sliding_moving_average(readings, 99)) => msg6
+msg6^0

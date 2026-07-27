@@ -1,0 +1,70 @@
+# Self-authored for the EML case corpus (no external origin). Ranks a
+# leaderboard where several players share a score, using the two standard
+# conventions side by side:
+#
+#   COMPETITION ranking  1, 2, 2, 4  - tied players share the better rank
+#                        and the next rank SKIPS. "Joint second, nobody
+#                        third." This is how sports results are reported.
+#
+#   DENSE ranking        1, 2, 2, 3  - tied players share a rank and the
+#                        next rank does NOT skip, so ranks stay
+#                        consecutive. This is what you want when the rank
+#                        is really a tier label.
+#
+# Neither is more correct; they answer different questions. A case that
+# showed only one would make "the" ranking look like a settled matter, and
+# a reader would have no way to tell which convention they were getting.
+#
+# Both are computed by counting rather than by walking a sorted list and
+# tracking state: competition rank is 1 + how many scores are strictly
+# greater, dense rank is 1 + how many DISTINCT scores are strictly
+# greater. Counting makes ties fall out automatically, with no special
+# case for "the previous score was the same".
+
+def competition_rank(scores, index):
+    scores[index] => target
+    1 => rank
+    for score in scores:
+        if score > target:
+            rank + 1 => rank
+    return rank
+
+def dense_rank(scores, index):
+    scores[index] => target
+    seen^+{}
+    1 => rank
+    for score in scores:
+        if score > target:
+            if not score in seen:
+                True => seen[score]
+                rank + 1 => rank
+    return rank
+
+names^+["Ada", "Grace", "Alan", "Edsger", "Barbara", "Donald"]
+scores^+[95, 88, 88, 74, 74, 61]
+
+"Leaderboard:" => header
+header^0
+"  player     score  competition  dense" => columns
+columns^0
+
+0 => i
+while i < len(names):
+    names[i] => name
+    scores[i] => score
+    competition_rank(scores, i) => comp
+    dense_rank(scores, i) => dense
+    "" => padded
+    padded + name => padded
+    while len(padded) < 11:
+        padded + " " => padded
+    "  " + padded + str(score) + "     " + str(comp) + "            " + str(dense) => line
+    line^0
+    i + 1 => i
+
+"" => blank
+blank^0
+"Two players tied on 88 and two on 74." => note1
+note1^0
+"Competition ranking skips 3 and 5; dense ranking does not." => note2
+note2^0

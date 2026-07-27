@@ -1,0 +1,60 @@
+# Self-authored for the EML case corpus (no external origin). Newton's
+# method for square roots: guess, then repeatedly replace the guess with
+# the average of it and value/guess. The corpus's first NUMERICAL METHOD —
+# an algorithm that converges toward an answer rather than computing one
+# exactly, which makes "is it right" a question about tolerance rather
+# than equality.
+#
+# Results are checked against EML's own fractional-power operator
+# (`value^0.5`), an independent computation rather than the method
+# checking itself. Comparison uses a tolerance, not `==`: two float
+# computations that agree to every printed digit can still differ in the
+# last bit, and a case asserting exact equality would be fragile for
+# reasons that have nothing to do with the algorithm.
+#
+# The per-iteration trace for sqrt(2) shows why this method is worth
+# knowing: the number of correct digits roughly DOUBLES each step, so it
+# reaches full float precision in about five iterations.
+
+def newton_sqrt(value, iterations):
+    if value == 0:
+        return 0.0
+    value => guess
+    0 => i
+    while i < iterations:
+        (guess + value / guess) / 2 => guess
+        i + 1 => i
+    return guess
+
+def absolute(x):
+    if x < 0:
+        return 0 - x
+    return x
+
+"Convergence for sqrt(2), one line per iteration:" => header
+header^0
+2 => target
+target => guess
+for step in [1:6]:
+    (guess + target / guess) / 2 => guess
+    "  step " + str(step) + ": " + str(guess) => line
+    line^0
+
+"" => blank
+blank^0
+
+values^+[2, 9, 16, 100, 0.25]
+0 => agreements
+for value in values:
+    newton_sqrt(value, 20) => approx
+    value^0.5 => builtin
+    absolute(approx - builtin) => difference
+    if difference < 0.0000001:
+        agreements + 1 => agreements
+        "sqrt(" + str(value) + ") = " + str(approx) + " (agrees with ^0.5)" => line
+    else:
+        "sqrt(" + str(value) + ") = " + str(approx) + " (DISAGREES with " + str(builtin) + ")" => line
+    line^0
+
+str(agreements) + " of " + str(len(values)) + " agree with the built-in power operator" => summary
+summary^0

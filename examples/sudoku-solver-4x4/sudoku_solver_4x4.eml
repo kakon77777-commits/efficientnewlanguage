@@ -1,0 +1,135 @@
+# Self-authored for the EML case corpus (no external origin). Solves a 4x4
+# Sudoku by backtracking: find the first empty cell, try each candidate
+# that breaks no rule, recurse, and on failure put the cell back to empty
+# and try the next candidate.
+#
+# Constraint-satisfaction backtracking, which is a different shape from
+# the corpus's other backtracking cases: examples/n-queens/ checks one
+# rule against previously placed pieces, examples/maze-solver-backtracking/
+# explores four fixed directions. Here every candidate must satisfy THREE
+# simultaneous constraints — row, column, and 2x2 box — and the box test
+# is the one that is easy to get wrong, since it needs the cell rounded
+# down to its box corner (`int(row / 2) * 2`).
+#
+# The output is checked by an INDEPENDENT validator at the end, not by
+# trusting the solver: every row, every column and every 2x2 box must
+# contain 1,2,3,4 exactly. That matters because a solver ignoring the box
+# rule would still fill every cell and still satisfy rows and columns —
+# it would produce a complete, plausible, invalid grid. Note also what
+# this validator replaced: an earlier version only checked that each row
+# summed to 10, which 1+1+4+4 also does.
+
+def is_valid(grid, row, col, value):
+    0 => i
+    while i < 4:
+        if grid[row][i] == value:
+            return 0
+        if grid[i][col] == value:
+            return 0
+        i + 1 => i
+    int(row / 2) * 2 => box_row
+    int(col / 2) * 2 => box_col
+    0 => r
+    while r < 2:
+        0 => c
+        while c < 2:
+            if grid[box_row + r][box_col + c] == value:
+                return 0
+            c + 1 => c
+        r + 1 => r
+    return 1
+
+def solve(grid):
+    0 => row
+    while row < 4:
+        0 => col
+        while col < 4:
+            if grid[row][col] == 0:
+                1 => candidate
+                while candidate <= 4:
+                    if is_valid(grid, row, col, candidate) == 1:
+                        candidate => grid[row][col]
+                        if solve(grid) == 1:
+                            return 1
+                        0 => grid[row][col]
+                    candidate + 1 => candidate
+                return 0
+            col + 1 => col
+        row + 1 => row
+    return 1
+
+def contains_all(values):
+    for wanted in [1:4]:
+        0 => seen
+        for v in values:
+            if v == wanted:
+                1 => seen
+        if seen == 0:
+            return 0
+    return 1
+
+def is_solved(grid):
+    0 => r
+    while r < 4:
+        row_values^+[]
+        col_values^+[]
+        0 => c
+        while c < 4:
+            row_values + [grid[r][c]] => row_values
+            col_values + [grid[c][r]] => col_values
+            c + 1 => c
+        if contains_all(row_values) == 0:
+            return 0
+        if contains_all(col_values) == 0:
+            return 0
+        r + 1 => r
+    0 => box_row
+    while box_row < 4:
+        0 => box_col
+        while box_col < 4:
+            box_values^+[]
+            0 => r2
+            while r2 < 2:
+                0 => c2
+                while c2 < 2:
+                    box_values + [grid[box_row + r2][box_col + c2]] => box_values
+                    c2 + 1 => c2
+                r2 + 1 => r2
+            if contains_all(box_values) == 0:
+                return 0
+            box_col + 2 => box_col
+        box_row + 2 => box_row
+    return 1
+
+def render(grid, label):
+    label^0
+    for row in grid:
+        "" => rendered
+        for cell in row:
+            if cell == 0:
+                rendered + ". " => rendered
+            else:
+                rendered + str(cell) + " " => rendered
+        rendered^0
+    "" => blank
+    blank^0
+
+puzzle^+[[1, 0, 0, 0],
+         [0, 0, 3, 0],
+         [0, 4, 0, 0],
+         [0, 0, 0, 2]]
+
+render(puzzle, "Puzzle (0 = empty):")
+solve(puzzle) => solved
+
+if solved == 1:
+    render(puzzle, "Solved:")
+else:
+    "No solution exists" => failure
+    failure^0
+
+if is_solved(puzzle) == 1:
+    "Validator: every row, column and 2x2 box contains 1,2,3,4" => check
+else:
+    "Validator: CONSTRAINT VIOLATION in the produced grid" => check
+check^0

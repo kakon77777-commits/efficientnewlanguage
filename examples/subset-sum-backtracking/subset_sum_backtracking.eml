@@ -1,0 +1,54 @@
+# Self-authored for the EML case corpus (no external origin). Finds every
+# subset of a list that adds up to a target, by branching twice at each
+# item — once including it, once excluding it — and pruning any branch
+# whose running total has already overshot.
+#
+# The pruning is what makes this backtracking rather than brute force. A
+# plain exhaustive search would build all 2^n subsets and filter at the
+# end; abandoning a branch the moment `total > target` cuts most of that
+# tree away without ever visiting it. Because every number here is
+# positive, overshooting is permanent — that assumption is exactly what
+# licenses the prune, and it would be wrong if negatives were allowed.
+#
+# Contrast with examples/coin-change-dp/, which answers a related question
+# (can these values reach an amount, and how cheaply) with a table instead
+# of a search: DP returns one optimal count, this returns every witness.
+
+def find_subsets(numbers, index, current, total, target, results):
+    if total == target:
+        snapshot^+[]
+        for c in current:
+            snapshot + [c] => snapshot
+        results + [snapshot] => results
+        return results
+    if total > target:
+        return results
+    if index >= len(numbers):
+        return results
+    numbers[index] => value
+    find_subsets(numbers, index + 1, current + [value], total + value, target, results) => results
+    find_subsets(numbers, index + 1, current, total, target, results) => results
+    return results
+
+def subsets_summing_to(numbers, target):
+    results^+[]
+    find_subsets(numbers, 0, [], 0, target, results) => results
+    return results
+
+numbers^+[3, 34, 4, 12, 5, 2]
+9 => target
+
+subsets_summing_to(numbers, target) => found
+"Numbers: " + str(numbers) => msg1
+msg1^0
+"Subsets summing to " + str(target) + ":" => msg2
+msg2^0
+for subset in found:
+    "  " + str(subset) => line
+    line^0
+"Found " + str(len(found)) + " subsets" => msg3
+msg3^0
+
+subsets_summing_to(numbers, 100) => none_found
+"Subsets summing to 100: " + str(len(none_found)) + " (nothing reaches it)" => msg4
+msg4^0

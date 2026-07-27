@@ -1,0 +1,63 @@
+# Self-authored for the EML case corpus (no external origin). Generates
+# every ordering of a list by recursive backtracking: pick an unused item,
+# recurse on the rest, then release it so the next branch can use it.
+#
+# The two pieces of state are handled deliberately differently, and the
+# contrast is the point of the case:
+#
+#   `used`    is a flag list mutated in place, so a write is visible to
+#             every deeper call — which means it MUST be undone
+#             (`0 => used[i]`) after the recursive call returns, or later
+#             branches would see items still marked as taken.
+#
+#   `current` is rebuilt by `+` on the way down, so each call receives its
+#             own prefix and nothing needs undoing at all.
+#
+# Same algorithm, two kinds of state, only one of which needs a manual
+# "step back". Getting that asymmetry wrong is the classic backtracking
+# bug, and here it would show up immediately as a short result list.
+
+def permute(items, current, used, results):
+    len(items) => n
+    if len(current) == n:
+        snapshot^+[]
+        for c in current:
+            snapshot + [c] => snapshot
+        results + [snapshot] => results
+        return results
+    0 => i
+    while i < n:
+        if used[i] == 0:
+            1 => used[i]
+            permute(items, current + [items[i]], used, results) => results
+            0 => used[i]
+        i + 1 => i
+    return results
+
+def all_permutations(items):
+    used^+[]
+    for item in items:
+        used + [0] => used
+    results^+[]
+    permute(items, [], used, results) => results
+    return results
+
+letters^+["A", "B", "C"]
+all_permutations(letters) => perms
+
+"Permutations of " + str(letters) + ":" => header
+header^0
+for perm in perms:
+    "" => rendered
+    for ch in perm:
+        rendered + ch => rendered
+    "  " + rendered => line
+    line^0
+
+"Count: " + str(len(perms)) + " (3! = 6)" => summary
+summary^0
+
+four^+["A", "B", "C", "D"]
+all_permutations(four) => perms4
+"Permutations of 4 items: " + str(len(perms4)) + " (4! = 24)" => summary4
+summary4^0

@@ -1,0 +1,79 @@
+# Self-authored for the EML case corpus (no external origin). Bisection:
+# given an interval whose endpoints give the function opposite signs, a
+# root must lie between them, so halve the interval and keep whichever
+# half still straddles zero. Repeat.
+#
+# The deliberate pairing is with examples/newton-sqrt/. One of the two
+# functions here is x^2 - 2, whose positive root IS sqrt(2) — so the same
+# number is computed twice by unrelated methods, and the difference in
+# how they get there is the point:
+#
+#   Newton     uses the derivative, doubles correct digits per step, and
+#              reaches full float precision in about 5 iterations.
+#   Bisection  uses only the SIGN of the function, gains one bit per step,
+#              and needs roughly 50 to match — but it cannot diverge, and
+#              it never needs a derivative.
+#
+# EML has no function values to pass around, so the target function is
+# selected by an integer rather than handed in as an argument.
+
+def evaluate(which, x):
+    if which == 0:
+        return x * x * x - x - 2
+    return x * x - 2
+
+def bisect(which, low, high, iterations):
+    low => a
+    high => b
+    0 => i
+    while i < iterations:
+        (a + b) / 2 => mid
+        evaluate(which, a) => value_a
+        evaluate(which, mid) => value_mid
+        if value_a * value_mid <= 0:
+            mid => b
+        else:
+            mid => a
+        i + 1 => i
+    return (a + b) / 2
+
+def absolute(x):
+    if x < 0:
+        return 0 - x
+    return x
+
+"Root of x^3 - x - 2 on [1, 2], by iteration count:" => header1
+header1^0
+for steps in [10:60]:
+    if steps % 10 == 0:
+        bisect(0, 1, 2, steps) => root
+        "  " + str(steps) + " iterations: " + str(root) => line
+        line^0
+
+"" => blank1
+blank1^0
+
+"Root of x^2 - 2 on [1, 2] - this one is sqrt(2):" => header2
+header2^0
+bisect(1, 1, 2, 50) => root2
+"  bisection (50 iterations): " + str(root2) => line2
+line2^0
+2^0.5 => builtin
+"  built-in ^0.5:             " + str(builtin) => line3
+line3^0
+
+absolute(root2 - builtin) => difference
+if difference < 0.0000001:
+    "Bisection agrees with the power operator to within 1e-7" => verdict
+else:
+    "Bisection DISAGREES: difference " + str(difference) => verdict
+verdict^0
+
+"" => blank2
+blank2^0
+bisect(1, 1, 2, 5) => rough
+absolute(rough - builtin) => rough_error
+"After only 5 iterations the error is still " + str(rough_error) => contrast
+contrast^0
+"Newton reaches full float precision in about that many steps" => note
+note^0

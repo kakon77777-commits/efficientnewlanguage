@@ -1,0 +1,80 @@
+# Self-authored for the EML case corpus (no external origin). Finds a path
+# through a maze by backtracking: step into a neighbor, mark it, recurse,
+# and if that branch dead-ends, UNMARK it and try the next direction. The
+# unmark is the whole difference between this and
+# examples/flood-fill/, which marks cells and never takes a mark back
+# because it wants to reach everything rather than find a route.
+#
+# It finds *a* path, not the shortest one. Breadth-first search
+# (examples/graph-bfs-traversal/) would give the shortest, because it
+# explores by distance; this commits to a direction and only reconsiders
+# when stuck. The maze below is built so that difference is visible in the
+# output: trying DOWN first sends it along the left edge and around the
+# bottom for 13 cells, while an 11-cell route straight across the top row
+# and down the right column was open the whole time — those unused cells
+# are still printed as dots, so the shortcut it never took can be read off
+# the rendered board.
+
+# Returns the path as a list of [row, col] steps, or an empty list if this
+# branch dead-ends. It deliberately does NOT write into a module-level
+# result list: assigning to a name anywhere in a function body makes that
+# name local for the whole body in Python, so `solution + [x] => solution`
+# inside here would shadow the outer list and raise UnboundLocalError on
+# the first read. Returning the path avoids the problem outright.
+def solve(maze, path, row, col, goal_row, goal_col):
+    len(maze) => rows
+    len(maze[0]) => cols
+    if row < 0 or row >= rows:
+        return []
+    if col < 0 or col >= cols:
+        return []
+    if maze[row][col] != 0:
+        return []
+    2 => maze[row][col]
+    path + [[row, col]] => path2
+    if row == goal_row and col == goal_col:
+        return path2
+    solve(maze, path2, row + 1, col, goal_row, goal_col) => down
+    if len(down) > 0:
+        return down
+    solve(maze, path2, row, col + 1, goal_row, goal_col) => right
+    if len(right) > 0:
+        return right
+    solve(maze, path2, row - 1, col, goal_row, goal_col) => up
+    if len(up) > 0:
+        return up
+    solve(maze, path2, row, col - 1, goal_row, goal_col) => left
+    if len(left) > 0:
+        return left
+    0 => maze[row][col]
+    return []
+
+maze^+[[0, 0, 0, 0, 0, 0],
+       [0, 1, 1, 1, 1, 0],
+       [0, 1, 0, 0, 1, 0],
+       [0, 1, 0, 1, 1, 0],
+       [0, 1, 0, 0, 0, 0],
+       [0, 0, 0, 1, 1, 0]]
+
+solve(maze, [], 0, 0, 5, 5) => solution
+
+if len(solution) > 0:
+    "Path found, " + str(len(solution)) + " cells:" => header
+else:
+    "No path exists" => header
+header^0
+
+for r in [0:5]:
+    "" => rendered
+    for c in [0:5]:
+        0 => marker
+        for step in solution:
+            if step[0] == r and step[1] == c:
+                1 => marker
+        if marker == 1:
+            rendered + "*" => rendered
+        elif maze[r][c] == 1:
+            rendered + "#" => rendered
+        else:
+            rendered + "." => rendered
+    rendered^0
