@@ -1,0 +1,70 @@
+# Self-authored for the EML case corpus (no external origin). The case where
+# @cold changes the ANSWER, not just the cost.
+#
+# examples/cold-vs-hot-fibonacci makes the reassuring half of the point: for a
+# genuinely pure function, @cold and @hot agree on every value and differ only
+# in how much work happens. This program makes the other half, which is the one
+# that actually bites.
+#
+# `price` below reads a module-level rate. It takes `units` as its only
+# argument, so as far as the cache is concerned price(10) is price(10) forever -
+# but the rate is not part of the key, and when it changes the cached answer
+# becomes silently wrong. Not slow. Wrong.
+#
+# Both versions are written out so the divergence is visible side by side:
+# after the rate doubles, @hot reports the new price and @cold keeps reporting
+# the old one. Nothing about the call site changed. Nothing raises. The only
+# difference is one annotation, six lines apart.
+#
+# This is what EML's temperature model is FOR. "Does this depend on anything
+# outside its arguments?" is a question the author has to answer, and @cold is
+# the promise that the answer is no. The compiler cannot check the promise in
+# general - it can only warn about the obvious cases - so the annotation carries
+# real weight, which is why picking it carelessly is a bug and not a style
+# choice.
+
+5 => rate
+
+@cold
+def price_cold(units):
+    return units * rate
+
+@hot
+def price_hot(units):
+    return units * rate
+
+("rate = " + str(rate))^0
+price_cold(10) => c1
+price_hot(10) => h1
+("  price_cold(10) = " + str(c1) + "   price_hot(10) = " + str(h1))^0
+"  (both correct - the cache is being filled here)" => n1
+n1^0
+
+""^0
+10 => rate
+("rate = " + str(rate) + "   <- the rate doubled")^0
+price_cold(10) => c2
+price_hot(10) => h2
+("  price_cold(10) = " + str(c2) + "   price_hot(10) = " + str(h2))^0
+
+""^0
+if c2 == h2:
+    "  The two agree." => verdict
+else:
+    "  They DISAGREE. @cold returned the rate-5 answer at rate 10." => verdict
+verdict^0
+
+""^0
+"An argument the cache has not seen is computed fresh, so the staleness" => n2
+n2^0
+"is per-key, not global - which makes it harder to spot, not easier:" => n3
+n3^0
+price_cold(20) => c3
+price_hot(20) => h3
+("  price_cold(20) = " + str(c3) + "   price_hot(20) = " + str(h3) + "   (agree - 20 was never cached)")^0
+
+""^0
+"So the same function is correct for arguments it has not seen before and" => n4
+n4^0
+"wrong for the ones it has. That is the failure mode @hot prevents." => n5
+n5^0

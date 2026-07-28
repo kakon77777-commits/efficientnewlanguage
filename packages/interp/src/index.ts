@@ -48,6 +48,7 @@ import {
   SET,
   canonicalKey,
   arith,
+  pySum,
   power,
   compare,
   contains,
@@ -406,12 +407,16 @@ function runProgram(
 
   const evalSum = (expr: Extract<Expression, { type: 'Sum' }>, scope: Scope): PyVal => {
     const items = rangeInts(expr.range, scope);
-    let acc: PyVal = INT(0n); // Python sum() starts at int 0
-    for (const item of items) {
-      tick();
-      const iterScope: Scope = { vars: new Map([[expr.iterator.name, item]]), parent: scope };
-      acc = arith('+', acc, evalExpr(expr.expr, iterScope));
-    }
+    // Delegated to `pySum` rather than folded with `arith('+')` here: `Σ` projects onto
+    // CPython's `sum(...)`, whose float accumulation is compensated. See pySum's comment.
+    const summands = function* (): Generator<PyVal> {
+      for (const item of items) {
+        tick();
+        const iterScope: Scope = { vars: new Map([[expr.iterator.name, item]]), parent: scope };
+        yield evalExpr(expr.expr, iterScope);
+      }
+    };
+    const acc = pySum(summands(), INT(0n)); // Python sum() starts at int 0
     emitter.emit('eml:sum', {
       iterator: expr.iterator.name,
       count: items.length,
@@ -477,7 +482,21 @@ function runProgram(
       // functools.cache requires hashable args; a list arg raises at call time.
       const bad = args.find((a) => !isHashable(a));
       if (bad) throw new PyError('TypeError', `unhashable type: '${typeName(bad)}'`);
-      key = `${name}(${args.map(pyRepr).join(',')})`;
+      // functools' key, not a repr of the arguments. `pyRepr` was wrong twice:
+      //   - Equal-but-differently-typed arguments share one entry, exactly as
+      //     dict keys do (1, 1.0 and True are one key). `canonicalKey` already
+      //     models that; repr does not, so True missed 1.0's entry here while
+      //     CPython hit it.
+      //   - `_make_key` has a fast path: a single argument whose type is
+      //     exactly int or str becomes the key itself instead of a tuple, and a
+      //     bare int never compares equal to a 1-tuple. So with ONE argument
+      //     f(1) is a separate entry from f(1.0) and f(True), while with two
+      //     arguments all three collide. The '#1:'/'#n:' prefixes below keep
+      //     those two key spaces apart, reproducing the split.
+      // Verified against CPython 3.14; examples/cold-cache-key-identity exists
+      // to pin exactly this, and is what caught the repr version.
+      const fastPath = args.length === 1 && (args[0]!.k === 'int' || args[0]!.k === 'str');
+      key = `${name}${fastPath ? '#1:' : '#n:'}${args.map(canonicalKey).join(',')}`;
       if (coldCache.has(key)) {
         const cached = coldCache.get(key)!;
         emitter.emit('eml:cache:hit', { fn: name, args: args.map(pyRepr), result: pyRepr(cached) });
@@ -647,9 +666,7 @@ function runProgram(
       case 'sum': {
         const a = need(args, 0, name);
         if (a.k !== 'list') throw new PyError('TypeError', `'${typeName(a)}' object is not iterable`);
-        let acc: PyVal = args[1] ?? INT(0n);
-        for (const x of a.v) acc = arith('+', acc, x);
-        return acc;
+        return pySum(a.v, args[1] ?? INT(0n));
       }
       default:
         // The temporal runtime intrinsics are "known but unsupported" — defer to
@@ -760,13 +777,27 @@ function runProgram(
             if (e instanceof PyError) {
               const handler = stmt.handlers.find((h) => matchesHandler(h, e));
               if (handler) {
-                const hScope: Scope = handler.name
-                  ? { vars: new Map([[handler.name, STR(e.message)]]), parent: scope }
-                  : scope;
                 const prevException = currentException;
                 currentException = e;
                 try {
-                  for (const s of handler.body) execStmt(s, hScope);
+                  // `except E as NAME` binds NAME in the CURRENT scope — it does
+                  // NOT open a new one. Running the body in a child scope (which
+                  // is what this used to do, purely so it had somewhere to put
+                  // NAME) silently discarded every assignment the handler made:
+                  // `count + 1 => count` created a local in the throwaway scope
+                  // and the enclosing `count` never moved. Handlers without an
+                  // `as` clause were unaffected, which is why it survived so long
+                  // — examples/retry-until-success is what finally caught it.
+                  //
+                  // Python then DELETES the name when the handler ends, even if
+                  // it existed beforehand, so the delete below is unconditional
+                  // rather than a save/restore.
+                  if (handler.name) scope.vars.set(handler.name, STR(e.message));
+                  try {
+                    for (const s of handler.body) execStmt(s, scope);
+                  } finally {
+                    if (handler.name) scope.vars.delete(handler.name);
+                  }
                 } finally {
                   currentException = prevException;
                 }

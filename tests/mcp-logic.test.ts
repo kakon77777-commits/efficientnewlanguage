@@ -37,6 +37,9 @@ const COUNTER_SRC =
 // reverse Python->EML lexer (which never tokenizes comments) can't recover
 // it — unlike `class` (Phase E2), which now round-trips.
 const HOT_SRC = '@hot\ndef greet(name):\n    name^0\n    return name\n\ngreet(5)\n';
+/** An unknown decorator: preserved as an informational comment on the way out,
+ *  with nothing on the way back — the round-trip loss @hot no longer has. */
+const CUSTOM_DECORATOR_SRC = '@retry\ndef greet(name):\n    name^0\n    return name\n\ngreet(5)\n';
 
 function expectRealHash(env: { input_hash: string }, source: string): void {
   expect(env.input_hash).toBe(`sha256:${createHash('sha256').update(source).digest('hex')}`);
@@ -136,21 +139,33 @@ describe('@eml/mcp tools — envelope shape', () => {
     expect(env.warnings).toEqual([]);
   });
 
-  it('roundtrip: a permanently-unrecoverable construct (@hot) fails via result.ok/message, NOT via errors[]', () => {
-    // `@hot` does NOT throw a reverse-parse error — the forward emitter renders
-    // it as a bare comment, so the reverse lexer (which never tokenizes
-    // comments) happily parses the decorator-stripped Python as a neutral
-    // function. The information loss only surfaces as a silent round-trip
-    // MISMATCH (python1, which still has the `@hot` comment, != python2,
-    // which doesn't) — not a hard parse failure. Verified directly rather
-    // than assumed: this is a more precise failure mode than "reverse
-    // Python->EML failed" would suggest.
+  it('roundtrip: @hot survives the round trip (it used to be lost)', () => {
+    // `@hot` compiles to a marker comment rather than a decorator, because
+    // "do not cache" has no Python decorator to compile to. That used to make
+    // it a silent round-trip MISMATCH: the reverse lexer dropped the comment
+    // like any other, python2 came back without it, and an author's @hot
+    // quietly became an unannotated function. The reverse lexer now tokenizes
+    // that one comment shape, so the annotation survives.
     const env = roundtrip(HOT_SRC);
+    expect((env.result as any).ok, (env.result as any).message).toBe(true);
+    expect(env.ok).toBe(true);
+    expect(env.errors).toEqual([]);
+  });
+
+  it('roundtrip: a still-unrecoverable construct fails via result.ok/message, NOT via errors[]', () => {
+    // A custom decorator is what @hot used to be: the forward emitter preserves
+    // it as an informational comment, and nothing reads it back, so the loss
+    // surfaces as a silent MISMATCH (python1 keeps the `# @retry` comment,
+    // python2 does not) rather than a hard parse failure. Unlike @hot this one
+    // genuinely has nowhere to go — EML has no representation to restore it to.
+    //
+    // The invariant this test locks in is about the ENVELOPE, not the specific
+    // construct: roundtrip never populates errors/warnings, even on failure —
+    // failure is only ever visible via result.ok / result.message.
+    const env = roundtrip(CUSTOM_DECORATOR_SRC);
     expect(env.ok).toBe(false);
     expect((env.result as any).ok).toBe(false);
     expect((env.result as any).message).toContain('round-trip MISMATCH');
-    // The invariant this test locks in: roundtrip never populates errors/warnings,
-    // even on failure — failure is only visible via result.ok/result.message.
     expect(env.errors).toEqual([]);
     expect(env.warnings).toEqual([]);
   });

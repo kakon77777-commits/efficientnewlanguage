@@ -260,12 +260,16 @@ export function emitEmlStatement(stmt: Statement, bound: Set<string> = new Set()
       // from the first line).
       const lines: string[] = [];
       if (stmt.temperature === 'cold') lines.push('@cold');
-      // `@hot` is never emitted here: the forward emitter renders it as a
-      // bare comment (never a real decorator), and comments are never
-      // tokenized by the reverse lexer — so a `temperature === 'hot'` value
-      // can only ever arise from a freshly-forward-transpiled AST, never
-      // from re-parsing already-emitted Python. There is nothing to emit for
-      // it either way.
+      // `@hot` IS emitted, and has to be. The forward emitter renders it as a
+      // marker comment rather than a decorator, and this file used to assume
+      // that made it unrecoverable — so a `temperature === 'hot'` was dropped
+      // here on the grounds that it could only come from a fresh forward
+      // transpile. That assumption cost the round trip its fixpoint: EML ->
+      // Python -> EML turned an author's @hot into an unannotated function,
+      // which then re-emitted different Python. The reverse lexer now
+      // tokenizes that one comment, so the annotation survives and this
+      // branch has real work to do.
+      if (stmt.temperature === 'hot') lines.push('@hot');
       const params = stmt.params.map((p) => p.name).join(', ');
       lines.push(`def ${stmt.name}(${params}):`);
       const fnBound = new Set(stmt.params.map((p) => p.name));

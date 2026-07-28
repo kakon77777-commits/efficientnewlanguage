@@ -1,0 +1,89 @@
+# Self-authored for the EML case corpus (no external origin). Dot product
+# as a summation over paired list positions:
+#
+#   Sigma(a[i] * b[i], i in [0:n-1])
+#
+# This is the summand shape the corpus had no example of: the operator
+# indexing TWO collections at once. The other summation cases sum a
+# function of the index itself; here the index is a cursor into data.
+#
+# Three properties are checked, each of which fails differently if the
+# summation is wrong:
+#
+#   orthogonality   perpendicular vectors must give exactly 0 - a specific
+#                   number a broken implementation is unlikely to produce
+#                   by accident
+#   self-product    a . a must equal the sum of squares, so the same data
+#                   is summed two different ways and compared
+#   commutativity   a . b must equal b . a
+#
+# None of these needs an external reference value, which is what makes
+# them usable as checks rather than as decoration.
+
+def dot(a, b):
+    len(a) => n
+    Σ(a[i] * b[i], i in [0:n - 1]) => total
+    return total
+
+def sum_of_squares(a):
+    len(a) => n
+    Σ(a[i]^2, i in [0:n - 1]) => total
+    return total
+
+pairs^+[[[1, 2, 3], [4, 5, 6]],
+        [[1, 0], [0, 1]],
+        [[3, 4], [4, 0 - 3]],
+        [[2, 2, 2], [1, 1, 1]],
+        [[0, 0, 0], [7, 8, 9]]]
+
+notes^+["ordinary vectors: 4 + 10 + 18",
+        "unit axes: perpendicular, so 0",
+        "perpendicular pair: 12 - 12 = 0",
+        "scaled ones: 2 + 2 + 2",
+        "zero vector annihilates"]
+
+"Dot products:" => header
+header^0
+0 => i
+while i < len(pairs):
+    pairs[i] => pair
+    pair[0] => a
+    pair[1] => b
+    dot(a, b) => value
+    "  " + str(a) + " . " + str(b) + " = " + str(value) + "   (" + notes[i] + ")" => line
+    line^0
+    i + 1 => i
+
+"" => blank1
+blank1^0
+"Self-product must equal the sum of squares:" => header2
+header2^0
+0 => self_ok
+vectors^+[[1, 2, 3], [3, 4], [0, 0, 0], [5]]
+for v in vectors:
+    dot(v, v) => d
+    sum_of_squares(v) => s
+    if d == s:
+        self_ok + 1 => self_ok
+        "  " + str(v) + ": " + str(d) + " both ways" => line
+    else:
+        "  " + str(v) + ": " + str(d) + " vs " + str(s) + " MISMATCH" => line
+    line^0
+
+"" => blank2
+blank2^0
+"Commutativity, a.b == b.a:" => header3
+header3^0
+0 => comm_ok
+0 => j
+while j < len(pairs):
+    pairs[j] => pair
+    dot(pair[0], pair[1]) => forward
+    dot(pair[1], pair[0]) => backward
+    if forward == backward:
+        comm_ok + 1 => comm_ok
+    j + 1 => j
+"  " + str(comm_ok) + " of " + str(len(pairs)) + " pairs commute" => comm_line
+comm_line^0
+"  " + str(self_ok) + " of " + str(len(vectors)) + " self-products match the sum of squares" => self_line
+self_line^0

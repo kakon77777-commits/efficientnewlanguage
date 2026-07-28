@@ -34,6 +34,8 @@ export type PyTokenType =
   | 'DOT'
   | 'COLON'
   | 'AT'
+  /** The `@hot` marker comment — the one comment shape that is tokenized. */
+  | 'HOT'
   | 'GT'
   | 'LT'
   | 'GE'
@@ -63,6 +65,17 @@ const isDigit = (c: string): boolean => c >= '0' && c <= '9';
 const isNameStart = (c: string): boolean =>
   (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c === '_';
 const isNamePart = (c: string): boolean => isNameStart(c) || isDigit(c);
+
+/** The `@hot` marker comment written by the forward Python emitter
+ *  (`packages/transpiler-python/src/emitter.ts`, `FunctionDef` case). `@hot`
+ *  means "do not cache", which has no Python decorator to compile to, so the
+ *  forward direction records it as a comment — and this is what lets the
+ *  reverse direction read it back instead of losing the annotation.
+ *
+ *  Kept deliberately narrow so an ordinary hand-written comment that happens to
+ *  mention @hot is still treated as a comment. The two strings are coupled:
+ *  changing the emitter's marker means changing this pattern. */
+const HOT_MARKER = /^#\s*@hot:\s*dynamic state/;
 
 export function lexPython(source: string): PyToken[] {
   const tokens: PyToken[] = [];
@@ -105,7 +118,15 @@ export function lexPython(source: string): PyToken[] {
       const after = peek(width);
       // Blank or comment-only lines don't change the indentation level; fall
       // through and let the whitespace/comment/newline handlers consume them.
-      if (after !== '\n' && after !== '' && after !== '#') {
+      //
+      // The `@hot` marker comment is the exception, because it is no longer
+      // really a comment: it is tokenized (see the `#` handler) and parsed as
+      // part of the function definition that follows. It therefore has to take
+      // part in indentation like a statement, so that a DEDENT closing the
+      // previous body is emitted BEFORE the marker rather than between the
+      // marker and its `def` — which is exactly where the parser would choke.
+      const isHotMarker = after === '#' && HOT_MARKER.test(src.slice(pos + width));
+      if (after !== '\n' && after !== '' && (after !== '#' || isHotMarker)) {
         const sLine = line;
         const sCol = col;
         advance(width);
@@ -147,7 +168,24 @@ export function lexPython(source: string): PyToken[] {
       continue;
     }
     if (c === '#') {
+      const commentStart = pos;
       while (pos < src.length && peek() !== '\n') advance();
+      // Comments are dropped — with exactly one exception. `@hot` has no Python
+      // decorator to compile to ("do not cache" is the absence of a decorator),
+      // so the forward emitter renders it as a marker comment. Dropping that
+      // comment like any other loses the annotation on the way back, and an
+      // EML -> Python -> EML round trip returns a function the author marked
+      // @hot as an unmarked one — a silent downgrade of a correctness
+      // annotation, and a round-trip fixpoint failure.
+      //
+      // The pattern is deliberately tight: it matches the exact marker
+      // `packages/transpiler-python/src/emitter.ts` writes for a @hot function,
+      // not any comment mentioning @hot, so ordinary hand-written Python
+      // comments are still ignored. The two strings are coupled; changing the
+      // emitter's marker means changing this.
+      if (HOT_MARKER.test(src.slice(commentStart, pos))) {
+        push('HOT', src.slice(commentStart, pos), l, cc);
+      }
       continue;
     }
 

@@ -254,6 +254,75 @@ function floatDivByZero(a: PyVal, b: PyVal): string {
   return isFloaty(a) || isFloaty(b) ? 'float division by zero' : 'division by zero';
 }
 
+/** CPython's `sum()` — NOT a fold of `arith('+')`, which is what this used to be.
+ *
+ *  Since 3.12 `builtin_sum_impl` (Python/bltinmodule.c) accumulates floats with the
+ *  improved Kahan-Babuska algorithm by Neumaier, carrying a compensation term for the
+ *  low-order bits each addition discards. A naive fold drifts from it. Both `Σ` and the
+ *  `sum()` builtin project onto CPython's `sum(...)`, so a naive fold makes the
+ *  interpreter disagree with its own Python projection:
+ *
+ *      Σ(1 / i, i in [1:1000])   naive fold  7.485470860550343
+ *                                CPython     7.485470860550345   (== math.fsum here)
+ *
+ *  Found by examples/harmonic-series-sigma, the corpus's first float summation — 119
+ *  earlier programs summed only integers, where exact bigint accumulation hid it.
+ *
+ *  The int prefix stays exact (CPython uses a C long with an overflow fallback to
+ *  arbitrary precision; bigint is exact throughout, so it agrees). Compensation starts
+ *  fresh at the int->float transition, and a non-numeric summand drops to the generic
+ *  `arith('+')` path after folding the compensation back in — both as CPython does. */
+export function pySum(items: Iterable<PyVal>, start: PyVal): PyVal {
+  const it = items[Symbol.iterator]();
+
+  /** Neumaier accumulation from `f0`, consuming the rest of `it`. */
+  const floatMode = (f0: number): PyVal => {
+    let f = f0;
+    let c = 0;
+    for (let n = it.next(); !n.done; n = it.next()) {
+      const x = n.value;
+      if (!isNumeric(x)) {
+        // Fold the compensation in before handing off, so nothing is silently dropped.
+        if (c !== 0 && Number.isFinite(c)) f += c;
+        let acc = arith('+', FLOAT(f), x);
+        for (let m = it.next(); !m.done; m = it.next()) acc = arith('+', acc, m.value);
+        return acc;
+      }
+      const v = toNum(x);
+      const t = f + v;
+      // The larger magnitude keeps its bits; the smaller one's lost bits go to `c`.
+      if (Math.abs(f) >= Math.abs(v)) c += f - t + v;
+      else c += v - t + f;
+      f = t;
+    }
+    // Guard from CPython: don't let the compensation turn an infinite sum into NaN.
+    if (c !== 0 && Number.isFinite(c)) f += c;
+    return FLOAT(f);
+  };
+
+  if (start.k === 'float') return floatMode(start.v);
+
+  if (start.k === 'int' || start.k === 'bool') {
+    let i = toBig(start);
+    for (let n = it.next(); !n.done; n = it.next()) {
+      const x = n.value;
+      if (x.k === 'int' || x.k === 'bool') {
+        i += toBig(x);
+        continue;
+      }
+      if (x.k === 'float') return floatMode(Number(i) + x.v);
+      let acc = arith('+', INT(i), x);
+      for (let m = it.next(); !m.done; m = it.next()) acc = arith('+', acc, m.value);
+      return acc;
+    }
+    return INT(i);
+  }
+
+  let acc: PyVal = start;
+  for (let n = it.next(); !n.done; n = it.next()) acc = arith('+', acc, n.value);
+  return acc;
+}
+
 /** Python `seq * int` / `int * seq` repetition; null if not a repeat case. */
 function seqRepeat(a: PyVal, b: PyVal): PyVal | null {
   const pair =

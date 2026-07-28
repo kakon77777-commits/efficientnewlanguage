@@ -1,0 +1,62 @@
+# Self-authored for the EML case corpus (no external origin). The FIRST
+# case in this corpus to use EML's summation operator.
+#
+# That is worth saying plainly. Before this case the corpus held 119
+# programs, and not one of them used `Σ` — the symbol the whole language
+# is named for. Every case was written in EML's Python-shaped subset,
+# which is correct EML but teaches a reader nothing about what makes EML
+# different from Python with unusual punctuation. `Σ` appeared only in the
+# `examples/phase*` language-feature fixtures, which are regression tests
+# rather than worked examples.
+#
+#   Σ(i^2, i in [1:n])      compresses the accumulate-over-a-range intent
+#                           into one expression, and transpiles to
+#                           `sum(i ** 2 for i in range(1, n + 1))`.
+#
+# Each total is checked against the closed form n(n+1)(2n+1)/6 — an
+# independent computation, so this verifies the summation rather than
+# restating it. The closed form also makes the samples cheap to confirm by
+# hand: n=10 gives 385, n=100 gives 338350.
+#
+# Note that `Σ` appears in the SOURCE but never inside a printed string.
+# That is deliberate and was verified, not assumed: Python's stdout on a
+# Windows cp950 host encodes Σ as the Big5 bytes A3 55, which the toolchain
+# then reads back as UTF-8 and turns into U+FFFD. The eml:equiv gate does
+# not catch it, because the interpreter and the real Python run traverse
+# the same encoding path and agree with each other while both are wrong.
+# Source text is read as UTF-8 and is unaffected — only stdout is.
+
+def closed_form(n):
+    return int(n * (n + 1) * (2 * n + 1) / 6)
+
+sizes^+[1, 5, 10, 100, 1000]
+
+0 => matches
+for n in sizes:
+    Σ(i^2, i in [1:n]) => total
+    closed_form(n) => expected
+    if total == expected:
+        matches + 1 => matches
+        "sum of squares to " + str(n) + " = " + str(total) + "  (closed form agrees)" => line
+    else:
+        "sum of squares to " + str(n) + " = " + str(total) + "  (CLOSED FORM SAYS " + str(expected) + ")" => line
+    line^0
+
+str(matches) + " of " + str(len(sizes)) + " match n(n+1)(2n+1)/6" => summary
+summary^0
+
+"" => blank
+blank^0
+"The same intent written out as a loop, for comparison:" => header
+header^0
+0 => manual
+for i in [1:10]:
+    manual + i * i => manual
+Σ(i^2, i in [1:10]) => compressed
+"  four-line loop: " + str(manual) + "   one-line summation: " + str(compressed) => compare
+compare^0
+if manual == compressed:
+    "  four lines and one line, same answer" => note
+else:
+    "  MISMATCH between the loop and the summation" => note
+note^0

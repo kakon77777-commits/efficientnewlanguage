@@ -1,0 +1,80 @@
+# Self-authored for the EML case corpus (no external origin). The same recursive
+# Fibonacci written twice - once @cold, once @hot - to separate two things the
+# temperature model does NOT confuse:
+#
+#   @cold and @hot give the SAME ANSWERS for a pure function.
+#   @cold and @hot give VERY different COSTS.
+#
+# Both definitions below are the textbook two-call recursion. @cold transpiles
+# to @functools.cache, so each distinct n is computed once and the recursion
+# collapses from exponential to linear. @hot transpiles to a plain function with
+# a marker comment, so every call re-descends the whole tree.
+#
+# The first section counts the cold computations directly, with a print inside
+# the cached body (which is why W_COLD_SIDE_EFFECT is reported - see
+# examples/cold-memoization-visible for why that instrument is deliberate).
+# Eleven [computing] lines appear for fib(10): one per distinct argument, 0
+# through 10.
+#
+# The second section measures what @hot costs, WITHOUT running it at large n -
+# `naive_calls` is a pure recurrence for the number of calls the uncached
+# version makes: T(0) = T(1) = 1, T(n) = 1 + T(n-1) + T(n-2). It is itself
+# @cold, so counting the cost of exponential recursion is cheap and side-effect
+# free. Nothing here is a hardcoded figure; the program derives every number.
+#
+# The third section runs the @hot version for real at a small n and checks it
+# agrees with the @cold one, which is the claim that matters: the annotation is
+# a performance contract, not a semantic one - for pure logic.
+
+@cold
+def fib_cold(n):
+    ("    [computing fib_cold(" + str(n) + ")]")^0
+    if n < 2:
+        return n
+    return fib_cold(n - 1) + fib_cold(n - 2)
+
+@hot
+def fib_hot(n):
+    if n < 2:
+        return n
+    return fib_hot(n - 1) + fib_hot(n - 2)
+
+@cold
+def naive_calls(n):
+    if n < 2:
+        return 1
+    return 1 + naive_calls(n - 1) + naive_calls(n - 2)
+
+"fib_cold(10), with every distinct computation printed:" => h1
+h1^0
+fib_cold(10) => value
+("  fib_cold(10) = " + str(value))^0
+"  -> 11 [computing] lines above, one for each of n = 0..10." => n1
+n1^0
+
+""^0
+"What the same recursion costs WITHOUT the cache:" => h2
+h2^0
+sizes^+[10, 20, 30, 40]
+for n in sizes:
+    naive_calls(n) => calls
+    ("  n = " + str(n) + ": cached does " + str(n + 1) + " computations, uncached makes " + str(calls) + " calls")^0
+
+""^0
+"Same answers either way (this is the part the annotation must not change):" => h3
+h3^0
+0 => agree
+0 => checked
+for n in [0:12]:
+    fib_hot(n) => hot_value
+    fib_cold(n) => cold_value
+    checked + 1 => checked
+    if hot_value == cold_value:
+        agree + 1 => agree
+("  " + str(agree) + " of " + str(checked) + " values agree between @hot and @cold")^0
+"  Note which [computing] lines appeared during that check: only 11 and 12." => n3
+n3^0
+"  n = 0..10 were already cached from the first section, so 11 of the 13" => n4
+n4^0
+"  @cold calls cost nothing. The cache outlives the call that filled it." => n5
+n5^0

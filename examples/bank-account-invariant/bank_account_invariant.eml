@@ -1,0 +1,84 @@
+# Self-authored for the EML case corpus (no external origin). A class that
+# defends an invariant by raising, rather than by returning a status nobody
+# checks.
+#
+# The invariant is one line: the balance is never negative. The interesting
+# design point is what a method does when asked to break it. Returning False
+# is easy to ignore - the caller writes `account.withdraw(500)` on its own line
+# and the failure evaporates. Raising cannot be ignored by accident; the caller
+# has to write a handler, and if it does not, the program stops.
+#
+# The transcript below runs a mixed sequence of good and bad operations against
+# one account, catching the refusals. The final check is the part that matters:
+# after every operation, valid and invalid alike, the balance still satisfies
+# the invariant AND equals the total of the deposits and withdrawals that were
+# actually allowed - computed independently from the log, not from the account.
+# A class that silently accepted a bad withdrawal would pass the first check
+# and fail the second.
+
+class Account:
+    def __init__(self, owner, opening):
+        owner => self.owner
+        0 => self.balance
+        [] => self.log
+        self.deposit(opening)
+
+    def deposit(self, amount):
+        if amount <= 0:
+            raise ValueError("deposit must be positive, got " + str(amount))
+        self.balance + amount => self.balance
+        self.log + [amount] => self.log
+        return self.balance
+
+    def withdraw(self, amount):
+        if amount <= 0:
+            raise ValueError("withdrawal must be positive, got " + str(amount))
+        if amount > self.balance:
+            raise ValueError("insufficient funds: balance " + str(self.balance) + ", requested " + str(amount))
+        self.balance - amount => self.balance
+        self.log + [0 - amount] => self.log
+        return self.balance
+
+Account("Neo", 100) => acct
+("Opened account for " + acct.owner + " with " + str(acct.balance))^0
+""^0
+
+operations^+[50, 0 - 30, 0 - 500, 200, 0 - 0, 0 - 120, 0 - 100000]
+
+for op in operations:
+    try:
+        if op > 0:
+            acct.deposit(op) => after
+            ("  deposit  " + str(op) + "\t-> balance " + str(after))^0
+        else:
+            acct.withdraw(0 - op) => after
+            ("  withdraw " + str(0 - op) + "\t-> balance " + str(after))^0
+    except ValueError as e:
+        ("  REFUSED  " + str(op) + "\t-> " + str(e))^0
+
+""^0
+("Final balance: " + str(acct.balance))^0
+
+len(acct.log) => entries
+Σ(acct.log[i], i in [0:entries - 1]) => from_log
+("Sum of the " + str(entries) + " ACCEPTED operations: " + str(from_log))^0
+
+if acct.balance == from_log:
+    "  The balance equals the accepted operations - nothing slipped through." => v1
+else:
+    "  MISMATCH - an operation changed the balance without being logged." => v1
+v1^0
+
+if acct.balance >= 0:
+    "  The invariant held: balance never went negative." => v2
+else:
+    "  INVARIANT BROKEN." => v2
+v2^0
+
+""^0
+"Both checks are needed. The invariant alone would still pass if a refused" => n1
+n1^0
+"withdrawal had quietly succeeded for a smaller amount; the log comparison" => n2
+n2^0
+"is what makes 'refused' mean the balance genuinely did not move." => n3
+n3^0

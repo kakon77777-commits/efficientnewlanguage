@@ -251,4 +251,38 @@ describe('Phase 7d — interpreter: real try/except/finally/raise execution', ()
     expect(r.ok).toBe(false);
     expect(r.unsupported.length).toBeGreaterThan(0);
   });
+
+  /**
+   * `except E as NAME` binds NAME in the CURRENT scope; it does not open a new
+   * one. The interpreter used to run the handler body in a throwaway child
+   * scope purely so it had somewhere to put NAME, which meant every assignment
+   * the handler made was discarded on exit — a counter incremented in a handler
+   * silently stayed at its old value. Handlers WITHOUT an `as` clause ran in
+   * the enclosing scope and were unaffected, which is why this went unnoticed:
+   * it needed the two shapes side by side to be visible at all.
+   *
+   * examples/retry-until-success is what caught it (its "gave up" tally read 0
+   * instead of 1). These pin it directly.
+   */
+  it('an assignment inside an `except ... as e` handler survives the handler', () => {
+    const src = '0 => b\ntry:\n    raise ValueError("x")\nexcept ValueError as e:\n    b + 1 => b\n("b=" + str(b))^0\n';
+    const r = interpret(src, { now: FIXED_CLOCK });
+    expect(r.error, r.error ? `${r.error.type}: ${r.error.message}` : '').toBeUndefined();
+    expect(r.output).toBe('b=1\n'); // the child-scope bug produced 'b=0'
+  });
+
+  it('the `as` form and the bare form agree on what the handler changed', () => {
+    const withAs = '0 => n\ntry:\n    raise ValueError("x")\nexcept ValueError as e:\n    n + 1 => n\n("n=" + str(n))^0\n';
+    const bare = '0 => n\ntry:\n    raise ValueError("x")\nexcept ValueError:\n    n + 1 => n\n("n=" + str(n))^0\n';
+    expect(interpret(withAs, { now: FIXED_CLOCK }).output).toBe(interpret(bare, { now: FIXED_CLOCK }).output);
+  });
+
+  it('Python deletes the `as` name when the handler ends', () => {
+    // Not an accident of the fix — CPython unbinds it unconditionally, so
+    // reading it afterwards is a NameError even though it was assigned above.
+    const src = 'try:\n    raise ValueError("x")\nexcept ValueError as e:\n    ("inside: " + str(e))^0\nstr(e)^0\n';
+    const r = interpret(src, { now: FIXED_CLOCK });
+    expect(r.ok).toBe(false);
+    expect(r.error?.type).toBe('NameError');
+  });
 });

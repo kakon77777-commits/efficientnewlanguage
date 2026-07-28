@@ -200,7 +200,7 @@ class PyParser {
         t.column,
       );
     }
-    if (this.check('AT') || this.checkName('def')) return this.parseFunctionDef();
+    if (this.check('AT') || this.check('HOT') || this.checkName('def')) return this.parseFunctionDef();
     if (this.checkName('return')) return this.parseReturn();
     if (this.checkName('class')) return this.parseClassDef();
     // `pass` has the exact same silent-mistranslation vulnerability
@@ -441,17 +441,29 @@ class PyParser {
     return { type: 'With', contextExpr, target, body };
   }
 
-  /** `[@functools.cache] def name(params): <body>` — the only decorator shape
-   *  this round supports is exactly what the forward emitter ever produces
-   *  for `@cold` (`packages/transpiler-python/src/emitter.ts`'s `FunctionDef`
-   *  case); `@hot` emits only a comment and is therefore permanently
-   *  unrecoverable here (comments are never tokenized), so there is no
-   *  decorator shape to recognize for it. Anything else after `@` (a bare
-   *  custom decorator, `@staticmethod`, `@property`, `functools.lru_cache(...)`,
-   *  a parenthesized `@functools.cache()`) is deliberately rejected rather
-   *  than silently partial-matched. */
+  /** `[@functools.cache | # @hot: ...] def name(params): <body>` — the only
+   *  decorator shapes this supports are exactly what the forward emitter
+   *  produces (`packages/transpiler-python/src/emitter.ts`'s `FunctionDef`
+   *  case): `@functools.cache` for `@cold`, and a marker comment for `@hot`.
+   *
+   *  `@hot` used to be documented here as "permanently unrecoverable, because
+   *  comments are never tokenized". That was true of the lexer, not of the
+   *  Python: the annotation is right there in the emitted text. The lexer now
+   *  tokenizes that one comment shape (see its `#` handler), so @hot survives
+   *  the round trip instead of silently downgrading to an unannotated function.
+   *
+   *  Anything else after `@` (a bare custom decorator, `@staticmethod`,
+   *  `@property`, `functools.lru_cache(...)`, a parenthesized
+   *  `@functools.cache()`) is deliberately rejected rather than silently
+   *  partial-matched. */
   private parseFunctionDef(): FunctionDef {
     let temperature: Temperature | undefined;
+    if (this.check('HOT')) {
+      this.next();
+      temperature = 'hot';
+      this.expect('NEWLINE', 'newline after the @hot marker comment');
+      this.skipNewlines();
+    }
     while (this.check('AT')) {
       const t = this.next(); // '@'
       this.expectName('functools');

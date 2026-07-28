@@ -1,0 +1,76 @@
+# Self-authored for the EML case corpus (no external origin). EML's ternary,
+# `cond ? a : b`, which the corpus had almost no coverage of before this.
+#
+# Three properties, each checked rather than asserted:
+#
+# 1. A nested ternary chain and the equivalent if/elif chain agree on every
+#    input. They are compared across the whole range below, not spot-checked.
+#
+# 2. The chain is RIGHT-associative: `a ? b : c ? d : e` groups as
+#    `a ? b : (c ? d : e)`. That is the only grouping that makes a chain useful,
+#    and the alternative reading `(a ? b : c) ? d : e` would produce different
+#    answers here - so the agreement in (1) is itself the evidence.
+#
+# 3. ORDER decides the answer when conditions overlap. The bands below are
+#    deliberately not mutually exclusive: 95 satisfies `>= 90`, `>= 80` and
+#    `>= 70` all at once. First match wins, so reordering the chain changes the
+#    output even though every individual condition is unchanged. The second
+#    table shows a chain written worst-first, which collapses every score to a
+#    single grade - a real bug, printed rather than described.
+
+def grade_ternary(score):
+    return score >= 90 ? "A" : score >= 80 ? "B" : score >= 70 ? "C" : score >= 60 ? "D" : "F"
+
+def grade_if(score):
+    if score >= 90:
+        return "A"
+    if score >= 80:
+        return "B"
+    if score >= 70:
+        return "C"
+    if score >= 60:
+        return "D"
+    return "F"
+
+def grade_misordered(score):
+    return score >= 60 ? "D" : score >= 70 ? "C" : score >= 80 ? "B" : score >= 90 ? "A" : "F"
+
+"score  ternary  if/elif  worst-first" => header
+header^0
+samples^+[100, 95, 90, 89, 80, 75, 70, 65, 60, 59, 0]
+for s in samples:
+    grade_ternary(s) => t
+    grade_if(s) => i
+    grade_misordered(s) => m
+    ("  " + str(s) + "\t  " + t + "\t   " + i + "\t    " + m)^0
+
+""^0
+0 => agree
+0 => checked
+for s in [0:100]:
+    checked + 1 => checked
+    if grade_ternary(s) == grade_if(s):
+        agree + 1 => agree
+("Ternary chain vs if/elif chain: " + str(agree) + " of " + str(checked) + " scores agree.")^0
+
+0 => misordered_wrong
+for s in [0:100]:
+    if grade_ternary(s) != grade_misordered(s):
+        misordered_wrong + 1 => misordered_wrong
+("Worst-first chain differs on " + str(misordered_wrong) + " of " + str(checked) + " scores.")^0
+"Same conditions, same operator, different order - and it is wrong for every" => n1
+n1^0
+"score above 69, because `>= 60` swallows them all before the others are seen." => n2
+n2^0
+
+""^0
+"Right-associativity, shown directly:" => h2
+h2^0
+False => a
+True => c
+(a ? "b" : c ? "d" : "e") => right_assoc
+("  a=False, c=True:  a ? \"b\" : c ? \"d\" : \"e\"  ->  " + right_assoc)^0
+"  Grouped as a ? \"b\" : (c ? \"d\" : \"e\"), so the result is \"d\"." => n3
+n3^0
+"  The other grouping, (a ? \"b\" : c) ? \"d\" : \"e\", would give \"e\" instead." => n4
+n4^0

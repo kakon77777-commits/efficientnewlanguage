@@ -1,0 +1,66 @@
+# Self-authored for the EML case corpus (no external origin). @cold is EML's
+# "cold logic" annotation - pure, cacheable, precompilable. It is the corpus's
+# first use of the temperature model: the 124 programs before this one used
+# neither @cold nor @hot, even though they are among EML's most distinctive
+# features.
+#
+# The point this case makes is that @cold is NOT a hint. It transpiles to
+# @functools.cache, and EML's interpreter emulates that same cache, so the
+# annotation changes how many times the body runs. Deleting the @cold line
+# below changes this program's output.
+#
+# Making that visible needs an observation instrument, and the only honest one
+# is a print inside the cached function. That is deliberately the thing EML
+# warns about:
+#
+#   [warning] W_COLD_SIDE_EFFECT: @cold function 'collatz_length' has side
+#   effects; it is not safely cacheable as pure logic.
+#
+# The warning is correct, and this case is a demonstration of WHY it exists
+# rather than a counterexample to it. A cached function's side effects happen
+# once per distinct argument, not once per call - which is exactly what makes
+# them unsafe, and exactly what makes them useful here as a counter. In real
+# code the print would be the bug; here it is the measuring device.
+#
+# The requests below repeat on purpose: six calls over three distinct values.
+# A correct cache computes three times. No cache computes six times.
+
+@cold
+def collatz_length(n):
+    ("    [computing collatz_length(" + str(n) + ")]")^0
+    0 => steps
+    n => cur
+    while cur != 1:
+        if cur % 2 == 0:
+            int(cur / 2) => cur
+        else:
+            3 * cur + 1 => cur
+        steps + 1 => steps
+    return steps
+
+requests^+[27, 6, 27, 9, 6, 27]
+
+"Six requests over three distinct values: [27, 6, 27, 9, 6, 27]" => header
+header^0
+""^0
+
+0 => served
+for r in requests:
+    collatz_length(r) => length
+    ("  request " + str(r) + " -> " + str(length))^0
+    served + 1 => served
+
+""^0
+
+{} => seen
+0 => distinct
+for r in requests:
+    if not r in seen:
+        1 => seen[r]
+        distinct + 1 => distinct
+
+("Served " + str(served) + " requests from " + str(distinct) + " computations.")^0
+"Count the [computing] lines above: there are exactly that many." => note
+note^0
+"Remove the @cold line and there would be one per request instead." => note2
+note2^0
