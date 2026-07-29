@@ -246,10 +246,44 @@ describe('Phase 7d — interpreter: real try/except/finally/raise execution', ()
     expect(r.error?.type).toBe('RuntimeError');
   });
 
-  it('raising a bound variable (not a fresh ExceptionClass(...) call) defers as Unsupported — no real exception-object model', () => {
+  /**
+   * This used to assert the OPPOSITE — that `raise e` DEFERRED as Unsupported,
+   * because there was no exception object to re-raise: `except ... as e` bound
+   * the message STRING, not the exception. Exceptions are real values now, so
+   * re-raising works and the deferral is gone.
+   */
+  it('re-raising a caught exception propagates it, keeping type and message', () => {
+    const src =
+      'try:\n    try:\n        raise ValueError("original")\n' +
+      '    except ValueError as e:\n        raise e\n' +
+      'except ValueError as again:\n    str(again)^0\n';
+    const r = interpret(src, { now: FIXED_CLOCK });
+    expect(r.error, r.error ? `${r.error.type}: ${r.error.message}` : '').toBeUndefined();
+    expect(r.unsupported).toEqual([]);
+    expect(r.output).toBe('original\n');
+  });
+
+  it('an uncaught re-raise faults with the ORIGINAL type, and no longer defers', () => {
     const r = interpret('try:\n    10 / 0 => x\nexcept ZeroDivisionError as e:\n    raise e\n', { now: FIXED_CLOCK });
     expect(r.ok).toBe(false);
-    expect(r.unsupported.length).toBeGreaterThan(0);
+    expect(r.error?.type).toBe('ZeroDivisionError');
+    expect(r.unsupported).toEqual([]);
+  });
+
+  it('exception classes are values: comparable, and constructible without raising', () => {
+    const src =
+      'ValueError("built") => err\nrepr(err)^0\n' +
+      'try:\n    raise err\nexcept ValueError as caught:\n' +
+      '    str(caught)^0\n    str(ValueError == ValueError)^0\n    str(ValueError == TypeError)^0\n';
+    const r = interpret(src, { now: FIXED_CLOCK });
+    expect(r.error, r.error ? `${r.error.type}: ${r.error.message}` : '').toBeUndefined();
+    expect(r.output).toBe("ValueError('built')\nbuilt\nTrue\nFalse\n");
+  });
+
+  it('two separately built exceptions are NOT equal (identity, as in Python)', () => {
+    const src = 'ValueError("x") => a\nValueError("x") => b\nstr(a == b)^0\nstr(a == a)^0\n';
+    const r = interpret(src, { now: FIXED_CLOCK });
+    expect(r.output).toBe('False\nTrue\n');
   });
 
   /**

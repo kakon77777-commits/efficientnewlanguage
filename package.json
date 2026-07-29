@@ -19,7 +19,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "tsc -p tsconfig.json --noEmit",
     "build:cli": "pnpm --filter @eml/cli run build",
-    "demo": "tsx packages/cli/src/index.ts run examples/phase0/sum.eml"
+    "demo": "tsx packages/cli/src/index.ts run examples/phase0/sum.eml",
+    "monitor": "node scripts/semantic-monitor.mjs",
+    "monitor:accept": "node scripts/semantic-monitor.mjs --accept",
+    "verify": "pnpm typecheck && pnpm test && pnpm monitor"
   },
   "devDependencies": {
     "esbuild": "^0.24",

@@ -47,6 +47,18 @@ export type PyVal =
   // no separate class-level attribute store this round (see docs).
   | { k: 'class'; name: string; def: unknown }
   | { k: 'instance'; className: string; classDef: unknown; attrs: Map<string, PyVal> }
+  // Exceptions as real values. Before these existed, `except E as e` bound a
+  // plain STRING (the message) and `__exit__`'s first argument was the type's
+  // NAME as a string — so `exc_type == ValueError` could not be written at all
+  // (`ValueError` was not a value), and printing exc_type gave `ValueError`
+  // where CPython gives `<class 'ValueError'>`. Both were silent divergences
+  // from the Python projection rather than loud deferrals.
+  //
+  // `exc_class` is the class object (`ValueError`); `exception` is an instance,
+  // which carries the PyError it was built from so that equality is IDENTITY,
+  // as in Python — two separately constructed `ValueError('x')` are not equal.
+  | { k: 'exc_class'; name: string }
+  | { k: 'exception'; err: PyError }
   | { k: 'none' };
 
 /** A Python-style runtime error (name mirrors the CPython exception class). */
@@ -67,6 +79,30 @@ export const BOOL = (v: boolean): PyVal => ({ k: 'bool', v });
 export const LIST = (v: PyVal[]): PyVal => ({ k: 'list', v });
 export const TUPLE = (v: PyVal[]): PyVal => ({ k: 'tuple', v });
 export const NONE: PyVal = { k: 'none' };
+export const EXC_CLASS = (name: string): PyVal => ({ k: 'exc_class', name });
+export const EXCEPTION = (err: PyError): PyVal => ({ k: 'exception', err });
+
+/** The exception classes bound as names in a program's root scope. Kept in one
+ *  place so the interpreter and any tooling agree on what `ValueError` resolves
+ *  to. Only builtins the interpreter can actually RAISE are listed — binding a
+ *  name it will never produce would make a handler look reachable when it is
+ *  not. */
+export const BUILTIN_EXCEPTIONS = [
+  'Exception',
+  'ArithmeticError',
+  'AttributeError',
+  'IndexError',
+  'KeyError',
+  'NameError',
+  'OverflowError',
+  'RecursionError',
+  'RuntimeError',
+  'StopIteration',
+  'TypeError',
+  'UnboundLocalError',
+  'ValueError',
+  'ZeroDivisionError',
+] as const;
 
 /**
  * Canonical dict/set key: Python treats int/float/bool as the SAME key when
@@ -155,6 +191,10 @@ export function typeName(a: PyVal): string {
       return 'type';
     case 'instance':
       return a.className;
+    case 'exc_class':
+      return 'type'; // `type(ValueError)` is `type`, as for any class
+    case 'exception':
+      return a.err.pyType;
     case 'none':
       return 'NoneType';
   }
@@ -180,6 +220,8 @@ export function truthy(a: PyVal): boolean {
     case 'func':
     case 'class':
     case 'instance':
+    case 'exc_class':
+    case 'exception':
       return true; // a plain object with no __bool__/__len__ override is always truthy
     case 'none':
       return false;
@@ -438,6 +480,12 @@ export function pyEquals(a: PyVal, b: PyVal): boolean {
   }
   if (a.k === 'str' && b.k === 'str') return a.v === b.v;
   if (a.k === 'none' && b.k === 'none') return true;
+  // Exception CLASSES compare by name, so `exc_type == ValueError` works.
+  if (a.k === 'exc_class' && b.k === 'exc_class') return a.name === b.name;
+  // Exception INSTANCES compare by identity, as in Python: two separately
+  // constructed `ValueError('x')` are not equal. Carrying the PyError object
+  // makes that a reference check rather than a structural one.
+  if (a.k === 'exception' && b.k === 'exception') return a.err === b.err;
   if (a.k === 'list' && b.k === 'list')
     return a.v.length === b.v.length && a.v.every((x, i) => pyEquals(x, b.v[i]!));
   // Same kind required — a tuple never equals a list with the same elements
@@ -523,12 +571,21 @@ export function pyStr(a: PyVal): string {
       // placeholder rather than a fabricated address. Never asserted against
       // real Python in the equivalence tests for that reason.
       return `<${a.className} object>`;
+    case 'exc_class':
+      return `<class '${a.name}'>`;
+    case 'exception':
+      // Python's `str(e)` is the MESSAGE, not the class — `str(ValueError('x'))`
+      // is `'x'`. repr() below is where the class name appears.
+      return a.err.message;
   }
 }
 
 /** Python `repr(value)` — used for list elements (strings get quoted). */
 export function pyRepr(a: PyVal): string {
   if (a.k === 'str') return reprStr(a.v);
+  // `repr(ValueError('x'))` is `ValueError('x')`, while `str()` of the same is
+  // just `x`. This is the one place the two genuinely differ for exceptions.
+  if (a.k === 'exception') return `${a.err.pyType}(${reprStr(a.err.message)})`;
   return pyStr(a);
 }
 
@@ -595,7 +652,18 @@ export function floatRepr(n: number): string {
  */
 export function isHashable(v: PyVal): boolean {
   return (
-    v.k !== 'list' && v.k !== 'tuple' && v.k !== 'dict' && v.k !== 'set' && v.k !== 'class' && v.k !== 'instance'
+    v.k !== 'list' &&
+    v.k !== 'tuple' &&
+    v.k !== 'dict' &&
+    v.k !== 'set' &&
+    v.k !== 'class' &&
+    v.k !== 'instance' &&
+    // Exception classes and instances ARE hashable in Python, but `canonicalKey`
+    // has no identity-stable form for them, so they are excluded here rather
+    // than given a key that would silently merge distinct objects. Using one as
+    // a dict key raises TypeError instead of computing something wrong.
+    v.k !== 'exc_class' &&
+    v.k !== 'exception'
   );
 }
 

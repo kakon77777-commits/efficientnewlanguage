@@ -24,31 +24,48 @@ rather than asserted:
 ```
 A. __exit__ returns True   -> execution continued past the raise
 B. __exit__ returns False  -> caught outside, as expected
-C. suppression on a budget of 2:
-     attempt 1: failing        (absorbed)
-     attempt 2: failing        (absorbed)
-     attempt 3: failing -> escaped to the caller
-     attempt 4: succeeded
-   Budget 2: absorbed 2, escaped 1, clean exits 1.
+C. selective: absorb ValueError, forward everything else
+     absorbing a <class 'ValueError'>: expected, handled here
+     forwarding a <class 'TypeError'>: unexpected, not ours to swallow
+   Selective guard: absorbed 1, forwarded 1, clean 1.
 ```
 
-C is the useful shape: absorb a few failures, then stop lying and let one
-through — how a retry or circuit-breaker wrapper behaves.
+C is the useful shape: swallow the failure you were built for, let
+everything else through. A manager that returns `True` for *everything*
+is the one that hides bugs.
 
-## A limitation this case had to design around
+## The type check, and why it is new
 
-EML-P has **no first-class exception objects**, which is why the budget is
-counted rather than switched on the exception's type:
+The third manager selects on the **exception type**:
 
-- `__exit__`'s first parameter is a plain **string** (`"ValueError"`) in
-  the interpreter, and the class object `<class 'ValueError'>` in CPython.
-- The third parameter is `None` here and a traceback object there.
+```eml
+if exc_type == ValueError:
+    return True
+```
 
-So `exc_type == ValueError` cannot be written — `ValueError` is not a
-value you can name — and printing `exc_type` or the traceback would
-produce *different text* in the interpreter than in the transpiled
-Python. Comparing against `None` does agree, and that is the one check
-used.
+That could not be written until now. EML-P had no first-class exception
+objects: `__exit__`'s first parameter arrived as a plain **string**, so
+`ValueError` was not a value you could compare against, and printing
+`exc_type` gave `ValueError` where CPython gives `<class 'ValueError'>`.
+Both were silent divergences from the Python projection.
+
+Exception classes and instances are real values now, so all of this
+matches CPython exactly:
+
+```
+    absorbing a <class 'ValueError'>: expected, handled here
+    forwarding a <class 'TypeError'>: unexpected, not ours to swallow
+  reached the outer handler: TypeError('unexpected, not ours to swallow')
+```
+
+Note `repr(e)` giving `TypeError('...')` while `str(e)` gives just the
+message — the one place the two genuinely differ for exceptions.
+
+**One gap remains, deliberately.** The third parameter (the traceback) is
+`None` here and a traceback object in CPython. A real traceback's only
+printable form embeds a memory address that differs between runs of
+CPython *itself*, so there is no reproducible value to supply — inventing
+one would be a fabrication, not a fix.
 
 Verify it yourself:
 

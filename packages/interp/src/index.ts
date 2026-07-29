@@ -58,6 +58,9 @@ import {
   typeName,
   isHashable,
   percentFormat,
+  EXC_CLASS,
+  EXCEPTION,
+  BUILTIN_EXCEPTIONS,
 } from './values';
 
 export { type PyVal, PyError } from './values';
@@ -171,6 +174,11 @@ function runProgram(
   module.vars.set('True', BOOL(true));
   module.vars.set('False', BOOL(false));
   module.vars.set('None', NONE);
+  // Exception classes are VALUES, so `except ... as e` can hand back something
+  // comparable (`exc_type == ValueError`) and `raise e` can re-raise it. They
+  // used to exist only as bare names the parser special-cased, which is why
+  // `__exit__`'s first argument arrived as a string.
+  for (const name of BUILTIN_EXCEPTIONS) module.vars.set(name, EXC_CLASS(name));
   /** functools.cache emulation for @cold (non-async) functions, keyed by repr(args). */
   const coldCache = new Map<string, PyVal>();
   let steps = 0;
@@ -467,6 +475,13 @@ function runProgram(
     const callee = readVar(scope, name);
     if (callee === undefined) return callBuiltin(name, args);
     if (callee.k === 'class') return instantiateClass(callee, args);
+    // `ValueError("boom")` constructs an exception VALUE. It reaches here now
+    // that the class names are bound in the root scope; `raise` used to
+    // special-case this shape in its own statement handler because there was
+    // nothing for the expression to evaluate to.
+    if (callee.k === 'exc_class') {
+      return EXCEPTION(new PyError(callee.name, args.length > 0 ? pyStr(args[0]!) : ''));
+    }
     if (callee.k !== 'func' || callee.def === undefined) {
       throw new PyError('TypeError', `'${typeName(callee)}' object is not callable`);
     }
@@ -660,6 +675,12 @@ function runProgram(
       }
       case 'str':
         return STR(args.length === 0 ? '' : pyStr(need(args, 0, name)));
+      // `repr` exists in every Python program the transpiler emits, so its
+      // absence here was a divergence in its own right: a program calling it
+      // ran fine as Python and raised NameError in the browser. pyRepr already
+      // backed list/dict element formatting; it just was not reachable by name.
+      case 'repr':
+        return STR(pyRepr(need(args, 0, name)));
       case 'min':
       case 'max':
         return minmax(name, args);
@@ -792,7 +813,12 @@ function runProgram(
                   // Python then DELETES the name when the handler ends, even if
                   // it existed beforehand, so the delete below is unconditional
                   // rather than a save/restore.
-                  if (handler.name) scope.vars.set(handler.name, STR(e.message));
+                  // Binds the EXCEPTION OBJECT, not its message string.
+                  // `str(e)` still yields the message (pyStr of an exception is
+                  // its message, as in Python), so existing corpus cases are
+                  // unaffected — but `repr(e)`, `raise e` and type comparison
+                  // now work too.
+                  if (handler.name) scope.vars.set(handler.name, EXCEPTION(e));
                   try {
                     for (const s of handler.body) execStmt(s, scope);
                   } finally {
@@ -824,17 +850,16 @@ function runProgram(
           const args = exc.args.map((a) => evalExpr(a, scope));
           throw new PyError(exc.callee.name, args.length > 0 ? pyStr(args[0]!) : '');
         }
-        if (exc.type === 'Identifier' && readVar(scope, exc.name) === undefined) {
-          // Not a bound variable — a bare exception class reference (`raise ValueError`).
-          throw new PyError(exc.name, '');
-        }
-        // A bound variable (e.g. `raise e` from `except ... as e`), an
-        // attribute-qualified exception class, or anything else — no real
-        // exception-object model exists this round, so defer rather than
-        // fabricate a wrong exception type/message.
-        throw new Unsupported(
-          'raise <expression>',
-          'raising anything other than a bare `raise`, `raise ExceptionClass`, or `raise ExceptionClass("msg")` is not modeled by the interpreter yet',
+        // Now that exceptions are real values, the general path works: evaluate
+        // the operand and raise whatever it denotes. `raise e` (re-raising a
+        // caught exception) used to defer as Unsupported purely because there
+        // was no exception object to re-raise.
+        const raised = evalExpr(exc, scope);
+        if (raised.k === 'exception') throw raised.err;
+        if (raised.k === 'exc_class') throw new PyError(raised.name, '');
+        throw new PyError(
+          'TypeError',
+          'exceptions must derive from BaseException',
         );
       }
       case 'With': {
@@ -869,11 +894,16 @@ function runProgram(
           runMethodBody(instance, exitMethod, [NONE, NONE, NONE]);
         } catch (e) {
           if (e instanceof PyError) {
-            // exc_type/exc_val as plain strings (not a real exception
-            // object) — the same deliberate simplification `except`'s own
-            // exception binding already uses; exc_tb is always NONE (no
-            // traceback model exists anywhere in this interpreter).
-            const suppressed = truthy(runMethodBody(instance, exitMethod, [STR(e.pyType), STR(e.message), NONE]));
+            // exc_type is the CLASS and exc_value the INSTANCE, matching
+            // CPython, so `exc_type == ValueError` and `str(exc_value)` both
+            // behave. (These were plain strings until exceptions became real
+            // values.) exc_tb stays NONE: a real traceback's only observable
+            // form is `<traceback object at 0x...>`, whose address differs
+            // between runs of CPython itself, so there is no reproducible
+            // value to supply — documented rather than faked.
+            const suppressed = truthy(
+              runMethodBody(instance, exitMethod, [EXC_CLASS(e.pyType), EXCEPTION(e), NONE]),
+            );
             if (!suppressed) throw e;
           } else {
             // Break/Continue/Return/Unsupported/StepLimit — with is an
