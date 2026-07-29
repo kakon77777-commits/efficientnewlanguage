@@ -1,0 +1,124 @@
+# Self-authored for the EML case corpus (no external origin). Run-length
+# encoding, its inverse, and a round-trip property that caught a real flaw in
+# the format while this case was being written.
+#
+# The property is the point. Rather than compare the encoder against
+# hand-written expected strings - which only ever checks the inputs someone
+# thought of - every input is encoded and then decoded, and the result must
+# equal what went in. A decoder bug and an encoder bug both break it, and the
+# only way to pass while being wrong is to be wrong in two exactly cancelling
+# ways.
+#
+# WHAT IT FOUND. The first version of this file asserted, in a comment, that
+# the format is unambiguous "because each count is followed by exactly one
+# payload character". That is false, and the round-trip said so on the very
+# first run: "a1a1a1" encodes to "1a111a111a11" and decodes to 111 a's. The
+# decoder reads digits greedily, so the payload's own '1' is swallowed into the
+# next count. No amount of re-reading the encoder would have shown that; the
+# encoder is fine. The format is broken, for any input containing digits.
+#
+# The table below reports it rather than hiding it - one row says NO, and the
+# summary says 8 of 9. A version of this case that quietly dropped the digit
+# sample would have looked better and taught nothing.
+#
+# The other inputs are awkward on purpose: empty, single character, no repeats,
+# all one character, a run of exactly 9 and a run of 10 (the digit boundary,
+# where a decoder reading one digit of count truncates silently).
+
+def encode(s):
+    if len(s) == 0:
+        return ""
+    "" => out
+    s[0:1] => current
+    1 => count
+    1 => i
+    while i < len(s):
+        s[i:i + 1] => ch
+        if ch == current:
+            count + 1 => count
+        else:
+            out + str(count) + current => out
+            ch => current
+            1 => count
+        i + 1 => i
+    return out + str(count) + current
+
+def decode(s):
+    "" => out
+    "" => digits
+    for ch in s:
+        if ch >= "0" and ch <= "9":
+            digits + ch => digits
+        else:
+            int(digits) => n
+            out + ch * n => out
+            "" => digits
+    return out
+
+samples^+["", "a", "abcdef", "aaaaaaaaaa", "aaabbbcccd",
+          "wwwwwwwwwz", "wwwwwwwwwwz", "a1a1a1", "mississippi"]
+
+"%-14s %-20s %5s %5s %8s" % ("INPUT", "ENCODED", "IN", "OUT", "ROUND") => header
+header^0
+("-" * 56)^0
+
+0 => ok
+0 => grew
+0 => checked
+for s in samples:
+    encode(s) => e
+    decode(e) => back
+    checked + 1 => checked
+    if back == s:
+        ok + 1 => ok
+        "yes" => verdict
+    else:
+        "NO" => verdict
+    if len(e) > len(s):
+        grew + 1 => grew
+    ("%-14s %-20s %5d %5d %8s" % ("\"" + s + "\"", "\"" + e + "\"", len(s), len(e), verdict))^0
+
+("-" * 56)^0
+("round-trips intact: " + str(ok) + " of " + str(checked))^0
+("inputs RLE made bigger: " + str(grew) + " of " + str(checked))^0
+
+""^0
+"The failure, in detail:" => h2
+h2^0
+"a1a1a1" => tricky
+encode(tricky) => enc
+decode(enc) => dec
+("  input   \"" + tricky + "\"  (" + str(len(tricky)) + " chars)")^0
+("  encoded \"" + enc + "\"")^0
+("  decoded " + str(len(dec)) + " characters, all '" + dec[0:1] + "'")^0
+"  Three separate things ran together into the count \"111\": the count 1" => n2
+n2^0
+"  for the '1'-run, the literal '1' itself, and the count 1 for the next" => n2b
+n2b^0
+"  'a'-run. That happens twice, giving 1 + 111 + 111 = 223, and the final" => n2c
+n2c^0
+"  \"11\" is dropped outright because the string ended on digits with no" => n2d
+n2d^0
+"  payload character to close them." => n2e
+n2e^0
+"  Fixing it needs a delimiter or an escape - a format change, not a" => n2f
+n2f^0
+"  decoder patch." => n2g
+n2g^0
+
+""^0
+"The two-digit boundary, which the format DOES handle:" => h3
+h3^0
+("  9 w's  -> \"" + encode("wwwwwwwww") + "\"")^0
+("  10 w's -> \"" + encode("wwwwwwwwww") + "\"")^0
+"  A decoder reading a single digit of count would turn the second into one" => n3
+n3^0
+"  w followed by a literal '0'. The round-trip would catch that too." => n3b
+n3b^0
+
+""^0
+"And the honest bit about compression:" => h4
+h4^0
+("  RLE made " + str(grew) + " of " + str(checked) + " inputs LONGER. On text without runs it")^0
+"  costs a count per character and saves nothing." => n4
+n4^0

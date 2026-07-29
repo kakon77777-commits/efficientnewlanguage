@@ -611,38 +611,267 @@ export function isHashable(v: PyVal): boolean {
  * this (not assumed): `'%d' % 3.9` -> `'3'`, `'%d' % -3.9` -> `'-3'`, `'%f' %
  * 3.14159265` -> `'3.141593'`.
  */
+/** Pad `body` to `width`, honouring the '-' (left-justify) and '0' (zero-fill)
+ *  flags. Zero-fill goes AFTER any sign, which is why the sign is passed
+ *  separately rather than already glued onto the body. */
+function padded(sign: string, body: string, width: number, left: boolean, zero: boolean): string {
+  const total = sign.length + body.length;
+  if (total >= width) return sign + body;
+  const fill = width - total;
+  if (left) return sign + body + ' '.repeat(fill); // '-' beats '0' in CPython
+  if (zero) return sign + '0'.repeat(fill) + body;
+  return ' '.repeat(fill) + sign + body;
+}
+
+/** CPython's exponent form is at least two digits (`1e+05`, not `1e+5`). */
+function fixExponent(s: string): string {
+  return s.replace(/e([+-])(\d)$/, 'e$10$2');
+}
+
+/**
+ * Decompose a finite non-negative double into exact integers `mant * 2**pow2`.
+ * Reading the IEEE-754 bits is the only way to get the EXACT value: the decimal
+ * you see in source (`2.675`) is a different number from the double it denotes
+ * (2.674999999999999822...), and every rounding decision below depends on the
+ * latter.
+ */
+function decompose(x: number): { mant: bigint; pow2: number } {
+  const buf = new DataView(new ArrayBuffer(8));
+  buf.setFloat64(0, x);
+  const bits = buf.getBigUint64(0);
+  const exp = Number((bits >> 52n) & 0x7ffn);
+  const frac = bits & 0xfffffffffffffn;
+  return exp === 0
+    ? { mant: frac, pow2: -1074 } // subnormal: no implicit leading bit
+    : { mant: frac + (1n << 52n), pow2: exp - 1075 };
+}
+
+/**
+ * `round(|x| * 10**places)` as an exact integer, breaking ties to even.
+ *
+ * C's printf — and therefore CPython's `%f`/`%e`/`%g` — rounds the exact binary
+ * value half-to-even. JavaScript has neither primitive:
+ *   - `toFixed` reads the exact value but rounds ties AWAY from zero, so
+ *     `(2.5).toFixed(0)` is '3' where CPython's `%.0f` is '2'.
+ *   - `Intl` with roundingMode 'halfEven' breaks ties correctly but rounds the
+ *     SHORTEST DECIMAL rather than the exact value, so 2.675 becomes '2.68'
+ *     where CPython gives '2.67'.
+ * Neither is usable, so the arithmetic is done exactly in BigInt instead.
+ */
+function scaledRoundHalfEven(x: number, places: number): bigint {
+  const { mant, pow2 } = decompose(x);
+  // |x| * 10**places  ==  num / den, both exact integers.
+  let num = mant * 10n ** BigInt(Math.max(places, 0));
+  let den = 1n;
+  if (places < 0) den *= 10n ** BigInt(-places);
+  if (pow2 >= 0) num <<= BigInt(pow2);
+  else den <<= BigInt(-pow2);
+
+  const q = num / den;
+  const rem = num % den;
+  const twice = rem * 2n;
+  if (twice > den) return q + 1n;
+  if (twice < den) return q;
+  return q % 2n === 0n ? q : q + 1n; // exact tie -> nearest even
+}
+
+/** `|x|` with exactly `places` digits after the point, rounded like CPython. */
+function fixedExact(x: number, places: number): string {
+  const digits = scaledRoundHalfEven(x, places).toString();
+  if (places === 0) return digits;
+  const padded0 = digits.padStart(places + 1, '0');
+  return padded0.slice(0, padded0.length - places) + '.' + padded0.slice(padded0.length - places);
+}
+
+/** `|x|` in exponent form with `places` digits after the point. */
+function expExact(x: number, places: number): string {
+  if (x === 0) return fixedExact(0, places) + 'e+00';
+  let e = Math.floor(Math.log10(x));
+  // log10 is not exact at powers of ten; settle the exponent by construction.
+  for (let guard = 0; guard < 4; guard++) {
+    const d = scaledRoundHalfEven(x, places - e);
+    const want = 10n ** BigInt(places);
+    if (d < want) e -= 1;
+    else if (d >= want * 10n) e += 1;
+    else {
+      const s = d.toString();
+      const mantissa = places === 0 ? s : s.slice(0, 1) + '.' + s.slice(1);
+      const sign = e < 0 ? '-' : '+';
+      return mantissa + 'e' + sign + String(Math.abs(e)).padStart(2, '0');
+    }
+  }
+  return fixExponent(x.toExponential(places));
+}
+
+/**
+ * `%`-formatting, the real grammar: `%[flags][width][.precision][length]type`.
+ *
+ * This used to accept ONLY bare `%s`, `%d`, `%f` and `%%`, and threw
+ * `ValueError: unsupported format character` for everything else — so
+ * `"%.2f" % (x,)` CRASHED in the interpreter while running fine as Python.
+ * That is not an exotic corner: `%.2f` is how you format money, and `%5d` is
+ * how you line up a column. Any such program was correct as its own Python
+ * projection and dead in the browser.
+ *
+ * Behaviour here is pinned against real CPython by a generated matrix of
+ * specs x values in tests/percent-format.test.ts, rather than reasoned out
+ * from the docs — several details (zero-fill sitting after the sign, '-'
+ * overriding '0', two-digit exponents, `%g` stripping trailing zeros unless
+ * '#') are easy to get subtly wrong and only a diff catches them.
+ *
+ * `%(name)s` mapping keys are deliberately NOT supported: they require a dict
+ * right-hand side, and EML's `%` operator only ever passes a tuple or a single
+ * value. CPython raises TypeError for that combination too.
+ */
 export function percentFormat(fmt: string, args: PyVal[]): string {
   let argIdx = 0;
+  const nextArg = (): PyVal => {
+    if (argIdx >= args.length) throw new PyError('TypeError', 'not enough arguments for format string');
+    return args[argIdx++]!;
+  };
+  const isDigit = (ch: string | undefined): boolean => ch !== undefined && ch >= '0' && ch <= '9';
+  const asNumber = (v: PyVal, spec: string): number => {
+    if (!isNumeric(v)) throw new PyError('TypeError', `%${spec} format: a real number is required, not ${typeName(v)}`);
+    return toNum(v);
+  };
+  const asInt = (v: PyVal, spec: string): bigint => {
+    if (!isNumeric(v)) throw new PyError('TypeError', `%${spec} format: a real number is required, not ${typeName(v)}`);
+    return isFloaty(v) ? BigInt(Math.trunc(toNum(v))) : toBig(v);
+  };
+
   let out = '';
   for (let i = 0; i < fmt.length; i++) {
-    const c = fmt[i];
-    if (c !== '%') {
-      out += c;
+    if (fmt[i] !== '%') {
+      out += fmt[i];
       continue;
     }
-    const spec = fmt[++i];
+    i++;
+    if (fmt[i] === undefined) throw new PyError('ValueError', 'incomplete format');
+    if (fmt[i] === '%') {
+      out += '%';
+      continue;
+    }
+    if (fmt[i] === '(') throw new PyError('TypeError', 'format requires a mapping');
+
+    let left = false;
+    let zero = false;
+    let plus = false;
+    let space = false;
+    let alt = false;
+    for (;;) {
+      const f = fmt[i];
+      if (f === '-') left = true;
+      else if (f === '0') zero = true;
+      else if (f === '+') plus = true;
+      else if (f === ' ') space = true;
+      else if (f === '#') alt = true;
+      else break;
+      i++;
+    }
+
+    let width = 0;
+    if (fmt[i] === '*') {
+      i++;
+      width = Number(asInt(nextArg(), '*'));
+      if (width < 0) {
+        left = true;
+        width = -width;
+      }
+    } else {
+      while (isDigit(fmt[i])) width = width * 10 + Number(fmt[i++]);
+    }
+
+    let precision = -1;
+    if (fmt[i] === '.') {
+      i++;
+      precision = 0;
+      if (fmt[i] === '*') {
+        i++;
+        precision = Number(asInt(nextArg(), '*'));
+      } else {
+        while (isDigit(fmt[i])) precision = precision * 10 + Number(fmt[i++]);
+      }
+    }
+    while (fmt[i] === 'h' || fmt[i] === 'l' || fmt[i] === 'L') i++; // ignored, as in CPython
+
+    const spec = fmt[i];
+    if (spec === undefined) throw new PyError('ValueError', 'incomplete format');
     if (spec === '%') {
       out += '%';
       continue;
     }
-    if (spec === undefined) throw new PyError('ValueError', "incomplete format");
-    if (argIdx >= args.length) throw new PyError('TypeError', 'not enough arguments for format string');
-    const val = args[argIdx++]!;
-    if (spec === 's') {
-      out += pyStr(val);
-    } else if (spec === 'd') {
-      if (!isNumeric(val)) {
-        throw new PyError('TypeError', `%d format: a real number is required, not ${typeName(val)}`);
+
+    const val = nextArg();
+    // A numeric sign is built separately from the digits so zero-fill can go
+    // between them ('%05d' % -3 is '-0003', not '000-3').
+    const signFor = (negative: boolean): string => (negative ? '-' : plus ? '+' : space ? ' ' : '');
+
+    if (spec === 's' || spec === 'r' || spec === 'a') {
+      let body = spec === 's' ? pyStr(val) : pyRepr(val);
+      if (precision >= 0) body = body.slice(0, precision);
+      out += padded('', body, width, left, false); // '0' never zero-fills a string
+    } else if (spec === 'd' || spec === 'i' || spec === 'u' || spec === 'x' || spec === 'X' || spec === 'o') {
+      const n = asInt(val, spec);
+      const neg = n < 0n;
+      const radix = spec === 'o' ? 8 : spec === 'x' || spec === 'X' ? 16 : 10;
+      let body = (neg ? -n : n).toString(radix);
+      if (spec === 'X') body = body.toUpperCase();
+      // For integers `.N` is a MINIMUM DIGIT COUNT, not a truncation — and it
+      // suppresses the '0' flag, since it already zero-fills. Missing this made
+      // `"%.3d" % 0` print '0' where CPython prints '000'.
+      if (precision >= 0 && body.length < precision) body = '0'.repeat(precision - body.length) + body;
+      if (alt && radix !== 10) body = (spec === 'o' ? '0o' : spec === 'x' ? '0x' : '0X') + body;
+      out += padded(signFor(neg), body, width, left, zero);
+    } else if (spec === 'f' || spec === 'F' || spec === 'e' || spec === 'E' || spec === 'g' || spec === 'G') {
+      const x = asNumber(val, spec);
+      const neg = x < 0 || Object.is(x, -0);
+      const mag = Math.abs(x);
+      const p = precision < 0 ? 6 : precision;
+      let body: string;
+      if (!Number.isFinite(mag)) {
+        body = Number.isNaN(mag) ? 'nan' : 'inf';
+        if (spec === 'F' || spec === 'E' || spec === 'G') body = body.toUpperCase();
+        zero = false; // CPython never zero-pads inf/nan
+      } else if (spec === 'f' || spec === 'F') {
+        body = fixedExact(mag, p);
+      } else if (spec === 'e' || spec === 'E') {
+        body = expExact(mag, p);
+        if (spec === 'E') body = body.toUpperCase();
+      } else {
+        // %g: `p` significant digits, exponent form outside [-4, p), and
+        // trailing zeros stripped unless '#' asks to keep them. The exponent
+        // has to be read back from the ROUNDED value, since rounding can carry
+        // (9.99 at 2 significant digits becomes 1.0e+01, not 10).
+        const pg = p === 0 ? 1 : p;
+        const rounded = expExact(mag, pg - 1);
+        const exp = mag === 0 ? 0 : Number(rounded.slice(rounded.indexOf('e') + 1));
+        if (exp < -4 || exp >= pg) {
+          body = rounded;
+          if (!alt) body = body.replace(/\.?0+e/, 'e');
+        } else {
+          body = fixedExact(mag, Math.max(0, pg - 1 - exp));
+          if (!alt && body.indexOf('.') >= 0) body = body.replace(/\.?0+$/, '');
+        }
+        if (spec === 'G') body = body.toUpperCase();
       }
-      const n = isFloaty(val) ? BigInt(Math.trunc(toNum(val))) : toBig(val);
-      out += n.toString();
-    } else if (spec === 'f') {
-      if (!isNumeric(val)) {
-        throw new PyError('TypeError', `%f format: a real number is required, not ${typeName(val)}`);
+      // '#' on a float conversion keeps the decimal point even when the
+      // precision left no digits after it: `"%#.0f" % 0` is '0.', not '0'.
+      if (alt && Number.isFinite(mag) && body.indexOf('.') < 0) {
+        const e = body.search(/[eE]/);
+        body = e < 0 ? body + '.' : body.slice(0, e) + '.' + body.slice(e);
       }
-      out += toNum(val).toFixed(6);
+      out += padded(signFor(neg), body, width, left, zero);
+    } else if (spec === 'c') {
+      let body: string;
+      if (val.k === 'str') {
+        if ([...val.v].length !== 1) throw new PyError('TypeError', '%c requires int or char');
+        body = val.v;
+      } else {
+        body = String.fromCodePoint(Number(asInt(val, 'c')));
+      }
+      out += padded('', body, width, left, false);
     } else {
-      throw new PyError('ValueError', `unsupported format character '${spec}'`);
+      throw new PyError('ValueError', `unsupported format character '${spec}' (0x${spec.charCodeAt(0).toString(16)})`);
     }
   }
   if (argIdx < args.length) throw new PyError('TypeError', 'not all arguments converted during string formatting');

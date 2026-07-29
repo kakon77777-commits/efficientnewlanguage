@@ -68,3 +68,30 @@ describe('round-trip diagnostics', () => {
     expect(rt.message.toLowerCase()).toContain('failed');
   });
 });
+
+describe('a name bound by a for loop is still bound after it', () => {
+  /**
+   * `for n in xs:` leaves `n` bound in Python, so a later `n = 0` is a
+   * REASSIGNMENT. The reverse emitter already knew not to use the `^+` sigil
+   * for a reassignment — it just never recorded loop targets as bound, so it
+   * emitted `n^+0`, which the forward emitter renders as `n += 0` exactly
+   * because the name is declared. The round trip therefore turned `n = 0`
+   * into `n = n + 0`: a silent semantic change, not a cosmetic one.
+   *
+   * Found by examples/comprehension-pipeline, whose whole subject is which
+   * names leak out of which construct.
+   */
+  const SRC = 'xs = [1, 2, 3]\nacc = []\nfor n in xs:\n    acc = acc + [n]\nn = 0\nprint(str(n))\n';
+
+  it('round-trips to a fixpoint', () => {
+    const rt = roundTripFromPython(SRC);
+    expect(rt.ok, rt.message).toBe(true);
+  });
+
+  it('emits a plain assignment, not the augmenting sigil', () => {
+    const eml = transpilePythonToEml(SRC);
+    expect(eml.ok).toBe(true);
+    expect(eml.eml).toContain('0 => n');
+    expect(eml.eml).not.toContain('n^+0');
+  });
+});

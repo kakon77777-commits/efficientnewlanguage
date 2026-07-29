@@ -1,0 +1,108 @@
+# Self-authored for the EML case corpus (no external origin). The part of the
+# context-manager protocol that surprises people: __exit__'s RETURN VALUE
+# decides whether the exception keeps travelling.
+#
+#   return False (or nothing)  ->  the exception propagates, as usual
+#   return True                ->  the exception is SWALLOWED, and execution
+#                                  resumes after the with-block
+#
+# That is a lot of power hidden in a boolean. A manager returning True
+# unconditionally silently eats every failure inside its block: the code after
+# the block runs as though nothing went wrong, and no handler anywhere sees the
+# error. It is the context-manager form of a bare `except: pass`.
+#
+# The managers below differ ONLY in what __exit__ returns, and the program
+# prints what actually happened each time, so the difference is visible rather
+# than asserted. The third is the useful shape - suppression on a budget, which
+# is how a retry or circuit-breaker wrapper behaves: absorb a few failures,
+# then stop lying and let one through.
+#
+# A LIMITATION worth knowing, and the reason the budget is counted rather than
+# switched on the exception's type: EML-P has no first-class exception objects.
+# `__exit__`'s first parameter is a plain STRING here (`"ValueError"`), and
+# CPython passes the class object `<class 'ValueError'>`; the third parameter is
+# None here and a traceback object there. So `exc_type == ValueError` cannot be
+# written - `ValueError` is not a value you can name - and printing exc_type or
+# the traceback would produce different text in the interpreter than in the
+# transpiled Python. Comparing against None DOES agree, and that is the one
+# check used below.
+
+class SwallowAll:
+    def __enter__(self):
+        return self
+    def __exit__(self, exc_type, exc_value, tb):
+        return True
+
+class PropagateAll:
+    def __enter__(self):
+        return self
+    def __exit__(self, exc_type, exc_value, tb):
+        return False
+
+class Budgeted:
+    def __init__(self, budget):
+        budget => self.budget
+        0 => self.absorbed
+        0 => self.clean
+    def __enter__(self):
+        return self
+    def __exit__(self, exc_type, exc_value, tb):
+        if exc_type == None:
+            self.clean + 1 => self.clean
+            return False
+        if self.absorbed < self.budget:
+            self.absorbed + 1 => self.absorbed
+            return True
+        return False
+
+0 => reached_after
+"A. __exit__ returns True" => h1
+h1^0
+with SwallowAll() as s:
+    "  raising inside the block" => a1
+    a1^0
+    raise ValueError("this never escapes")
+1 => reached_after
+"  execution continued - nothing was raised out of the block" => a2
+a2^0
+""^0
+
+"B. __exit__ returns False" => h2
+h2^0
+try:
+    with PropagateAll() as p:
+        "  raising inside the block" => b1
+        b1^0
+        raise ValueError("this does escape")
+    "  UNREACHABLE" => bad
+    bad^0
+except ValueError:
+    "  caught outside, as expected" => b2
+    b2^0
+""^0
+
+"C. suppression on a budget of 2" => h3
+h3^0
+Budgeted(2) => guard
+
+0 => escaped
+for attempt in [1:4]:
+    try:
+        with guard as g:
+            if attempt < 4:
+                ("  attempt " + str(attempt) + ": failing")^0
+                raise ValueError("attempt " + str(attempt))
+            ("  attempt " + str(attempt) + ": succeeded")^0
+    except ValueError:
+        escaped + 1 => escaped
+        ("  attempt " + str(attempt) + ": escaped to the caller")^0
+
+""^0
+("Budget 2: absorbed " + str(guard.absorbed) + ", escaped " + str(escaped) + ", clean exits " + str(guard.clean) + ".")^0
+("Code after the swallowing block ran: " + str(reached_after == 1))^0
+"Attempts 1 and 2 were absorbed, attempt 3 exhausted the budget and escaped," => n1
+n1^0
+"and attempt 4 left cleanly. The only difference between A and B is one" => n2
+n2^0
+"boolean, and it decides whether a failure is invisible or fatal." => n3
+n3^0

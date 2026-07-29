@@ -1,0 +1,85 @@
+# Self-authored for the EML case corpus (no external origin). Slicing, which
+# five corpus programs had touched only in passing.
+#
+# The rule worth internalising is that a slice is HALF-OPEN: `s[a:b]` includes
+# a and excludes b. Everything convenient about slices follows from that one
+# choice, and the program demonstrates each consequence rather than asserting
+# it:
+#
+#   len(s[a:b]) == b - a               the length is the difference, no +-1
+#   s[:k] + s[k:] == s                 any split point reassembles exactly
+#   s[a:a] == ""                       an empty slice is legal, not an error
+#   s[5:2] == ""                       a backwards range is empty, not an error
+#   s[:99] on a short string is fine   out-of-range bounds CLAMP, they do not
+#                                      raise the way s[99] would
+#
+# That last pair is the real reason slices are pleasant: the bounds are a
+# request, not an assertion. The final section leans on it to write a windowing
+# function with no boundary arithmetic at all.
+#
+# EML note: negative indices and a step (`s[::2]`) are outside the supported
+# slice grammar, so everything here is expressed with non-negative bounds -
+# which is also why the reversal below is written as an explicit loop.
+
+"abcdefghij" => s
+("s = \"" + s + "\"  (length " + str(len(s)) + ")")^0
+""^0
+
+"Half-open bounds:" => h1
+h1^0
+("  s[0:3] = \"" + s[0:3] + "\"   len " + str(len(s[0:3])) + " = 3 - 0")^0
+("  s[3:7] = \"" + s[3:7] + "\"   len " + str(len(s[3:7])) + " = 7 - 3")^0
+("  s[7:]  = \"" + s[7:] + "\"")^0
+("  s[:4]  = \"" + s[:4] + "\"")^0
+("  s[:]   = \"" + s[:] + "\"  (a full copy)")^0
+
+""^0
+"Every split point reassembles:" => h2
+h2^0
+0 => rejoined
+for k in [0:10]:
+    if s[:k] + s[k:] == s:
+        rejoined + 1 => rejoined
+("  " + str(rejoined) + " of 11 split points satisfy s[:k] + s[k:] == s")^0
+
+""^0
+"Degenerate ranges are empty, not errors:" => h3
+h3^0
+("  s[4:4]  = \"" + s[4:4] + "\"   (empty)")^0
+("  s[7:2]  = \"" + s[7:2] + "\"   (backwards -> empty)")^0
+("  s[:99]  = \"" + s[:99] + "\"  (clamped to the end)")^0
+("  s[99:]  = \"" + s[99:] + "\"   (clamped -> empty)")^0
+"  s[99] on its own would raise IndexError; the slice just clamps." => n3
+n3^0
+
+""^0
+"Lists slice the same way:" => h4
+h4^0
+xs^+[10, 20, 30, 40, 50, 60]
+("  xs[1:4] = " + str(xs[1:4]))^0
+("  xs[:2]  = " + str(xs[:2]))^0
+("  xs[4:]  = " + str(xs[4:]))^0
+
+""^0
+"Sliding windows, with no boundary arithmetic:" => h5
+h5^0
+
+def windows(seq, size):
+    [] => out
+    0 => i
+    while i + size <= len(seq):
+        out + [seq[i:i + size]] => out
+        i + 1 => i
+    return out
+
+windows(xs, 3) => w3
+for win in w3:
+    ("  " + str(win))^0
+("  " + str(len(w3)) + " windows of 3 over " + str(len(xs)) + " items = 6 - 3 + 1")^0
+
+""^0
+"A window larger than the sequence yields nothing at all:" => h6
+h6^0
+("  windows(xs, 99) -> " + str(windows(xs, 99)) + "   (the while never runs)")^0
+"  No special case was written for that; the half-open bound handles it." => n6
+n6^0

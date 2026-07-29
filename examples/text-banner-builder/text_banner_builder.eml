@@ -1,0 +1,70 @@
+# Self-authored for the EML case corpus (no external origin). Sequence
+# repetition - `"-" * n` and `[0] * n` - which no corpus program had used, and
+# which is the workhorse behind every box, rule, bar chart and padded column.
+#
+# Repetition looks trivial until the edge cases, and every one below is
+# checked rather than avoided:
+#
+#   n = 0   gives an EMPTY sequence, not a one-element one
+#   n < 0   also gives empty - it does NOT raise, and does not count backwards
+#   the result of `[x] * n` is a NEW list; repeating a list of lists would
+#   share the inner list n times, which is the classic grid-building bug, so
+#   the grid below is built row by row instead
+#
+# The banner is drawn to a width derived from the longest line rather than a
+# hardcoded number, so the box closes exactly regardless of content - which is
+# also what makes a wrong repetition count visible as a ragged edge instead of
+# an invisible off-by-one.
+
+def box(lines, pad):
+    0 => widest
+    for line in lines:
+        if len(line) > widest:
+            len(line) => widest
+    widest + pad * 2 => inner
+    ("+" + "-" * inner + "+")^0
+    for line in lines:
+        inner - pad - len(line) => right
+        ("|" + " " * pad + line + " " * right + "|")^0
+    ("+" + "-" * inner + "+")^0
+    return inner + 2
+
+box(["EML", "case corpus", "sequence repetition"], 2) => drawn
+("box outer width: " + str(drawn))^0
+
+""^0
+"Edge cases:" => h1
+h1^0
+("  \"ab\" * 3  = " + "\"" + "ab" * 3 + "\"")^0
+("  \"ab\" * 1  = " + "\"" + "ab" * 1 + "\"")^0
+("  \"ab\" * 0  = " + "\"" + "ab" * 0 + "\"   (empty, length " + str(len("ab" * 0)) + ")")^0
+("  \"ab\" * -4 = " + "\"" + "ab" * (0 - 4) + "\"   (also empty - negative does not raise)")^0
+("  [7] * 4    = " + str([7] * 4))^0
+("  [7] * 0    = " + str([7] * 0))^0
+
+""^0
+"A bar chart, where the repetition count IS the data:" => h2
+h2^0
+labels^+["mon", "tue", "wed", "thu", "fri"]
+counts^+[3, 7, 0, 12, 5]
+0 => i
+while i < len(labels):
+    counts[i] => n
+    ("  %-4s |%s %d" % (labels[i], "#" * n, n))^0
+    i + 1 => i
+"  wednesday is a zero-length bar, not a missing row" => n1
+n1^0
+
+""^0
+"The shared-inner-list trap:" => h3
+h3^0
+[[0] * 3] * 2 => shared
+[] => independent
+for r in [1:2]:
+    independent + [[0] * 3] => independent
+9 => shared[0][0]
+9 => independent[0][0]
+("  [[0]*3]*2   after setting [0][0]=9 -> " + str(shared))^0
+("  built row by row                    -> " + str(independent))^0
+"  The first has TWO nines: both rows are the same list object." => n2
+n2^0

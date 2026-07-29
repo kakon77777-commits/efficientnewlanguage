@@ -1,0 +1,110 @@
+# Self-authored for the EML case corpus (no external origin). Greedy word wrap
+# - the algorithm behind every terminal that reflows text - written with the
+# string tools EML actually has.
+#
+# The rule is simple: put a word on the current line if it fits, otherwise
+# start a new line. What makes it worth a case is that "if it fits" is easy to
+# get wrong by exactly one character, and an off-by-one here is invisible in
+# casual reading: the paragraph still looks like a paragraph.
+#
+# So the program checks the two properties that define a correct wrap, over
+# every width from 8 to 40 rather than the one width in the demo:
+#
+#   1. no output line exceeds the width  (unless a single word is longer than
+#      the width, which no wrap can fix - that case is counted separately)
+#   2. the words come back out in the same order, with nothing lost or added
+#
+# Property 2 is the one people forget to check. A wrap that silently drops the
+# last word of each line still satisfies property 1 perfectly.
+
+def split_words(text):
+    [] => out
+    "" => current
+    for ch in text:
+        if ch == " ":
+            if len(current) > 0:
+                out + [current] => out
+                "" => current
+        else:
+            current + ch => current
+    if len(current) > 0:
+        out + [current] => out
+    return out
+
+def wrap(words, width):
+    [] => lines
+    "" => line
+    for word in words:
+        if len(line) == 0:
+            word => line
+        else:
+            if len(line) + 1 + len(word) <= width:
+                line + " " + word => line
+            else:
+                lines + [line] => lines
+                word => line
+    if len(line) > 0:
+        lines + [line] => lines
+    return lines
+
+"the quick brown fox jumps over the lazy dog while a supercalifragilistic word waits" => text
+split_words(text) => words
+("input: " + str(len(words)) + " words, " + str(len(text)) + " characters")^0
+""^0
+
+"Wrapped to 24 columns:" => h1
+h1^0
+("+" + "-" * 24 + "+")^0
+wrap(words, 24) => demo
+for line in demo:
+    ("|" + line + " " * (24 - len(line)) + "|")^0
+("+" + "-" * 24 + "+")^0
+
+""^0
+"Checked across every width from 8 to 40:" => h2
+h2^0
+
+0 => widths_ok
+0 => order_ok
+0 => unavoidable
+0 => checked
+
+for width in [8:40]:
+    checked + 1 => checked
+    wrap(words, width) => lines
+
+    True => fits
+    for line in lines:
+        if len(line) > width:
+            # only forgivable when the line is a single over-long word
+            if len(split_words(line)) > 1:
+                False => fits
+            else:
+                unavoidable + 1 => unavoidable
+    if fits:
+        widths_ok + 1 => widths_ok
+
+    [] => back
+    for line in lines:
+        for w in split_words(line):
+            back + [w] => back
+    if back == words:
+        order_ok + 1 => order_ok
+
+("  widths checked:            " + str(checked))^0
+("  no over-long line:         " + str(widths_ok))^0
+("  words preserved in order:  " + str(order_ok))^0
+("  unavoidable overflows:     " + str(unavoidable) + " (a single word longer than the width)")^0
+
+""^0
+if widths_ok == checked and order_ok == checked:
+    "Both properties hold at every width." => v
+else:
+    "FAILED - the wrap is wrong at some width." => v
+v^0
+"The long word is 'supercalifragilistic' at 20 characters, so every width" => n1
+n1^0
+"below 20 has one line that cannot fit. Counting those separately is the" => n2
+n2^0
+"difference between a real check and one that had to be loosened to pass." => n3
+n3^0

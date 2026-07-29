@@ -291,6 +291,14 @@ export function emitEmlStatement(stmt: Statement, bound: Set<string> = new Set()
       return lines.join('\n');
     }
     case 'ForIn': {
+      // The loop target is BOUND, and stays bound after the loop — Python
+      // leaves it holding the last item. Failing to record that turned a later
+      // `n = 0` back into `n^+0`, which the forward emitter renders as
+      // `n += 0` precisely because the name is already declared: a silent
+      // semantic change on a round trip (`n = 0` became `n = n + 0`). The
+      // Assignment case above already guards on `bound`; it was simply never
+      // told about loop variables. Found by examples/comprehension-pipeline.
+      bound.add(stmt.target.name);
       const lines: string[] = [`for ${stmt.target.name} in ${emitEmlExpression(stmt.iterable)}:`];
       for (const s of stmt.body) lines.push(indent(emitEmlStatement(s, bound)));
       return lines.join('\n');

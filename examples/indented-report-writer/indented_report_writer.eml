@@ -1,0 +1,87 @@
+# Self-authored for the EML case corpus (no external origin). A context manager
+# used for something other than releasing a resource: managing the shape of
+# nested output.
+#
+# The idea is that indentation is exactly the kind of state a `with` block is
+# good at - it must go up on the way in and back down on the way out, on every
+# path, and a stray early exit that forgot to un-indent would corrupt every
+# line printed afterwards. Writing it as a manager makes that impossible to get
+# wrong rather than merely easy to get right.
+#
+# The report below is generated from a nested data structure, so the depth is
+# not hardcoded anywhere: it comes purely from how deep the recursion happens
+# to be, and the manager tracks it. The final check re-derives the expected
+# leading-space count for every line straight from the tree and compares it to
+# what was actually printed, which is what makes this a test rather than a
+# picture.
+
+class Indent:
+    def __init__(self, writer):
+        writer => self.writer
+    def __enter__(self):
+        self.writer.depth + 1 => self.writer.depth
+        return self.writer
+    def __exit__(self, exc_type, exc_value, tb):
+        self.writer.depth - 1 => self.writer.depth
+        return False
+
+class Writer:
+    def __init__(self):
+        0 => self.depth
+        [] => self.widths
+    def line(self, text):
+        "  " * self.depth => pad
+        (pad + text)^0
+        self.widths + [len(pad)] => self.widths
+    def block(self):
+        return Indent(self)
+
+# [label, children] - depth is a property of the tree, never written down
+tree^+["report", [
+    ["summary", []],
+    ["details", [
+        ["inputs", []],
+        ["outputs", [
+            ["primary", []],
+            ["secondary", []]]]]],
+    ["appendix", []]]]
+
+Writer() => w
+expected^+[]
+
+def emit(node, writer, depth):
+    node[0] => label
+    node[1] => children
+    writer.line(label)
+    for child in children:
+        with writer.block() as inner:
+            emit(child, inner, depth + 1)
+
+def expected_pads(node, depth, acc):
+    acc + [depth * 2] => acc
+    for child in node[1]:
+        expected_pads(child, depth + 1, acc) => acc
+    return acc
+
+emit(tree, w, 0)
+
+""^0
+expected_pads(tree, 0, []) => want
+("printed pads:  " + str(w.widths))^0
+("expected pads: " + str(want))^0
+
+if w.widths == want:
+    "  Every line's indentation matches the tree depth it came from." => v
+else:
+    "  MISMATCH - the indent state leaked across a block boundary." => v
+v^0
+
+("Deepest nesting reached: " + str(int(max(want) / 2)) + " levels.")^0
+("Writer depth after all blocks closed: " + str(w.depth) + " (must be 0).")^0
+""^0
+"That last number is the point. Every `with` that raised the depth lowered" => n1
+n1^0
+"it again on the way out, including the ones several frames deep in the" => n2
+n2^0
+"recursion, so the writer ends exactly where it started." => n3
+n3^0

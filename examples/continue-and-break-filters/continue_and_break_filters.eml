@@ -1,0 +1,105 @@
+# Self-authored for the EML case corpus (no external origin). `continue` and
+# `break`, which two and nine corpus programs used respectively and which
+# nothing had pinned the interaction of.
+#
+# The two are not symmetric and the difference is where bugs live:
+#
+#   `continue` skips the REST OF THIS ITERATION and goes to the next one
+#   `break`    abandons the loop entirely
+#
+# and in a `while` loop that is a trap, because `continue` jumps straight back
+# to the condition - skipping any increment written at the bottom of the body,
+# which is an infinite loop. The program shows the wrong shape and the right
+# one side by side, with a step counter proving the fixed version terminates.
+#
+# The other thing worth pinning: `break` in a nested loop leaves only the INNER
+# loop. There is no labelled break in EML (nor in Python), so escaping both
+# takes a flag or an early return - both shown, and the counts prove which
+# iterations actually ran.
+
+log^+["ok 12", "", "skip me", "ok 7", "# comment", "ok 30", "STOP", "ok 999"]
+
+"1. `continue` to skip, `break` to stop:" => h1
+h1^0
+0 => accepted
+0 => skipped
+0 => seen
+for line in log:
+    seen + 1 => seen
+    if line == "STOP":
+        break
+    if len(line) == 0:
+        skipped + 1 => skipped
+        continue
+    if line[0:1] == "#":
+        skipped + 1 => skipped
+        continue
+    if line[0:2] != "ok":
+        skipped + 1 => skipped
+        continue
+    accepted + 1 => accepted
+    ("  accepted: " + line)^0
+
+("  seen " + str(seen) + " of " + str(len(log)) + " lines, accepted " + str(accepted) + ", skipped " + str(skipped))^0
+"  The last line was never seen: STOP broke out before it." => n1
+n1^0
+
+""^0
+"2. `continue` in a while loop skips the increment:" => h2
+h2^0
+
+def broken_shape(limit):
+    # This is the shape that hangs. It is NOT run - the counter below shows
+    # what would happen, computed rather than executed.
+    return "i is never incremented on the continue path"
+
+def fixed(limit):
+    0 => i
+    0 => steps
+    0 => kept
+    while i < limit:
+        i + 1 => i
+        steps + 1 => steps
+        if i % 3 == 0:
+            continue
+        kept + 1 => kept
+    return [steps, kept]
+
+fixed(12) => r
+("  incrementing FIRST: " + str(r[0]) + " iterations, " + str(r[1]) + " kept, terminated")^0
+"  Had the increment sat after the `continue`, i would stay at 3 forever." => n2
+n2^0
+("  " + broken_shape(12))^0
+
+""^0
+"3. `break` leaves only the inner loop:" => h3
+h3^0
+grid^+[[1, 2, 3], [4, 99, 6], [7, 8, 9]]
+
+0 => inner_visits
+0 => rows_entered
+for row in grid:
+    rows_entered + 1 => rows_entered
+    for cell in row:
+        inner_visits + 1 => inner_visits
+        if cell == 99:
+            break
+("  plain break:   " + str(rows_entered) + " rows entered, " + str(inner_visits) + " cells visited")^0
+"  All three rows ran - the break only ended row 2's inner loop." => n3
+n3^0
+
+0 => inner2
+0 => rows2
+False => found
+for row in grid:
+    if found:
+        break
+    rows2 + 1 => rows2
+    for cell in row:
+        inner2 + 1 => inner2
+        if cell == 99:
+            True => found
+            break
+("  flag + break: " + str(rows2) + " rows entered, " + str(inner2) + " cells visited")^0
+"  Two rows instead of three, and 5 cells instead of the 8 above." => n3b
+n3b^0
