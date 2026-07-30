@@ -139,7 +139,7 @@
   （目錄 `packages/cogni-editor`→`packages/workbench`）、`nova-ime.ts`/`attachNovaIme()`/
   `NovaEntry`→`symbol-palette.ts`/`attachSymbolPalette()`/`SymbolPaletteEntry`、
   `PhosphorEvent`/`PHOSPHOR_PROTO`→`TraceEvent`/`EML_TRACE_PROTOCOL`（線路格式字串本身
-  `"phosphor-jsonl-v1"` 維持不變，只改 TypeScript 端的名稱）；(2) 先把 EML 概念/規格本身做完，
+  `"eml-trace-v1"` 維持不變，只改 TypeScript 端的名稱）；(2) 先把 EML 概念/規格本身做完，
   案例庫規模化之後再做。**Phase 1**（機械但動到真實行為的改名）：目錄+套件名+檔名+匯出識別字+
   CSS class 全部改完，更新所有依賴點（`scripts/launch.mjs`、`.claude/launch.json`、根
   `tsconfig.json`、`eml-studio.cmd`/`.sh`），`pnpm install` 重新產生 lockfile，`pnpm typecheck`+

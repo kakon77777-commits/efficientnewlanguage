@@ -1,7 +1,7 @@
 /**
  * EML-P Workbench — a dual-pane EML-P Canonical Text ↔ Python Projection
  * editor, plus the EML-P Symbol Palette (quick-input, Ctrl+Space), a Trace
- * panel (phosphor-jsonl-v1 execution observation), and a Functions panel
+ * panel (eml-trace-v1 execution observation), and a Functions panel
  * (cold/hot · importance · crystallization). This is the EML-P reference
  * editor — it does not yet implement EML-U's Global Semantic Overlay
  * authoring surface (arbitrary-content selection → semantic-node creation,
@@ -210,7 +210,7 @@ function renderEmlToPy(src: string): void {
   renderMeta(result.metadata.emlLines, result.metadata.pythonLines, result.metadata.declaredNames, result.imports, result.metadata.symbolsUsed);
   renderFunctions(result.metadata.functions);
   // Execution-truth trace: actually run the resolved program in-browser (no Python
-  // needed) and visualize the phosphor-jsonl-v1 events. Equivalence to Python is
+  // needed) and visualize the eml-trace-v1 events. Equivalence to Python is
   // gated by tests/interp.test.ts. Lazy: only interpret when the Trace tab is shown.
   lastTraceAst = errors.length === 0 ? result.ast : null;
   runTrace();
@@ -243,7 +243,7 @@ function renderPyToEml(src: string): void {
   );
   lastTraceAst = null;
   traceOut.replaceChildren(
-    el('div', { class: 'trace-empty' }, '執行 trace 僅在 EML → Python 方向提供。切換方向以執行並觀測 phosphor-jsonl-v1 trace。'),
+    el('div', { class: 'trace-empty' }, '執行 trace 僅在 EML → Python 方向提供。切換方向以執行並觀測 eml-trace-v1 trace。'),
   );
   const rt = roundTripFromPython(src);
   setBadge(rtBadge, rt.ok, rt.ok ? '⇄ fixpoint ✓' : '⇄ mismatch');
@@ -422,7 +422,7 @@ function renderTrace(ir: InterpResult | null): void {
     el('span', { class: 'trace-stat' }, `${sum.total} events`),
     el('span', { class: `trace-stat ${sum.anomalies ? 'err' : ''}` }, `${sum.anomalies} anomal${sum.anomalies === 1 ? 'y' : 'ies'}`),
   );
-  const copyBtn = el('button', { class: 'trace-copy', title: 'copy phosphor-jsonl-v1 to clipboard' }, 'copy JSONL');
+  const copyBtn = el('button', { class: 'trace-copy', title: 'copy eml-trace-v1 to clipboard' }, 'copy JSONL');
   copyBtn.addEventListener('click', () => {
     const flash = (label: string): void => {
       copyBtn.textContent = label;
@@ -449,8 +449,8 @@ function renderTrace(ir: InterpResult | null): void {
     );
   }
 
-  // 2) The phosphor-jsonl-v1 event timeline.
-  traceOut.append(el('div', { class: 'trace-out-label' }, 'phosphor-jsonl-v1 · 事件流'));
+  // 2) The eml-trace-v1 event timeline.
+  traceOut.append(el('div', { class: 'trace-out-label' }, 'eml-trace-v1 · 事件流'));
   const list = el('div', { class: 'trace-list' });
   ir.events.forEach((e, i) => {
     const d = describeEvent(e);

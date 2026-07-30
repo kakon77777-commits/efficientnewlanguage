@@ -51,9 +51,9 @@ Internal packages (pnpm workspace, run-from-source TypeScript, no build step):
 | `@eml/ai-converter` | Phase 1 AI-assisted Python→EML. Deterministic-first; LLM (pluggable `LlmClient`, `ClaudeClient` adapter) only for non-subset Python; **every suggestion gated by the execution-based round-trip validator**; never writes source. |
 | `@eml/symbols` | Loads the canonical `eml-symbols.json` from repo root. |
 | `@eml/cts-generator` | AST + symbols → PHOSPHOR CTS. |
-| `@eml/trace` | Phase 3: self-contained `phosphor-jsonl-v1` event emitter (PHOSPHOR-compatible trace). Browser-safe core; node file sink at `@eml/trace/node`. Zero deps. |
+| `@eml/trace` | Phase 3: self-contained `eml-trace-v1` event emitter (PHOSPHOR-compatible trace). Browser-safe core; node file sink at `@eml/trace/node`. Zero deps. |
 | `@eml/bug-classifier` | Phase 3: BUG 5-level classifier mapping compile + runtime errors back to EML source / CTS node / Python. Deps: types, trace. |
-| `@eml/interp` | Phase 5: browser-safe **execution-truth interpreter** over the resolved AST. Python-faithful value model (bigint ints, true division, `@functools.cache` semantics for `@cold`); emits `phosphor-jsonl-v1` as it runs. Defers numpy/temporal as `unsupported` (no fabricated output). Deps: types, transpiler-python, trace. |
+| `@eml/interp` | Phase 5: browser-safe **execution-truth interpreter** over the resolved AST. Python-faithful value model (bigint ints, true division, `@functools.cache` semantics for `@cold`); emits `eml-trace-v1` as it runs. Defers numpy/temporal as `unsupported` (no fabricated output). Deps: types, transpiler-python, trace. |
 | `@eml/cli` | The `eml` command. |
 
 Dependency direction (no cycles): `types ← parser ← transpiler-python ← {cts-generator, cli}`, `symbols ← {cts-generator, cli}`.
@@ -250,7 +250,7 @@ orchestrator) → `cts.loops` → `eml explain`/`eml cts`.
   `_eml_trace`. `temporal_wait` polls at `check_interval` via `asyncio.sleep`
   (no busy-wait); the sleep is `min(interval, remaining)` so **max_wait is a hard
   upper bound**, and a non-positive `check_interval` is floored (no spin). Emits
-  `eml:temporal:start/wait/resolved/timeout/done` phosphor-jsonl-v1 to stderr.
+  `eml:temporal:start/wait/resolved/timeout/done` eml-trace-v1 to stderr.
   `run_temporal(fn, args…)` (= asyncio.run) drives an async fn at top level so
   `eml run` stays demonstrable.
 - **Cold + async is rejected for caching**: `@functools.cache` over an `async def`
@@ -273,7 +273,7 @@ DelayedDecisionQueue, bug-classifier-v1, PHOSPHOR trace integration).
 The Phase 3 integration point with PHOSPHOR is the **trace**, not the VM: EML
 emits Python, while PHOSPHOR's `eml-vm16/64` run bytecode, so running EML on the
 PHOSPHOR VM is a Phase 4+ codegen concern. Instead EML produces PHOSPHOR's
-portable `phosphor-jsonl-v1` event format — decoupled (no runtime dependency on
+portable `eml-trace-v1` event format — decoupled (no runtime dependency on
 PHOSPHOR; it/NOEMA can consume an EML trace, but nothing is wired).
 
 - **`@eml/trace`** is an independent minimal re-implementation of PHOSPHOR's
@@ -297,7 +297,7 @@ PHOSPHOR; it/NOEMA can consume an EML trace, but nothing is wired).
   emits `eml:bug` (CRITICAL/MAJOR carry `ok:false`) + `eml:bug:summary`.
 - **CLI:** `eml bugs <file> [--run] [--trace=f.jsonl] [--json]`. `--run` executes
   the Python and classifies a crash (warns if no interpreter); `--trace` writes a
-  `phosphor-jsonl-v1` file (notice goes to **stderr** so `--json` stdout stays
+  `eml-trace-v1` file (notice goes to **stderr** so `--json` stdout stays
   pure JSON). Exit code 1 when worst ∈ {CRITICAL, MAJOR}.
 - **Diagnostic spans:** the parser only spans *statements*. A diagnostic raised on
   an expression node (e.g. `E_RANGE_NONINT` on a `NumberLiteral`) has no span, so
@@ -317,7 +317,7 @@ layer the whitepaper's §13.1 vision needs ("open → type EML → see Python �
 - **`@eml/interp` — the execution-truth interpreter.** The Cogni-Editor cannot launch Python,
   so to *run* a program in-browser we interpret the resolved AST with a Python-faithful value
   model (`values.ts`: bigint ints for arbitrary precision, `/` is true division → float,
-  `int ** nonNegInt` stays int, `str()` vs `repr()` formatting). It emits `phosphor-jsonl-v1`
+  `int ** nonNegInt` stays int, `str()` vs `repr()` formatting). It emits `eml-trace-v1`
   events as it executes. **This is gated, not asserted:** `tests/interp.test.ts` runs every
   runnable example + 17 cases through BOTH the interpreter and a real `python` and fails on any
   stdout divergence. numpy (`<M>`/`^T`) and temporal (`async`/`await`/`@temporal_loop`) are
@@ -331,7 +331,7 @@ layer the whitepaper's §13.1 vision needs ("open → type EML → see Python �
   static-local pre-scan (`localNames`, which also counts nested `def` names). An unbound callee is a
   `NameError` (CPython), except the temporal intrinsics `run_temporal`/`temporal_wait`, which stay
   `unsupported` so the temporal demo defers. A non-function callee raises `TypeError`.
-- **`eml trace <file> [--out f] [--run] [--deterministic]`.** Produces a phosphor-jsonl-v1 trace
+- **`eml trace <file> [--out f] [--run] [--deterministic]`.** Produces a eml-trace-v1 trace
   via the interpreter. With `--run` and a Python present: bakes an `eml:equiv` check (interpreter
   stdout vs real Python stdout) into the artifact — a **self-validating trace**; for temporal/
   numpy programs it instead splices the real `eml:temporal:*` events from Python's stderr.
@@ -341,11 +341,11 @@ layer the whitepaper's §13.1 vision needs ("open → type EML → see Python �
   every demo FILE and asserts it transpiles clean (closing the old "demo files were only tested as
   inline strings" gap) and (b) regenerates the trace and byte-compares it (golden).
 - **Cogni-Editor Trace tab** (default tab): runs `interpretProgram(result.ast)` and shows the real
-  stdout + the phosphor-jsonl-v1 timeline (anomalies highlighted, `copy JSONL`). This IS the
+  stdout + the eml-trace-v1 timeline (anomalies highlighted, `copy JSONL`). This IS the
   "PHOSPHOR minimal integration" deliverable. Py→EML direction shows a neutral note (forward-only).
 - **`EML-LANG-2026-v1.0.md`** is the single normative language spec (consolidates grammar.md /
   transpiler-spec.md / whitepaper §4; both v0.1 docs now carry a "superseded by v1.0" banner). It
-  freezes the symbol catalog, overlay semantics, the phosphor-jsonl-v1 envelope+vocabulary, the
+  freezes the symbol catalog, overlay semantics, the eml-trace-v1 envelope+vocabulary, the
   diagnostic codes, and the round-trip invariant (§11 versioning policy).
 - **Launcher** (`scripts/launch.mjs`, `eml-studio.cmd`/`.sh`): `bugs` and `trace` added to the
   forwarded `CLI_COMMANDS`. Still run-from-source (no .exe); a true SEA binary is an optional future.
@@ -2379,7 +2379,7 @@ These were tightened after an adversarial review; tests live in
   checker, rule-based crystallization (AST-hash cache), importance analyzer →
   CTS. Next within Phase 2 if desired: surface cold/hot + importance in the
   Cogni-Editor; persist the crystal cache across runs.
-- Phase 3 (COMPLETE): BUG 5-level classifier + PHOSPHOR `phosphor-jsonl-v1` trace
+- Phase 3 (COMPLETE): BUG 5-level classifier + PHOSPHOR `eml-trace-v1` trace
   (`@eml/trace`, `@eml/bug-classifier`, `eml bugs`) + `@temporal_loop` runtime
   (decorator args, async/await, asyncio temporal runtime, DelayedDecisionQueue).
 - Phase 4 (COMPLETE): loopKind metadata (`loop-classifier.ts`) + C⁺⁺⁺ prototype

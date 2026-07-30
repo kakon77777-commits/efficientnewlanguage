@@ -1,65 +1,65 @@
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":1,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:start","mono":1,"file":"inventory_ledger.eml","statements":25}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":2,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":2,"fn":"restock_needed","params":["level","floor"],"temperature":"neutral","async":false}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":3,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":3,"name":"stock","value":"{'bolts': 120, 'washers': 8, 'nuts': 64, 'screws': 3}","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":4,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":4,"name":"floors","value":"{'bolts': 50, 'washers': 25, 'nuts': 40, 'screws': 30}","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":5,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":5,"text":"Line items: 4"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":6,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6,"text":""}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":7,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":7,"name":"header","value":"'item      level  floor  action'","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":8,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":8,"text":"item      level  floor  action"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":9,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":9,"name":"rule","value":"'--------- -----  -----  ------------------'","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":10,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":10,"text":"--------- -----  -----  ------------------"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":11,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":11,"name":"short_count","value":"0","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":12,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":12,"name":"total_to_order","value":"0","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":13,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":13,"name":"level","value":"120","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":14,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":14,"name":"floor","value":"50","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":15,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":15,"fn":"restock_needed","args":["120","50"],"temperature":"neutral"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":16,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":16,"fn":"restock_needed","value":"0"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":17,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":17,"name":"need","value":"0","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":18,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":18,"name":"action","value":"'ok'","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":19,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":19,"name":"pad","value":"5","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":20,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":20,"text":"bolts     120      50     ok"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":21,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":21,"name":"level","value":"8","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":22,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":22,"name":"floor","value":"25","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":23,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":23,"fn":"restock_needed","args":["8","25"],"temperature":"neutral"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":24,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":24,"fn":"restock_needed","value":"17"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":25,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":25,"name":"need","value":"17","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":26,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":26,"name":"action","value":"'ORDER 17'","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":27,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":27,"name":"short_count","value":"1","declares":false}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":28,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":28,"name":"total_to_order","value":"17","declares":false}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":29,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":29,"name":"pad","value":"3","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":30,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":30,"text":"washers   8      25     ORDER 17"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":31,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":31,"name":"level","value":"64","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":32,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":32,"name":"floor","value":"40","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":33,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":33,"fn":"restock_needed","args":["64","40"],"temperature":"neutral"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":34,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":34,"fn":"restock_needed","value":"0"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":35,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":35,"name":"need","value":"0","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":36,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":36,"name":"action","value":"'ok'","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":37,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":37,"name":"pad","value":"6","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":38,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":38,"text":"nuts      64      40     ok"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":39,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":39,"name":"level","value":"3","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":40,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":40,"name":"floor","value":"30","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":41,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":41,"fn":"restock_needed","args":["3","30"],"temperature":"neutral"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":42,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":42,"fn":"restock_needed","value":"27"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":43,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":43,"name":"need","value":"27","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":44,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":44,"name":"action","value":"'ORDER 27'","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":45,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":45,"name":"short_count","value":"2","declares":false}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":46,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":46,"name":"total_to_order","value":"44","declares":false}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":47,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":47,"name":"pad","value":"4","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":48,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":48,"text":"screws    3      30     ORDER 27"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":49,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":49,"text":""}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":50,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":50,"text":"Below floor: 2 of 4"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":51,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":51,"text":"Units to order: 44"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":52,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":52,"text":""}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":53,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":53,"name":"levels","value":"[120, 8, 64, 3]","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":54,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":54,"text":"Total units held: 195"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":55,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":55,"text":"Largest line: 120, smallest: 3"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":56,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":56,"text":""}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":57,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":57,"name":"n1","value":"'Report order is insertion order:'","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":58,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":58,"text":"Report order is insertion order:"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":59,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":59,"name":"joined","value":"''","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":60,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":60,"name":"joined","value":"'bolts '","declares":false}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":61,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":61,"name":"joined","value":"'bolts washers '","declares":false}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":62,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":62,"name":"joined","value":"'bolts washers nuts '","declares":false}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":63,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":63,"name":"joined","value":"'bolts washers nuts screws '","declares":false}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":64,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":64,"text":"  bolts washers nuts screws "}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":65,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:done","mono":65,"ok":true,"outputs":17,"anomalies":0}
+{"stream":"eml","proto":"eml-trace-v1","seq":1,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:start","mono":1,"file":"inventory_ledger.eml","statements":25}
+{"stream":"eml","proto":"eml-trace-v1","seq":2,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":2,"fn":"restock_needed","params":["level","floor"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":3,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":3,"name":"stock","value":"{'bolts': 120, 'washers': 8, 'nuts': 64, 'screws': 3}","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":4,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":4,"name":"floors","value":"{'bolts': 50, 'washers': 25, 'nuts': 40, 'screws': 30}","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":5,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":5,"text":"Line items: 4"}
+{"stream":"eml","proto":"eml-trace-v1","seq":6,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6,"text":""}
+{"stream":"eml","proto":"eml-trace-v1","seq":7,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":7,"name":"header","value":"'item      level  floor  action'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":8,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":8,"text":"item      level  floor  action"}
+{"stream":"eml","proto":"eml-trace-v1","seq":9,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":9,"name":"rule","value":"'--------- -----  -----  ------------------'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":10,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":10,"text":"--------- -----  -----  ------------------"}
+{"stream":"eml","proto":"eml-trace-v1","seq":11,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":11,"name":"short_count","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":12,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":12,"name":"total_to_order","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":13,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":13,"name":"level","value":"120","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":14,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":14,"name":"floor","value":"50","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":15,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":15,"fn":"restock_needed","args":["120","50"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":16,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":16,"fn":"restock_needed","value":"0"}
+{"stream":"eml","proto":"eml-trace-v1","seq":17,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":17,"name":"need","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":18,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":18,"name":"action","value":"'ok'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":19,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":19,"name":"pad","value":"5","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":20,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":20,"text":"bolts     120      50     ok"}
+{"stream":"eml","proto":"eml-trace-v1","seq":21,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":21,"name":"level","value":"8","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":22,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":22,"name":"floor","value":"25","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":23,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":23,"fn":"restock_needed","args":["8","25"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":24,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":24,"fn":"restock_needed","value":"17"}
+{"stream":"eml","proto":"eml-trace-v1","seq":25,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":25,"name":"need","value":"17","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":26,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":26,"name":"action","value":"'ORDER 17'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":27,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":27,"name":"short_count","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":28,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":28,"name":"total_to_order","value":"17","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":29,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":29,"name":"pad","value":"3","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":30,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":30,"text":"washers   8      25     ORDER 17"}
+{"stream":"eml","proto":"eml-trace-v1","seq":31,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":31,"name":"level","value":"64","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":32,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":32,"name":"floor","value":"40","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":33,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":33,"fn":"restock_needed","args":["64","40"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":34,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":34,"fn":"restock_needed","value":"0"}
+{"stream":"eml","proto":"eml-trace-v1","seq":35,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":35,"name":"need","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":36,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":36,"name":"action","value":"'ok'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":37,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":37,"name":"pad","value":"6","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":38,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":38,"text":"nuts      64      40     ok"}
+{"stream":"eml","proto":"eml-trace-v1","seq":39,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":39,"name":"level","value":"3","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":40,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":40,"name":"floor","value":"30","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":41,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":41,"fn":"restock_needed","args":["3","30"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":42,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":42,"fn":"restock_needed","value":"27"}
+{"stream":"eml","proto":"eml-trace-v1","seq":43,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":43,"name":"need","value":"27","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":44,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":44,"name":"action","value":"'ORDER 27'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":45,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":45,"name":"short_count","value":"2","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":46,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":46,"name":"total_to_order","value":"44","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":47,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":47,"name":"pad","value":"4","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":48,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":48,"text":"screws    3      30     ORDER 27"}
+{"stream":"eml","proto":"eml-trace-v1","seq":49,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":49,"text":""}
+{"stream":"eml","proto":"eml-trace-v1","seq":50,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":50,"text":"Below floor: 2 of 4"}
+{"stream":"eml","proto":"eml-trace-v1","seq":51,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":51,"text":"Units to order: 44"}
+{"stream":"eml","proto":"eml-trace-v1","seq":52,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":52,"text":""}
+{"stream":"eml","proto":"eml-trace-v1","seq":53,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":53,"name":"levels","value":"[120, 8, 64, 3]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":54,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":54,"text":"Total units held: 195"}
+{"stream":"eml","proto":"eml-trace-v1","seq":55,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":55,"text":"Largest line: 120, smallest: 3"}
+{"stream":"eml","proto":"eml-trace-v1","seq":56,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":56,"text":""}
+{"stream":"eml","proto":"eml-trace-v1","seq":57,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":57,"name":"n1","value":"'Report order is insertion order:'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":58,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":58,"text":"Report order is insertion order:"}
+{"stream":"eml","proto":"eml-trace-v1","seq":59,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":59,"name":"joined","value":"''","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":60,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":60,"name":"joined","value":"'bolts '","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":61,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":61,"name":"joined","value":"'bolts washers '","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":62,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":62,"name":"joined","value":"'bolts washers nuts '","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":63,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":63,"name":"joined","value":"'bolts washers nuts screws '","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":64,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":64,"text":"  bolts washers nuts screws "}
+{"stream":"eml","proto":"eml-trace-v1","seq":65,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:done","mono":65,"ok":true,"outputs":17,"anomalies":0}

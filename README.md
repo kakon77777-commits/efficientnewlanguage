@@ -72,7 +72,7 @@ No external theory or companion project is required to understand EML.
 One launchable entry point starts the visual **EML Workbench** and opens
 it in your browser (run-from-source, no build step): write EML on the left, see
 the Python expansion on the right, switch tabs to **Trace** (run it + watch the
-phosphor-jsonl-v1 events), **Functions** (cold/hot · importance · crystallization),
+eml-trace-v1 events), **Functions** (cold/hot · importance · crystallization),
 AST, Diagnostics, and Meta — plus the **EML Symbol Palette** (`Ctrl+Space`).
 
 ```bash
@@ -107,13 +107,13 @@ eml suggest   <file.py>         # AI-assisted Python -> EML, round-trip validate
 eml roundtrip <file> [-v]       # EML->Py->EML->Py (or Py->EML->Py) fixpoint check
 eml crystallize <file> [--cache=p]  # crystallize @cold logic into a persistent cache
 eml bugs     <file> [--run] [--trace=f] [--json]  # classify errors (5 levels), mapped to EML source
-eml trace    <file> [--out f] [--run]  # phosphor-jsonl-v1 execution trace (interp; --run adds eml:equiv vs Python)
+eml trace    <file> [--out f] [--run]  # eml-trace-v1 execution trace (interp; --run adds eml:equiv vs Python)
 eml test     [--dir d]          # run golden fixtures
 ```
 
 ## Execution truth — run + trace (Phase 5)
 
-EML programs are observable as an **EML `phosphor-jsonl-v1` trace** (a frozen compatibility
+EML programs are observable as an **EML `eml-trace-v1` trace** (a frozen compatibility
 wire-format id, not an external runtime dependency). A browser-safe,
 Python-faithful interpreter (`@eml/interp`) computes the *same* values the transpiled Python
 computes — so you can run a program and watch its trace **without** a Python runtime (the
@@ -123,10 +123,10 @@ any divergence, and `eml trace --run` bakes that proof into the artifact as an `
 
 ```console
 $ pnpm eml trace examples/phase0/sum.eml --run
-{"stream":"eml","proto":"phosphor-jsonl-v1","type":"eml:run:start", ...}
-{"stream":"eml","proto":"phosphor-jsonl-v1","type":"eml:sum","iterator":"i","count":100,"result":"338350"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","type":"eml:output","text":"338350"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","type":"eml:equiv","actual":"338350\n","expected":"338350\n","ok":true}
+{"stream":"eml","proto":"eml-trace-v1","type":"eml:run:start", ...}
+{"stream":"eml","proto":"eml-trace-v1","type":"eml:sum","iterator":"i","count":100,"result":"338350"}
+{"stream":"eml","proto":"eml-trace-v1","type":"eml:output","text":"338350"}
+{"stream":"eml","proto":"eml-trace-v1","type":"eml:equiv","actual":"338350\n","expected":"338350\n","ok":true}
 ```
 
 numpy (`<M>`/`^T`) and temporal (`async`/`await`/`@temporal_loop`) constructs run only under real
@@ -335,11 +335,11 @@ packages/
   ai-converter/      AI-assisted Python -> EML, validator-gated (Phase 1)
   symbols/           loads eml-symbols.json (EML-P's current symbol table; see docs/EML-P-PROFILE.md)
   cts-generator/     EML semantic-table (CTS) output
-  trace/             phosphor-jsonl-v1 event emitter (EML's own trace format)
+  trace/             eml-trace-v1 event emitter (EML's own trace format)
   bug-classifier/    BUG 5-level classifier, mapped back to EML source (Phase 3)
   interp/            browser-safe execution-truth interpreter + trace producer (Phase 5)
   cli/               the `eml` command
-  workbench/         dual-state view (EML | Python | AST) + Trace panel (phosphor-jsonl-v1) + Functions panel (cold/hot · importance · crystallization)
+  workbench/         dual-state view (EML | Python | AST) + Trace panel (eml-trace-v1) + Functions panel (cold/hot · importance · crystallization)
   lsp/               Language Server Protocol server — diagnostics/hover/completion (Phase 8)
   vscode-extension/  minimal VS Code client for @eml/lsp (dev prototype, not published; Phase 8)
   mcp/               Model Context Protocol server — 7 agent-callable tools (Phase 8)

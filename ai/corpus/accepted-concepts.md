@@ -25,7 +25,7 @@ Concepts that reached the engineered, test-gated v1.0 surface and are safe to re
 | Deterministic EML -> Python (no LLM) | invariant | engineering-notes |
 | Reverse Python(subset) -> EML + round-trip fixpoint | normative | spec §10 |
 | Execution-truth interpreter (interp == CPython, gated) | normative | `@eml/interp` |
-| `phosphor-jsonl-v1` trace (envelope + event vocabulary) | frozen | spec §9 |
+| `eml-trace-v1` trace (envelope + event vocabulary) | frozen | spec §9 |
 | Diagnostic codes (7 errors, 8 warnings) | stable | spec Appendix A |
 | Cold/hot temperature + crystallization + importance | implemented | spec §8 |
 | Temporal loops (`@temporal_loop` + async) | implemented | spec §7 |

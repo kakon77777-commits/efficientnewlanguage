@@ -38,7 +38,7 @@ editor projection and Unicode display are for humans. Canonical runtime: **Pytho
 2. Transpilation MUST be deterministic.
 3. Interpretation MUST produce structured output whose stdout equals CPython's for the supported
    subset (test-gated).
-4. Trace generation MUST be serializable as `phosphor-jsonl-v1`.
+4. Trace generation MUST be serializable as `eml-trace-v1`.
 5. Round-trip validation MUST reach a byte-identical fixpoint for the supported subset, or report a
    mismatch loudly.
 6. Diagnostic codes MUST NOT change meaning across v1.x (additive only).
@@ -53,7 +53,7 @@ EML source
   → semantic     (resolve declare vs. augment; cold/hot; imports; loopKind)
   → emit → Python
   → interpret / run   → stdout
-  → trace             → phosphor-jsonl-v1
+  → trace             → eml-trace-v1
   → round-trip        → fixpoint or mismatch
 ```
 
@@ -124,12 +124,12 @@ def` + `await temporal_wait(...)` injects a self-contained asyncio runtime. Loop
 (`loopKind`): `algebraic_sum`, `basic_repeat`, `temporal`, `recursive`, with `deterministic` /
 `terminating` flags.
 
-## 9. Observability — `phosphor-jsonl-v1` (normative wire format)
+## 9. Observability — `eml-trace-v1` (normative wire format)
 
 EML emits compile/run/temporal/bug events under the frozen compatibility wire-format id
-`phosphor-jsonl-v1` (one JSON object per line); EML has no runtime or theoretical dependency on any
+`eml-trace-v1` (one JSON object per line); EML has no runtime or theoretical dependency on any
 external project. Envelope: `stream`, `proto`
-(`"phosphor-jsonl-v1"`), `type` (`"domain:action"`), optional `seq`/`ts`/`mono`/`writer`, plus
+(`"eml-trace-v1"`), `type` (`"domain:action"`), optional `seq`/`ts`/`mono`/`writer`, plus
 arbitrary payload. Consumers MUST treat `seq`/`ts`/`mono`/`writer` as optional. Execution
 vocabulary: `eml:compile:error`, `eml:run:start`, `eml:def`, `eml:assign`, `eml:augment`,
 `eml:sum`, `eml:call`, `eml:return`, `eml:cache:hit`, `eml:cache:miss`, `eml:output`,
@@ -157,7 +157,7 @@ support them).
 ## 12. Versioning & conformance
 
 v1.0 freezes: the symbol catalog meanings, overlay semantics + Python expansions, the two-stage
-`^+` rule, the `phosphor-jsonl-v1` envelope + event vocabulary, the diagnostic codes, and the
+`^+` rule, the `eml-trace-v1` envelope + event vocabulary, the diagnostic codes, and the
 round-trip guarantee. Additive changes (new symbols/events/diagnostics) are **minor**; changing an
 existing meaning or breaking round-trip is **major** (`EML-LANG-2027` / `v2.0`). A conforming
 producer MUST transpile the grammar deterministically, apply §7 semantics, and emit §9 envelopes.

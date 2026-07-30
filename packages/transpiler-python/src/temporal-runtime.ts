@@ -5,7 +5,7 @@
  * output stays a runnable standalone script (`eml run` works with no extra files).
  * It is a minimal asyncio wrapper — NOT a full state machine — that demonstrates
  * the five required properties: no busy-wait (asyncio.sleep), max_wait,
- * check_interval, timeout_action, and an EML (phosphor-jsonl-v1) trace.
+ * check_interval, timeout_action, and an EML (eml-trace-v1) trace.
  */
 export const TEMPORAL_RUNTIME_PREAMBLE = `# ── EML temporal runtime (Phase 3, whitepaper §8.2) ─────────────────────────
 import asyncio as _eml_asyncio, json as _eml_json, sys as _eml_sys, time as _eml_time
@@ -39,8 +39,8 @@ _EML_TEMPORAL_CTX = []  # stack of active @temporal_loop contexts
 
 
 def _eml_trace(event_type, **fields):
-    """Emit one phosphor-jsonl-v1 line to stderr (decoupled; any monitor can read)."""
-    rec = {"stream": "eml", "proto": "phosphor-jsonl-v1", "type": event_type}
+    """Emit one eml-trace-v1 line to stderr (decoupled; any monitor can read)."""
+    rec = {"stream": "eml", "proto": "eml-trace-v1", "type": event_type}
     rec.update(fields)
     print(_eml_json.dumps(rec), file=_eml_sys.stderr, flush=True)
 

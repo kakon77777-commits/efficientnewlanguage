@@ -252,7 +252,7 @@ export function health(): Envelope {
   const result = {
     status: 'healthy',
     version: VERSION,
-    trace_proto: 'phosphor-jsonl-v1',
+    trace_proto: 'eml-trace-v1',
     tools: TOOL_NAMES,
     limits: LIMITS,
   };

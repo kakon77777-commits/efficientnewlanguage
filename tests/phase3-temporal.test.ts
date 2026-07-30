@@ -134,7 +134,7 @@ timed_out^0
     expect(res.status).toBe(0);
     // stdout: resolved -> 99, timed-out -> None
     expect(res.stdout.trim().split(/\r?\n/)).toEqual(['99', 'None']);
-    // stderr carries the phosphor-jsonl-v1 temporal trace
+    // stderr carries the eml-trace-v1 temporal trace
     expect(res.stderr).toContain('"type": "eml:temporal:resolved"');
     expect(res.stderr).toContain('"type": "eml:temporal:timeout"');
     expect(res.stderr).toContain('"type": "eml:temporal:wait"'); // it polled (check_interval)

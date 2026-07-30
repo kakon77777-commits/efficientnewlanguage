@@ -1,20 +1,36 @@
 /**
- * @eml/trace — a self-contained, zero-dependency EML trace emitter, using the
- * frozen wire-format protocol id `phosphor-jsonl-v1`.
- *
- * EML emits its compile/run/temporal/bug events under this protocol id so any
- * external tool that already speaks it can consume an EML trace — but EML has
- * no runtime dependency on any such tool; the id is a compatibility identifier
- * only, not an integration requirement.
+ * @eml/trace — a self-contained, zero-dependency EML trace emitter.
  *
  * Wire format: one JSON object per line. Envelope fields are fixed; everything
  * else is arbitrary domain payload.
+ *
+ * ── On the protocol id ────────────────────────────────────────────────────
+ *
+ * This emitter was originally written to be conformant with a JSONL trace
+ * format that PHOSPHOR (a sibling EveMissLab project) also speaks, and it
+ * carried that project's id, `phosphor-jsonl-v1`, on the wire. The
+ * IMPLEMENTATION here was always EML's own — an independent emitter, never a
+ * copy — but the id meant every EML trace announced itself under another
+ * project's name.
+ *
+ * The id is now `eml-trace-v1`. The envelope and the event vocabulary are
+ * unchanged, so a consumer that parsed the old traces parses these too; only
+ * the identifier differs. Renamed 2026-07-30 as a deliberate decision, not a
+ * cleanup: EML was separated from PHOSPHOR on purpose, and a format that
+ * carries someone else's name is not separated.
+ *
+ * Be honest about what that costs: nothing external speaks `eml-trace-v1`
+ * yet, because it is new. The previous wording claimed the id existed so
+ * "any external tool that already speaks it" could consume an EML trace —
+ * true of the borrowed id, false of this one, and worth not pretending
+ * otherwise. If interoperating with a PHOSPHOR-format consumer ever matters,
+ * that is an explicit compatibility shim to write, not a claim to make here.
  *
  * This module is browser-safe (no node imports). The Node file sink lives in
  * `@eml/trace/node`.
  */
 
-export const EML_TRACE_PROTOCOL = 'phosphor-jsonl-v1';
+export const EML_TRACE_PROTOCOL = 'eml-trace-v1';
 
 /** One event = one JSONL line. */
 export interface TraceEvent {

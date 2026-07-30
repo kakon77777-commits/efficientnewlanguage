@@ -4,7 +4,7 @@
  * The MVP de-scaling records and classifies; it NEVER auto-fixes. For each issue
  * it reports: a severity LEVEL, the EML source location, the affected node, the
  * Python expansion, and a suggested fix direction. Output doubles as an
- * EML phosphor-jsonl-v1 event stream via {@link emitBugReport}.
+ * EML eml-trace-v1 event stream via {@link emitBugReport}.
  *
  * Two inputs are supported:
  *  - compile-time {@link Diagnostic}s (mapped back to EML source via spans + CTS),
@@ -314,7 +314,7 @@ export function classifyPythonError(input: RuntimeClassifyInput): ClassifiedBug 
 // ── EML trace emission ────────────────────────────────────────────────────────
 
 /**
- * Emit a {@link BugReport} as `phosphor-jsonl-v1` events: one `eml:bug` per bug
+ * Emit a {@link BugReport} as `eml-trace-v1` events: one `eml:bug` per bug
  * (CRITICAL/MAJOR carry `ok:false` so a standard anomaly scan flags them) plus a
  * final `eml:bug:summary`.
  */

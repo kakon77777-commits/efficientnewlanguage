@@ -361,7 +361,7 @@ EML source / AST
 The editor, website, CLI, MCP server, and HTTP tools are interfaces to EML. None is required to
 define EML semantics.
 
-The current trace envelope retains the protocol string `phosphor-jsonl-v1` for compatibility. In
+The current trace envelope retains the protocol string `eml-trace-v1` for compatibility. In
 this specification it is treated as an EML wire-format identifier. Understanding or installing any
 external project is not required, and the reference implementation has no runtime dependency on one.
 

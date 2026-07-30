@@ -275,7 +275,7 @@ describe.skipIf(!PYTHON)('runtime errors match Python (exception class + non-zer
   }
 });
 
-describe('trace shape (phosphor-jsonl-v1)', () => {
+describe('trace shape (eml-trace-v1)', () => {
   it('a clean run brackets output with run:start / run:done and no anomalies', () => {
     const r = interpret('N^+100\nΣ(i^2, i in [1:N]) => r\nr^0', { now: FIXED_CLOCK });
     const types = r.events.map((e) => e.type);
@@ -285,7 +285,7 @@ describe('trace shape (phosphor-jsonl-v1)', () => {
     expect(types).toContain('eml:output');
     expect(types.at(-1)).toBe('eml:run:done');
     expect(findAnomalies(r.events)).toHaveLength(0);
-    expect(r.events.every((e) => e.proto === 'phosphor-jsonl-v1' && e.stream === 'eml')).toBe(true);
+    expect(r.events.every((e) => e.proto === 'eml-trace-v1' && e.stream === 'eml')).toBe(true);
   });
 
   it('@cold caching: second identical call hits the cache (body runs once)', () => {

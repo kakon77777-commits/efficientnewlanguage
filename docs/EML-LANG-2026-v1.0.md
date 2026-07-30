@@ -55,7 +55,7 @@ Two invariants define the language:
 
 A third, operational guarantee is added in v1.0:
 
-3. **Execution truth.** Program behavior is observable as a `phosphor-jsonl-v1` trace (§8). The
+3. **Execution truth.** Program behavior is observable as a `eml-trace-v1` trace (§8). The
    browser interpreter `@eml/interp` computes the *same* values the transpiled Python computes; this
    equivalence is gated by tests (interpreter stdout MUST equal Python stdout for the supported
    subset) and can be asserted live via `eml trace --run` (an `eml:equiv` event).
@@ -899,10 +899,10 @@ async def wait_for_confirmation(flag):
 
 ---
 
-## 8. Observability — `phosphor-jsonl-v1` trace (normative wire format)
+## 8. Observability — `eml-trace-v1` trace (normative wire format)
 
 EML emits compile/run/temporal/bug events as JSONL under the frozen compatibility protocol id
-`phosphor-jsonl-v1` (one JSON object per line). This is an EML wire-format identifier and creates no
+`eml-trace-v1` (one JSON object per line). This is an EML wire-format identifier and creates no
 runtime or theoretical dependency on an external project. The package `@eml/trace` is the reference
 emitter/parser (browser-safe core; node file sink isolated under `@eml/trace/node`).
 
@@ -911,7 +911,7 @@ emitter/parser (browser-safe core; node file sink isolated under `@eml/trace/nod
 ```ts
 interface PhosphorEvent {
   stream: string;   // app id, e.g. "eml"
-  proto:  "phosphor-jsonl-v1";
+  proto:  "eml-trace-v1";
   type:   string;   // namespaced "domain:action"
   seq?:   number;   // per-writer monotonic counter
   ts?:    string;   // ISO-8601
@@ -1080,7 +1080,7 @@ deterministic core.
 * The symbol catalog meanings in §4 / `eml-symbols.json`.
 * The overlay semantics in §5 and the Python expansions in §4.
 * The two-stage `^+` disambiguation rule (§5.1).
-* The `phosphor-jsonl-v1` envelope (§8.1) and the documented event types (§8.2).
+* The `eml-trace-v1` envelope (§8.1) and the documented event types (§8.2).
 * The diagnostic codes in Appendix A (a code MUST NOT change meaning).
 * The round-trip fixpoint guarantee for the supported subset (§9).
 
@@ -1280,7 +1280,7 @@ consumer flags them). Each carries its EML span, CTS node, Python expansion, and
 `@eml/types` (AST/CTS/tokens) · `@eml/parser` (normalize/lex/parse) · `@eml/transpiler-python`
 (semantic + emit + format) · `@eml/transpiler-eml` (reverse + round-trip) · `@eml/transpiler-cpp`
 (C++ prototype) · `@eml/interp` (execution-truth interpreter + trace) · `@eml/trace`
-(phosphor-jsonl-v1) · `@eml/bug-classifier` · `@eml/cts-generator` · `@eml/symbols` · `@eml/cli`
+(eml-trace-v1) · `@eml/bug-classifier` · `@eml/cts-generator` · `@eml/symbols` · `@eml/cli`
 (`eml`) · `@eml/workbench` (EML Workbench + EML Symbol Palette + Trace panel).
 
 *End of EML-LANG-2026 v1.0.*

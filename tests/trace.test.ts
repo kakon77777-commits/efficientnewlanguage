@@ -13,7 +13,7 @@ import {
 
 const fixedNow = () => '2026-01-01T00:00:00.000Z';
 
-describe('@eml/trace — phosphor-jsonl-v1 emitter', () => {
+describe('@eml/trace — eml-trace-v1 emitter', () => {
   it('stamps a conformant envelope with monotonic seq/mono', () => {
     const em = createEmitter({ stream: 'eml', writer: 'w1', now: fixedNow });
     const a = em.emit('eml:compile', { file: 'x.eml' });
@@ -99,7 +99,7 @@ describe('@eml/trace — phosphor-jsonl-v1 emitter', () => {
   });
 
   it('findAnomalies flags :failure / :errors segments (not just :error)', () => {
-    const mk = (type: string): TraceEvent => ({ stream: 'eml', proto: 'phosphor-jsonl-v1', seq: 0, ts: 't', type });
+    const mk = (type: string): TraceEvent => ({ stream: 'eml', proto: 'eml-trace-v1', seq: 0, ts: 't', type });
     expect(findAnomalies([mk('eml:failure')]).length).toBe(1);
     expect(findAnomalies([mk('eml:errors')]).length).toBe(1);
     expect(findAnomalies([mk('eml:ok')]).length).toBe(0);

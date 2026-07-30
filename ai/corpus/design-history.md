@@ -43,7 +43,7 @@ inexpressible constructs rather than guessing.
 ## Stage 4 — Browser execution & observability
 
 An execution-truth interpreter (`@eml/interp`) makes EML runnable with no Python runtime, computing
-exactly what CPython would (gated by an `interp == python` test), and emits a **phosphor-jsonl-v1**
+exactly what CPython would (gated by an `interp == python` test), and emits a **eml-trace-v1**
 trace. Cold/hot temperature, crystallization, `@temporal_loop`, loop classification, and a 5-level
 bug classifier were layered on; a C++20 prototype proved the *same resolved AST* can target a second
 back end.
@@ -51,7 +51,7 @@ back end.
 ## Stage 5 — Frozen v1.0 surface
 
 `EML-LANG-2026-v1.0` froze the normative surface: the symbol catalog, overlay semantics + Python
-expansions, the two-stage `^+` rule, the phosphor-jsonl-v1 envelope + event vocabulary, the
+expansions, the two-stage `^+` rule, the eml-trace-v1 envelope + event vocabulary, the
 diagnostic codes, and the round-trip guarantee. Additive changes are minor; changing an existing
 meaning or breaking round-trip is a major bump.
 

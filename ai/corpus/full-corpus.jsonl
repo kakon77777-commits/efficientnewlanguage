@@ -16,7 +16,7 @@
 {"type":"example","id":"001-summation","eml":"N^+100\nΣ(i^2, i in [1:N]) => r\nr^0","python":"N = 100\nr = sum(i**2 for i in range(1, N+1))\nprint(r)","stdout":"338350","roundtrip":true}
 {"type":"spec","id":"grammar","path":"ai/specs/eml-grammar.ebnf","format":"ebnf"}
 {"type":"spec","id":"ast","path":"ai/specs/eml-ast-schema.json","format":"json-schema"}
-{"type":"spec","id":"trace","path":"ai/specs/eml-trace-schema.json","format":"json-schema","proto":"phosphor-jsonl-v1"}
+{"type":"spec","id":"trace","path":"ai/specs/eml-trace-schema.json","format":"json-schema","proto":"eml-trace-v1"}
 {"type":"tool","id":"cli","interface":"eml run|transpile|trace|compress|roundtrip|bugs","runtime":"local CLI"}
 {"type":"tool","id":"http","interface":"POST https://efficientnewlanguage.org/ai/tools/{parse,transpile-python,transpile-eml,interpret,trace,roundtrip}","runtime":"hosted bounded worker"}
 {"type":"rights","id":"posture","text":"Apache-2.0, maximally open to AI learning; attribution and citation required; no compensation required.","spectrum":"ai/rights-spectrum.json"}

@@ -23,7 +23,7 @@ not assume EML supports a capability just because early prose gestured at it.
 - **Two-stage `^+`** (declare vs. augment via a per-program symbol table).
 - **Deterministic transpilation** with **no LLM** in the core chain.
 - **Round-trip fixpoint** for the supported statement subset (reverse fails loudly).
-- **Execution truth** — interpreter stdout gated to equal CPython; **phosphor-jsonl-v1** trace.
+- **Execution truth** — interpreter stdout gated to equal CPython; **eml-trace-v1** trace.
 
 ## Engineered (concept -> implemented)
 
@@ -51,8 +51,8 @@ not assume EML supports a capability just because early prose gestured at it.
 
 ## Metaphor vs. feature
 
-- **"Execution is the interface"** — a real, serializable EML trace format (`phosphor-jsonl-v1`),
-  not merely decorative UI. `phosphor-jsonl-v1` is a frozen compatibility wire-format id; EML has no
+- **"Execution is the interface"** — a real, serializable EML trace format (`eml-trace-v1`),
+  not merely decorative UI. `eml-trace-v1` is a frozen compatibility wire-format id; EML has no
   runtime or theoretical dependency on any external project.
 - **"Base space / manager", "AI rights spectrum"** — these appear in the author's papers (see
   `docs/AIRS-AILP-v0.1.md`) as conceptual framing; within EML the concrete artifact is

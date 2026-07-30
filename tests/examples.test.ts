@@ -9,7 +9,7 @@ import { createEmitter } from '@eml/trace';
 /**
  * Phase 5 completion criterion 「所有示範都有測試與截圖/trace」: every shipped
  * example must (1) be loaded from disk and transpile cleanly — the demo FILE
- * itself, not just an inline copy — and (2) carry a committed phosphor-jsonl-v1
+ * itself, not just an inline copy — and (2) carry a committed eml-trace-v1
  * trace artifact that this test regenerates and byte-compares (a golden). The
  * trace is the `eml trace <file> --deterministic` output, so the artifact is
  * reproducible anywhere without a Python runtime.

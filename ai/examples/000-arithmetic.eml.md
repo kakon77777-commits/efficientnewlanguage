@@ -32,7 +32,7 @@ print(x)
 
 `ok: true` — round-trip fixpoint reached (`python1 == python2`).
 
-## Trace event types (phosphor-jsonl-v1)
+## Trace event types (eml-trace-v1)
 
 `eml:run:start` · `eml:assign` · `eml:augment` · `eml:augment` · `eml:output` · `eml:run:done`
 

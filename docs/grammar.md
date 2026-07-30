@@ -397,7 +397,7 @@ async def wait_for_confirmation(flag):
 * 轉譯時，若程式用到 `@temporal_loop`，會注入一段**自包含的 asyncio 執行期**
   （`DelayedDecisionQueue` / `temporal_loop` / `temporal_wait` / `run_temporal`），
   使 `eml run` 仍是可直接執行的獨立 Python。
-* 執行期以 `phosphor-jsonl-v1` 發出 `eml:temporal:start/wait/resolved/timeout/done`
+* 執行期以 `eml-trace-v1` 發出 `eml:temporal:start/wait/resolved/timeout/done`
   事件到 stderr（解耦，PHOSPHOR/NOEMA 可讀）。
 * `run_temporal(fn, args…)` 在頂層驅動非同步函數（= `asyncio.run`），便於 demo。
 * 與函數一樣為**單向構造**（反向 Python→EML 不支援 async/await）。

@@ -50,7 +50,7 @@ conceptual semantic compression
   -> deterministic lexer / parser -> normalized AST
   -> Python transpilation (the hard closed loop)
   -> reverse EML transpilation + round-trip fixpoint validation
-  -> browser-safe execution-truth interpreter + phosphor-jsonl-v1 trace
+  -> browser-safe execution-truth interpreter + eml-trace-v1 trace
   -> C++20 prototype back end (same resolved AST, second target)
   -> AI-native surface: this AICL corpus + AIRS/AILP rights layer
 ```

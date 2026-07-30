@@ -38,7 +38,7 @@ A **pnpm TypeScript monorepo**. The reference implementation packages:
 | `@eml/transpiler-eml` | reverse Python->EML + round-trip fixpoint validators |
 | `@eml/transpiler-cpp` | C++20 prototype back end (non-normative) |
 | `@eml/interp` | execution-truth interpreter (faithful to CPython, test-gated) + trace producer |
-| `@eml/trace` | phosphor-jsonl-v1 emitter/parser (browser-safe; node file sink isolated) |
+| `@eml/trace` | eml-trace-v1 emitter/parser (browser-safe; node file sink isolated) |
 | `@eml/bug-classifier` | 5-level classifier (CRITICAL / MAJOR / MINOR / TRIVIAL / COSMETIC) |
 | `@eml/cts-generator`, `@eml/symbols`, `@eml/cli`, `@eml/workbench` | CTS, symbol table, the `eml` command, editor |
 

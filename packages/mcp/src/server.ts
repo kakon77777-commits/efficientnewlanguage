@@ -46,7 +46,7 @@ export function createServer(): McpServer {
   register(
     server,
     'trace',
-    'Interpret EML source and return its phosphor-jsonl-v1 execution trace.',
+    'Interpret EML source and return its eml-trace-v1 execution trace.',
     tools.traceTool,
   );
   register(

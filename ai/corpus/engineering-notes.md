@@ -58,7 +58,7 @@ messages may improve. See [`../specs/eml-error-schema.json`](../specs/eml-error-
 
 ## Observability
 
-All events conform to `phosphor-jsonl-v1` (one JSON object per line) — a frozen compatibility
+All events conform to `eml-trace-v1` (one JSON object per line) — a frozen compatibility
 wire-format id; EML has no runtime or theoretical dependency on any external project. See
 [`../specs/eml-trace-schema.json`](../specs/eml-trace-schema.json).
 

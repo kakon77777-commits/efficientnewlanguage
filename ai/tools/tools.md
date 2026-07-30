@@ -11,7 +11,7 @@ same deterministic packages (`@eml/parser`, `@eml/transpiler-python`, `@eml/tran
 ```bash
 eml run f.eml                       # transpile + execute via Python
 eml transpile f.eml --target cpp    # EML -> Python, or the C++ prototype
-eml trace f.eml --run               # phosphor-jsonl-v1 trace (+ interp==python check)
+eml trace f.eml --run               # eml-trace-v1 trace (+ interp==python check)
 eml compress f.py                   # reverse: Python (subset) -> EML
 eml roundtrip f.eml                 # EML -> Py -> EML -> Py fixpoint check
 eml bugs f.eml --run                # classify errors (5 levels), mapped to source

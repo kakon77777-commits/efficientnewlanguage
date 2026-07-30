@@ -1,6 +1,6 @@
 /**
  * @eml/interp — a deterministic, browser-safe interpreter for the EML supported
- * subset that doubles as an EML `phosphor-jsonl-v1` trace producer (a frozen
+ * subset that doubles as an EML `eml-trace-v1` trace producer (a frozen
  * compatibility wire-format id, not an external runtime dependency).
  *
  * WHY THIS EXISTS (the iron rule: "trace is the execution-truth layer, not
@@ -88,7 +88,7 @@ export interface InterpResult {
   output: string;
   /** stdout split into lines (no trailing empty element). */
   outputLines: string[];
-  /** The phosphor-jsonl-v1 event stream. */
+  /** The eml-trace-v1 event stream. */
   events: TraceEvent[];
   /** Runtime error (Python exception class + message), if execution faulted. */
   error?: { type: string; message: string };

@@ -30,15 +30,15 @@ print(r)
 
 `ok: true` — round-trip fixpoint reached (`python1 == python2`).
 
-## Trace (phosphor-jsonl-v1)
+## Trace (eml-trace-v1)
 
 ```jsonl
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":1,"type":"eml:run:start","statements":3}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":2,"type":"eml:assign","name":"N","value":"100","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":3,"type":"eml:sum","iterator":"i","count":100,"result":"338350"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":4,"type":"eml:assign","name":"r","value":"338350","declares":true}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":5,"type":"eml:output","text":"338350"}
-{"stream":"eml","proto":"phosphor-jsonl-v1","seq":6,"type":"eml:run:done","ok":true,"outputs":1,"anomalies":0}
+{"stream":"eml","proto":"eml-trace-v1","seq":1,"type":"eml:run:start","statements":3}
+{"stream":"eml","proto":"eml-trace-v1","seq":2,"type":"eml:assign","name":"N","value":"100","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":3,"type":"eml:sum","iterator":"i","count":100,"result":"338350"}
+{"stream":"eml","proto":"eml-trace-v1","seq":4,"type":"eml:assign","name":"r","value":"338350","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":5,"type":"eml:output","text":"338350"}
+{"stream":"eml","proto":"eml-trace-v1","seq":6,"type":"eml:run:done","ok":true,"outputs":1,"anomalies":0}
 ```
 
 (Live traces also carry `ts` and `mono`; consumers MUST treat them as optional.)

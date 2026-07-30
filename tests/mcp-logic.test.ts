@@ -106,7 +106,7 @@ describe('@eml/mcp tools — envelope shape', () => {
     expect(env.errors[0]?.code).toBe('ZeroDivisionError');
   });
 
-  it('trace: a clean program returns a phosphor-jsonl-v1 stream with no anomalies', () => {
+  it('trace: a clean program returns a eml-trace-v1 stream with no anomalies', () => {
     const env = traceTool(SUM_SRC);
     expect(env.ok).toBe(true);
     expect(env.tool).toBe('eml.trace');
@@ -176,7 +176,7 @@ describe('@eml/mcp tools — envelope shape', () => {
     expect(env.tool).toBe('eml.tools/health');
     const result = env.result as any;
     expect(result.status).toBe('healthy');
-    expect(result.trace_proto).toBe('phosphor-jsonl-v1');
+    expect(result.trace_proto).toBe('eml-trace-v1');
     expect(result.tools).toEqual(TOOL_NAMES);
     expect(result.limits.max_source_length).toBe(MAX_SOURCE_LENGTH);
   });
