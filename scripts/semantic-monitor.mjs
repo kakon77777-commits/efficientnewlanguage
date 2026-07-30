@@ -20,9 +20,42 @@
  *   change that should not land quietly.
  *
  * Usage:
- *   node scripts/semantic-monitor.mjs            # report; exit 1 on a regression
- *   node scripts/semantic-monitor.mjs --accept   # record the current state as
- *                                                # the baseline (after review)
+ *   node scripts/semantic-monitor.mjs                    # report; exit 1 on a regression
+ *   node scripts/semantic-monitor.mjs --accept           # record the current state
+ *   node scripts/semantic-monitor.mjs --accept --why "…" # …required if alerts are open
+ *
+ * ── The ledger ────────────────────────────────────────────────────────────
+ *
+ * `scripts/semantic-monitor.jsonl` is an append-only record of what this
+ * monitor has SEEN, alongside the baseline that records what it EXPECTS.
+ *
+ * The baseline alone was not enough. It stores a snapshot, so accepting an
+ * alert overwrites the evidence: the alert fires, `--accept` moves the
+ * baseline, and afterwards nothing in the repo says the alert ever existed or
+ * why it was waved through. Since reaching for `--accept` is exactly the
+ * temptation that shows up when you should be looking harder, an unauditable
+ * accept is the weakest point in the whole design.
+ *
+ * So every run appends what it observed, and every acceptance appends what was
+ * accepted — with a REASON, required whenever alerts are open. You can still
+ * accept anything; you can no longer accept it silently.
+ *
+ * One line per event:
+ *
+ *   {"stream":"eml","proto":"eml-monitor-v1","seq":1,
+ *    "ts":"2026-07-30T…","type":"monitor:alert","file":"…","reason":"…"}
+ *
+ *   monitor:run       every run — corpus size, construct count, alert count
+ *   monitor:alert     one per alert raised
+ *   monitor:accept    baseline recorded, carrying the reason given
+ *
+ * Structure borrowed from the append-only channel PHOSPHOR uses for agent
+ * handoff — the SHAPE is a good idea worth reusing. The names are EML's own:
+ * this project was deliberately made independent, and a monitor is not the
+ * place to quietly reintroduce another project's vocabulary.
+ *
+ * Writing the ledger is best-effort. A monitor that cannot append must still
+ * report, because failing to record is not a reason to stop checking.
  *
  * The baseline lives in scripts/semantic-monitor.baseline.json and is committed,
  * so the alert is about CHANGE rather than about absolute numbers — a construct
@@ -30,7 +63,7 @@
  * a construct that DROPS to zero, or a semantics file that moves without its
  * test, does.
  */
-import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, appendFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, relative } from 'node:path';
@@ -38,6 +71,42 @@ import { dirname, join, relative } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
 const BASELINE = join(here, 'semantic-monitor.baseline.json');
+const LEDGER = join(here, 'semantic-monitor.jsonl');
+
+/** EML's own protocol id. Not borrowed from anywhere — see the header note. */
+const LEDGER_PROTO = 'eml-monitor-v1';
+
+/** Next sequence number, continuing the existing ledger rather than restarting.
+ *  A counter that resets makes two runs indistinguishable in the record. */
+function nextSeq() {
+  if (!existsSync(LEDGER)) return 1;
+  try {
+    const lines = readFileSync(LEDGER, 'utf8').split('\n').filter((l) => l.trim() !== '');
+    if (lines.length === 0) return 1;
+    return (JSON.parse(lines[lines.length - 1]).seq ?? 0) + 1;
+  } catch {
+    return 1; // unreadable tail: keep going rather than refuse to record
+  }
+}
+
+let seq = nextSeq();
+
+/** Append one event. Best-effort: a monitor that cannot write must still check. */
+function record(type, fields) {
+  const line = JSON.stringify({
+    stream: 'eml',
+    proto: LEDGER_PROTO,
+    seq: seq++,
+    ts: new Date().toISOString(),
+    type,
+    ...fields,
+  });
+  try {
+    appendFileSync(LEDGER, line + '\n', 'utf8');
+  } catch (e) {
+    console.log(`  note:  could not append to the ledger (${e.code ?? 'error'}) — continuing`);
+  }
+}
 
 /* ── 1. Construct coverage ────────────────────────────────────────────────── */
 
@@ -182,17 +251,15 @@ function measureHashes() {
 /* ── 3. Report ────────────────────────────────────────────────────────────── */
 
 const accept = process.argv.includes('--accept');
+/** `--why "reason"` — the justification recorded alongside an acceptance. */
+const whyIndex = process.argv.indexOf('--why');
+const why = whyIndex !== -1 ? (process.argv[whyIndex + 1] ?? '') : '';
+
 const coverage = measureCoverage();
 const hashes = measureHashes();
 const current = { programs: coverage.programs, coverage: coverage.counts, hashes };
 
 const baseline = existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, 'utf8')) : null;
-
-if (accept) {
-  writeFileSync(BASELINE, JSON.stringify(current, null, 2) + '\n', 'utf8');
-  console.log(`semantic-monitor: baseline recorded (${coverage.programs} corpus programs)`);
-  process.exit(0);
-}
 
 const alerts = [];
 const notes = [];
@@ -215,6 +282,7 @@ if (baseline) {
     // preceded every divergence found so far.
     if (was > 0 && n === 0) {
       alerts.push(`COVERAGE LOST     ${name} was exercised by ${was} program(s), now none`);
+      record('monitor:alert', { kind: 'coverage-lost', construct: name, was, now: n });
     } else if (n < was) {
       notes.push(`${name} coverage ${was} -> ${n} (still covered)`);
     }
@@ -239,8 +307,9 @@ if (baseline?.hashes) {
         `SEMANTICS CHANGED ${file} changed but none of its conformance tests did\n` +
           `                  (${tests.join(', ')})\n` +
           `                  If the meaning of a program can differ, add or extend a test.\n` +
-          `                  If it genuinely cannot, re-run with --accept.`,
+          `                  If it genuinely cannot, re-run with --accept --why "reason".`,
       );
+      record('monitor:alert', { kind: 'semantics-changed', file, tests });
     }
   }
 }
@@ -248,6 +317,42 @@ if (baseline?.hashes) {
 console.log(`semantic-monitor: ${coverage.programs} corpus programs, ${CONSTRUCTS.length} constructs tracked`);
 for (const n of notes) console.log(`  note:  ${n}`);
 for (const a of alerts) console.log(`  ALERT: ${a}`);
+
+record('monitor:run', {
+  programs: coverage.programs,
+  constructs: CONSTRUCTS.length,
+  alerts: alerts.length,
+  notes: notes.length,
+  accepting: accept,
+});
+
+if (accept) {
+  // A reason is required exactly when there is something to justify. Accepting
+  // a clean state is routine bookkeeping; accepting an OPEN ALERT is a
+  // judgement call, and the judgement is the part worth keeping. Without this
+  // the baseline moves and the repo retains no memory that anything was ever
+  // flagged — which is how a monitor becomes a formality.
+  if (alerts.length > 0 && why.trim() === '') {
+    console.log(
+      `\nRefusing to accept ${alerts.length} open alert(s) without a reason.\n` +
+        `  Re-run as: pnpm monitor:accept -- --why "why this is safe"\n` +
+        `  The reason is appended to scripts/semantic-monitor.jsonl, so a later\n` +
+        `  reader can see what was waved through and on what grounds.`,
+    );
+    record('monitor:accept-refused', { alerts: alerts.length, reason: 'no --why given' });
+    process.exit(1);
+  }
+
+  writeFileSync(BASELINE, JSON.stringify(current, null, 2) + '\n', 'utf8');
+  record('monitor:accept', {
+    programs: coverage.programs,
+    alertsAccepted: alerts.length,
+    why: why.trim() || '(clean state — routine baseline refresh)',
+  });
+  console.log(`semantic-monitor: baseline recorded (${coverage.programs} corpus programs)`);
+  if (alerts.length > 0) console.log(`  accepted ${alerts.length} alert(s): ${why.trim()}`);
+  process.exit(0);
+}
 
 if (!baseline) {
   console.log('  note:  no baseline yet — run with --accept to record one');
