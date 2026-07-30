@@ -712,7 +712,13 @@ class PyParser {
       return this.parseBraceLiteral();
     }
     if (t.type === 'NAME') {
-      if (t.value === 'sum' && this.peek(1).type === 'LPAREN') return this.parseSum();
+      // `sum(` is ambiguous in the Python projection: `sum(x for i in range(n))`
+      // is EML's Sigma operator, while `sum(xs)` and `sum(xs, start)` are plain
+      // builtin calls. This used to assume the first unconditionally, so ANY
+      // ordinary sum() call failed to reverse-parse with "Expected 'for'" —
+      // which no corpus program noticed, because sum() as a builtin was called
+      // by none of them. Deciding by lookahead rather than by assumption.
+      if (t.value === 'sum' && this.peek(1).type === 'LPAREN' && this.hasGeneratorFor()) return this.parseSum();
       if (t.value === 'range' && this.peek(1).type === 'LPAREN') return this.parseRangeCall();
       if (t.value === 'np' && this.peek(1).type === 'DOT') return this.parseNp();
       this.next();
@@ -790,6 +796,29 @@ class PyParser {
     }
     this.expect('RBRACE', "'}' after set literal");
     return { type: 'Set', elements };
+  }
+
+  /**
+   * Does the parenthesized group starting at `sum(` contain a top-level `for`?
+   *
+   * Scans to the matching close paren, tracking nesting so that a `for` inside
+   * a nested comprehension argument does not count. This is the whole
+   * difference between `sum(x for i in range(n))` — EML's Sigma — and an
+   * ordinary `sum(xs)` call.
+   */
+  private hasGeneratorFor(): boolean {
+    let depth = 0;
+    for (let i = this.pos + 1; i < this.tokens.length; i++) {
+      const tok = this.tokens[i]!;
+      if (tok.type === 'LPAREN' || tok.type === 'LBRACKET' || tok.type === 'LBRACE') depth++;
+      else if (tok.type === 'RPAREN' || tok.type === 'RBRACKET' || tok.type === 'RBRACE') {
+        depth--;
+        if (depth === 0) return false; // closed the sum( group without seeing a for
+      } else if (depth === 1 && tok.type === 'NAME' && tok.value === 'for') {
+        return true;
+      }
+    }
+    return false;
   }
 
   private parseSum(): SumExpression {

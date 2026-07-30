@@ -1,0 +1,56 @@
+# Self-authored for the EML case corpus (no external origin). Grouping items
+# by a computed key is the other half of the dict-as-accumulator pattern: the
+# values are LISTS that grow, rather than counters that increment.
+#
+# The detail worth seeing is that the group order and the within-group order
+# come from two different places. Groups appear in the order their key was
+# first needed; members appear in the order they were read. Both fall out of
+# insertion order, and neither requires sorting anything.
+
+def group_by_length(words):
+    {} => groups
+    for w in words:
+        len(w) => k
+        if k in groups:
+            groups[k] + [w] => groups[k]
+        else:
+            [w] => groups[k]
+    return groups
+
+["fig", "apple", "kiwi", "plum", "cherry", "date", "pear", "banana"] => words
+group_by_length(words) => groups
+
+("Words: " + str(len(words)) + ", distinct lengths: " + str(len(groups)))^0
+""^0
+
+"length  count  members" => header
+header^0
+"------  -----  ------------------------------" => rule
+rule^0
+for k in groups:
+    groups[k] => members
+    "" => joined
+    for w in members:
+        if joined == "":
+            w => joined
+        else:
+            joined + ", " + w => joined
+    str(k) => shown
+    8 - len(shown) => pad
+    if pad < 1:
+        1 => pad
+    (shown + " " * pad + str(len(members)) + "      " + joined)^0
+
+""^0
+# Cross-check: every word landed in exactly one group.
+[] => sizes
+for k in groups:
+    sizes + [len(groups[k])] => sizes
+("Group sizes " + str(sizes) + " sum to " + str(sum(sizes)) + " of " + str(len(words)) + " words")^0
+("Largest group has " + str(max(sizes)) + " members, smallest has " + str(min(sizes)))^0
+
+""^0
+"Group order is first-need order: 3 comes first because \"fig\" was read" => n1
+n1^0
+"first, and 6 comes last because no six-letter word appeared until \"cherry\"." => n2
+n2^0

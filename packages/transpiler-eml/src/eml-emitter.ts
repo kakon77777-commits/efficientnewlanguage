@@ -43,10 +43,23 @@ const isAtom = (e: Expression): boolean =>
   e.type === 'Identifier' || e.type === 'NumberLiteral' || e.type === 'StringLiteral';
 
 /** Values eligible for the inline `target^+<literal>` sigil form (as opposed
- *  to the reversed-arrow form) — atoms plus list/dict/set/tuple literals, all
- *  of which `emitEmlExpression` already renders as valid EML literal text. */
+ *  to the reversed-arrow form).
+ *
+ *  TUPLE IS DELIBERATELY EXCLUDED. A tuple renders as `(3, 4)`, so the inline
+ *  form produces `x^+(3, 4)` — and the forward parser reads the parentheses as
+ *  a CALL, turning an assignment into `x(3, 4)`. Verified directly:
+ *
+ *      x^+(3, 4)   ->  x(3, 4)      corrupted
+ *      x^+[1, 2]   ->  x = [1, 2]   fine
+ *      x^+{1: 2}   ->  x = {1: 2}   fine
+ *      (3, 4) => x ->  x = (3, 4)   fine
+ *
+ *  Only `(` is ambiguous, because only `(` is also a postfix operator that can
+ *  follow a bare name. So tuples take the arrow form, which cannot be misread.
+ *  This is the same family as the `n = 0` -> `n += 0` reverse bug: emitting
+ *  text that re-parses as something else. */
 const isInlineLiteral = (e: Expression): boolean =>
-  isAtom(e) || e.type === 'List' || e.type === 'Dict' || e.type === 'Set' || e.type === 'Tuple';
+  isAtom(e) || e.type === 'List' || e.type === 'Dict' || e.type === 'Set';
 
 /** Real compound-assignment operator text for a Subscript/Attribute target —
  *  EML's `^+`/`^-`/`^*`/`^/` sigil is bare-identifier-only (§5.1's two-stage

@@ -1,0 +1,61 @@
+# Self-authored for the EML case corpus (no external origin). Counting
+# characters is the smallest honest use of a dict-as-accumulator, and it shows
+# insertion order doing real work: the table comes out in FIRST-APPEARANCE
+# order, which is often exactly what you want in a report and is impossible to
+# get from a structure with unspecified ordering.
+#
+# The idiom below is the "check then insert" form rather than dict.setdefault
+# or collections.Counter, neither of which EML-P models. That is not a
+# workaround - it is the shape the language actually supports, and it makes
+# the ordering guarantee visible in the source.
+
+def tally(text):
+    {} => counts
+    for ch in text:
+        if ch in counts:
+            counts[ch] + 1 => counts[ch]
+        else:
+            1 => counts[ch]
+    return counts
+
+"mississippi river" => phrase
+tally(phrase) => counts
+
+("Text: " + repr(phrase))^0
+("Length: " + str(len(phrase)) + " characters, " + str(len(counts)) + " distinct")^0
+""^0
+
+"char  count  bar" => header
+header^0
+"----  -----  ------------" => rule
+rule^0
+for ch in counts:
+    counts[ch] => n
+    repr(ch) => shown
+    6 - len(shown) => pad
+    if pad < 1:
+        1 => pad
+    (shown + " " * pad + str(n) + "      " + "#" * n)^0
+
+""^0
+# The most frequent character: found by walking, since max() over a dict would
+# compare KEYS, not values.
+"" => best_char
+0 => best_count
+for ch in counts:
+    if counts[ch] > best_count:
+        counts[ch] => best_count
+        ch => best_char
+("Most frequent: " + repr(best_char) + " (" + str(best_count) + " times)")^0
+
+# A useful cross-check: the counts must add back up to the original length.
+[] => all_counts
+for ch in counts:
+    all_counts + [counts[ch]] => all_counts
+("Counts sum to " + str(sum(all_counts)) + ", text length is " + str(len(phrase)) + " -> " + str(sum(all_counts) == len(phrase)))^0
+
+""^0
+"The table is in first-appearance order, not alphabetical -" => n1
+n1^0
+"'m' leads because it opens the phrase, not because it sorts first." => n2
+n2^0

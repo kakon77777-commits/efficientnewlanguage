@@ -453,7 +453,12 @@ function order(a: PyVal, b: PyVal): number {
     return aF ? -io : io;
   }
   if (a.k === 'str' && b.k === 'str') return a.v < b.v ? -1 : a.v > b.v ? 1 : 0;
-  if (a.k === 'list' && b.k === 'list') {
+  // Lexicographic, element by element, shorter-is-smaller on a common prefix —
+  // for BOTH lists and tuples, which is how Python orders either. Tuple was
+  // missing here, so `(1, 5) < (2, 0)` raised TypeError; it is the fourth place
+  // a hand-written list of types had left tuple off. A list never compares
+  // against a tuple, in Python or here: they are different types.
+  if ((a.k === 'list' && b.k === 'list') || (a.k === 'tuple' && b.k === 'tuple')) {
     const n = Math.min(a.v.length, b.v.length);
     for (let i = 0; i < n; i++) {
       const c = order(a.v[i]!, b.v[i]!);
@@ -609,6 +614,85 @@ function reprStr(s: string): string {
     } else out += ch;
   }
   return quote + out + quote;
+}
+
+/**
+ * The values Python can iterate, as a flat array — `null` for everything else.
+ *
+ * `len`, `min`/`max` and `sum` each used to decide this for themselves, and
+ * each drew the line somewhere different: `len` accepted str/list/dict/set but
+ * not tuple, `sum` accepted only list, and `min`/`max` unwrapped a list but
+ * treated any other single argument as a one-element sequence — so `max(5)`
+ * returned 5 where Python raises TypeError, and `max("hello")` returned the
+ * whole string where Python iterates it and returns 'o'.
+ *
+ * One definition, so they cannot disagree again. Dict iterates its KEYS, as in
+ * Python. Insertion order is preserved for set and dict, which is what CPython
+ * does for dict and merely what we do for set — set order is unspecified in
+ * Python, so a program whose OUTPUT depends on it is relying on something the
+ * language does not promise.
+ */
+export function iterableItems(v: PyVal): PyVal[] | null {
+  switch (v.k) {
+    case 'list':
+    case 'tuple':
+      return v.v;
+    case 'set':
+      return [...v.v.values()];
+    case 'dict':
+      return [...v.v.values()].map((e) => e.key);
+    case 'str':
+      return [...v.v].map((c) => STR(c));
+    default:
+      return null;
+  }
+}
+
+/*
+ * ── Numeric strings ────────────────────────────────────────────────────────
+ *
+ * `int(s)` and `float(s)` used to delegate to JS `parseInt`-ish checks and
+ * `Number(s)`. JS and Python disagree about what a numeric string IS, so every
+ * disagreement was a silent wrong answer rather than an error:
+ *
+ *   float("")        JS 0        Python ValueError
+ *   float("0x10")    JS 16       Python ValueError
+ *   float("1_000.5") JS NaN      Python 1000.5      (underscores are legal)
+ *   float("inf")     JS NaN      Python inf         (JS wants "Infinity")
+ *   int("1_000")     rejected    Python 1000
+ *
+ * and the one that gave this away — the old guard was
+ * `Number.isNaN(n) && !/nan/i.test(s)`, meaning any string CONTAINING "nan"
+ * skipped the error path. `float("banana")` returned nan instead of raising.
+ *
+ * So the grammar is spelled out here instead of borrowed. Underscores are the
+ * subtle part: Python allows them only BETWEEN digits, so `1_000` parses and
+ * `_1`, `1_`, and `1__0` do not — expressed as `\d(?:_?\d)*`.
+ */
+const DIGITS = String.raw`\d(?:_?\d)*`;
+const PY_INT_RE = new RegExp(`^[+-]?${DIGITS}$`);
+const PY_FLOAT_RE = new RegExp(
+  `^[+-]?(?:(?:${DIGITS}(?:\\.(?:${DIGITS})?)?|\\.${DIGITS})(?:[eE][+-]?${DIGITS})?)$`,
+);
+const PY_SPECIAL_RE = /^[+-]?(?:inf(?:inity)?|nan)$/i;
+
+/** `int(s)` for base 10 — `null` when Python would raise ValueError. */
+export function parsePyInt(s: string): bigint | null {
+  const t = s.trim();
+  if (!PY_INT_RE.test(t)) return null;
+  return BigInt(t.replace(/_/g, ''));
+}
+
+/** `float(s)` — `null` when Python would raise ValueError. */
+export function parsePyFloat(s: string): number | null {
+  const t = s.trim();
+  if (PY_SPECIAL_RE.test(t)) {
+    const neg = t.startsWith('-');
+    if (/nan$/i.test(t)) return NaN;
+    return neg ? -Infinity : Infinity;
+  }
+  if (!PY_FLOAT_RE.test(t)) return null;
+  return Number(t.replace(/_/g, ''));
 }
 
 /**

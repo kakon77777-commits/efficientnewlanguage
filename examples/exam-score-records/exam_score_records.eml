@@ -1,0 +1,65 @@
+# Self-authored for the EML case corpus (no external origin). Each record is a
+# (name, score, attempts) tuple - a small fixed shape where position means
+# something, and where nothing should ever be appended to an individual row.
+#
+# The list holds the records; each record is a tuple. That pairing is the
+# usual shape of tabular data, and it is worth writing out because the two
+# containers are doing genuinely different jobs: the LIST is what grows, the
+# TUPLE is what stays the same size forever.
+
+def name_of(rec):
+    return rec[0]
+
+def score_of(rec):
+    return rec[1]
+
+def attempts_of(rec):
+    return rec[2]
+
+def passed(rec, mark):
+    if score_of(rec) >= mark:
+        return 1
+    return 0
+
+[("ana", 88, 1), ("brit", 54, 2), ("chen", 91, 1), ("dev", 47, 3), ("eve", 72, 1)] => records
+60 => pass_mark
+
+("Records: " + str(len(records)) + ", each with " + str(len(records[0])) + " fields")^0
+("Pass mark: " + str(pass_mark))^0
+""^0
+
+"name   score  attempts  result" => header
+header^0
+"-----  -----  --------  ------" => rule
+rule^0
+0 => passes
+[] => scores
+for rec in records:
+    name_of(rec) => n
+    if passed(rec, pass_mark) == 1:
+        "pass" => verdict
+    else:
+        "fail" => verdict
+    passes + passed(rec, pass_mark) => passes
+    scores + [score_of(rec)] => scores
+    7 - len(n) => pad
+    if pad < 1:
+        1 => pad
+    (n + " " * pad + str(score_of(rec)) + "     " + str(attempts_of(rec)) + "         " + verdict)^0
+
+""^0
+("Passed: " + str(passes) + " of " + str(len(records)))^0
+("Highest " + str(max(scores)) + ", lowest " + str(min(scores)) + ", mean " + str(sum(scores) / len(scores)))^0
+""^0
+
+# Retaking is expensive: total attempts across everyone.
+[] => tries
+for rec in records:
+    tries + [attempts_of(rec)] => tries
+("Total sittings: " + str(sum(tries)) + " for " + str(len(records)) + " candidates")^0
+("Most attempts by one candidate: " + str(max(tries)))^0
+""^0
+
+# A record is compared as a whole, field by field, left to right.
+("(\"ana\", 88, 1) == (\"ana\", 88, 1) is " + str(("ana", 88, 1) == ("ana", 88, 1)))^0
+("A row has a fixed width of " + str(len(records[0])) + "; the TABLE is what grows, not the row.")^0

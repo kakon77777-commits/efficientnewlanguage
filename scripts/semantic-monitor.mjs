@@ -139,9 +139,17 @@ const SEMANTIC_FILES = [
     // Exception values live here too, not only in the interpreter — the first
     // real alert this monitor raised was for an exception-model change whose
     // tests were all in phase7d, which this list did not mention.
-    ['tests/percent-format.test.ts', 'tests/sum-compensation.test.ts', 'tests/phase7d-exceptions.test.ts'],
+    [
+      'tests/percent-format.test.ts',
+      'tests/sum-compensation.test.ts',
+      'tests/phase7d-exceptions.test.ts',
+      'tests/builtin-shapes.test.ts',
+    ],
   ],
-  ['packages/interp/src/index.ts', ['tests/interp.test.ts', 'tests/phase7d-exceptions.test.ts']],
+  [
+    'packages/interp/src/index.ts',
+    ['tests/interp.test.ts', 'tests/phase7d-exceptions.test.ts', 'tests/builtin-shapes.test.ts'],
+  ],
   ['packages/transpiler-python/src/emitter.ts', ['tests/interp.test.ts']],
   ['packages/transpiler-eml/src/eml-emitter.ts', ['tests/reverse-regression.test.ts']],
   ['packages/transpiler-eml/src/py-parser.ts', ['tests/reverse-regression.test.ts']],
@@ -218,7 +226,12 @@ if (baseline?.hashes) {
   for (const [file, tests] of SEMANTIC_FILES) {
     const changed = baseline.hashes[file] !== undefined && baseline.hashes[file] !== hashes[file];
     if (!changed) continue;
-    const testsTouched = tests.some((t) => baseline.hashes[t] !== undefined && baseline.hashes[t] !== hashes[t]);
+    // A test counts as touched if it CHANGED or if it is BRAND NEW. The first
+    // version required `baseline.hashes[t] !== undefined`, so writing a whole
+    // new conformance file — the strongest possible response to a semantics
+    // change — did not satisfy the check, while editing one line of an old
+    // test did. Found by the monitor alerting on exactly that situation.
+    const testsTouched = tests.some((t) => hashes[t] !== null && baseline.hashes[t] !== hashes[t]);
     if (testsTouched) {
       notes.push(`${file} changed, and so did its conformance test — reviewed`);
     } else {

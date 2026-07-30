@@ -1,0 +1,54 @@
+# Self-authored for the EML case corpus (no external origin). Colour blending
+# with (r, g, b) tuples. Each channel is clamped independently, which is the
+# whole reason a colour is a record of three values rather than one number.
+#
+# The clamp is where naive blending goes wrong: adding two bright colours
+# overflows past 255, and without a clamp the result wraps or simply becomes
+# meaningless. Printing the raw sum next to the clamped result makes the
+# correction visible instead of invisible.
+
+def clamp(v, low, high):
+    if v < low:
+        return low
+    if v > high:
+        return high
+    return v
+
+def add_channels(a, b):
+    return (clamp(a[0] + b[0], 0, 255), clamp(a[1] + b[1], 0, 255), clamp(a[2] + b[2], 0, 255))
+
+def scale(c, factor):
+    return (clamp(int(c[0] * factor), 0, 255), clamp(int(c[1] * factor), 0, 255), clamp(int(c[2] * factor), 0, 255))
+
+def brightness(c):
+    return sum(c) / 3
+
+(200, 60, 30) => warm
+(20, 120, 220) => cool
+
+("warm = " + str(warm) + "   brightness " + str(brightness(warm)))^0
+("cool = " + str(cool) + "  brightness " + str(brightness(cool)))^0
+""^0
+
+add_channels(warm, cool) => blended
+("blended        = " + str(blended))^0
+("raw sums would be (" + str(warm[0] + cool[0]) + ", " + str(warm[1] + cool[1]) + ", " + str(warm[2] + cool[2]) + ") - the red channel needed clamping")^0
+""^0
+
+"factor  result" => header
+header^0
+"------  --------------" => rule
+rule^0
+for f in [0.25, 0.5, 1.0, 1.5]:
+    scale(warm, f) => out
+    str(f) => shown
+    8 - len(shown) => pad
+    if pad < 1:
+        1 => pad
+    (shown + " " * pad + str(out))^0
+
+""^0
+# Channel-wise questions use the tuple directly.
+("Brightest channel of " + str(blended) + " is " + str(max(blended)))^0
+("Darkest is " + str(min(blended)) + ", total ink " + str(sum(blended)))^0
+("A colour always has " + str(len(blended)) + " channels - that is what makes it a tuple and not a list.")^0

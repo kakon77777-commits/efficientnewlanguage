@@ -61,6 +61,9 @@ import {
   EXC_CLASS,
   EXCEPTION,
   BUILTIN_EXCEPTIONS,
+  parsePyInt,
+  parsePyFloat,
+  iterableItems,
 } from './values';
 
 export { type PyVal, PyError } from './values';
@@ -405,12 +408,31 @@ function runProgram(
     return items;
   };
 
-  /** Materialize a `for ... in <iterable>` target into concrete items — Python
-   *  iterates lists element-by-element and strings character-by-character. */
-  const iterableItems = (v: PyVal): PyVal[] => {
-    if (v.k === 'list' || v.k === 'tuple') return v.v;
-    if (v.k === 'str') return [...v.v].map((ch) => STR(ch));
-    throw new PyError('TypeError', `'${typeName(v)}' object is not iterable`);
+  /**
+   * Materialize a `for ... in <iterable>` target into concrete items.
+   *
+   * Deliberately NOT the shared `iterableItems` from values.ts, because a loop
+   * observes ORDER and the order-invariant builtins do not:
+   *
+   *   dict — Python guarantees insertion order, and our Map preserves it, so
+   *          iterating keys is exactly right.
+   *   set  — Python iterates in HASH order, not insertion order. `{3, 1, 2}`
+   *          yields 1, 2, 3 in CPython and would yield 3, 1, 2 here. Producing
+   *          our own order would be a silent wrong answer, so this defers to
+   *          real Python instead of inventing a sequence. (`len`/`sum`/`min`/
+   *          `max` over a set are still fine — their answers don't depend on
+   *          the order.)
+   */
+  const forInItems = (v: PyVal): PyVal[] => {
+    if (v.k === 'set') {
+      throw new Unsupported(
+        'iterating a set',
+        'CPython iterates a set in hash order, which this interpreter cannot reproduce — build the values as a list literal if you need to iterate them in a defined order',
+      );
+    }
+    const items = iterableItems(v);
+    if (!items) throw new PyError('TypeError', `'${typeName(v)}' object is not iterable`);
+    return items;
   };
 
   const evalSum = (expr: Extract<Expression, { type: 'Sum' }>, scope: Scope): PyVal => {
@@ -434,10 +456,11 @@ function runProgram(
   };
 
   /** `[expr for x in iterable if cond]` (Phase 9) — mirrors `evalSum` but reuses
-   *  `iterableItems()` (already generalizes over list/tuple/str, not just a numeric
-   *  range) and collects into a list instead of summing, with an optional filter. */
+   *  `forInItems()` (the ORDER-observing iterator, since a comprehension builds a
+   *  list whose element order is part of the answer) and collects into a list
+   *  instead of summing, with an optional filter. */
   const evalListComp = (expr: Extract<Expression, { type: 'ListComp' }>, scope: Scope): PyVal => {
-    const items = iterableItems(evalExpr(expr.iterable, scope));
+    const items = forInItems(evalExpr(expr.iterable, scope));
     const result: PyVal[] = [];
     for (const item of items) {
       tick();
@@ -637,9 +660,11 @@ function runProgram(
       }
       case 'len': {
         const a = need(args, 0, name);
-        if (a.k === 'str') return INT(BigInt([...a.v].length));
-        if (a.k === 'list') return INT(BigInt(a.v.length));
-        if (a.k === 'dict' || a.k === 'set') return INT(BigInt(a.v.size));
+        // Tuples were missing here, so `len((1, 2, 3))` raised TypeError where
+        // Python answers 3. Sharing iterableItems keeps the set of "things with
+        // a length" from drifting away from the set of "things you can iterate".
+        const items = iterableItems(a);
+        if (items) return INT(BigInt(items.length));
         throw new PyError('TypeError', `object of type '${typeName(a)}' has no len()`);
       }
       case 'set': {
@@ -655,9 +680,9 @@ function runProgram(
         if (a.k === 'bool') return INT(a.v ? 1n : 0n);
         if (a.k === 'float') return INT(BigInt(Math.trunc(a.v)));
         if (a.k === 'str') {
-          const t = a.v.trim();
-          if (!/^[+-]?\d+$/.test(t)) throw new PyError('ValueError', `invalid literal for int() with base 10: ${pyRepr(a)}`);
-          return INT(BigInt(t));
+          const n = parsePyInt(a.v);
+          if (n === null) throw new PyError('ValueError', `invalid literal for int() with base 10: ${pyRepr(a)}`);
+          return INT(n);
         }
         throw new PyError('TypeError', `int() argument must be a string or a number, not '${typeName(a)}'`);
       }
@@ -667,8 +692,8 @@ function runProgram(
         if (a.k === 'int') return FLOAT(Number(a.v));
         if (a.k === 'bool') return FLOAT(a.v ? 1 : 0);
         if (a.k === 'str') {
-          const n = Number(a.v.trim());
-          if (Number.isNaN(n) && !/nan/i.test(a.v)) throw new PyError('ValueError', `could not convert string to float: ${pyRepr(a)}`);
+          const n = parsePyFloat(a.v);
+          if (n === null) throw new PyError('ValueError', `could not convert string to float: ${pyRepr(a)}`);
           return FLOAT(n);
         }
         throw new PyError('TypeError', `float() argument must be a string or a number, not '${typeName(a)}'`);
@@ -686,8 +711,26 @@ function runProgram(
         return minmax(name, args);
       case 'sum': {
         const a = need(args, 0, name);
-        if (a.k !== 'list') throw new PyError('TypeError', `'${typeName(a)}' object is not iterable`);
-        return pySum(a.v, args[1] ?? INT(0n));
+        const items = iterableItems(a);
+        if (!items) throw new PyError('TypeError', `'${typeName(a)}' object is not iterable`);
+        const start = args[1] ?? INT(0n);
+        // Python refuses str explicitly rather than concatenating, to steer you
+        // to ''.join() — which is O(n) instead of O(n^2). We used to happily
+        // return "ab", quietly endorsing the quadratic idiom.
+        if (start.k === 'str') {
+          throw new PyError('TypeError', "sum() can't sum strings [use ''.join(seq) instead]");
+        }
+        // Summing a SET of floats is the one order-sensitive case: our insertion
+        // order is not CPython's hash order, and float addition is not
+        // associative, so the last bits could differ. Ints are exact and lists
+        // and tuples have a defined order, so only this combination defers.
+        if (a.k === 'set' && items.some((x) => x.k === 'float')) {
+          throw new Unsupported(
+            'sum() over a set of floats',
+            'set iteration order differs from CPython and float addition is not associative, so the result could differ in the last bits — sum a list literal instead, where the order is defined',
+          );
+        }
+        return pySum(items, start);
       }
       default:
         // The temporal runtime intrinsics are "known but unsupported" — defer to
@@ -761,7 +804,7 @@ function runProgram(
         return;
       }
       case 'ForIn': {
-        const items = iterableItems(evalExpr(stmt.iterable, scope));
+        const items = forInItems(evalExpr(stmt.iterable, scope));
         for (const item of items) {
           tick();
           assign(scope, stmt.target.name, item);
@@ -1148,9 +1191,23 @@ function need(args: PyVal[], i: number, name: string): PyVal {
 
 function minmax(name: 'min' | 'max', args: PyVal[]): PyVal {
   let items: PyVal[];
-  if (args.length === 1 && args[0]!.k === 'list') items = (args[0] as { k: 'list'; v: PyVal[] }).v;
-  else items = args;
-  if (items.length === 0) throw new PyError('ValueError', `${name}() arg is an empty sequence`);
+  if (args.length === 1) {
+    // ONE argument means "iterate this", for every iterable — not just list.
+    // The old code special-cased list and fell through to `items = args` for
+    // anything else, so `max("hello")` returned "hello" instead of 'o', and
+    // `max(5)` returned 5 where Python raises TypeError. A single argument that
+    // is not iterable is an error, never a one-element sequence.
+    const it = iterableItems(args[0]!);
+    if (!it) throw new PyError('TypeError', `'${typeName(args[0]!)}' object is not iterable`);
+    items = it;
+  } else {
+    items = args;
+  }
+  // CPython's wording, verified against the local interpreter rather than
+  // recalled: 3.12 reworded this from "arg is an empty sequence" to the text
+  // below. A program that prints str(e) can tell the difference, and one in
+  // the corpus does.
+  if (items.length === 0) throw new PyError('ValueError', `${name}() iterable argument is empty`);
   let best = items[0]!;
   // Replace only on a STRICT change (max: x > best, min: x < best) so a tie keeps
   // the first occurrence — exactly as Python's min()/max() do.

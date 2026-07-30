@@ -1,0 +1,69 @@
+# Self-authored for the EML case corpus (no external origin). A polynomial as
+# a list of (coefficient, exponent) tuples, evaluated by Horner-free direct
+# summation so that each term is visible.
+#
+# This is the shape where a tuple earns its keep over a two-element list: a
+# term has exactly two parts forever, and swapping them would be a bug rather
+# than a resize. Printing the terms alongside their contributions makes the
+# arithmetic auditable rather than asserted.
+
+def power(base, exp):
+    1 => result
+    0 => i
+    while i < exp:
+        result * base => result
+        i + 1 => i
+    return result
+
+def term_value(term, x):
+    return term[0] * power(x, term[1])
+
+def evaluate(poly, x):
+    [] => parts
+    for term in poly:
+        parts + [term_value(term, x)] => parts
+    return sum(parts)
+
+def describe(term):
+    term[0] => c
+    term[1] => e
+    if e == 0:
+        return str(c)
+    if e == 1:
+        return str(c) + "x"
+    return str(c) + "x^" + str(e)
+
+[(2, 3), (0 - 4, 2), (7, 1), (5, 0)] => poly
+
+"" => shown
+for term in poly:
+    if shown == "":
+        describe(term) => shown
+    else:
+        shown + " + " + describe(term) => shown
+("p(x) = " + shown)^0
+("Terms: " + str(len(poly)) + ", degree " + str(max([3, 2, 1, 0])))^0
+""^0
+
+"x    term values                    p(x)" => header
+header^0
+"---  -----------------------------  ------" => rule
+rule^0
+for x in [0, 1, 2, 0 - 1]:
+    [] => vals
+    for term in poly:
+        vals + [term_value(term, x)] => vals
+    str(x) => xs
+    5 - len(xs) => pad1
+    if pad1 < 1:
+        1 => pad1
+    str(vals) => vs
+    31 - len(vs) => pad2
+    if pad2 < 1:
+        1 => pad2
+    (xs + " " * pad1 + vs + " " * pad2 + str(evaluate(poly, x)))^0
+
+""^0
+# The constant term is p(0), which is a good self-check on the whole scheme.
+("p(0) = " + str(evaluate(poly, 0)) + ", and the constant term is " + str(poly[3][0]) + " -> " + str(evaluate(poly, 0) == poly[3][0]))^0
+("Each term is a " + str(len(poly[0])) + "-tuple: (coefficient, exponent), in that order, always.")^0

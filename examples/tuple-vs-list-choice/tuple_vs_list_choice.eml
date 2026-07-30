@@ -1,0 +1,58 @@
+# Self-authored for the EML case corpus (no external origin). Tuple or list?
+# The two look interchangeable and are not. This program states the rule and
+# then demonstrates each half of it.
+#
+#   A LIST is a collection that GROWS. Its length is part of the data.
+#   A TUPLE is a record with a FIXED SHAPE. Its length is part of the type.
+#
+# The practical test: if appending an element would still make sense, you want
+# a list. If appending would produce something meaningless - a point with three
+# coordinates, a date with four parts - you want a tuple.
+#
+# EML-P models tuples as immutable in the sense that matters here: there is no
+# operation that grows one in place. A list is grown by rebinding it to a
+# longer list, which is exactly the operation a record should never need.
+
+def midpoint(a, b):
+    return ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
+
+# A LIST that grows: readings arrive one at a time and the count is data.
+[] => readings
+for r in [3, 9, 4, 12, 7]:
+    readings + [r] => readings
+("readings is a list, now " + str(len(readings)) + " long: " + str(readings))^0
+("It grew from 0. Its length is DATA - it means \"how many readings arrived\".")^0
+""^0
+
+# A TUPLE with a fixed shape: a point always has exactly two parts.
+(2, 8) => p
+(6, 2) => q
+("p = " + str(p) + ", q = " + str(q))^0
+("midpoint(p, q) = " + str(midpoint(p, q)))^0
+("A point always has " + str(len(p)) + " parts. Its length is TYPE - a 3-part point would be a different thing.")^0
+""^0
+
+"Both are sequences, so the sequence builtins work on either" => h
+h^0
+("  len(readings)=" + str(len(readings)) + "   len(p)=" + str(len(p)))^0
+("  sum(readings)=" + str(sum(readings)) + "  sum(p)=" + str(sum(p)))^0
+("  max(readings)=" + str(max(readings)) + "  max(p)=" + str(max(p)))^0
+("  readings[0]=" + str(readings[0]) + "    p[0]=" + str(p[0]))^0
+("  readings[1:3]=" + str(readings[1:3]))^0
+""^0
+
+"They are NOT equal to each other, even with the same contents" => h2
+h2^0
+([1, 2] == [1, 2]) => list_eq
+((1, 2) == (1, 2)) => tup_eq
+("  [1, 2] == [1, 2] -> " + str(list_eq))^0
+("  (1, 2) == (1, 2) -> " + str(tup_eq))^0
+("  a list and a tuple are different types, so they never compare equal")^0
+""^0
+
+"The rule, restated:" => h3
+h3^0
+"  Would appending still make sense? -> list." => r1
+r1^0
+"  Would appending produce nonsense? -> tuple." => r2
+r2^0

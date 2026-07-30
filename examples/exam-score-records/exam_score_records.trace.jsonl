@@ -1,0 +1,152 @@
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":1,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:start","mono":1,"file":"exam_score_records.eml","statements":27}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":2,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":2,"fn":"name_of","params":["rec"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":3,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":3,"fn":"score_of","params":["rec"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":4,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":4,"fn":"attempts_of","params":["rec"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":5,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":5,"fn":"passed","params":["rec","mark"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":6,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":6,"name":"records","value":"[('ana', 88, 1), ('brit', 54, 2), ('chen', 91, 1), ('dev', 47, 3), ('eve', 72, 1)]","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":7,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":7,"name":"pass_mark","value":"60","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":8,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":8,"text":"Records: 5, each with 3 fields"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":9,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":9,"text":"Pass mark: 60"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":10,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":10,"text":""}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":11,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":11,"name":"header","value":"'name   score  attempts  result'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":12,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":12,"text":"name   score  attempts  result"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":13,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":13,"name":"rule","value":"'-----  -----  --------  ------'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":14,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":14,"text":"-----  -----  --------  ------"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":15,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":15,"name":"passes","value":"0","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":16,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":16,"name":"scores","value":"[]","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":17,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":17,"fn":"name_of","args":["('ana', 88, 1)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":18,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":18,"fn":"name_of","value":"'ana'"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":19,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":19,"name":"n","value":"'ana'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":20,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":20,"fn":"passed","args":["('ana', 88, 1)","60"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":21,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":21,"fn":"score_of","args":["('ana', 88, 1)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":22,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":22,"fn":"score_of","value":"88"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":23,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":23,"fn":"passed","value":"1"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":24,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":24,"name":"verdict","value":"'pass'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":25,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":25,"fn":"passed","args":["('ana', 88, 1)","60"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":26,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":26,"fn":"score_of","args":["('ana', 88, 1)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":27,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":27,"fn":"score_of","value":"88"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":28,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":28,"fn":"passed","value":"1"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":29,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":29,"name":"passes","value":"1","declares":false}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":30,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":30,"fn":"score_of","args":["('ana', 88, 1)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":31,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":31,"fn":"score_of","value":"88"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":32,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":32,"name":"scores","value":"[88]","declares":false}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":33,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":33,"name":"pad","value":"4","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":34,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":34,"fn":"score_of","args":["('ana', 88, 1)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":35,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":35,"fn":"score_of","value":"88"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":36,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":36,"fn":"attempts_of","args":["('ana', 88, 1)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":37,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":37,"fn":"attempts_of","value":"1"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":38,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":38,"text":"ana    88     1         pass"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":39,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":39,"fn":"name_of","args":["('brit', 54, 2)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":40,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":40,"fn":"name_of","value":"'brit'"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":41,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":41,"name":"n","value":"'brit'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":42,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":42,"fn":"passed","args":["('brit', 54, 2)","60"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":43,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":43,"fn":"score_of","args":["('brit', 54, 2)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":44,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":44,"fn":"score_of","value":"54"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":45,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":45,"fn":"passed","value":"0"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":46,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":46,"name":"verdict","value":"'fail'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":47,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":47,"fn":"passed","args":["('brit', 54, 2)","60"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":48,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":48,"fn":"score_of","args":["('brit', 54, 2)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":49,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":49,"fn":"score_of","value":"54"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":50,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":50,"fn":"passed","value":"0"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":51,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":51,"name":"passes","value":"1","declares":false}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":52,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":52,"fn":"score_of","args":["('brit', 54, 2)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":53,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":53,"fn":"score_of","value":"54"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":54,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":54,"name":"scores","value":"[88, 54]","declares":false}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":55,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":55,"name":"pad","value":"3","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":56,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":56,"fn":"score_of","args":["('brit', 54, 2)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":57,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":57,"fn":"score_of","value":"54"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":58,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":58,"fn":"attempts_of","args":["('brit', 54, 2)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":59,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":59,"fn":"attempts_of","value":"2"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":60,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":60,"text":"brit   54     2         fail"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":61,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":61,"fn":"name_of","args":["('chen', 91, 1)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":62,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":62,"fn":"name_of","value":"'chen'"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":63,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":63,"name":"n","value":"'chen'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":64,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":64,"fn":"passed","args":["('chen', 91, 1)","60"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":65,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":65,"fn":"score_of","args":["('chen', 91, 1)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":66,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":66,"fn":"score_of","value":"91"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":67,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":67,"fn":"passed","value":"1"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":68,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":68,"name":"verdict","value":"'pass'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":69,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":69,"fn":"passed","args":["('chen', 91, 1)","60"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":70,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":70,"fn":"score_of","args":["('chen', 91, 1)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":71,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":71,"fn":"score_of","value":"91"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":72,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":72,"fn":"passed","value":"1"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":73,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":73,"name":"passes","value":"2","declares":false}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":74,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":74,"fn":"score_of","args":["('chen', 91, 1)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":75,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":75,"fn":"score_of","value":"91"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":76,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":76,"name":"scores","value":"[88, 54, 91]","declares":false}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":77,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":77,"name":"pad","value":"3","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":78,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":78,"fn":"score_of","args":["('chen', 91, 1)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":79,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":79,"fn":"score_of","value":"91"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":80,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":80,"fn":"attempts_of","args":["('chen', 91, 1)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":81,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":81,"fn":"attempts_of","value":"1"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":82,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":82,"text":"chen   91     1         pass"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":83,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":83,"fn":"name_of","args":["('dev', 47, 3)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":84,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":84,"fn":"name_of","value":"'dev'"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":85,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":85,"name":"n","value":"'dev'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":86,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":86,"fn":"passed","args":["('dev', 47, 3)","60"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":87,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":87,"fn":"score_of","args":["('dev', 47, 3)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":88,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":88,"fn":"score_of","value":"47"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":89,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":89,"fn":"passed","value":"0"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":90,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":90,"name":"verdict","value":"'fail'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":91,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":91,"fn":"passed","args":["('dev', 47, 3)","60"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":92,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":92,"fn":"score_of","args":["('dev', 47, 3)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":93,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":93,"fn":"score_of","value":"47"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":94,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":94,"fn":"passed","value":"0"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":95,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":95,"name":"passes","value":"2","declares":false}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":96,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":96,"fn":"score_of","args":["('dev', 47, 3)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":97,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":97,"fn":"score_of","value":"47"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":98,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":98,"name":"scores","value":"[88, 54, 91, 47]","declares":false}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":99,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":99,"name":"pad","value":"4","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":100,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":100,"fn":"score_of","args":["('dev', 47, 3)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":101,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":101,"fn":"score_of","value":"47"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":102,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":102,"fn":"attempts_of","args":["('dev', 47, 3)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":103,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":103,"fn":"attempts_of","value":"3"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":104,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":104,"text":"dev    47     3         fail"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":105,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":105,"fn":"name_of","args":["('eve', 72, 1)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":106,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":106,"fn":"name_of","value":"'eve'"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":107,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":107,"name":"n","value":"'eve'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":108,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":108,"fn":"passed","args":["('eve', 72, 1)","60"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":109,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":109,"fn":"score_of","args":["('eve', 72, 1)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":110,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":110,"fn":"score_of","value":"72"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":111,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":111,"fn":"passed","value":"1"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":112,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":112,"name":"verdict","value":"'pass'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":113,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":113,"fn":"passed","args":["('eve', 72, 1)","60"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":114,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":114,"fn":"score_of","args":["('eve', 72, 1)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":115,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":115,"fn":"score_of","value":"72"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":116,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":116,"fn":"passed","value":"1"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":117,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":117,"name":"passes","value":"3","declares":false}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":118,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":118,"fn":"score_of","args":["('eve', 72, 1)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":119,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":119,"fn":"score_of","value":"72"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":120,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":120,"name":"scores","value":"[88, 54, 91, 47, 72]","declares":false}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":121,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":121,"name":"pad","value":"4","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":122,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":122,"fn":"score_of","args":["('eve', 72, 1)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":123,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":123,"fn":"score_of","value":"72"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":124,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":124,"fn":"attempts_of","args":["('eve', 72, 1)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":125,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":125,"fn":"attempts_of","value":"1"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":126,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":126,"text":"eve    72     1         pass"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":127,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":127,"text":""}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":128,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":128,"text":"Passed: 3 of 5"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":129,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":129,"text":"Highest 91, lowest 47, mean 70.4"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":130,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":130,"text":""}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":131,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":131,"name":"tries","value":"[]","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":132,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":132,"fn":"attempts_of","args":["('ana', 88, 1)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":133,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":133,"fn":"attempts_of","value":"1"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":134,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":134,"name":"tries","value":"[1]","declares":false}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":135,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":135,"fn":"attempts_of","args":["('brit', 54, 2)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":136,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":136,"fn":"attempts_of","value":"2"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":137,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":137,"name":"tries","value":"[1, 2]","declares":false}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":138,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":138,"fn":"attempts_of","args":["('chen', 91, 1)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":139,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":139,"fn":"attempts_of","value":"1"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":140,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":140,"name":"tries","value":"[1, 2, 1]","declares":false}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":141,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":141,"fn":"attempts_of","args":["('dev', 47, 3)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":142,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":142,"fn":"attempts_of","value":"3"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":143,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":143,"name":"tries","value":"[1, 2, 1, 3]","declares":false}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":144,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":144,"fn":"attempts_of","args":["('eve', 72, 1)"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":145,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":145,"fn":"attempts_of","value":"1"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":146,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":146,"name":"tries","value":"[1, 2, 1, 3, 1]","declares":false}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":147,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":147,"text":"Total sittings: 8 for 5 candidates"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":148,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":148,"text":"Most attempts by one candidate: 3"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":149,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":149,"text":""}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":150,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":150,"text":"(\"ana\", 88, 1) == (\"ana\", 88, 1) is True"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":151,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":151,"text":"A row has a fixed width of 3; the TABLE is what grows, not the row."}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":152,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:done","mono":152,"ok":true,"outputs":19,"anomalies":0}

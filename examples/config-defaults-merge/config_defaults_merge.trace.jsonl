@@ -1,0 +1,69 @@
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":1,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:start","mono":1,"file":"config_defaults_merge.eml","statements":26}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":2,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":2,"fn":"resolve","params":["defaults","overrides","key"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":3,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":3,"fn":"source_of","params":["overrides","key"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":4,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":4,"name":"defaults","value":"{'verbose': True, 'retries': 3, 'timeout': 30, 'colour': True}","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":5,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":5,"name":"overrides","value":"{'verbose': False, 'timeout': 5}","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":6,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6,"text":"Defaults: 4 keys, overrides: 2 keys"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":7,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7,"text":""}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":8,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":8,"name":"header","value":"'key       value   from'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":9,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":9,"text":"key       value   from"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":10,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":10,"name":"rule","value":"'--------- ------- --------'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":11,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":11,"text":"--------- ------- --------"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":12,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":12,"name":"overridden","value":"0","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":13,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":13,"fn":"resolve","args":["{'verbose': True, 'retries': 3, 'timeout': 30, 'colour': True}","{'verbose': False, 'timeout': 5}","'verbose'"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":14,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":14,"fn":"resolve","value":"False"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":15,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":15,"name":"value","value":"False","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":16,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":16,"fn":"source_of","args":["{'verbose': False, 'timeout': 5}","'verbose'"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":17,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":17,"fn":"source_of","value":"'user'"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":18,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":18,"name":"src","value":"'user'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":19,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":19,"name":"overridden","value":"1","declares":false}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":20,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":20,"name":"pad1","value":"3","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":21,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":21,"name":"shown","value":"'False'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":22,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":22,"name":"pad2","value":"3","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":23,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":23,"text":"verbose   False   user"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":24,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":24,"fn":"resolve","args":["{'verbose': True, 'retries': 3, 'timeout': 30, 'colour': True}","{'verbose': False, 'timeout': 5}","'retries'"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":25,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":25,"fn":"resolve","value":"3"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":26,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":26,"name":"value","value":"3","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":27,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":27,"fn":"source_of","args":["{'verbose': False, 'timeout': 5}","'retries'"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":28,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":28,"fn":"source_of","value":"'default'"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":29,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":29,"name":"src","value":"'default'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":30,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":30,"name":"pad1","value":"3","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":31,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":31,"name":"shown","value":"'3'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":32,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":32,"name":"pad2","value":"7","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":33,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":33,"text":"retries   3       default"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":34,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":34,"fn":"resolve","args":["{'verbose': True, 'retries': 3, 'timeout': 30, 'colour': True}","{'verbose': False, 'timeout': 5}","'timeout'"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":35,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":35,"fn":"resolve","value":"5"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":36,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":36,"name":"value","value":"5","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":37,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":37,"fn":"source_of","args":["{'verbose': False, 'timeout': 5}","'timeout'"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":38,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":38,"fn":"source_of","value":"'user'"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":39,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":39,"name":"src","value":"'user'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":40,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":40,"name":"overridden","value":"2","declares":false}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":41,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":41,"name":"pad1","value":"3","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":42,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":42,"name":"shown","value":"'5'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":43,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":43,"name":"pad2","value":"7","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":44,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":44,"text":"timeout   5       user"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":45,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":45,"fn":"resolve","args":["{'verbose': True, 'retries': 3, 'timeout': 30, 'colour': True}","{'verbose': False, 'timeout': 5}","'colour'"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":46,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":46,"fn":"resolve","value":"True"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":47,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":47,"name":"value","value":"True","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":48,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":48,"fn":"source_of","args":["{'verbose': False, 'timeout': 5}","'colour'"],"temperature":"neutral"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":49,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":49,"fn":"source_of","value":"'default'"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":50,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":50,"name":"src","value":"'default'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":51,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":51,"name":"pad1","value":"4","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":52,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":52,"name":"shown","value":"'True'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":53,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":53,"name":"pad2","value":"4","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":54,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":54,"text":"colour    True    default"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":55,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":55,"text":""}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":56,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":56,"text":"Overridden: 2 of 4"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":57,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":57,"text":""}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":58,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":58,"name":"h","value":"'Presence is not truthiness'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":59,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":59,"text":"Presence is not truthiness"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":60,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":60,"text":"  \"verbose\" in overrides -> True, and its value is False"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":61,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":61,"text":"  \"retries\" in overrides -> False"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":62,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":62,"text":""}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":63,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":63,"name":"n1","value":"'A falsy override is still an override. Asking `if overrides[key]:`'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":64,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":64,"text":"A falsy override is still an override. Asking `if overrides[key]:`"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":65,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":65,"name":"n2","value":"'would silently fall back to the default here and re-enable verbose,'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":66,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":66,"text":"would silently fall back to the default here and re-enable verbose,"}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":67,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":67,"name":"n3","value":"'which is the opposite of what the user asked for.'","declares":true}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":68,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":68,"text":"which is the opposite of what the user asked for."}
+{"stream":"eml","proto":"phosphor-jsonl-v1","seq":69,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:done","mono":69,"ok":true,"outputs":18,"anomalies":0}

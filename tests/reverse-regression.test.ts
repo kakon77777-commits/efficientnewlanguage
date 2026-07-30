@@ -95,3 +95,68 @@ describe('a name bound by a for loop is still bound after it', () => {
     expect(eml.eml).not.toContain('n^+0');
   });
 });
+
+describe('reverse regression: sum() is not always Sigma', () => {
+  /**
+   * `sum(` is ambiguous in the Python projection. `sum(x for i in range(n))`
+   * is EML's Sigma operator; `sum(xs)` and `sum(xs, start)` are plain builtin
+   * calls. The reverse parser assumed the first unconditionally and required a
+   * `for`, so EVERY ordinary sum() call failed to reverse-parse with
+   * "Expected 'for'".
+   *
+   * Nothing noticed because sum() as a builtin was called by zero of the 149
+   * corpus programs — the Sigma form was covered, the builtin form was not.
+   * It now decides by scanning for a top-level `for` inside the parentheses.
+   */
+  it('reverse-parses an ordinary sum() call', () => {
+    for (const src of ['x = sum([])\n', 'x = sum([1, 2])\n', 'x = sum([1, 2], 10)\n', 'x = sum((1, 2))\n']) {
+      const rt = roundTripFromPython(src);
+      expect(rt.ok, `${src.trim()} -> ${rt.message}`).toBe(true);
+    }
+  });
+
+  it('still recognizes the Sigma form', () => {
+    const rt = roundTripFromPython('total = sum(i * i for i in range(1, 11))\n');
+    expect(rt.ok, rt.message).toBe(true);
+    const eml = transpilePythonToEml('total = sum(i * i for i in range(1, 11))\n');
+    expect(eml.eml).toContain('Σ');
+  });
+
+  it('handles both forms in one expression', () => {
+    const rt = roundTripFromPython('x = sum([1, 2]) + sum(i for i in range(0, 3))\n');
+    expect(rt.ok, rt.message).toBe(true);
+  });
+});
+
+describe('reverse regression: a tuple assignment must not re-parse as a call', () => {
+  /**
+   * The inline sigil form rendered a tuple assignment as `x^+(3, 4)` — and the
+   * FORWARD parser reads those parentheses as a call, producing `x(3, 4)`.
+   * An assignment silently became a function call.
+   *
+   * Only `(` is affected, because only `(` is also a postfix operator that can
+   * follow a bare name. Tuples therefore use the arrow form, which cannot be
+   * misread. Same family as the `n = 0` -> `n += 0` bug above: emitting text
+   * that re-parses as something else.
+   */
+  it('round-trips a tuple assignment', () => {
+    for (const src of ['x = (3, 4)\n', 'p = (1, 2, 3)\n', 'x = ((1 + 2) / 2, 4)\n']) {
+      const rt = roundTripFromPython(src);
+      expect(rt.ok, `${src.trim()} -> ${rt.message}`).toBe(true);
+    }
+  });
+
+  it('uses the arrow form for a tuple, not the sigil', () => {
+    const eml = transpilePythonToEml('x = (3, 4)\n');
+    expect(eml.ok).toBe(true);
+    expect(eml.eml).toContain('=> x');
+    expect(eml.eml).not.toContain('x^+(');
+  });
+
+  it('still uses the sigil for list and dict literals, which are unambiguous', () => {
+    const list = transpilePythonToEml('x = [1, 2]\n');
+    expect(list.eml).toContain('x^+[1, 2]');
+    const dict = transpilePythonToEml('x = {1: 2}\n');
+    expect(dict.eml).toContain('x^+{1: 2}');
+  });
+});

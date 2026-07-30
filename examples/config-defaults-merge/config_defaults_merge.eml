@@ -1,0 +1,65 @@
+# Self-authored for the EML case corpus (no external origin). Layering user
+# settings over defaults is a dictionary problem with one subtlety that bites
+# people: a key that is PRESENT but set to a falsy value is not the same as a
+# key that is ABSENT, and `if config[key]:` cannot tell them apart.
+#
+# The program below reports both, so the difference is visible:
+#
+#   "retries" is absent          -> the default applies
+#   "verbose" is present, False  -> the user's False must WIN over a True default
+#
+# Getting that wrong is how a program ends up ignoring someone who explicitly
+# turned a feature off. The fix is to ask about PRESENCE with `in`, and only
+# then look at the value.
+
+def resolve(defaults, overrides, key):
+    if key in overrides:
+        return overrides[key]
+    return defaults[key]
+
+def source_of(overrides, key):
+    if key in overrides:
+        return "user"
+    return "default"
+
+{"verbose": True, "retries": 3, "timeout": 30, "colour": True} => defaults
+{"verbose": False, "timeout": 5} => overrides
+
+("Defaults: " + str(len(defaults)) + " keys, overrides: " + str(len(overrides)) + " keys")^0
+""^0
+
+"key       value   from" => header
+header^0
+"--------- ------- --------" => rule
+rule^0
+0 => overridden
+for key in defaults:
+    resolve(defaults, overrides, key) => value
+    source_of(overrides, key) => src
+    if src == "user":
+        overridden + 1 => overridden
+    10 - len(key) => pad1
+    if pad1 < 1:
+        1 => pad1
+    str(value) => shown
+    8 - len(shown) => pad2
+    if pad2 < 1:
+        1 => pad2
+    (key + " " * pad1 + shown + " " * pad2 + src)^0
+
+""^0
+("Overridden: " + str(overridden) + " of " + str(len(defaults)))^0
+""^0
+
+# The subtlety, stated directly.
+"Presence is not truthiness" => h
+h^0
+("  \"verbose\" in overrides -> " + str("verbose" in overrides) + ", and its value is " + str(overrides["verbose"]))^0
+("  \"retries\" in overrides -> " + str("retries" in overrides))^0
+""^0
+"A falsy override is still an override. Asking `if overrides[key]:`" => n1
+n1^0
+"would silently fall back to the default here and re-enable verbose," => n2
+n2^0
+"which is the opposite of what the user asked for." => n3
+n3^0

@@ -1,0 +1,65 @@
+# Self-authored for the EML case corpus (no external origin). An attendance
+# register kept as a class, so the dict lives as instance state across many
+# small updates rather than being built in one pass.
+#
+# The point of interest is that a dict's key ORDER is fixed the first time a
+# key is inserted and does not change when that key is UPDATED. Marking the
+# same person present twice does not move them to the end of the report. That
+# is easy to assume either way, and it is worth a program that shows it.
+
+class Register:
+    def __init__(self):
+        {} => self.days_present
+        0 => self.marks
+
+    def mark(self, name):
+        self.marks + 1 => self.marks
+        if name in self.days_present:
+            self.days_present[name] + 1 => self.days_present[name]
+        else:
+            1 => self.days_present[name]
+
+    def attended(self, name):
+        if name in self.days_present:
+            return self.days_present[name]
+        return 0
+
+Register() => reg
+
+# Deliberately out of alphabetical order, and with repeats, so that the
+# report order is unmistakably insertion order rather than anything else.
+["chen", "ana", "brit", "chen", "dev", "ana", "chen"] => log
+for name in log:
+    reg.mark(name)
+
+("Marks recorded: " + str(reg.marks))^0
+("Distinct people: " + str(len(reg.days_present)))^0
+""^0
+
+"name   days" => header
+header^0
+"-----  ----" => rule
+rule^0
+for name in reg.days_present:
+    7 - len(name) => pad
+    if pad < 1:
+        1 => pad
+    (name + " " * pad + str(reg.days_present[name]))^0
+
+""^0
+("chen attended " + str(reg.attended("chen")) + " days")^0
+("nobody named \"kim\" is in the register: " + str(reg.attended("kim")) + " days")^0
+""^0
+
+# Order-free totals.
+[] => counts
+for name in reg.days_present:
+    counts + [reg.days_present[name]] => counts
+("Total marks via the register: " + str(sum(counts)) + " (matches " + str(reg.marks) + ": " + str(sum(counts) == reg.marks) + ")")^0
+("Best attendance: " + str(max(counts)) + " days")^0
+
+""^0
+"\"chen\" appears first in the report because chen was marked first," => n1
+n1^0
+"even though chen was also marked LAST. Updating a key does not move it." => n2
+n2^0

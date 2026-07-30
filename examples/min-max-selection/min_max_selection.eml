@@ -1,0 +1,63 @@
+# Self-authored for the EML case corpus (no external origin). min() and max()
+# have TWO call shapes, and confusing them is a classic quiet bug:
+#
+#   max(a, b, c)   compare the arguments
+#   max(iterable)  compare the ITEMS of the one argument
+#
+# One argument means "look inside this", always. That rule has a sharp edge:
+# `max("hello")` is not "hello", it is 'o' - the largest CHARACTER - because a
+# string is iterable. And `max(5)` is not 5, it is a TypeError, because an int
+# is not.
+#
+# Both of those were wrong here until this case was written. The interpreter
+# special-cased list and treated any other single argument as a one-element
+# sequence, so `max("hello")` returned the whole string and `max(5)` returned 5.
+# Neither raised; both just answered something plausible. The corpus never
+# noticed because min() was called by ZERO of 149 programs and max() by one.
+
+def spread(values):
+    return max(values) - min(values)
+
+[[42, 17, 93, 8, 61], [5, 5, 5], [0 - 3, 0 - 9, 0 - 1]] => datasets
+
+"Per-dataset extremes" => h1
+h1^0
+for ds in datasets:
+    ("  " + str(ds) + "  min=" + str(min(ds)) + "  max=" + str(max(ds)) + "  spread=" + str(spread(ds)))^0
+
+""^0
+"Argument form vs iterable form" => h2
+h2^0
+# Three arguments: compare the arguments themselves.
+("  max(3, 7, 5)      -> " + str(max(3, 7, 5)))^0
+("  min(3, 7, 5)      -> " + str(min(3, 7, 5)))^0
+# One argument: compare what is INSIDE it.
+("  max([3, 7, 5])    -> " + str(max([3, 7, 5])))^0
+("  max((3, 7, 5))    -> " + str(max((3, 7, 5))))^0
+# A string is iterable, so one string argument compares its characters.
+("  max(\"hello\")      -> " + repr(max("hello")))^0
+# Two strings are two arguments, so these compare as whole strings.
+("  max(\"pear\", \"fig\") -> " + repr(max("pear", "fig")))^0
+
+""^0
+"Ties keep the FIRST one seen" => h3
+h3^0
+# 2 and 2.0 are equal, so neither is strictly greater and the first survives.
+# You can tell which one won by its repr: 2 is an int, 2.0 is a float.
+("  max(2, 2.0) -> " + repr(max(2, 2.0)) + "   (int, the first argument)")^0
+("  max(2.0, 2) -> " + repr(max(2.0, 2)) + " (float, the first argument)")^0
+
+""^0
+"A lone non-iterable is an error, not a one-item sequence" => h4
+h4^0
+try:
+    max(5) => oops
+    ("  max(5) returned " + str(oops) + " - this line should be unreachable")^0
+except TypeError as e:
+    ("  max(5) raised TypeError: " + str(e))^0
+
+try:
+    min([]) => empty
+    ("  min([]) returned " + str(empty))^0
+except ValueError as e:
+    ("  min([]) raised ValueError: " + str(e))^0

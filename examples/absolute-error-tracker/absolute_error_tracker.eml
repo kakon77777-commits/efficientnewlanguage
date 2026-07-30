@@ -1,0 +1,63 @@
+# Self-authored for the EML case corpus (no external origin). Comparing a
+# measurement against a target is one of the few places where the SIGN of the
+# difference is noise and the MAGNITUDE is the whole point - so this is really
+# a program about abs().
+#
+# Worth stating plainly: `abs` was called by ZERO of the 149 corpus programs
+# before this one. It had been implemented since the first interpreter and
+# never once executed by a case. That is not an accident of this particular
+# builtin - measuring the corpus by BUILTIN rather than by syntax construct
+# found five such functions at zero, and probing their untested argument shapes
+# against CPython turned up twelve real divergences.
+#
+# abs() has one genuinely surprising rule, exercised below: bool is a subclass
+# of int in Python, so abs(True) is 1 - an int, not a bool. It is the same
+# reason True + True is 2.
+
+def deviation(reading, target):
+    return abs(reading - target)
+
+def within_tolerance(reading, target, tol):
+    if deviation(reading, target) <= tol:
+        return 1
+    return 0
+
+[9.8, 10.4, 10.0, 11.7, 8.1] => readings
+10.0 => target
+1.0 => tolerance
+
+"Target: " + str(target) + ", tolerance +/-" + str(tolerance) => header
+header^0
+"" ^0
+
+0 => passing
+0 => worst_index
+0.0 => worst
+0 => i
+for r in readings:
+    deviation(r, target) => d
+    if within_tolerance(r, target, tolerance) == 1:
+        "  reading " + str(i) + ": " + str(r) + "  off by " + str(d) + "  ok" => line
+    else:
+        "  reading " + str(i) + ": " + str(r) + "  off by " + str(d) + "  OUT" => line
+    line^0
+    passing + within_tolerance(r, target, tolerance) => passing
+    if d > worst:
+        d => worst
+        i => worst_index
+    i + 1 => i
+
+""^0
+("Passing: " + str(passing) + " of " + str(len(readings)))^0
+("Worst deviation: " + str(worst) + " at index " + str(worst_index))^0
+
+# The magnitude is symmetric: a reading 1.7 high and one 1.7 low are equally
+# wrong, and abs() is what makes that true in one expression instead of two.
+(0.0 - 1.7) => low
+1.7 => high
+("Symmetry: abs(" + str(low) + ") == abs(" + str(high) + ") is " + str(abs(low) == abs(high)))^0
+
+# bool is an int subtype, so abs() of a bool is an int. This is the same rule
+# that makes True + True == 2, and it is easy to forget until a total comes
+# out as an integer where a boolean was expected.
+("abs(True) is " + repr(abs(True)) + ", not a bool")^0
