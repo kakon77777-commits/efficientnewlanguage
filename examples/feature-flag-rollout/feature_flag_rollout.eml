@@ -1,0 +1,79 @@
+# Self-authored for the EML case corpus (no external origin). Feature flags per
+# environment, answered with set algebra instead of nested conditionals.
+#
+# "Is this environment ready to be promoted" is a subset test; "what would
+# promoting change" is a difference. Both are one line, and the empty cases
+# fall out correctly for free - set() <= anything is True, which is the right
+# answer for a release with no flags.
+#
+# Counts and membership are printed rather than the sets themselves: rendering
+# a multi-element set exposes an iteration order this interpreter cannot
+# reproduce (CPython uses hash order), so it defers instead of guessing.
+
+def ready_to_promote(source, target):
+    return source <= target
+
+def would_enable(source, target):
+    return source - target
+
+def would_disable(source, target):
+    return target - source
+
+def flags_in(known, env):
+    "" => shown
+    for f in known:
+        if f in env:
+            if shown == "":
+                f => shown
+            else:
+                shown + ", " + f => shown
+    if shown == "":
+        "(none)" => shown
+    return shown
+
+["dark_mode", "legacy_export", "new_search"] => known
+
+{"dark_mode", "new_search"} => dev
+{"dark_mode"} => staging
+{"dark_mode", "legacy_export"} => prod
+
+"env      count  flags" => header
+header^0
+"-------  -----  -------------------------" => rule
+rule^0
+[["dev", dev], ["staging", staging], ["prod", prod]] => envs
+for entry in envs:
+    entry[0] => name
+    entry[1] => env
+    9 - len(name) => pad
+    if pad < 1:
+        1 => pad
+    (name + " " * pad + str(len(env)) + "      " + flags_in(known, env))^0
+
+""^0
+"Promoting dev -> prod" => h
+h^0
+("  would enable : " + flags_in(known, would_enable(dev, prod)))^0
+("  would disable: " + flags_in(known, would_disable(dev, prod)))^0
+("  is prod already a superset of dev? " + str(ready_to_promote(dev, prod)))^0
+""^0
+
+"Promoting staging -> dev (staging is a subset, so nothing is lost)" => h2
+h2^0
+("  would enable : " + flags_in(known, would_enable(staging, dev)))^0
+("  would disable: " + flags_in(known, would_disable(staging, dev)))^0
+("  is dev already a superset of staging? " + str(ready_to_promote(staging, dev)))^0
+""^0
+
+"dev and prod are NOT comparable" => h3
+h3^0
+("  dev <= prod: " + str(dev <= prod) + "   prod <= dev: " + str(prod <= dev))^0
+("  Each has a flag the other lacks, so neither contains the other.")^0
+("  There is no 'more advanced' environment here - only a diff.")^0
+""^0
+
+# Intersection, spelled with difference because EML-P has no `&` token.
+dev - would_enable(dev, staging) => dev_and_staging
+dev_and_staging - would_enable(dev_and_staging, prod) => everywhere
+("Enabled in all three environments: " + flags_in(known, everywhere))^0
+("An empty flag set promotes into anything: " + str(set() <= prod))^0

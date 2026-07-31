@@ -1,0 +1,66 @@
+# Self-authored for the EML case corpus (no external origin). What you may and
+# may not ask a set, and why the line falls where it does.
+#
+# A set has no defined order. CPython still PRINTS one - its internal hash
+# order - and that order is neither insertion order nor sorted order:
+#
+#   list({"washers", "rivets"})  ->  ['rivets', 'washers']
+#   list({3, 1, 2})              ->  [1, 2, 3]
+#
+# This interpreter stores insertion order. It cannot reproduce CPython's hash
+# order without reimplementing CPython's hash table, so anything that would
+# EXPOSE an order defers to real Python instead of inventing one:
+#
+#   iterating a set          defers
+#   printing a set of 2+     defers
+#   summing a set of floats  defers   (addition is not associative)
+#
+# Everything whose answer cannot depend on the order still works, and that is
+# most of what a set is actually for.
+
+def has_all(required, held):
+    return required <= held
+
+{"tea", "coffee", "cocoa"} => stock
+["cocoa", "coffee", "tea", "water"] => menu
+
+"Order-free questions: all fine" => h
+h^0
+("  len(stock)          -> " + str(len(stock)))^0
+("  \"tea\" in stock      -> " + str("tea" in stock))^0
+("  \"water\" in stock    -> " + str("water" in stock))^0
+("  {\"tea\"} <= stock    -> " + str({"tea"} <= stock))^0
+("  len(stock - {\"tea\"}) -> " + str(len(stock - {"tea"})))^0
+""^0
+
+"Reporting the contents, in an order the PROGRAM picks" => h2
+h2^0
+"" => listed
+for item in menu:
+    if item in stock:
+        if listed == "":
+            item => listed
+        else:
+            listed + ", " + item => listed
+("  walking the menu: " + listed)^0
+("  the menu is a LIST, so this line is identical on every runtime")^0
+""^0
+
+# A 0- or 1-element set has only one possible rendering, so it prints normally.
+"Sets small enough to have one rendering print fine" => h3
+h3^0
+("  empty      -> " + str(set()))^0
+("  one member -> " + str({"tea"}))^0
+("  larger sets defer instead of guessing an order")^0
+""^0
+
+"The rule, stated once" => h4
+h4^0
+"  Use a set to ANSWER a question. Use a list to PRODUCE a sequence." => r1
+r1^0
+"  Relying on set order means relying on something Python never promised," => r2
+r2^0
+"  so a runtime that refuses is telling you the truth about your program." => r3
+r3^0
+""^0
+("Ordered check via the menu: does stock cover the first three? " + str(has_all({"cocoa", "coffee", "tea"}, stock)))^0

@@ -1,0 +1,80 @@
+# Self-authored for the EML case corpus (no external origin). Sorting by a
+# comparison that is only a PARTIAL order - and what the result actually means.
+#
+# Numbers are totally ordered: for any a and b, exactly one of a < b, a == b,
+# a > b holds. Sets are not. For {1,2} and {2,3}, ALL of <, <=, >, >= are
+# False, and neither is "smaller".
+#
+# A sort routine does not know that. Written against a partial order it still
+# terminates and still returns something, and the something is an ARBITRARY
+# arrangement of the incomparable elements - it depends only on the order they
+# happened to arrive in. Nothing raises. The program below runs the SAME sort
+# over the SAME sets in two different input orders and prints both results, so
+# the arbitrariness is visible rather than argued.
+
+def insertion_sort_sets(items):
+    [] => out
+    for x in items:
+        [] => merged
+        0 => placed
+        for y in out:
+            if placed == 0:
+                if x < y:
+                    merged + [x] => merged
+                    1 => placed
+            merged + [y] => merged
+        if placed == 0:
+            merged + [x] => merged
+        merged => out
+    return out
+
+def render(sets, names):
+    "" => shown
+    for s in sets:
+        "?" => label
+        for entry in names:
+            if entry[1] == s:
+                entry[0] => label
+        if shown == "":
+            label => shown
+        else:
+            shown + " " + label => shown
+    return shown
+
+{1} => a
+{1, 2} => b
+{2, 3} => c
+[["a", a], ["b", b], ["c", c]] => names
+
+"The three sets" => h
+h^0
+("  a = {1}     b = {1,2}   c = {2,3}")^0
+""^0
+"Which pairs are comparable?" => h2
+h2^0
+("  a < b : " + str(a < b) + "     (a is a proper subset of b)")^0
+("  b < c : " + str(b < c) + "    b > c : " + str(b > c) + "   <- neither! incomparable")^0
+("  a < c : " + str(a < c) + "    a > c : " + str(a > c) + "   <- also incomparable")^0
+""^0
+
+"Sorting the same three sets, in two input orders" => h3
+h3^0
+insertion_sort_sets([a, b, c]) => order1
+insertion_sort_sets([c, b, a]) => order2
+("  input a b c  ->  " + render(order1, names))^0
+("  input c b a  ->  " + render(order2, names))^0
+("  same sort, same values, different answers: " + str(render(order1, names) != render(order2, names)))^0
+""^0
+
+"Why this is worse than an error" => h4
+h4^0
+"  Nothing raised. Both runs produced a plausible-looking list." => n1
+n1^0
+"  A partial order gives a sort no reason to prefer either arrangement," => n2
+n2^0
+"  so the output records arrival order dressed up as a ranking." => n3
+n3^0
+""^0
+"  If you need a stable ranking, sort by something TOTAL - the size," => n4
+n4^0
+("  for instance: a=" + str(len(a)) + " b=" + str(len(b)) + " c=" + str(len(c)) + ", which never leaves two items tied-and-unordered.")^0

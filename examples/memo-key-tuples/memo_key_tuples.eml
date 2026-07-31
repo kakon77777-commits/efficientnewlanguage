@@ -1,0 +1,60 @@
+# Self-authored for the EML case corpus (no external origin). Memoising a
+# two-argument function by hand, using a (a, b) tuple as the cache key.
+#
+# This is the shape `@cold` gives you automatically, written out explicitly so
+# the mechanism is visible - and it is the clearest demonstration of why tuple
+# hashing matters. Without it the only key available is a string like
+# str(a) + "," + str(b), which collides: (1, 23) and (12, 3) both render as
+# "1,23" and "12,3"... which happen to differ, but (1, 2) and ("1", 2) do not.
+# A tuple key keeps the types apart because tuple equality compares elements,
+# and 1 != "1".
+#
+# The collision is demonstrated below rather than asserted.
+
+def binomial(n, k, cache):
+    (n, k) => key
+    if key in cache:
+        return cache[key]
+    if k == 0:
+        1 => value
+    else:
+        if k == n:
+            1 => value
+        else:
+            binomial(n - 1, k - 1, cache) + binomial(n - 1, k, cache) => value
+    value => cache[key]
+    return value
+
+{} => cache
+("C(6, 3) = " + str(binomial(6, 3, cache)))^0
+("distinct (n, k) pairs cached: " + str(len(cache)))^0
+""^0
+
+"A few cached entries, keyed by tuple:" => h
+h^0
+0 => shown
+for key in cache:
+    if shown < 5:
+        ("  " + str(key) + " -> " + str(cache[key]))^0
+        shown + 1 => shown
+
+""^0
+"Why a tuple key and not a joined string" => h2
+h2^0
+# Tuple keys keep the element TYPES distinct.
+{} => tup_keyed
+"int pair" => tup_keyed[(1, 2)]
+"str pair" => tup_keyed[("1", 2)]
+("  tuple keys (1,2) and (\"1\",2) are distinct: " + str(len(tup_keyed)) + " entries")^0
+
+{} => str_keyed
+"int pair" => str_keyed[str(1) + "," + str(2)]
+"str pair" => str_keyed[str("1") + "," + str(2)]
+("  joined-string keys collapse to: " + str(len(str_keyed)) + " entry - the second overwrote the first")^0
+("  the survivor is " + repr(str_keyed["1,2"]) + ", so the int pair was lost")^0
+""^0
+
+"A tuple key is also readable back out - no parsing:" => h3
+h3^0
+(6, 3) => k
+("  key " + str(k) + " has n=" + str(k[0]) + " and k=" + str(k[1]))^0

@@ -1,0 +1,62 @@
+# Self-authored for the EML case corpus (no external origin). What `%` does
+# with its RIGHT operand, which is stranger than the format specifiers are.
+#
+#   "%s %s" % (a, b)   a TUPLE supplies one value per specifier
+#   "%s"    % a        anything else is ONE value
+#
+# The rule that looks arbitrary until you know why:
+#
+#   "ab" % 5        TypeError: not all arguments converted
+#   "ab" % [1, 2]   "ab"          <- no error
+#   "ab" % {"a":1}  "ab"          <- no error
+#
+# CPython skips the leftover-argument check whenever the right operand is
+# MAPPING-LIKE, and its `PyMapping_Check` counts a LIST as mapping-like because
+# a list has __getitem__. So the distinction is about the type's protocol, not
+# about the role you had in mind for it. Verified against 3.14 rather than
+# reasoned out - this interpreter raised TypeError for the list and dict rows.
+
+def describe(label, produce):
+    return label
+
+"A tuple supplies one value per specifier" => h
+h^0
+("  \"%s scored %s\" % (\"ana\", 88) -> " + ("%s scored %s" % ("ana", 88)))^0
+("  \"%d%%\" % 75                  -> " + ("%d%%" % 75))^0
+""^0
+
+"Anything that is not a tuple is a SINGLE value" => h2
+h2^0
+("  \"%s\" % 5          -> " + ("%s" % 5))^0
+("  \"%s\" % [1, 2]     -> " + ("%s" % [1, 2]) + "   <- the whole list, not two values")^0
+""^0
+
+"Leftover arguments: an error only for non-mapping-like operands" => h3
+h3^0
+("  \"ab\" % [1, 2]     -> " + repr("ab" % [1, 2]) + "      (list is mapping-like)")^0
+("  \"ab\" % {\"a\": 1}   -> " + repr("ab" % {"a": 1}) + "      (dict is mapping-like)")^0
+try:
+    "ab" % 5 => oops
+    ("  \"ab\" % 5 gave " + repr(oops) + " - unreachable")^0
+except TypeError as e:
+    ("  \"ab\" % 5          -> TypeError: " + str(e))^0
+try:
+    "ab" % (1, 2) => oops2
+    ("  \"ab\" % (1, 2) gave " + repr(oops2) + " - unreachable")^0
+except TypeError as e:
+    ("  \"ab\" % (1, 2)     -> TypeError: " + str(e))^0
+""^0
+
+"Too FEW arguments is always an error" => h4
+h4^0
+try:
+    "%s and %s" % ("only one",) => bad
+    ("  gave " + repr(bad) + " - unreachable")^0
+except TypeError as e:
+    ("  \"%s and %s\" % (\"only one\",) -> " + str(e))^0
+""^0
+
+"Practical reading: pass a tuple when you mean several values." => n1
+n1^0
+"Passing a bare list looks like several and behaves like one." => n2
+n2^0

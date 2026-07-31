@@ -24,13 +24,19 @@ export type PyVal =
   | { k: 'str'; v: string }
   | { k: 'bool'; v: boolean }
   | { k: 'list'; v: PyVal[] }
-  // Phase 9 item 3a: a real, immutable sequence value — same shape as `list`,
-  // but a DIFFERENT kind (a tuple never equals a list with the same elements,
-  // matching real Python). Deliberately narrower than list this round: no
-  // arith (`+`/`*`) or ordering-comparison support, and NOT hashable (see
-  // `isHashable`) — none of these are exercised by the real corpus yet, and
-  // each already fails loud via an existing generic default rather than
-  // computing something silently wrong. See docs/roadmap.md Phase 9 item 3a.
+  // A real, immutable sequence value — same shape as `list`, but a DIFFERENT
+  // kind (a tuple never equals a list with the same elements, matching real
+  // Python).
+  //
+  // Introduced deliberately narrow: no `+`/`*`, no ordering, not hashable, on
+  // the reasoning that none were exercised by the corpus and each failed loud
+  // rather than computing something wrong. Failing loud was true; "not
+  // exercised" was an artifact of what the corpus happened to contain, and the
+  // four narrowings turned out to be four SEPARATE omissions in four
+  // hand-written type lists. All are now implemented and gated by
+  // tests/operator-matrix.test.ts: concatenation, repetition (preserving the
+  // type), lexicographic ordering, and recursive hashability so `(row, col)`
+  // can key a dict — which is the main reason tuples exist.
   | { k: 'tuple'; v: PyVal[] }
   // Phase 7b: dict/set, keyed by `canonicalKey()` (a JS Map can't use PyVal
   // structural equality directly). A dict entry keeps both the original key
@@ -120,7 +126,64 @@ export function canonicalKey(v: PyVal): string {
   }
   if (v.k === 'str') return `s:${v.v}`;
   if (v.k === 'none') return 'z:None';
+  // A TUPLE is hashable in Python iff all its elements are, which is what
+  // makes `(row, col)` usable as a dict key — the single most common reason
+  // to reach for a tuple at all. This was rejected outright, so a coordinate
+  // could not key a grid. Recursive by construction: a tuple containing a
+  // list raises here, exactly as Python does.
+  if (v.k === 'tuple') return `t:(${v.v.map(canonicalKey).join(',')})`;
   throw new PyError('TypeError', `unhashable type: '${typeName(v)}'`);
+}
+
+/**
+ * `canonicalKey`, but reporting the failure the way CPython does at a USE SITE.
+ *
+ * Bare `hash((1, [2]))` says `unhashable type: 'list'` — the inner offender.
+ * Using the same value as a container key says
+ *
+ *     cannot use 'tuple' as a dict key (unhashable type: 'list')
+ *
+ * naming BOTH the value you tried to use and the element that made it
+ * impossible. That extra context is the whole difference between an error that
+ * points at your code and one that points at a type you never mentioned.
+ * Wording verified against 3.14 for dict keys, set elements and both
+ * membership tests, not reconstructed from memory.
+ */
+/**
+ * Does rendering this value to text expose a SET's iteration order?
+ *
+ * CPython prints a set in hash order; this interpreter stores insertion order.
+ * They coincide often enough to be dangerous — `{1, 2, 3}` matches — and
+ * diverge as soon as the elements are strings, or the ints were inserted out
+ * of order:
+ *
+ *     list({"washers", "rivets"})  ->  ['rivets', 'washers']   in CPython
+ *                                      ['washers', 'rivets']   here
+ *
+ * Iterating a set already defers for exactly this reason. PRINTING one is the
+ * same hazard through a different door, and it was still open: `str(a_set)`
+ * happily produced our order, so a program could print a different line than
+ * its own Python projection and nothing would say so.
+ *
+ * A set of 0 or 1 elements has only one possible rendering, so it prints
+ * normally. Recursive, because a set can sit inside a list or a tuple.
+ */
+export function rendersSetOrder(v: PyVal): boolean {
+  if (v.k === 'set') return v.v.size > 1;
+  if (v.k === 'list' || v.k === 'tuple') return v.v.some(rendersSetOrder);
+  if (v.k === 'dict') return [...v.v.values()].some((e) => rendersSetOrder(e.key) || rendersSetOrder(e.value));
+  return false;
+}
+
+export function canonicalKeyAt(v: PyVal, site: 'dict key' | 'set element'): string {
+  try {
+    return canonicalKey(v);
+  } catch (e) {
+    if (e instanceof PyError && e.pyType === 'TypeError') {
+      throw new PyError('TypeError', `cannot use '${typeName(v)}' as a ${site} (${e.message})`);
+    }
+    throw e;
+  }
 }
 
 /** Build a dict PyVal from literal entries, in source order. A later entry
@@ -129,7 +192,7 @@ export function canonicalKey(v: PyVal): string {
 export const DICT = (entries: { key: PyVal; value: PyVal }[]): PyVal => {
   const m = new Map<string, { key: PyVal; value: PyVal }>();
   for (const e of entries) {
-    const ck = canonicalKey(e.key);
+    const ck = canonicalKeyAt(e.key, 'dict key');
     const existing = m.get(ck);
     m.set(ck, { key: existing ? existing.key : e.key, value: e.value });
   }
@@ -141,7 +204,7 @@ export const DICT = (entries: { key: PyVal; value: PyVal }[]): PyVal => {
 export const SET = (elements: PyVal[]): PyVal => {
   const m = new Map<string, PyVal>();
   for (const e of elements) {
-    const ck = canonicalKey(e);
+    const ck = canonicalKeyAt(e, 'set element');
     if (!m.has(ck)) m.set(ck, e);
   }
   return { k: 'set', v: m };
@@ -237,14 +300,44 @@ export function arith(op: ArithOp, a: PyVal, b: PyVal): PyVal {
   if (op === '+') {
     if (a.k === 'str' && b.k === 'str') return STR(a.v + b.v);
     if (a.k === 'list' && b.k === 'list') return LIST([...a.v, ...b.v]);
-    if (a.k === 'str' || b.k === 'str' || a.k === 'list' || b.k === 'list') {
+    // Tuples concatenate too, and the result is a TUPLE. This was the fifth
+    // place a hand-written "which types are sequences" list had left tuple
+    // off; the recurring shape is the finding, not the individual omission.
+    if (a.k === 'tuple' && b.k === 'tuple') return TUPLE([...a.v, ...b.v]);
+    // A failed `+` gets one of TWO messages, decided by the LEFT operand:
+    //
+    //   "3" + 4      can only concatenate str (not "int") to str
+    //   4 + "3"      unsupported operand type(s) for +: 'int' and 'str'
+    //
+    // The concatenation wording appears whenever the left side is a sequence,
+    // because that is the operand whose __add__ ran and refused. Same failure,
+    // opposite operands, different sentence — verified across the whole
+    // combination table against 3.14 rather than inferred from one example.
+    if (a.k === 'str' || a.k === 'list' || a.k === 'tuple') {
+      throw new PyError('TypeError', `can only concatenate ${typeName(a)} (not "${typeName(b)}") to ${typeName(a)}`);
+    }
+    if (b.k === 'str' || b.k === 'list' || b.k === 'tuple') {
       if (!(isNumeric(a) && isNumeric(b)))
         throw new PyError('TypeError', `unsupported operand type(s) for +: '${typeName(a)}' and '${typeName(b)}'`);
     }
   }
+  // Set difference. `-` is the only arithmetic operator a set supports here:
+  // Python also gives sets `|`, `&` and `^`, which EML has no tokens for, so
+  // they are not reachable and are not modelled.
+  if (op === '-' && a.k === 'set' && b.k === 'set') {
+    return SET([...a.v.entries()].filter(([k]) => !b.v.has(k)).map(([, v]) => v));
+  }
   if (op === '*') {
     const rep = seqRepeat(a, b);
     if (rep) return rep;
+    // A sequence multiplied by a non-integer has its own message naming the
+    // OTHER operand — `can't multiply sequence by non-int of type 'float'` —
+    // rather than the generic unsupported-operand form. Sixty cells of the
+    // matrix differed only in this sentence.
+    const seqSide = a.k === 'str' || a.k === 'list' || a.k === 'tuple' ? b : b.k === 'str' || b.k === 'list' || b.k === 'tuple' ? a : null;
+    if (seqSide) {
+      throw new PyError('TypeError', `can't multiply sequence by non-int of type '${typeName(seqSide)}'`);
+    }
   }
 
   if (!isNumeric(a) || !isNumeric(b)) {
@@ -367,12 +460,13 @@ export function pySum(items: Iterable<PyVal>, start: PyVal): PyVal {
 
 /** Python `seq * int` / `int * seq` repetition; null if not a repeat case. */
 function seqRepeat(a: PyVal, b: PyVal): PyVal | null {
-  const pair =
-    (a.k === 'str' || a.k === 'list') && (b.k === 'int' || b.k === 'bool')
-      ? ([a, b] as const)
-      : (b.k === 'str' || b.k === 'list') && (a.k === 'int' || a.k === 'bool')
-        ? ([b, a] as const)
-        : null;
+  // Tuple was missing here, so `(1, 2) * 3` and `3 * (1, 2)` both raised
+  // TypeError where Python repeats. Repetition preserves the TYPE — a
+  // repeated tuple is a tuple, not a list — which is why this cannot just
+  // funnel everything through LIST().
+  const isSeq = (v: PyVal) => v.k === 'str' || v.k === 'list' || v.k === 'tuple';
+  const isCount = (v: PyVal) => v.k === 'int' || v.k === 'bool';
+  const pair = isSeq(a) && isCount(b) ? ([a, b] as const) : isSeq(b) && isCount(a) ? ([b, a] as const) : null;
   if (!pair) return null;
   const [seq, count] = pair;
   const n = Number(toBig(count));
@@ -380,7 +474,7 @@ function seqRepeat(a: PyVal, b: PyVal): PyVal | null {
   if (seq.k === 'str') return STR(seq.v.repeat(times));
   const out: PyVal[] = [];
   for (let i = 0; i < times; i++) out.push(...seq.v);
-  return LIST(out);
+  return seq.k === 'tuple' ? TUPLE(out) : LIST(out);
 }
 
 export function power(base: PyVal, exp: PyVal): PyVal {
@@ -408,8 +502,28 @@ export function compare(op: CmpOp, a: PyVal, b: PyVal): PyVal {
   if (op === '!=') return BOOL(!pyEquals(a, b));
   // Any ordering comparison involving NaN is False in Python.
   if (isNan(a) || isNan(b)) return BOOL(false);
+  // SETS DO NOT ORDER — they compare by INCLUSION. `<` is proper subset, `<=`
+  // is subset, and the pair is PARTIAL: for {1,2} and {2,3}, all four of
+  // `<`, `<=`, `>`, `>=` are False and neither set is "smaller". Sorting by
+  // this operator is therefore meaningless, which is exactly the trap: the
+  // syntax looks like ordering and is not.
+  if (a.k === 'set' && b.k === 'set') {
+    const subset = (x: typeof a.v, y: typeof b.v) => [...x.keys()].every((k) => y.has(k));
+    const aSubB = subset(a.v, b.v);
+    const bSubA = subset(b.v, a.v);
+    switch (op) {
+      case '<':
+        return BOOL(aSubB && !bSubA);
+      case '<=':
+        return BOOL(aSubB);
+      case '>':
+        return BOOL(bSubA && !aSubB);
+      case '>=':
+        return BOOL(bSubA);
+    }
+  }
   // Ordering: numbers among themselves, strings among themselves, lists lexicographically.
-  const c = order(a, b);
+  const c = order(a, b, op);
   switch (op) {
     case '>':
       return BOOL(c > 0);
@@ -431,7 +545,7 @@ function intFloatOrder(i: bigint, f: number): number {
   return f > fi ? -1 : 0; // i == floor(f); a fractional part makes f the larger
 }
 
-function order(a: PyVal, b: PyVal): number {
+function order(a: PyVal, b: PyVal, op: string = '<'): number {
   if (isNumeric(a) && isNumeric(b)) {
     const aF = isFloaty(a);
     const bF = isFloaty(b);
@@ -461,14 +575,14 @@ function order(a: PyVal, b: PyVal): number {
   if ((a.k === 'list' && b.k === 'list') || (a.k === 'tuple' && b.k === 'tuple')) {
     const n = Math.min(a.v.length, b.v.length);
     for (let i = 0; i < n; i++) {
-      const c = order(a.v[i]!, b.v[i]!);
+      const c = order(a.v[i]!, b.v[i]!, op);
       if (c !== 0) return c;
     }
     return a.v.length - b.v.length;
   }
   throw new PyError(
     'TypeError',
-    `'<' not supported between instances of '${typeName(a)}' and '${typeName(b)}'`,
+    `'${op}' not supported between instances of '${typeName(a)}' and '${typeName(b)}'`,
   );
 }
 
@@ -530,10 +644,17 @@ export function contains(element: PyVal, collection: PyVal): PyVal {
     return BOOL(collection.v.includes(element.v));
   }
   if (collection.k === 'dict' || collection.k === 'set') {
-    if (!isHashable(element)) throw new PyError('TypeError', `unhashable type: '${typeName(element)}'`);
-    return BOOL(collection.v.has(canonicalKey(element)));
+    // CPython quirk, verified rather than assumed: `set.__contains__` catches
+    // the TypeError from an unhashable SET argument and retries it as a
+    // frozenset, so `{1, 2} in {1, 2}` answers False instead of raising. A
+    // set can therefore be asked about even though it can never be stored.
+    // Nothing else gets this rescue — `[1] in {1}` still raises.
+    if (element.k === 'set' && collection.k === 'set') {
+      return BOOL(collection.v.has(`f:{${[...element.v.keys()].sort().join(',')}}`));
+    }
+    return BOOL(collection.v.has(canonicalKeyAt(element, collection.k === 'dict' ? 'dict key' : 'set element')));
   }
-  throw new PyError('TypeError', `argument of type '${typeName(collection)}' is not iterable`);
+  throw new PyError('TypeError', `argument of type '${typeName(collection)}' is not a container or iterable`);
 }
 
 // ── Formatting (str / repr) ──────────────────────────────────────────────────
@@ -729,26 +850,28 @@ export function floatRepr(n: number): string {
  * unaffected; only the interpreter's own caching/dict-key logic declines.
  *
  * A real Python tuple is hashable when every element is (`hash((1,2))` works;
- * `hash((1,[2]))` raises `TypeError`), but that recursive check isn't needed
- * by the real corpus this round (Phase 9 item 3a), so `tuple` stays excluded
- * here too — a documented gap (tuple-as-dict-key fails loud), not a partial,
- * possibly-wrong hashability implementation.
+ * `hash((1,[2]))` raises `TypeError`). That recursive rule is now implemented,
+ * because `(row, col)` as a dict key is the single most common reason to reach
+ * for a tuple and it used to fail.
+ *
+ * DERIVED from `canonicalKey` rather than restated. This used to be a second
+ * hand-written list of kinds that had to agree with canonicalKey's, and the
+ * two disagreeing is precisely the bug shape this project keeps finding — the
+ * same set enumerated twice, drifting apart. Asking the one authority whether
+ * it can produce a key makes disagreement impossible rather than unlikely.
+ *
+ * Exception classes and instances ARE hashable in Python, but canonicalKey has
+ * no identity-stable form for them, so it declines and they are reported
+ * unhashable here: a loud TypeError instead of a key that would silently merge
+ * distinct objects.
  */
 export function isHashable(v: PyVal): boolean {
-  return (
-    v.k !== 'list' &&
-    v.k !== 'tuple' &&
-    v.k !== 'dict' &&
-    v.k !== 'set' &&
-    v.k !== 'class' &&
-    v.k !== 'instance' &&
-    // Exception classes and instances ARE hashable in Python, but `canonicalKey`
-    // has no identity-stable form for them, so they are excluded here rather
-    // than given a key that would silently merge distinct objects. Using one as
-    // a dict key raises TypeError instead of computing something wrong.
-    v.k !== 'exc_class' &&
-    v.k !== 'exception'
-  );
+  try {
+    canonicalKey(v);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // ── `%` string-formatting (Phase 9 item 3a) ─────────────────────────────────
@@ -875,7 +998,7 @@ function expExact(x: number, places: number): string {
  * right-hand side, and EML's `%` operator only ever passes a tuple or a single
  * value. CPython raises TypeError for that combination too.
  */
-export function percentFormat(fmt: string, args: PyVal[]): string {
+export function percentFormat(fmt: string, args: PyVal[], mappingLike = false): string {
   let argIdx = 0;
   const nextArg = (): PyVal => {
     if (argIdx >= args.length) throw new PyError('TypeError', 'not enough arguments for format string');
@@ -1026,6 +1149,10 @@ export function percentFormat(fmt: string, args: PyVal[]): string {
       throw new PyError('ValueError', `unsupported format character '${spec}' (0x${spec.charCodeAt(0).toString(16)})`);
     }
   }
-  if (argIdx < args.length) throw new PyError('TypeError', 'not all arguments converted during string formatting');
+  // Leftover arguments are an error only when the right operand was NOT
+  // mapping-like — see the caller for why a list counts as mapping-like.
+  if (!mappingLike && argIdx < args.length) {
+    throw new PyError('TypeError', 'not all arguments converted during string formatting');
+  }
   return out;
 }

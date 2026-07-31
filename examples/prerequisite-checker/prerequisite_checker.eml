@@ -1,0 +1,68 @@
+# Self-authored for the EML case corpus (no external origin). Course
+# prerequisites: can a student enrol? The question "are all requirements met"
+# IS a subset test, and writing it as one is both shorter and less error-prone
+# than a loop with a flag.
+#
+#   required <= completed
+#
+# The difference tells you what is still outstanding, in one operation:
+#
+#   required - completed
+#
+# Both were unavailable here until this round. Written as a loop instead, the
+# usual bug is forgetting to initialise the flag to True for the empty case -
+# a course with NO prerequisites should always be enrollable, and `set() <= x`
+# is True for every x, which is the right answer for free.
+
+def outstanding(required, completed):
+    return required - completed
+
+def eligible(required, completed):
+    return required <= completed
+
+{"algebra", "geometry"} => calculus_reqs
+{} => catalogue
+calculus_reqs => catalogue["calculus"]
+{"calculus"} => catalogue["analysis"]
+{"algebra"} => catalogue["statistics"]
+set() => catalogue["intro"]
+
+{"algebra", "geometry", "history"} => alice
+{"algebra"} => bob
+
+("Catalogue: " + str(len(catalogue)) + " courses")^0
+""^0
+
+"course       alice        bob" => header
+header^0
+"-----------  -----------  -----------" => rule
+rule^0
+for course in catalogue:
+    catalogue[course] => reqs
+    if eligible(reqs, alice):
+        "yes" => a
+    else:
+        "needs " + str(len(outstanding(reqs, alice))) => a
+    if eligible(reqs, bob):
+        "yes" => b
+    else:
+        "needs " + str(len(outstanding(reqs, bob))) => b
+    13 - len(course) => pad1
+    if pad1 < 1:
+        1 => pad1
+    13 - len(a) => pad2
+    if pad2 < 1:
+        1 => pad2
+    (course + " " * pad1 + a + " " * pad2 + b)^0
+
+""^0
+"The empty prerequisite set is enrollable by everyone" => h
+h^0
+("  set() <= alice -> " + str(set() <= alice))^0
+("  set() <= set() -> " + str(set() <= set()))^0
+("  a loop with a badly-initialised flag gets this case wrong;")^0
+("  the subset test gets it right without a special case.")^0
+""^0
+
+("What bob still needs for calculus: " + str(outstanding(calculus_reqs, bob)))^0
+("Has bob strictly fewer of them than required? " + str(bob < calculus_reqs))^0

@@ -220,6 +220,8 @@ const SEMANTIC_FILES = [
     ['tests/interp.test.ts', 'tests/phase7d-exceptions.test.ts', 'tests/builtin-shapes.test.ts'],
   ],
   ['packages/transpiler-python/src/emitter.ts', ['tests/interp.test.ts']],
+  // Operator semantics live in values.ts too; the matrix is their conformance test.
+  ['packages/interp/src/values.ts', ['tests/operator-matrix.test.ts']],
   ['packages/transpiler-eml/src/eml-emitter.ts', ['tests/reverse-regression.test.ts']],
   ['packages/transpiler-eml/src/py-parser.ts', ['tests/reverse-regression.test.ts']],
   ['packages/transpiler-eml/src/py-lexer.ts', ['tests/reverse-regression.test.ts']],

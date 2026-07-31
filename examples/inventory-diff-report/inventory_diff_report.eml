@@ -1,0 +1,70 @@
+# Self-authored for the EML case corpus (no external origin). Comparing two
+# stock snapshots. Difference in BOTH directions answers two different
+# questions, and reporting only one of them is a classic reconciliation bug:
+#
+#   now - before   arrived since the last count
+#   before - now   disappeared since the last count
+#
+# Difference is NOT symmetric, so a single call cannot tell you both.
+#
+# The report never prints a set directly, and that restraint is the second
+# lesson. CPython renders a set in HASH order; this interpreter stores
+# insertion order, so `str(a_set)` would produce a different line here than in
+# the program's own Python projection - silently, for sets of strings. Printing
+# a multi-element set therefore defers rather than guessing. To report one, ask
+# it questions in an order the PROGRAM chooses: iterate a list you control and
+# test membership.
+
+def added(before, now):
+    return now - before
+
+def removed(before, now):
+    return before - now
+
+def report(label, members, subject):
+    "" => shown
+    0 => n
+    for m in members:
+        if m in subject:
+            n + 1 => n
+            if shown == "":
+                m => shown
+            else:
+                shown + ", " + m => shown
+    if shown == "":
+        "(none)" => shown
+    return label + " (" + str(n) + "): " + shown
+
+# The canonical order the report is written in - chosen here, not by any hash.
+["bolts", "clips", "nuts", "rivets", "screws", "washers"] => catalogue
+
+{"bolts", "washers", "nuts", "rivets"} => monday
+{"bolts", "nuts", "screws", "clips"} => friday
+
+("Monday: " + str(len(monday)) + " lines, Friday: " + str(len(friday)) + " lines")^0
+""^0
+
+report("Arrived ", catalogue, added(monday, friday))^0
+report("Departed", catalogue, removed(monday, friday))^0
+report("Retained", catalogue, monday - removed(monday, friday))^0
+""^0
+
+"Difference is directional - two different questions" => h
+h^0
+("  in friday but not monday: " + str(len(friday - monday)))^0
+("  in monday but not friday: " + str(len(monday - friday)))^0
+("  same operator, opposite operands, unrelated answers")^0
+""^0
+
+"Sanity checks the report must satisfy" => h2
+h2^0
+monday - removed(monday, friday) => kept
+("  retained + departed == monday's count: " + str(len(kept) + len(removed(monday, friday)) == len(monday)))^0
+("  retained + arrived  == friday's count: " + str(len(kept) + len(added(monday, friday)) == len(friday)))^0
+("  nothing is both arrived and departed: " + str(len(added(monday, friday) - friday) == 0))^0
+""^0
+
+# An empty difference is safe to print: there is only one way to render it.
+("monday - monday = " + str(monday - monday) + "   (an empty set prints as set(), not {})")^0
+("Is monday a subset of itself? " + str(monday <= monday))^0
+("Is it a PROPER subset of itself? " + str(monday < monday))^0

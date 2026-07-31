@@ -1,0 +1,53 @@
+# Self-authored for the EML case corpus (no external origin). Building a route
+# by concatenating tuples. `(a, b) + (c,)` is how you extend an immutable path
+# without mutating the one you were given - each step produces a NEW path, so
+# a caller holding the old one still has it intact.
+#
+# That is the property this case is really about: tuple concatenation returns a
+# fresh tuple, which is what makes it safe to hand a path to a function that
+# might extend it. A list would be extended in place by `.append` and the
+# caller's copy would change under them.
+#
+# `tuple + tuple` raised TypeError here until this round. The concatenation
+# branch handled str+str and list+list and simply had no tuple case - the fifth
+# separate place a hand-written "which types are sequences" list had left tuple
+# off.
+
+def extend(path, stop):
+    return path + (stop,)
+
+def describe(path):
+    "" => out
+    for stop in path:
+        if out == "":
+            stop => out
+        else:
+            out + " -> " + stop => out
+    return out
+
+("depot",) => start
+("Start: " + describe(start) + "  (length " + str(len(start)) + ")")^0
+""^0
+
+start => route
+["north yard", "river crossing", "hilltop", "depot"] => stops
+"Building the route one stop at a time:" => h
+h^0
+for stop in stops:
+    extend(route, stop) => route
+    ("  + " + stop + "  ->  " + str(len(route)) + " stops")^0
+
+""^0
+("Full route: " + describe(route))^0
+("Stops: " + str(len(route)))^0
+""^0
+
+# The original is untouched: extend() never mutated what it was handed.
+("The original start is still " + str(start) + " - concatenation returned a NEW tuple")^0
+("Is the route a different object from the start? " + str(len(route) != len(start)))^0
+""^0
+
+# Concatenation composes, and the result is always a tuple.
+("depot",) + ("via A",) + ("depot",) => loop
+("A round trip: " + str(loop))^0
+("Its type stays tuple, so it can key a dict: " + str(len({loop: "logged"})))^0

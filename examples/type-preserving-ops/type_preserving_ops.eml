@@ -1,0 +1,75 @@
+# Self-authored for the EML case corpus (no external origin). The same two
+# operators, `+` and `*`, mean four different things depending on the operand
+# types - and each one PRESERVES the type it was given.
+#
+#   int  + int   arithmetic
+#   str  + str   concatenation
+#   list + list  concatenation, result is a list
+#   tuple+ tuple concatenation, result is a TUPLE
+#
+#   str  * int   repetition, result is a str
+#   list * int   repetition, result is a list
+#   tuple* int   repetition, result is a TUPLE
+#
+# The type preservation is the part worth checking, because a "make a sequence"
+# helper that always returns a list would pass every test that only looks at
+# the CONTENTS. Repeating a tuple has to give back something still usable as a
+# dict key, and a list is not.
+#
+# Mixing the families is a TypeError, never a coercion: Python will not guess
+# whether "3" + 4 meant 7 or "34".
+
+def kind_of(v):
+    # No type() builtin in EML-P, so identify by what the value can do.
+    if v == v:
+        return ""
+    return ""
+
+"Addition means different things per family" => h
+h^0
+("  7 + 2           -> " + repr(7 + 2))^0
+("  \"ab\" + \"cd\"     -> " + repr("ab" + "cd"))^0
+("  [1] + [2]       -> " + repr([1] + [2]))^0
+("  (1,) + (2,)     -> " + repr((1,) + (2,)))^0
+""^0
+
+"Repetition preserves the type it was given" => h2
+h2^0
+("  \"ab\" * 2        -> " + repr("ab" * 2))^0
+("  [1, 2] * 2      -> " + repr([1, 2] * 2))^0
+("  (1, 2) * 2      -> " + repr((1, 2) * 2))^0
+("  2 * (1, 2)      -> " + repr(2 * (1, 2)) + "   (count may come first)")^0
+""^0
+
+"Why the preserved type matters, not just the contents" => h3
+h3^0
+(1, 2) * 2 => repeated
+("  a repeated tuple is still hashable: " + str(len({repeated: "ok"})) + " entry")^0
+try:
+    [1, 2] * 2 => rep_list
+    {rep_list: "no"} => bad
+    ("  a repeated list keyed a dict - unreachable")^0
+except TypeError as e:
+    ("  a repeated list is not: " + str(e))^0
+("  a helper that always returned a list would break the first case")^0
+("  while still passing any test that only compared contents.")^0
+""^0
+
+"Mixing families raises - Python never guesses" => h4
+h4^0
+try:
+    "3" + 4 => guess
+    ("  \"3\" + 4 gave " + repr(guess) + " - unreachable")^0
+except TypeError as e:
+    ("  \"3\" + 4         -> " + str(e))^0
+try:
+    [1] + (2,) => guess2
+    ("  [1] + (2,) gave " + repr(guess2) + " - unreachable")^0
+except TypeError as e:
+    ("  [1] + (2,)      -> " + str(e))^0
+""^0
+"A list and a tuple are different types, so they do not concatenate" => n1
+n1^0
+"and never compare equal, even with identical contents:" => n2
+n2^0
+("  [1, 2] == (1, 2) -> " + str([1, 2] == (1, 2)))^0

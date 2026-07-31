@@ -1,0 +1,51 @@
+# Self-authored for the EML case corpus (no external origin). Repeating a
+# pattern to fill a width. The point of interest is that repetition PRESERVES
+# THE TYPE: a repeated list is a list, a repeated tuple is a tuple, a repeated
+# string is a string. It is not a generic "make a sequence" operation.
+#
+# That mattered here because the repeat branch built its result with LIST()
+# unconditionally, so it could not have returned a tuple even if tuple had
+# been allowed through - which it was not. `(1, 2) * 3` raised TypeError.
+
+def tile(pattern, times):
+    return pattern * times
+
+def fill_to(pattern, width):
+    len(pattern) => unit
+    if unit == 0:
+        return pattern
+    width / unit => exact
+    int(exact) => whole
+    return pattern * whole
+
+"Repetition preserves the type" => h
+h^0
+("  \"ab\" * 3      -> " + repr("ab" * 3))^0
+("  [1, 2] * 3    -> " + repr([1, 2] * 3))^0
+("  (1, 2) * 3    -> " + repr((1, 2) * 3))^0
+("  3 * (1, 2)    -> " + repr(3 * (1, 2)) + "   (either side works)")^0
+""^0
+
+"Zero and negative counts give an EMPTY sequence, not an error" => h2
+h2^0
+("  (1, 2) * 0    -> " + repr((1, 2) * 0))^0
+("  (1, 2) * -1   -> " + repr((1, 2) * (0 - 1)))^0
+("  True is 1, so (1, 2) * True -> " + repr((1, 2) * True))^0
+""^0
+
+"Tiling a border to a width" => h3
+h3^0
+("-=",) => unit
+for width in [4, 8, 12]:
+    fill_to("-=", width) => bar
+    ("  width " + str(width) + ": " + bar + "  (" + str(len(bar)) + " chars)")^0
+
+""^0
+"Tiling a repeating colour cycle" => h4
+h4^0
+("red", "amber", "green") => cycle
+tile(cycle, 2) => two_cycles
+("  one cycle : " + str(cycle))^0
+("  two cycles: " + str(two_cycles))^0
+("  length " + str(len(cycle)) + " -> " + str(len(two_cycles)))^0
+("  still a tuple, so it is still hashable: " + str(len({two_cycles: "seen"})))^0

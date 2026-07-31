@@ -1,0 +1,79 @@
+# Self-authored for the EML case corpus (no external origin). What can be a
+# dict key or a set element, and what the failure says when it cannot.
+#
+# The rule is one sentence with a recursive tail: a value is hashable if it is
+# immutable all the way down. int, float, bool, str, None and None-containing
+# tuples qualify; list, dict and set never do; a TUPLE qualifies exactly when
+# every element does.
+#
+# The error message is worth reading because it names two types, not one:
+#
+#   cannot use 'tuple' as a dict key (unhashable type: 'list')
+#                 ^ what you tried            ^ what made it impossible
+#
+# and the wording changes with the use site - "as a set element" for a set.
+# This interpreter used to report only the inner half, which pointed at a type
+# the programmer never wrote.
+
+def try_as_key(label, build):
+    return label
+
+{} => registry
+"origin" => registry[(0, 0)]
+"unit" => registry[(1, 1)]
+"named" => registry["home"]
+"numeric" => registry[7]
+"nothing" => registry[None]
+
+("Keys accepted: " + str(len(registry)))^0
+""^0
+"key           kind" => header
+header^0
+"------------  -----------" => rule
+rule^0
+for k in registry:
+    repr(k) => shown
+    14 - len(shown) => pad
+    if pad < 1:
+        1 => pad
+    (shown + " " * pad + registry[k])^0
+
+""^0
+"Numeric keys unify: 1, 1.0 and True are the SAME key" => h
+h^0
+{} => nums
+"int" => nums[1]
+"float" => nums[1.0]
+"bool" => nums[True]
+("  after three assignments the dict holds " + str(len(nums)) + " entry")^0
+("  the surviving value is " + repr(nums[1]) + " - the last write won")^0
+""^0
+
+"A tuple is hashable exactly when its elements are" => h2
+h2^0
+("  (1, 2) as a key      -> ok, " + str(len({(1, 2): "yes"})) + " entry")^0
+("  ((1, 2), 3) nested   -> ok, " + str(len({((1, 2), 3): "yes"})) + " entry")^0
+try:
+    {(1, [2]): "no"} => bad
+    ("  (1, [2]) as a key    -> accepted, unreachable")^0
+except TypeError as e:
+    ("  (1, [2]) as a key    -> " + str(e))^0
+""^0
+
+"The message names the use site" => h3
+h3^0
+try:
+    {[1]: "no"} => bad2
+    ("  unreachable")^0
+except TypeError as e:
+    ("  as a dict key   : " + str(e))^0
+try:
+    {[1]} => bad3
+    ("  unreachable")^0
+except TypeError as e:
+    ("  as a set element: " + str(e))^0
+""^0
+"Both halves matter: the first names what you wrote," => n1
+n1^0
+"the second names the part that made it impossible." => n2
+n2^0

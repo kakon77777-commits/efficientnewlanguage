@@ -1,0 +1,56 @@
+# Self-authored for the EML case corpus (no external origin). A game log where
+# each move is a (player, from, to) tuple and the history is a tuple of moves.
+#
+# Tuples do two different jobs here at once, which is worth seeing side by side:
+#
+#   each MOVE is a fixed-shape record  - three fields, forever
+#   the HISTORY is a growing sequence  - extended by concatenation
+#
+# The history being a tuple rather than a list is a deliberate choice: it can
+# be used as a dict key, so a whole game state can be memoised. That only works
+# because tuple hashing is recursive - the outer tuple hashes its inner tuples.
+
+def record(history, move):
+    return history + (move,)
+
+def moves_by(history, player):
+    0 => n
+    for m in history:
+        if m[0] == player:
+            n + 1 => n
+    return n
+
+() => history
+[("W", "e2", "e4"), ("B", "e7", "e5"), ("W", "g1", "f3"), ("B", "b8", "c6"), ("W", "f1", "b5")] => played
+
+for m in played:
+    record(history, m) => history
+
+("Moves played: " + str(len(history)))^0
+""^0
+"#   player  from  to" => header
+header^0
+"--  ------  ----  --" => rule
+rule^0
+0 => i
+for m in history:
+    (str(i) + "   " + m[0] + "       " + m[1] + "    " + m[2])^0
+    i + 1 => i
+
+""^0
+("White moved " + str(moves_by(history, "W")) + " times, Black " + str(moves_by(history, "B")) + " times")^0
+""^0
+
+# A nested tuple is hashable because every element is, so a whole position can
+# be a key. This is the payoff for the history being a tuple.
+{} => seen
+history => position
+"first visit" => seen[position]
+("Position recorded under a " + str(len(position)) + "-move history key")^0
+("Looking it up with an equal history: " + seen[history])^0
+""^0
+
+# Slicing a tuple gives a tuple, so an earlier position is also a valid key.
+history[0:2] => opening
+("The opening alone: " + str(opening))^0
+("Different key, so not yet recorded: " + str(opening in seen))^0

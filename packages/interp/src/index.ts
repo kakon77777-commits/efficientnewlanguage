@@ -64,6 +64,7 @@ import {
   parsePyInt,
   parsePyFloat,
   iterableItems,
+  rendersSetOrder,
 } from './values';
 
 export { type PyVal, PyError } from './values';
@@ -192,6 +193,20 @@ function runProgram(
    *  try/except blocks don't clobber an outer one's in-flight exception. */
   let currentException: PyError | undefined;
 
+  /** Rendering a multi-element SET to text exposes an iteration order this
+   *  interpreter cannot reproduce (CPython uses hash order, we use insertion
+   *  order). Iterating one already defers; printing one is the same hazard
+   *  through a different door, so it defers too rather than emitting a line
+   *  that differs from the program's own Python projection. */
+  const guardSetOrder = (v: PyVal, where: string): void => {
+    if (rendersSetOrder(v)) {
+      throw new Unsupported(
+        `${where} on a set with more than one element`,
+        'CPython prints a set in hash order, which this interpreter cannot reproduce - report len(), membership, or build a list in an order your program chooses',
+      );
+    }
+  };
+
   const tick = (): void => {
     if (++steps > maxSteps) throw new StepLimit(steps);
   };
@@ -242,7 +257,14 @@ function runProgram(
         // 5` and `'%s' % (5,)` are identical). Phase 9 item 3a.
         if (expr.op === '%' && left.k === 'str') {
           const args = right.k === 'tuple' ? right.v : [right];
-          return STR(percentFormat(left.v, args));
+          // CPython skips the "not all arguments converted" check whenever the
+          // right operand is MAPPING-LIKE — which its `PyMapping_Check` says of
+          // a LIST as well as a dict, since a list has `__getitem__`. So
+          // `"ab" % [1, 2]` is "ab" while `"ab" % 5` raises, a distinction that
+          // looks arbitrary until you see it is about the type's protocol
+          // rather than its role. Verified against 3.14, not reasoned out.
+          const mappingLike = right.k === 'dict' || right.k === 'list';
+          return STR(percentFormat(left.v, args, mappingLike));
         }
         if (expr.op === '%' && right.k === 'str') {
           // Left isn't a string but right is — a genuine cross-type TypeError
@@ -698,14 +720,21 @@ function runProgram(
         }
         throw new PyError('TypeError', `float() argument must be a string or a number, not '${typeName(a)}'`);
       }
-      case 'str':
-        return STR(args.length === 0 ? '' : pyStr(need(args, 0, name)));
+      case 'str': {
+        if (args.length === 0) return STR('');
+        const sv = need(args, 0, name);
+        guardSetOrder(sv, 'str()');
+        return STR(pyStr(sv));
+      }
       // `repr` exists in every Python program the transpiler emits, so its
       // absence here was a divergence in its own right: a program calling it
       // ran fine as Python and raised NameError in the browser. pyRepr already
       // backed list/dict element formatting; it just was not reachable by name.
-      case 'repr':
-        return STR(pyRepr(need(args, 0, name)));
+      case 'repr': {
+        const rv = need(args, 0, name);
+        guardSetOrder(rv, 'repr()');
+        return STR(pyRepr(rv));
+      }
       case 'min':
       case 'max':
         return minmax(name, args);
