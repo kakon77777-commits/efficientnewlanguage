@@ -14,7 +14,7 @@ date, not recalled. Where a figure could not be measured it says so.
 | [02 — Defect log](02-defect-log.md) | every real defect found since the corpus discipline began, what it was, how it was found, how it was fixed |
 | [03 — Improvement backlog](03-improvement-backlog.md) | what to fix next, with time estimates calibrated to this team |
 | [04 — The method](04-method.md) | the measurement-axis discipline — the most transferable thing this project produced |
-| [05 — Designer capability](05-designer-capability.md) | who builds this, what that makes cheap, what it makes expensive, and which defect classes it structurally invites |
+| [05 — Capability and fit](05-capability-and-fit.md) | what EML-P can actually build today, what to use it for, what not to reach for it for — measured, and meant to be regenerated |
 
 ## The shape of it, in one page
 

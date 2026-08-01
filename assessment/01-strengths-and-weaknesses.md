@@ -89,10 +89,21 @@ Measured, not assumed:
 
 This is the structural weakness the whole method exists to counter, and it is
 not fixable by trying harder. Every gate is written by whoever wrote the code,
-so a gate can only ask questions its author thought to ask. Six times a new
-measurement immediately found defects that every existing gate had passed —
-each of those is a direct measurement of this blind spot. See
-[05 — Designer capability](05-designer-capability.md).
+so a gate can only ask questions its author thought to ask. That is arithmetic,
+not carelessness.
+
+Six times a new measurement immediately found defects that every existing gate
+had passed — each of those six is a direct measurement of how much the previous
+questions were missing. The countermeasure is not more diligence: it is that
+**CPython, not the author, answers the question**, which is why every gate in
+this project is a differential rather than an assertion. See
+[04 — The method](04-method.md).
+
+The clearest single instance is the `pass` defect of 2026-08-01. The reverse
+parser was given a guard against exactly that class of silent mistranslation,
+with a source comment naming the risk. The forward parser — same author, same
+afternoon — was not. **Rule: when a guard goes on one side of a bidirectional
+pipeline, check the other side in the same change.**
 
 ### 3. Corpus coverage is bounded by the corpus
 

@@ -121,5 +121,6 @@ that count is a direct measurement of how much the previous questions were
 missing — and the reference implementation, not the author, is the one
 answering.
 
-See [05 — Designer capability](05-designer-capability.md) for the rest of that
-argument.
+This is also why the method suits a project with no second reviewer: it does
+not ask anyone to be more careful. It hands the reviewing to CPython, which has
+no stake in the answer.

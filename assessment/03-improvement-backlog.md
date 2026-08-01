@@ -1,12 +1,20 @@
 # Improvement backlog
 
-What to fix, in order, with time estimates **calibrated to this team** — one
-person plus an AI pair, one session per day, no second reviewer. See
-[05 — Designer capability](05-designer-capability.md) for why the unit is a
-session and not an hour.
+What to fix, in order, with time estimates **calibrated to the team that
+actually does the work**: one person plus an AI pair, roughly one working
+session per day (measured: 37 commits over 38 days), no second reviewer,
+Windows host with Linux CI.
+
+Estimates are given in **sessions, not hours**, because a session is the unit
+this work is actually done in — a two-hour task that does not fit in the
+session remaining takes a whole day. An estimate calibrated to a team that does
+not exist is worse than no estimate.
 
 "Done" means **gated**, not written. A change with no measurement that would
 catch its regression is not finished.
+
+For what each item unlocks in terms of usable capability, see
+[05 — Capability and fit](05-capability-and-fit.md).
 
 ---
 
@@ -139,5 +147,7 @@ gate built before its predecessor is exhausted finds the same defects twice and
 teaches nothing.
 
 **Do not estimate any of this for a larger team.** Every figure above assumes
-the team in [05](05-designer-capability.md). If that changes, re-estimate from
-scratch rather than dividing.
+one person plus an AI pair, one session a day, no second reviewer. If that
+changes, re-estimate from scratch rather than dividing — the constraint that
+sets these numbers is how much fits in a session, not how many hands there
+are.
