@@ -190,6 +190,10 @@ class Parser {
       this.next();
       return { type: 'Continue' };
     }
+    if (this.check('PASS')) {
+      this.next();
+      return { type: 'Pass' };
+    }
     if (this.check('IMPORT')) {
       return this.parseImport();
     }

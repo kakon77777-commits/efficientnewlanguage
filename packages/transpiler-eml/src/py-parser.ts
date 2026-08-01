@@ -209,16 +209,17 @@ class PyParser {
     // from a harmless variable reference to this simplified parser. It's
     // especially relevant now that `try`/`except` bodies (which `parseBlock()`
     // requires to be non-empty) commonly need it (`except SomeError: pass`).
-    // EML has no no-op-statement equivalent to emit it as, so fail loudly
-    // rather than silently treat `pass` as a reference to a variable of that
-    // name.
+    //
+    // This used to throw, because EML genuinely had no no-op statement to
+    // translate it into. It now has one — and the reason it got one is that
+    // guarding this direction and not the forward one turned out to hide a
+    // real bug: the FORWARD parser still read `pass` as an Identifier, the
+    // Python emitter printed that identifier unchanged (accidentally correct
+    // Python), and only the interpreter — which resolves names for real —
+    // objected. See PassStatement in the AST for the full account.
     if (this.checkName('pass')) {
-      const t = this.next();
-      throw new PyParseError(
-        "Reverse Python->EML does not support 'pass' (EML has no no-op-statement equivalent).",
-        t.line,
-        t.column,
-      );
+      this.next();
+      return { type: 'Pass' };
     }
     // `break`/`continue` are the one pair of bare, argument-less keywords that
     // — if NOT recognized here — would silently parse as a harmless bare

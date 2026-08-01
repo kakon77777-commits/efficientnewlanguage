@@ -1,0 +1,147 @@
+# Self-authored for the EML case corpus (no external origin). Deep merge of
+# layered configuration - the operation behind every "defaults, then
+# environment, then command line" system.
+#
+# The rule is easy to state and easy to get subtly wrong:
+#
+#   - a key present only in the base survives
+#   - a key present in the override replaces it
+#   - if BOTH values are dicts, recurse instead of replacing
+#
+# The third rule is the whole thing. Get it wrong and the merge becomes a
+# shallow update: overriding one nested key silently deletes its siblings.
+# That failure is invisible in a small test - `{"a": {"x": 1}}` overridden by
+# `{"a": {"y": 2}}` gives `{"a": {"y": 2}}`, which looks like a merge until you
+# notice `x` is gone.
+#
+# So the program checks three properties, not just the printed result:
+#
+#   1. no key from either input disappears (counted over the whole tree)
+#   2. every leaf in the result comes from the override where the override
+#      had one, and from the base otherwise
+#   3. merging a config with itself is the identity
+
+def is_dict(value):
+    # EML-P has no type(), so identity is established by what a value can do:
+    # only dicts survive len() after being indexed by their own keys.
+    try:
+        for k in value:
+            value[k] => probe
+        return True
+    except TypeError:
+        return False
+
+def deep_merge(base, override):
+    {} => out
+    for k in base:
+        base[k] => out[k]
+    for k in override:
+        override[k] => value
+        if k in base and is_dict(base[k]) and is_dict(value):
+            deep_merge(base[k], value) => out[k]
+        else:
+            value => out[k]
+    return out
+
+def leaf_paths(cfg, prefix):
+    # Every leaf as "a.b.c=value", so two configs can be compared as flat sets
+    # of facts rather than by walking them in lockstep.
+    [] => paths
+    for k in cfg:
+        cfg[k] => v
+        prefix + k => path
+        if is_dict(v):
+            for p in leaf_paths(v, path + "."):
+                paths + [p] => paths
+        else:
+            paths + [path + "=" + str(v)] => paths
+    return paths
+
+def keys_of(cfg, prefix):
+    [] => names
+    for k in cfg:
+        prefix + k => path
+        names + [path] => names
+        if is_dict(cfg[k]):
+            for p in keys_of(cfg[k], path + "."):
+                names + [p] => names
+    return names
+
+
+{
+    "server": {"host": "0.0.0.0", "port": 8080, "tls": {"enabled": False, "cert": "none"}},
+    "logging": {"level": "info", "file": "app.log"},
+    "workers": 4,
+} => defaults
+
+{
+    "server": {"port": 443, "tls": {"enabled": True}},
+    "logging": {"level": "debug"},
+    "region": "eu-west",
+} => overrides
+
+deep_merge(defaults, overrides) => merged
+
+"defaults:"^0
+for p in leaf_paths(defaults, ""):
+    ("  " + p)^0
+""^0
+"overrides:"^0
+for p in leaf_paths(overrides, ""):
+    ("  " + p)^0
+""^0
+"merged:"^0
+for p in leaf_paths(merged, ""):
+    ("  " + p)^0
+
+# ---------------------------------------------------------------- property 1
+keys_of(defaults, "") => base_keys
+keys_of(overrides, "") => over_keys
+keys_of(merged, "") => merged_keys
+
+0 => survived
+for k in base_keys:
+    if k in merged_keys:
+        survived + 1 => survived
+0 => arrived
+for k in over_keys:
+    if k in merged_keys:
+        arrived + 1 => arrived
+
+# ---------------------------------------------------------------- property 2
+leaf_paths(overrides, "") => over_leaves
+leaf_paths(merged, "") => merged_leaves
+0 => override_wins
+for leaf in over_leaves:
+    if leaf in merged_leaves:
+        override_wins + 1 => override_wins
+
+# The base leaf `server.tls.cert=none` has no override, so it must still be
+# there - this is the sibling that a shallow merge would have deleted.
+"server.tls.cert=none" in merged_leaves => sibling_kept
+
+# ---------------------------------------------------------------- property 3
+deep_merge(defaults, defaults) => self_merged
+leaf_paths(self_merged, "") == leaf_paths(defaults, "") => idempotent
+
+""^0
+("base keys surviving:      " + str(survived) + "/" + str(len(base_keys)))^0
+("override keys arriving:   " + str(arrived) + "/" + str(len(over_keys)))^0
+("override leaves winning:  " + str(override_wins) + "/" + str(len(over_leaves)))^0
+("un-overridden sibling kept: " + str(sibling_kept))^0
+("merging with itself is the identity: " + str(idempotent))^0
+
+""^0
+if survived == len(base_keys) and arrived == len(over_keys) and override_wins == len(over_leaves) and sibling_kept and idempotent:
+    "Deep merge: nothing lost, every override applied, siblings intact." => verdict
+else:
+    "FAILED - the merge is shallow somewhere." => verdict
+verdict^0
+
+""^0
+"The one that matters is `server.tls.cert`. The override touches" => n1
+n1^0
+"server.tls.enabled and says nothing about cert; a shallow merge replaces" => n2
+n2^0
+"the whole tls block and the certificate quietly disappears." => n3
+n3^0

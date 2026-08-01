@@ -1,0 +1,130 @@
+# Self-authored for the EML case corpus (no external origin). A connection
+# pool whose leases are released by a context manager - the program that
+# exists to answer one question: does the release still happen when the body
+# does NOT fall off the end?
+#
+# Every `with` block has four ways out, and only the first is the one people
+# test:
+#
+#   1. the body ends normally
+#   2. the body executes `break`
+#   3. the body executes `return`
+#   4. the body raises
+#
+# A pool that releases on (1) alone looks perfect in a demo and leaks in
+# production, because (2) and (3) are what real code does the moment there is
+# an early exit. The leak is silent: nothing errors, the pool just slowly runs
+# out. So the check here is not "did the program print the right thing" but
+# the invariant a pool must never break -
+#
+#   leased == released, after every path
+#
+# and it is checked after each of the four paths separately, so a failure says
+# WHICH exit was not covered rather than just "the totals are off".
+
+class Pool:
+    def __init__(self, size):
+        size => self.size
+        0 => self.leased
+        0 => self.released
+        [] => self.log
+
+    def lease(self, who):
+        self.leased + 1 => self.leased
+        self.log + [who + ":lease"] => self.log
+        return Lease(self, who)
+
+    def release(self, who):
+        self.released + 1 => self.released
+        self.log + [who + ":release"] => self.log
+
+    def outstanding(self):
+        return self.leased - self.released
+
+
+class Lease:
+    def __init__(self, pool, who):
+        pool => self.pool
+        who => self.who
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, tb):
+        # Runs on every exit path. Returning False means "I did not handle the
+        # exception" - a context manager that returns True here would swallow
+        # errors, which is a different and much worse bug.
+        self.pool.release(self.who)
+        return False
+
+
+Pool(4) => pool
+
+# ---------------------------------------------------------------- path 1
+with pool.lease("normal") as lease:
+    "normal body ran" => note1
+    note1^0
+("  outstanding after normal exit: " + str(pool.outstanding()))^0
+
+# ---------------------------------------------------------------- path 2
+for attempt in [0:3]:
+    with pool.lease("break") as lease:
+        if attempt == 1:
+            break
+        ("  loop body " + str(attempt))^0
+("  outstanding after break: " + str(pool.outstanding()))^0
+
+# ---------------------------------------------------------------- path 3
+def borrow_and_return(p):
+    with p.lease("return") as lease:
+        return "early return from inside the with-block"
+
+borrow_and_return(pool) => msg
+("  " + msg)^0
+("  outstanding after return: " + str(pool.outstanding()))^0
+
+# ---------------------------------------------------------------- path 4
+try:
+    with pool.lease("raise") as lease:
+        raise ValueError("the body failed")
+except ValueError as e:
+    ("  caught: " + str(e))^0
+("  outstanding after raise: " + str(pool.outstanding()))^0
+
+""^0
+"Lease/release log, in order:"^0
+for entry in pool.log:
+    ("  " + entry)^0
+
+""^0
+("leased:   " + str(pool.leased))^0
+("released: " + str(pool.released))^0
+
+# The log must alternate lease,release,lease,release... - a release that
+# happens twice, or one that happens for the wrong lease, still balances the
+# totals. Checking the ORDER is what makes this a real check.
+True => alternates
+0 => i
+while i < len(pool.log):
+    pool.log[i] => entry
+    if i % 2 == 0:
+        if not (entry[len(entry) - 6:] == ":lease"):
+            False => alternates
+    else:
+        if not (entry[len(entry) - 8:] == ":release"):
+            False => alternates
+    i + 1 => i
+
+""^0
+if pool.leased == pool.released and alternates:
+    "Balanced on all four exit paths, and every lease was released once." => verdict
+else:
+    "LEAK - some exit path did not release its lease." => verdict
+verdict^0
+
+"The three interesting paths are break, return and raise. A context manager" => n1
+n1^0
+"tested only on a body that runs to completion passes every time and still" => n2
+n2^0
+"leaks, because early exits are what production code is made of." => n3
+n3^0

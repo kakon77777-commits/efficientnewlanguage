@@ -1,0 +1,197 @@
+# Self-authored for the EML case corpus (no external origin). Build a weekly
+# shift roster under four hard constraints, then audit the finished roster
+# against the same constraints re-checked from scratch.
+#
+# Scheduling is where "the program said it worked" and "it worked" come apart
+# most often, because the builder and the validator are usually the same loop.
+# If the assignment step is what decides a shift is legal, then of course every
+# assignment is legal - the roster is consistent with the rule the builder
+# happened to implement, including the wrong one.
+#
+# So this program separates the two completely:
+#
+#   build   greedy assignment, taking the first worker the constraints allow
+#   audit   a second pass that re-derives every constraint from the finished
+#           roster alone, with no access to the builder's bookkeeping
+#
+# The constraints:
+#
+#   1. at most one worker per shift (an unfilled shift is a coverage
+#      shortfall, counted separately - it is not a rule violation)
+#   2. nobody works two shifts on the same day
+#   3. nobody works more than three shifts in the week
+#   4. nobody works a night shift followed by a morning shift the next day
+#
+# Constraint 4 is the one that needs memory across days, and it is the one a
+# greedy builder gets wrong first.
+
+["Mon", "Tue", "Wed", "Thu", "Fri"] => days
+["morning", "evening", "night"] => shifts
+["ana", "bo", "cy", "dee", "eli"] => workers
+
+# unavailable[worker] = list of days they cannot work at all
+{
+    "ana": ["Wed"],
+    "bo": [],
+    "cy": ["Mon", "Tue"],
+    "dee": ["Fri"],
+    "eli": [],
+} => unavailable
+
+
+def worked_on(roster, day, worker):
+    for entry in roster:
+        if entry[0] == day and entry[2] == worker:
+            return True
+    return False
+
+def shifts_worked(roster, worker):
+    0 => n
+    for entry in roster:
+        if entry[2] == worker:
+            n + 1 => n
+    return n
+
+def worked_night_on(roster, day, worker):
+    for entry in roster:
+        if entry[0] == day and entry[1] == "night" and entry[2] == worker:
+            return True
+    return False
+
+def previous_day(day):
+    0 => i
+    while i < len(days):
+        if days[i] == day:
+            if i == 0:
+                return ""
+            return days[i - 1]
+        i + 1 => i
+    return ""
+
+
+# ------------------------------------------------------------------- build
+[] => roster
+[] => unfilled
+for day in days:
+    for shift in shifts:
+        "" => chosen
+        for worker in workers:
+            if chosen == "":
+                True => ok
+                if day in unavailable[worker]:
+                    False => ok
+                if ok and worked_on(roster, day, worker):
+                    False => ok
+                if ok and shifts_worked(roster, worker) >= 3:
+                    False => ok
+                if ok and shift == "morning":
+                    previous_day(day) => prev
+                    if not (prev == "") and worked_night_on(roster, prev, worker):
+                        False => ok
+                if ok:
+                    worker => chosen
+        if chosen == "":
+            unfilled + [day + " " + shift] => unfilled
+        else:
+            roster + [[day, shift, chosen]] => roster
+
+"Roster:"^0
+for day in days:
+    day => line
+    for shift in shifts:
+        "----" => who
+        for entry in roster:
+            if entry[0] == day and entry[1] == shift:
+                entry[2] => who
+        line + "  " + ("%-8s" % who) => line
+    (" " + line)^0
+("      " + ("%-8s" % "morning") + "  " + ("%-8s" % "evening") + "  " + ("%-8s" % "night"))^0
+
+# ------------------------------------------------------------------- audit
+# Every check below re-derives its answer from `roster` alone.
+0 => violations
+[] => reasons
+
+# 1. no shift double-booked. An UNFILLED shift is a coverage shortfall, not a
+#    rule violation - with five workers, a three-shift cap and real
+#    unavailability, fifteen slots may genuinely not be coverable. It is
+#    counted separately below so the two never get conflated.
+0 => uncovered
+for day in days:
+    for shift in shifts:
+        0 => count
+        for entry in roster:
+            if entry[0] == day and entry[1] == shift:
+                count + 1 => count
+        if count > 1:
+            violations + 1 => violations
+            reasons + [day + " " + shift + " filled " + str(count) + " times"] => reasons
+        elif count == 0:
+            uncovered + 1 => uncovered
+
+# 2. nobody twice on a day
+for day in days:
+    for worker in workers:
+        0 => count
+        for entry in roster:
+            if entry[0] == day and entry[2] == worker:
+                count + 1 => count
+        if count > 1:
+            violations + 1 => violations
+            reasons + [worker + " works " + str(count) + " shifts on " + day] => reasons
+
+# 3. weekly cap
+for worker in workers:
+    shifts_worked(roster, worker) => n
+    if n > 3:
+        violations + 1 => violations
+        reasons + [worker + " works " + str(n) + " shifts this week"] => reasons
+
+# 4. no night followed by next-day morning
+for entry in roster:
+    if entry[1] == "morning":
+        previous_day(entry[0]) => prev
+        if not (prev == "") and worked_night_on(roster, prev, entry[2]):
+            violations + 1 => violations
+            reasons + [entry[2] + " works " + prev + " night then " + entry[0] + " morning"] => reasons
+
+# 5. availability
+for entry in roster:
+    if entry[0] in unavailable[entry[2]]:
+        violations + 1 => violations
+        reasons + [entry[2] + " is unavailable on " + entry[0]] => reasons
+
+""^0
+"Shifts per worker:"^0
+for worker in workers:
+    ("  %-4s %d" % (worker, shifts_worked(roster, worker)))^0
+
+""^0
+("shifts required: " + str(len(days) * len(shifts)))^0
+("shifts assigned: " + str(len(roster)))^0
+("unfilled:        " + str(len(unfilled)))^0
+for u in unfilled:
+    ("  could not fill: " + u)^0
+
+""^0
+("uncovered shifts, found by the audit: " + str(uncovered) + "  (builder reported " + str(len(unfilled)) + ")")^0
+("audit violations:                     " + str(violations))^0
+for r in reasons:
+    ("  " + r)^0
+
+""^0
+if violations == 0 and uncovered == len(unfilled) and len(roster) + uncovered == len(days) * len(shifts):
+    "Every assigned shift is legal, and the audit's coverage count matches the builder's." => verdict
+else:
+    "FAILED - the builder produced a roster that breaks its own rules." => verdict
+verdict^0
+
+""^0
+"An unfilled shift is not a bug here - five workers, a three-shift cap and" => n1
+n1^0
+"real unavailability may genuinely not cover fifteen slots. What would be a" => n2
+n2^0
+"bug is a FILLED shift that breaks a rule, which is why the audit re-derives" => n3
+n3^0
+"every constraint instead of trusting the builder that placed it." => n4
+n4^0

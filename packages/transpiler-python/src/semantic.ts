@@ -362,6 +362,11 @@ export function analyzeSemantics(
         }
         return stmt;
       }
+      case 'Pass': {
+        // No scope effect, no diagnostic, valid anywhere a statement is —
+        // unlike break/continue, which are only legal inside a loop.
+        return stmt;
+      }
       case 'Import': {
         // Emitted in-place (not hoisted) — the user wrote this line
         // themselves; relocating it would be surprising. No diagnostics: an

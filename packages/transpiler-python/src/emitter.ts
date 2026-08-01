@@ -201,6 +201,8 @@ export function emitStatement(stmt: Statement): string {
       return 'break';
     case 'Continue':
       return 'continue';
+    case 'Pass':
+      return 'pass';
     case 'Import':
       return `import ${stmt.module}`;
     case 'Try': {

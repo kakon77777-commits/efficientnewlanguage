@@ -136,6 +136,10 @@ const CONSTRUCTS = [
   ['not', (s) => /\bnot\b/.test(s)],
   ['break', (s) => /^\s*break\b/m.test(s)],
   ['continue', (s) => /^\s*continue\b/m.test(s)],
+  // Added 2026-08-01 with the statement itself. It will read 0 until a corpus
+  // program uses it, which is the point: a construct the language accepts and
+  // no program exercises is exactly what this counter exists to surface.
+  ['pass', (s) => /^\s*pass\s*$/m.test(s)],
   ['while', (s) => /^\s*while\b/m.test(s)],
   ['compound-assign', (s) => /\^[+\-*/]/.test(s)],
   ['print-end', (s) => /\^0\s*\(/.test(s)],
@@ -207,24 +211,41 @@ const SEMANTIC_FILES = [
     'packages/interp/src/values.ts',
     // Exception values live here too, not only in the interpreter — the first
     // real alert this monitor raised was for an exception-model change whose
-    // tests were all in phase7d, which this list did not mention.
+    // tests were all in phase7d, which this list did not mention. Operator
+    // semantics are here as well, which is why the matrix counts.
     [
       'tests/percent-format.test.ts',
       'tests/sum-compensation.test.ts',
       'tests/phase7d-exceptions.test.ts',
       'tests/builtin-shapes.test.ts',
+      'tests/operator-matrix.test.ts',
+      'tests/statement-interaction.test.ts',
     ],
   ],
   [
     'packages/interp/src/index.ts',
-    ['tests/interp.test.ts', 'tests/phase7d-exceptions.test.ts', 'tests/builtin-shapes.test.ts'],
+    [
+      'tests/interp.test.ts',
+      'tests/phase7d-exceptions.test.ts',
+      'tests/builtin-shapes.test.ts',
+      'tests/statement-interaction.test.ts',
+    ],
   ],
-  ['packages/transpiler-python/src/emitter.ts', ['tests/interp.test.ts']],
-  // Operator semantics live in values.ts too; the matrix is their conformance test.
-  ['packages/interp/src/values.ts', ['tests/operator-matrix.test.ts']],
-  ['packages/transpiler-eml/src/eml-emitter.ts', ['tests/reverse-regression.test.ts']],
-  ['packages/transpiler-eml/src/py-parser.ts', ['tests/reverse-regression.test.ts']],
-  ['packages/transpiler-eml/src/py-lexer.ts', ['tests/reverse-regression.test.ts']],
+  ['packages/transpiler-python/src/emitter.ts', ['tests/interp.test.ts', 'tests/statement-interaction.test.ts']],
+  // The FORWARD grammar was missing from this list entirely until 2026-08-01,
+  // which is a hole the same shape as the bug found that day: a `pass`
+  // statement was added to the lexer and parser, and nothing here would have
+  // noticed if no test had moved with it. What a program MEANS is decided by
+  // what the parser accepts, not only by what the interpreter does with it.
+  ['packages/parser/src/parser.ts', ['tests/parser.test.ts', 'tests/statement-interaction.test.ts']],
+  ['packages/parser/src/lexer.ts', ['tests/parser.test.ts', 'tests/statement-interaction.test.ts']],
+  ['packages/transpiler-python/src/semantic.ts', ['tests/interp.test.ts', 'tests/statement-interaction.test.ts']],
+  [
+    'packages/transpiler-eml/src/eml-emitter.ts',
+    ['tests/reverse-regression.test.ts', 'tests/reverse-blocks.test.ts'],
+  ],
+  ['packages/transpiler-eml/src/py-parser.ts', ['tests/reverse-regression.test.ts', 'tests/reverse-blocks.test.ts']],
+  ['packages/transpiler-eml/src/py-lexer.ts', ['tests/reverse-regression.test.ts', 'tests/reverse-blocks.test.ts']],
 ];
 
 const hashOf = (rel) => {

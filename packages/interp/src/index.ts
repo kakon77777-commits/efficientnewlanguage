@@ -337,9 +337,22 @@ function runProgram(
         // (Phase 7e), read from its attrs — otherwise defer.
         const objVal = expr.object.type === 'Identifier' ? readVar(scope, expr.object.name) : evalExpr(expr.object, scope);
         if (objVal !== undefined && objVal.k === 'instance') {
-          const v = objVal.attrs.get(expr.attr);
+          // Instance dict first, then the class dict — Python's shadowing
+          // rule. `a.tag = ...` writes only to the instance, so after it the
+          // class-level value is hidden for THAT object and still visible
+          // from every other one.
+          const v = objVal.attrs.has(expr.attr)
+            ? objVal.attrs.get(expr.attr)
+            : classAttrs(objVal).get(expr.attr);
           if (v === undefined) {
             throw new PyError('AttributeError', `'${objVal.className}' object has no attribute '${expr.attr}'`);
+          }
+          return v;
+        }
+        if (objVal !== undefined && objVal.k === 'class') {
+          const v = objVal.attrs.get(expr.attr);
+          if (v === undefined) {
+            throw new PyError('AttributeError', `type object '${objVal.name}' has no attribute '${expr.attr}'`);
           }
           return v;
         }
@@ -397,6 +410,18 @@ function runProgram(
     // object resolves via readVar (never throws), so an unbound module name
     // still defers as Unsupported rather than crashing with a NameError.
     const objVal = target.object.type === 'Identifier' ? readVar(scope, target.object.name) : evalExpr(target.object, scope);
+    if (objVal !== undefined && objVal.k === 'class') {
+      // `Thermostat.target = 18` — rebinding the class-level default. Every
+      // instance that never shadowed it sees the new value immediately,
+      // because instances hold a reference to this same Map rather than a
+      // copy. Reading class attributes landed before this did, which meant a
+      // program could observe the fallback and not change it; the trace said
+      // so honestly ("interp deferred: write .target") instead of guessing,
+      // and that deferral is what surfaced the missing half.
+      objVal.attrs.set(target.attr, value);
+      emitter.emit('eml:assign', { target: `${objVal.name}.${target.attr}`, value: pyRepr(value) });
+      return;
+    }
     if (objVal !== undefined && objVal.k === 'instance') {
       objVal.attrs.set(target.attr, value);
       return;
@@ -600,6 +625,10 @@ function runProgram(
     return result;
   };
 
+  /** The class-level namespace behind an instance — the fallback for reads
+   *  the instance's own dict does not answer. */
+  const classAttrs = (v: Extract<PyVal, { k: 'instance' }>): Map<string, PyVal> => v.classAttrs;
+
   /** Look up a method by name in a class body (Phase 7e) — `undefined` if absent. */
   const findMethod = (def: ClassDef, methodName: string): FunctionDef | undefined =>
     def.body.find((s): s is FunctionDef => s.type === 'FunctionDef' && s.name === methodName);
@@ -613,7 +642,13 @@ function runProgram(
    */
   const instantiateClass = (cls: Extract<PyVal, { k: 'class' }>, args: PyVal[]): PyVal => {
     const def = cls.def as ClassDef;
-    const instance: Extract<PyVal, { k: 'instance' }> = { k: 'instance', className: cls.name, classDef: def, attrs: new Map() };
+    const instance: Extract<PyVal, { k: 'instance' }> = {
+      k: 'instance',
+      className: cls.name,
+      classDef: def,
+      attrs: new Map(),
+      classAttrs: cls.attrs,
+    };
     const init = findMethod(def, '__init__');
     if (init) {
       runMethodBody(instance, init, args);
@@ -851,6 +886,10 @@ function runProgram(
         throw new BreakSignal();
       case 'Continue':
         throw new ContinueSignal();
+      case 'Pass':
+        // Deliberately nothing. It exists so a block that must stay empty can
+        // still satisfy the "blocks are non-empty" rule.
+        return;
       case 'Import':
         // No-op: the interpreter doesn't model real module objects, but a
         // program that imports something and never actually calls into it
@@ -988,17 +1027,29 @@ function runProgram(
         }
         return;
       }
-      case 'ClassDef':
+      case 'ClassDef': {
         // Bind a first-class class value, parallel to how FunctionDef binds
         // {k:'func',...}. Methods are looked up from `def.body` by name at
         // call time (instantiateClass/callMethod), not pre-materialized —
         // see docs for why (no per-method closure is modeled this round).
-        assign(scope, stmt.name, { k: 'class', name: stmt.name, def: stmt });
+        //
+        // Everything in the body that ISN'T a method runs now, exactly once,
+        // in a namespace of its own — that namespace becomes the class dict.
+        // Python does the same thing, and skipping it used to make
+        // `class C: tag = "x"` silently lose `tag` altogether: the class was
+        // bound, the assignment never ran, and reading `self.tag` raised
+        // AttributeError as if the line had never been written.
+        const classScope: Scope = { vars: new Map(), parent: scope };
+        for (const s of stmt.body) {
+          if (s.type !== 'FunctionDef') execStmt(s, classScope);
+        }
+        assign(scope, stmt.name, { k: 'class', name: stmt.name, def: stmt, attrs: classScope.vars });
         emitter.emit('eml:classdef', {
           name: stmt.name,
           methods: stmt.body.filter((s): s is FunctionDef => s.type === 'FunctionDef').map((s) => s.name),
         });
         return;
+      }
     }
   };
 
@@ -1104,15 +1155,29 @@ function targetLabel(target: AssignTarget): string {
   return `${objLabel}[…]`;
 }
 
-/** Resolve a list/str index, supporting Python negative indices; IndexError if out of range. */
-function normalizeIndex(idx: PyVal, length: number, containerType: string): number {
+/**
+ * Resolve a list/str index, supporting Python negative indices; IndexError if
+ * out of range.
+ *
+ * `use` matters: CPython words the same failure differently depending on which
+ * side of the assignment the subscript is on — `xs[9]` says "list index out of
+ * range", `xs[9] = 1` says "list ASSIGNMENT index out of range". One message
+ * served both here, which is invisible until a program prints `str(e)`.
+ */
+function normalizeIndex(
+  idx: PyVal,
+  length: number,
+  containerType: string,
+  use: 'read' | 'assign' = 'read',
+): number {
   if (idx.k !== 'int' && idx.k !== 'bool') {
     throw new PyError('TypeError', `${containerType} indices must be integers, not ${typeName(idx)}`);
   }
   const raw = idx.k === 'bool' ? (idx.v ? 1 : 0) : Number(idx.v);
   const resolved = raw < 0 ? raw + length : raw;
   if (resolved < 0 || resolved >= length) {
-    throw new PyError('IndexError', `${containerType} index out of range`);
+    const what = use === 'assign' ? `${containerType} assignment index` : `${containerType} index`;
+    throw new PyError('IndexError', `${what} out of range`);
   }
   return resolved;
 }
@@ -1168,7 +1233,7 @@ function sliceGet(obj: PyVal, startVal: PyVal | undefined, stopVal: PyVal | unde
 /** `obj[index] = value` write (Phase 7b) — list (in place) + dict (insert-or-update). */
 function subscriptSet(obj: PyVal, index: PyVal, value: PyVal): void {
   if (obj.k === 'list') {
-    obj.v[normalizeIndex(index, obj.v.length, 'list')] = value;
+    obj.v[normalizeIndex(index, obj.v.length, 'list', 'assign')] = value;
     return;
   }
   if (obj.k === 'str') throw new PyError('TypeError', "'str' object does not support item assignment");

@@ -210,6 +210,8 @@ function semanticTypeOf(stmt: Statement): string {
       return 'control.break';
     case 'Continue':
       return 'control.continue';
+    case 'Pass':
+      return 'control.pass';
     case 'Import':
       return 'control.import';
     case 'Try':
@@ -245,6 +247,7 @@ function statementValue(stmt: Statement): Expression | null {
       return stmt.iterable;
     case 'Break':
     case 'Continue':
+    case 'Pass':
     case 'Import':
     case 'Try':
     case 'ClassDef':

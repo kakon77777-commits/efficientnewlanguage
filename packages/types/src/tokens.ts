@@ -64,6 +64,7 @@ export type TokenType =
   | 'FOR' // for — iteration over a range or list
   | 'BREAK' // break — exit the nearest enclosing loop
   | 'CONTINUE' // continue — skip to the next loop iteration
+  | 'PASS' // pass — the no-op statement (blocks may not be empty)
   | 'IMPORT' // import — bring in a module (bare name only)
   | 'TRY' // try — begin an exception-handling block
   | 'EXCEPT' // except — catch a matching exception

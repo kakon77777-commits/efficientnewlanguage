@@ -88,12 +88,25 @@ describe('accepting an open alert requires a stated reason', () => {
     const tmp = join(here, '..', 'scripts', '.monitor-drill-baseline.json');
     const real = join(here, '..', 'scripts', 'semantic-monitor.baseline.json');
     const original = readFileSync(real, 'utf8');
-    // A baseline claiming a different hash for a real semantics file produces
-    // exactly the "changed without its test" alert, without touching any source.
-    const doctored = JSON.parse(original);
-    doctored.hashes['packages/interp/src/values.ts'] = '0000000000000000';
-    writeFileSync(tmp, JSON.stringify(doctored, null, 2) + '\n', 'utf8');
     try {
+      // Start from a baseline that matches the working tree EXACTLY, then
+      // doctor one entry. Doctoring the COMMITTED baseline instead made this
+      // drill depend on the rest of the tree being clean: on a day when the
+      // conformance tests had genuinely been edited, the monitor saw "source
+      // changed AND its test changed", reported a note rather than an alert,
+      // and `--accept` succeeded — so the drill failed for a reason that had
+      // nothing to do with the refusal it exists to check.
+      const seeded = spawnSync(process.execPath, [monitor, '--accept', '--why', 'drill setup'], {
+        encoding: 'utf8',
+      });
+      expect(seeded.status, 'seeding a matching baseline must succeed').toBe(0);
+
+      // A baseline claiming a different hash for a real semantics file now
+      // produces exactly the "changed without its test" alert, and it is the
+      // ONLY thing that differs — no source file is touched.
+      const doctored = JSON.parse(readFileSync(real, 'utf8'));
+      doctored.hashes['packages/interp/src/values.ts'] = '0000000000000000';
+      writeFileSync(tmp, JSON.stringify(doctored, null, 2) + '\n', 'utf8');
       writeFileSync(real, JSON.stringify(doctored, null, 2) + '\n', 'utf8');
       const refused = spawnSync(process.execPath, [monitor, '--accept'], { encoding: 'utf8' });
       expect(refused.status, 'must refuse').toBe(1);

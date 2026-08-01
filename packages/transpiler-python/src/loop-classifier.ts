@@ -139,6 +139,7 @@ function scanStatementExpr(stmt: Statement, visit: (e: Expression) => void): voi
       break; // body is visited separately
     case 'Break':
     case 'Continue':
+    case 'Pass':
     case 'Import':
       break; // no expressions
     case 'Try':

@@ -1,0 +1,224 @@
+{"stream":"eml","proto":"eml-trace-v1","seq":1,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:start","mono":1,"file":"retry_with_backoff_ledger.eml","statements":37}
+{"stream":"eml","proto":"eml-trace-v1","seq":2,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":2,"name":"attempts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":3,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":3,"name":"successes","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":4,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":4,"name":"failures","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":5,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":5,"name":"backoff_total","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":6,"ts":"1970-01-01T00:00:00.000Z","type":"eml:classdef","mono":6,"name":"Ledger","methods":["__init__","record"]}
+{"stream":"eml","proto":"eml-trace-v1","seq":7,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":7,"fn":"flaky","params":["name","fail_times","state","fatal"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":8,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":8,"fn":"with_retry","params":["ledger","name","fail_times","fatal","budget"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":9,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":9,"fn":"Ledger.__init__","args":[],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":10,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":10,"name":"self[…]","value":"[]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":11,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":11,"name":"self[…]","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":12,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":12,"name":"self[…]","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":13,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":13,"name":"self[…]","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":14,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":14,"name":"self[…]","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":15,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":15,"fn":"Ledger.__init__","value":"None"}
+{"stream":"eml","proto":"eml-trace-v1","seq":16,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":16,"name":"ledger","value":"<Ledger object>","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":17,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":17,"name":"budget","value":"4","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":18,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":18,"name":"jobs","value":"[['alpha', 0, False], ['bravo', 2, False], ['charlie', 9, False], ['delta', 0, True]]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":19,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":19,"text":"Running four jobs with a budget of 4 attempts each:"}
+{"stream":"eml","proto":"eml-trace-v1","seq":20,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":20,"name":"succeeded","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":21,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":21,"name":"gave_up","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":22,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":22,"name":"refused","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":23,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":23,"fn":"with_retry","args":["<Ledger object>","'alpha'","0","False","4"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":24,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":24,"name":"attempt","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":25,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":25,"name":"delay","value":"1","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":26,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":26,"name":"outcome","value":"''","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":27,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":27,"name":"attempt","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":28,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":28,"name":"ledger[…]","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":29,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":29,"name":"unused","value":"[0]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":30,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":30,"fn":"flaky","args":["'alpha'","0","[0]","False"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":31,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":31,"name":"state[…]","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":32,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":32,"fn":"flaky","value":"'alpha: ok on attempt 1'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":33,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":33,"name":"result","value":"'alpha: ok on attempt 1'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":34,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":34,"name":"ledger[…]","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":35,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":35,"fn":"Ledger.record","args":["'alpha attempt 1: success'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":36,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":36,"name":"self[…]","value":"['alpha attempt 1: success']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":37,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":37,"fn":"Ledger.record","value":"None"}
+{"stream":"eml","proto":"eml-trace-v1","seq":38,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":38,"fn":"Ledger.record","args":["'  (finally ran for attempt 1)'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":39,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":39,"name":"self[…]","value":"['alpha attempt 1: success', '  (finally ran for attempt 1)']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":40,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":40,"fn":"Ledger.record","value":"None"}
+{"stream":"eml","proto":"eml-trace-v1","seq":41,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":41,"fn":"with_retry","value":"'alpha: ok on attempt 1'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":42,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":42,"name":"result","value":"'alpha: ok on attempt 1'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":43,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":43,"name":"succeeded","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":44,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":44,"text":"  alpha: ok on attempt 1"}
+{"stream":"eml","proto":"eml-trace-v1","seq":45,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":45,"fn":"with_retry","args":["<Ledger object>","'bravo'","2","False","4"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":46,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":46,"name":"attempt","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":47,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":47,"name":"delay","value":"1","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":48,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":48,"name":"outcome","value":"''","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":49,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":49,"name":"attempt","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":50,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":50,"name":"ledger[…]","value":"2","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":51,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":51,"name":"unused","value":"[0]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":52,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":52,"fn":"flaky","args":["'bravo'","2","[0]","False"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":53,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":53,"name":"state[…]","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":54,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":54,"name":"ledger[…]","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":55,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":55,"name":"ledger[…]","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":56,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":56,"fn":"Ledger.record","args":["'bravo attempt 1: retry after 1s'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":57,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":57,"name":"self[…]","value":"['alpha attempt 1: success', '  (finally ran for attempt 1)', 'bravo attempt 1: retry after 1s']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":58,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":58,"fn":"Ledger.record","value":"None"}
+{"stream":"eml","proto":"eml-trace-v1","seq":59,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":59,"name":"delay","value":"2","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":60,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":60,"fn":"Ledger.record","args":["'  (finally ran for attempt 1)'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":61,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":61,"name":"self[…]","value":"['alpha attempt 1: success', '  (finally ran for attempt 1)', 'bravo attempt 1: retry after 1s', '  (finally ran for attempt 1)']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":62,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":62,"fn":"Ledger.record","value":"None"}
+{"stream":"eml","proto":"eml-trace-v1","seq":63,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":63,"name":"attempt","value":"2","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":64,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":64,"name":"ledger[…]","value":"3","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":65,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":65,"name":"unused","value":"[0]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":66,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":66,"fn":"flaky","args":["'bravo'","2","[1]","False"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":67,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":67,"name":"state[…]","value":"2","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":68,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":68,"name":"ledger[…]","value":"2","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":69,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":69,"name":"ledger[…]","value":"3","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":70,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":70,"fn":"Ledger.record","args":["'bravo attempt 2: retry after 2s'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":71,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":71,"name":"self[…]","value":"['alpha attempt 1: success', '  (finally ran for attempt 1)', 'bravo attempt 1: retry after 1s', '  (finally ran for attempt 1)', 'bravo attempt 2: retry after 2s']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":72,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":72,"fn":"Ledger.record","value":"None"}
+{"stream":"eml","proto":"eml-trace-v1","seq":73,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":73,"name":"delay","value":"4","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":74,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":74,"fn":"Ledger.record","args":["'  (finally ran for attempt 2)'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":75,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":75,"name":"self[…]","value":"['alpha attempt 1: success', '  (finally ran for attempt 1)', 'bravo attempt 1: retry after 1s', '  (finally ran for attempt 1)', 'bravo attempt 2: retry after 2s', '  (finally ran for attempt 2)']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":76,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":76,"fn":"Ledger.record","value":"None"}
+{"stream":"eml","proto":"eml-trace-v1","seq":77,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":77,"name":"attempt","value":"3","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":78,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":78,"name":"ledger[…]","value":"4","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":79,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":79,"name":"unused","value":"[0]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":80,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":80,"fn":"flaky","args":["'bravo'","2","[2]","False"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":81,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":81,"name":"state[…]","value":"3","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":82,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":82,"fn":"flaky","value":"'bravo: ok on attempt 3'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":83,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":83,"name":"result","value":"'bravo: ok on attempt 3'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":84,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":84,"name":"ledger[…]","value":"2","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":85,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":85,"fn":"Ledger.record","args":["'bravo attempt 3: success'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":86,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":86,"name":"self[…]","value":"['alpha attempt 1: success', '  (finally ran for attempt 1)', 'bravo attempt 1: retry after 1s', '  (finally ran for attempt 1)', 'bravo attempt 2: retry after 2s', '  (finally ran for attempt 2)', 'bravo attempt 3: success']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":87,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":87,"fn":"Ledger.record","value":"None"}
+{"stream":"eml","proto":"eml-trace-v1","seq":88,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":88,"fn":"Ledger.record","args":["'  (finally ran for attempt 3)'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":89,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":89,"name":"self[…]","value":"['alpha attempt 1: success', '  (finally ran for attempt 1)', 'bravo attempt 1: retry after 1s', '  (finally ran for attempt 1)', 'bravo attempt 2: retry after 2s', '  (finally ran for attempt 2)', 'bravo attempt 3: success', '  (finally ran for attempt 3)']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":90,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":90,"fn":"Ledger.record","value":"None"}
+{"stream":"eml","proto":"eml-trace-v1","seq":91,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":91,"fn":"with_retry","value":"'bravo: ok on attempt 3'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":92,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":92,"name":"result","value":"'bravo: ok on attempt 3'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":93,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":93,"name":"succeeded","value":"2","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":94,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":94,"text":"  bravo: ok on attempt 3"}
+{"stream":"eml","proto":"eml-trace-v1","seq":95,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":95,"fn":"with_retry","args":["<Ledger object>","'charlie'","9","False","4"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":96,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":96,"name":"attempt","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":97,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":97,"name":"delay","value":"1","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":98,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":98,"name":"outcome","value":"''","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":99,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":99,"name":"attempt","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":100,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":100,"name":"ledger[…]","value":"5","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":101,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":101,"name":"unused","value":"[0]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":102,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":102,"fn":"flaky","args":["'charlie'","9","[0]","False"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":103,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":103,"name":"state[…]","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":104,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":104,"name":"ledger[…]","value":"3","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":105,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":105,"name":"ledger[…]","value":"4","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":106,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":106,"fn":"Ledger.record","args":["'charlie attempt 1: retry after 1s'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":107,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":107,"name":"self[…]","value":"['alpha attempt 1: success', '  (finally ran for attempt 1)', 'bravo attempt 1: retry after 1s', '  (finally ran for attempt 1)', 'bravo attempt 2: retry after 2s', '  (finally ran for attempt 2)', 'bravo attempt 3: success', '  (finally ran for attempt 3)', 'charlie attempt 1: retry after 1s']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":108,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":108,"fn":"Ledger.record","value":"None"}
+{"stream":"eml","proto":"eml-trace-v1","seq":109,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":109,"name":"delay","value":"2","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":110,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":110,"fn":"Ledger.record","args":["'  (finally ran for attempt 1)'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":111,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":111,"name":"self[…]","value":"['alpha attempt 1: success', '  (finally ran for attempt 1)', 'bravo attempt 1: retry after 1s', '  (finally ran for attempt 1)', 'bravo attempt 2: retry after 2s', '  (finally ran for attempt 2)', 'bravo attempt 3: success', '  (finally ran for attempt 3)', 'charlie attempt 1: retry after 1s', '  (finally ran for attempt 1)']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":112,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":112,"fn":"Ledger.record","value":"None"}
+{"stream":"eml","proto":"eml-trace-v1","seq":113,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":113,"name":"attempt","value":"2","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":114,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":114,"name":"ledger[…]","value":"6","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":115,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":115,"name":"unused","value":"[0]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":116,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":116,"fn":"flaky","args":["'charlie'","9","[1]","False"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":117,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":117,"name":"state[…]","value":"2","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":118,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":118,"name":"ledger[…]","value":"4","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":119,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":119,"name":"ledger[…]","value":"6","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":120,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":120,"fn":"Ledger.record","args":["'charlie attempt 2: retry after 2s'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":121,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":121,"name":"self[…]","value":"['alpha attempt 1: success', '  (finally ran for attempt 1)', 'bravo attempt 1: retry after 1s', '  (finally ran for attempt 1)', 'bravo attempt 2: retry after 2s', '  (finally ran for attempt 2)', 'bravo attempt 3: success', '  (finally ran for attempt 3)', 'charlie attempt 1: retry after 1s', '  (finally ran for attempt 1)', 'charlie attempt 2: retry after 2s']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":122,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":122,"fn":"Ledger.record","value":"None"}
+{"stream":"eml","proto":"eml-trace-v1","seq":123,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":123,"name":"delay","value":"4","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":124,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":124,"fn":"Ledger.record","args":["'  (finally ran for attempt 2)'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":125,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":125,"name":"self[…]","value":"['alpha attempt 1: success', '  (finally ran for attempt 1)', 'bravo attempt 1: retry after 1s', '  (finally ran for attempt 1)', 'bravo attempt 2: retry after 2s', '  (finally ran for attempt 2)', 'bravo attempt 3: success', '  (finally ran for attempt 3)', 'charlie attempt 1: retry after 1s', '  (finally ran for attempt 1)', 'charlie attempt 2: retry after 2s', '  (finally ran for attempt 2)']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":126,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":126,"fn":"Ledger.record","value":"None"}
+{"stream":"eml","proto":"eml-trace-v1","seq":127,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":127,"name":"attempt","value":"3","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":128,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":128,"name":"ledger[…]","value":"7","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":129,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":129,"name":"unused","value":"[0]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":130,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":130,"fn":"flaky","args":["'charlie'","9","[2]","False"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":131,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":131,"name":"state[…]","value":"3","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":132,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":132,"name":"ledger[…]","value":"5","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":133,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":133,"name":"ledger[…]","value":"10","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":134,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":134,"fn":"Ledger.record","args":["'charlie attempt 3: retry after 4s'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":135,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":135,"name":"self[…]","value":"['alpha attempt 1: success', '  (finally ran for attempt 1)', 'bravo attempt 1: retry after 1s', '  (finally ran for attempt 1)', 'bravo attempt 2: retry after 2s', '  (finally ran for attempt 2)', 'bravo attempt 3: success', '  (finally ran for attempt 3)', 'charlie attempt 1: retry after 1s', '  (finally ran for attempt 1)', 'charlie attempt 2: retry after 2s', '  (finally ran for attempt 2)', 'charlie attempt 3: retry after 4s']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":136,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":136,"fn":"Ledger.record","value":"None"}
+{"stream":"eml","proto":"eml-trace-v1","seq":137,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":137,"name":"delay","value":"8","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":138,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":138,"fn":"Ledger.record","args":["'  (finally ran for attempt 3)'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":139,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":139,"name":"self[…]","value":"['alpha attempt 1: success', '  (finally ran for attempt 1)', 'bravo attempt 1: retry after 1s', '  (finally ran for attempt 1)', 'bravo attempt 2: retry after 2s', '  (finally ran for attempt 2)', 'bravo attempt 3: success', '  (finally ran for attempt 3)', 'charlie attempt 1: retry after 1s', '  (finally ran for attempt 1)', 'charlie attempt 2: retry after 2s', '  (finally ran for attempt 2)', 'charlie attempt 3: retry after 4s', '  (finally ran for attempt 3)']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":140,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":140,"fn":"Ledger.record","value":"None"}
+{"stream":"eml","proto":"eml-trace-v1","seq":141,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":141,"name":"attempt","value":"4","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":142,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":142,"name":"ledger[…]","value":"8","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":143,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":143,"name":"unused","value":"[0]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":144,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":144,"fn":"flaky","args":["'charlie'","9","[3]","False"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":145,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":145,"name":"state[…]","value":"4","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":146,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":146,"name":"ledger[…]","value":"6","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":147,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":147,"fn":"Ledger.record","args":["'charlie attempt 4: budget exhausted'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":148,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":148,"name":"self[…]","value":"['alpha attempt 1: success', '  (finally ran for attempt 1)', 'bravo attempt 1: retry after 1s', '  (finally ran for attempt 1)', 'bravo attempt 2: retry after 2s', '  (finally ran for attempt 2)', 'bravo attempt 3: success', '  (finally ran for attempt 3)', 'charlie attempt 1: retry after 1s', '  (finally ran for attempt 1)', 'charlie attempt 2: retry after 2s', '  (finally ran for attempt 2)', 'charlie attempt 3: retry after 4s', '  (finally ran for attempt 3)', 'charlie attempt 4: budget exhausted']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":149,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":149,"fn":"Ledger.record","value":"None"}
+{"stream":"eml","proto":"eml-trace-v1","seq":150,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":150,"fn":"Ledger.record","args":["'  (finally ran for attempt 4)'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":151,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":151,"name":"self[…]","value":"['alpha attempt 1: success', '  (finally ran for attempt 1)', 'bravo attempt 1: retry after 1s', '  (finally ran for attempt 1)', 'bravo attempt 2: retry after 2s', '  (finally ran for attempt 2)', 'bravo attempt 3: success', '  (finally ran for attempt 3)', 'charlie attempt 1: retry after 1s', '  (finally ran for attempt 1)', 'charlie attempt 2: retry after 2s', '  (finally ran for attempt 2)', 'charlie attempt 3: retry after 4s', '  (finally ran for attempt 3)', 'charlie attempt 4: budget exhausted', '  (finally ran for attempt 4)']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":152,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":152,"fn":"Ledger.record","value":"None"}
+{"stream":"eml","proto":"eml-trace-v1","seq":153,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":153,"name":"gave_up","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":154,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":154,"text":"  charlie: gave up after 4 attempts"}
+{"stream":"eml","proto":"eml-trace-v1","seq":155,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":155,"fn":"with_retry","args":["<Ledger object>","'delta'","0","True","4"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":156,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":156,"name":"attempt","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":157,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":157,"name":"delay","value":"1","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":158,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":158,"name":"outcome","value":"''","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":159,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":159,"name":"attempt","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":160,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":160,"name":"ledger[…]","value":"9","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":161,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":161,"name":"unused","value":"[0]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":162,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":162,"fn":"flaky","args":["'delta'","0","[0]","True"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":163,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":163,"name":"state[…]","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":164,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":164,"name":"ledger[…]","value":"7","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":165,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":165,"fn":"Ledger.record","args":["'delta attempt 1: fatal, no retry'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":166,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":166,"name":"self[…]","value":"['alpha attempt 1: success', '  (finally ran for attempt 1)', 'bravo attempt 1: retry after 1s', '  (finally ran for attempt 1)', 'bravo attempt 2: retry after 2s', '  (finally ran for attempt 2)', 'bravo attempt 3: success', '  (finally ran for attempt 3)', 'charlie attempt 1: retry after 1s', '  (finally ran for attempt 1)', 'charlie attempt 2: retry after 2s', '  (finally ran for attempt 2)', 'charlie attempt 3: retry after 4s', '  (finally ran for attempt 3)', 'charlie attempt 4: budget exhausted', '  (finally ran for attempt 4)', 'delta attempt 1: fatal, no retry']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":167,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":167,"fn":"Ledger.record","value":"None"}
+{"stream":"eml","proto":"eml-trace-v1","seq":168,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":168,"fn":"Ledger.record","args":["'  (finally ran for attempt 1)'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":169,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":169,"name":"self[…]","value":"['alpha attempt 1: success', '  (finally ran for attempt 1)', 'bravo attempt 1: retry after 1s', '  (finally ran for attempt 1)', 'bravo attempt 2: retry after 2s', '  (finally ran for attempt 2)', 'bravo attempt 3: success', '  (finally ran for attempt 3)', 'charlie attempt 1: retry after 1s', '  (finally ran for attempt 1)', 'charlie attempt 2: retry after 2s', '  (finally ran for attempt 2)', 'charlie attempt 3: retry after 4s', '  (finally ran for attempt 3)', 'charlie attempt 4: budget exhausted', '  (finally ran for attempt 4)', 'delta attempt 1: fatal, no retry', '  (finally ran for attempt 1)']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":170,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":170,"fn":"Ledger.record","value":"None"}
+{"stream":"eml","proto":"eml-trace-v1","seq":171,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":171,"name":"refused","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":172,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":172,"text":"  delta: not retryable"}
+{"stream":"eml","proto":"eml-trace-v1","seq":173,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":173,"text":""}
+{"stream":"eml","proto":"eml-trace-v1","seq":174,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":174,"text":"Ledger:"}
+{"stream":"eml","proto":"eml-trace-v1","seq":175,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":175,"text":"  alpha attempt 1: success"}
+{"stream":"eml","proto":"eml-trace-v1","seq":176,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":176,"text":"    (finally ran for attempt 1)"}
+{"stream":"eml","proto":"eml-trace-v1","seq":177,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":177,"text":"  bravo attempt 1: retry after 1s"}
+{"stream":"eml","proto":"eml-trace-v1","seq":178,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":178,"text":"    (finally ran for attempt 1)"}
+{"stream":"eml","proto":"eml-trace-v1","seq":179,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":179,"text":"  bravo attempt 2: retry after 2s"}
+{"stream":"eml","proto":"eml-trace-v1","seq":180,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":180,"text":"    (finally ran for attempt 2)"}
+{"stream":"eml","proto":"eml-trace-v1","seq":181,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":181,"text":"  bravo attempt 3: success"}
+{"stream":"eml","proto":"eml-trace-v1","seq":182,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":182,"text":"    (finally ran for attempt 3)"}
+{"stream":"eml","proto":"eml-trace-v1","seq":183,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":183,"text":"  charlie attempt 1: retry after 1s"}
+{"stream":"eml","proto":"eml-trace-v1","seq":184,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":184,"text":"    (finally ran for attempt 1)"}
+{"stream":"eml","proto":"eml-trace-v1","seq":185,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":185,"text":"  charlie attempt 2: retry after 2s"}
+{"stream":"eml","proto":"eml-trace-v1","seq":186,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":186,"text":"    (finally ran for attempt 2)"}
+{"stream":"eml","proto":"eml-trace-v1","seq":187,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":187,"text":"  charlie attempt 3: retry after 4s"}
+{"stream":"eml","proto":"eml-trace-v1","seq":188,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":188,"text":"    (finally ran for attempt 3)"}
+{"stream":"eml","proto":"eml-trace-v1","seq":189,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":189,"text":"  charlie attempt 4: budget exhausted"}
+{"stream":"eml","proto":"eml-trace-v1","seq":190,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":190,"text":"    (finally ran for attempt 4)"}
+{"stream":"eml","proto":"eml-trace-v1","seq":191,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":191,"text":"  delta attempt 1: fatal, no retry"}
+{"stream":"eml","proto":"eml-trace-v1","seq":192,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":192,"text":"    (finally ran for attempt 1)"}
+{"stream":"eml","proto":"eml-trace-v1","seq":193,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":193,"name":"expected_attempts","value":"9","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":194,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":194,"name":"expected_backoff","value":"10","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":195,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":195,"name":"finally_lines","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":196,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":196,"name":"finally_lines","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":197,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":197,"name":"finally_lines","value":"2","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":198,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":198,"name":"finally_lines","value":"3","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":199,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":199,"name":"finally_lines","value":"4","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":200,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":200,"name":"finally_lines","value":"5","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":201,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":201,"name":"finally_lines","value":"6","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":202,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":202,"name":"finally_lines","value":"7","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":203,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":203,"name":"finally_lines","value":"8","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":204,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":204,"name":"finally_lines","value":"9","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":205,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":205,"text":""}
+{"stream":"eml","proto":"eml-trace-v1","seq":206,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":206,"text":"attempts:        9  (expected 9)"}
+{"stream":"eml","proto":"eml-trace-v1","seq":207,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":207,"text":"successes:       2"}
+{"stream":"eml","proto":"eml-trace-v1","seq":208,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":208,"text":"failures:        7"}
+{"stream":"eml","proto":"eml-trace-v1","seq":209,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":209,"text":"finally ran:     9 times"}
+{"stream":"eml","proto":"eml-trace-v1","seq":210,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":210,"text":"backoff seconds: 10  (expected 10)"}
+{"stream":"eml","proto":"eml-trace-v1","seq":211,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":211,"text":"succeeded / gave up / refused: 2 / 1 / 1"}
+{"stream":"eml","proto":"eml-trace-v1","seq":212,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":212,"text":""}
+{"stream":"eml","proto":"eml-trace-v1","seq":213,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":213,"name":"verdict","value":"'Every attempt counted, every finally ran, and delta was never retried.'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":214,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":214,"text":"Every attempt counted, every finally ran, and delta was never retried."}
+{"stream":"eml","proto":"eml-trace-v1","seq":215,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":215,"text":""}
+{"stream":"eml","proto":"eml-trace-v1","seq":216,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":216,"name":"n1","value":"'`finally ran` equalling `attempts` is the load-bearing check. Two of the'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":217,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":217,"text":"`finally ran` equalling `attempts` is the load-bearing check. Two of the"}
+{"stream":"eml","proto":"eml-trace-v1","seq":218,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":218,"name":"n2","value":"'four jobs leave the try body by `return` or by `raise`, and an'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":219,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":219,"text":"four jobs leave the try body by `return` or by `raise`, and an"}
+{"stream":"eml","proto":"eml-trace-v1","seq":220,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":220,"name":"n3","value":"'implementation that runs finally only on the fall-through path still'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":221,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":221,"text":"implementation that runs finally only on the fall-through path still"}
+{"stream":"eml","proto":"eml-trace-v1","seq":222,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":222,"name":"n4","value":"'produces this exact output apart from that one number.'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":223,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":223,"text":"produces this exact output apart from that one number."}
+{"stream":"eml","proto":"eml-trace-v1","seq":224,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:done","mono":224,"ok":true,"outputs":39,"anomalies":0}

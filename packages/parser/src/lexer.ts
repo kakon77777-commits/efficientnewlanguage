@@ -270,6 +270,7 @@ export function lex(source: string): Token[] {
       else if (value === 'for') type = 'FOR';
       else if (value === 'break') type = 'BREAK';
       else if (value === 'continue') type = 'CONTINUE';
+      else if (value === 'pass') type = 'PASS';
       else if (value === 'import') type = 'IMPORT';
       else if (value === 'try') type = 'TRY';
       else if (value === 'except') type = 'EXCEPT';

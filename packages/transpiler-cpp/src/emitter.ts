@@ -247,6 +247,7 @@ export function emitCppStatement(stmt: Statement, listVars: Set<string> = new Se
     case 'ForIn':
     case 'Break':
     case 'Continue':
+    case 'Pass':
     case 'Import':
     case 'Try':
     case 'Raise':
@@ -348,6 +349,7 @@ function statementCallsName(stmt: Statement, name: string): boolean {
       return expressionCallsName(stmt.iterable, name) || stmt.body.some((s) => statementCallsName(s, name));
     case 'Break':
     case 'Continue':
+    case 'Pass':
     case 'Import':
       return false;
     case 'Try':

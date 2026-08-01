@@ -320,6 +320,8 @@ export function emitEmlStatement(stmt: Statement, bound: Set<string> = new Set()
       return 'break';
     case 'Continue':
       return 'continue';
+    case 'Pass':
+      return 'pass';
     case 'Import':
       return `import ${stmt.module}`;
     case 'Try': {

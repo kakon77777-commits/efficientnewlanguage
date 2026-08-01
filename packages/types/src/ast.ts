@@ -383,6 +383,25 @@ export interface ContinueStatement extends NodeBase {
 }
 
 /**
+ * `pass` — the no-op statement. Blocks in this grammar must be non-empty, so a
+ * block a program wants to leave deliberately empty (`except KeyError: pass`,
+ * a stub branch) has nothing to put in it without this.
+ *
+ * It arrived late, and by way of a bug. `break`/`continue` were given real
+ * statement forms in Phase 7a precisely because a bare keyword at end-of-line
+ * is indistinguishable from a variable reference to this parser — and the
+ * reverse Python->EML parser then refused `pass` in as many words, naming that
+ * same vulnerability. The forward parser was never given the matching guard,
+ * so `pass` kept parsing as an Identifier. The Python emitter printed that
+ * identifier verbatim and it happened to be the correct Python, which is why
+ * nothing looked wrong for nine phases; the interpreter, which actually
+ * resolves names, raised `NameError: name 'pass' is not defined`.
+ */
+export interface PassStatement extends NodeBase {
+  type: 'Pass';
+}
+
+/**
  * `import module` — a single bare module name, e.g. `import math`. No
  * `from x import y`, no `as` aliasing, no dotted paths (`import os.path`).
  * Phase 7c. Emitted in-place (not hoisted) since the user wrote it there.
@@ -474,6 +493,7 @@ export type Statement =
   | ForInStatement
   | BreakStatement
   | ContinueStatement
+  | PassStatement
   | ImportStatement
   | TryStatement
   | RaiseStatement

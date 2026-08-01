@@ -189,6 +189,7 @@ function scanStatement(stmt: Statement, effects: string[], userFns: Set<string>)
       break;
     case 'Break':
     case 'Continue':
+    case 'Pass':
     case 'Import':
       break; // no expressions, no side effects
     case 'Try':
@@ -358,6 +359,7 @@ export function collectCalledNames(fn: FunctionDef): string[] {
         break;
       case 'Break':
       case 'Continue':
+      case 'Pass':
       case 'Import':
         break;
       case 'Try':

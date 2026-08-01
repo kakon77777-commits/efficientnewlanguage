@@ -51,8 +51,16 @@ export type PyVal =
   // kept opaque for the same dependency-free reason as `func`'s `def`. An
   // instance's `attrs` map is the ONLY place instance state lives — there is
   // no separate class-level attribute store this round (see docs).
-  | { k: 'class'; name: string; def: unknown }
-  | { k: 'instance'; className: string; classDef: unknown; attrs: Map<string, PyVal> }
+  // `attrs` is the class-level namespace: what the class BODY bound, other
+  // than methods. Python executes a class body in its own namespace and keeps
+  // it as the class dict; instance lookup falls back to it. Modelling it as a
+  // Map here (rather than re-walking `def.body` on each read) is what makes
+  // that fallback a one-line lookup instead of a second statement evaluator.
+  | { k: 'class'; name: string; def: unknown; attrs: Map<string, PyVal> }
+  // `classAttrs` is the SAME Map object the class value holds, not a copy —
+  // so a class attribute assigned after instances exist is visible to them,
+  // which is what Python does.
+  | { k: 'instance'; className: string; classDef: unknown; attrs: Map<string, PyVal>; classAttrs: Map<string, PyVal> }
   // Exceptions as real values. Before these existed, `except E as e` bound a
   // plain STRING (the message) and `__exit__`'s first argument was the type's
   // NAME as a string — so `exc_type == ValueError` could not be written at all

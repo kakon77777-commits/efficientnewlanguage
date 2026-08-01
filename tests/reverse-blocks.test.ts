@@ -235,10 +235,20 @@ describe('reverse Python->EML — try/except/finally + raise (Phase D)', () => {
     expect(rt.ok, rt.message + '\n' + JSON.stringify(rt.steps, null, 2)).toBe(true);
   });
 
-  it('`pass` fails loudly instead of silently mistranslating (regression guard)', () => {
-    const r = transpilePythonToEml('try:\n    x = 1\nexcept ValueError:\n    pass\n');
-    expect(r.ok).toBe(false);
-    expect(r.error).toMatch(/'pass'/);
+  it('`pass` round-trips — it is a statement now, not a refusal', () => {
+    // This test used to assert the OPPOSITE: that reverse transpilation
+    // refused `pass` outright, because EML had no no-op statement to translate
+    // it into. Guarding this direction and not the forward one is what hid the
+    // real bug — the forward parser read `pass` as an Identifier, the Python
+    // emitter printed that identifier (accidentally correct Python), and only
+    // the interpreter objected. `except SomeError: pass` is ordinary Python,
+    // and refusing it made whole files un-reversible for no good reason.
+    const py = 'try:\n    x = 1\nexcept ValueError:\n    pass\n';
+    const r = transpilePythonToEml(py);
+    expect(r.ok, r.error).toBe(true);
+    expect(r.eml).toContain('pass');
+    const rt = roundTripFromPython(py);
+    expect(rt.ok, rt.message + '\n' + JSON.stringify(rt.steps, null, 2)).toBe(true);
   });
 });
 

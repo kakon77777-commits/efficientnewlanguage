@@ -163,6 +163,7 @@ function walkStmt(stmt: Statement, bound: Set<string>, onCall: (name: string) =>
       break;
     case 'Break':
     case 'Continue':
+    case 'Pass':
     case 'Import':
       break;
     case 'Try':

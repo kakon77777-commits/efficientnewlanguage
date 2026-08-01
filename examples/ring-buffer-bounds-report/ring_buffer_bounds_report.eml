@@ -1,0 +1,131 @@
+# Self-authored for the EML case corpus (no external origin). A fixed-capacity
+# ring buffer whose error handler tells reads and writes apart by reading the
+# message CPython gives it.
+#
+# An IndexError is not one error. CPython says
+#
+#     list index out of range              for  xs[9]
+#     list assignment index out of range   for  xs[9] = 1
+#
+# and the difference is the whole diagnosis: a bad read means the caller asked
+# for something that was never written, a bad write means the caller believes
+# the buffer is bigger than it is. Same exception class, same line number,
+# opposite bug.
+#
+# Until 2026-08-01 this program could not distinguish them here. The
+# interpreter used the read wording for both, which is invisible to anything
+# that only checks the exception TYPE and immediately visible to a program
+# that prints `str(e)` - which is to say, to any program that logs its errors.
+#
+# The buffer below deliberately drives four out-of-range accesses, two of each
+# kind, and classifies every one by its message alone.
+
+class Ring:
+    def __init__(self, capacity):
+        capacity => self.capacity
+        [] => self.slots
+        for i in [0:capacity - 1]:
+            self.slots + [0] => self.slots
+        0 => self.count
+
+    def put(self, index, value):
+        # No bounds check on purpose - the point is to let the container raise
+        # and to read what it says.
+        value => self.slots[index]
+        self.count + 1 => self.count
+
+    def get(self, index):
+        return self.slots[index]
+
+
+Ring(4) => ring
+("capacity: " + str(ring.capacity) + ", slots: " + str(ring.slots))^0
+
+# Legal traffic first, so the failures below are clearly about the bounds and
+# not about the buffer being broken from the start.
+ring.put(0, 11)
+ring.put(1, 22)
+ring.put(3, 44)
+ring.put(-1, 99)
+("after legal writes: " + str(ring.slots))^0
+("ring.get(2) = " + str(ring.get(2)))^0
+("ring.get(-2) = " + str(ring.get(-2)))^0
+
+# --------------------------------------------------------------- the probes
+[
+    ["read", 4],
+    ["write", 4],
+    ["read", -9],
+    ["write", 7],
+] => probes
+
+0 => read_faults
+0 => write_faults
+0 => misread
+[] => report
+
+""^0
+"Out-of-range probes:"^0
+for probe in probes:
+    probe[0] => kind
+    probe[1] => index
+    "" => message
+    try:
+        if kind == "read":
+            ring.get(index)
+        else:
+            ring.put(index, 0)
+        "NO ERROR RAISED" => message
+    except IndexError as e:
+        str(e) => message
+
+    # Classify by the message alone. This is exactly what a log-scraping
+    # operator does at 3am, and it only works if the two wordings differ.
+    if message == "list assignment index out of range":
+        "write out of bounds" => diagnosis
+        write_faults + 1 => write_faults
+    elif message == "list index out of range":
+        "read out of bounds" => diagnosis
+        read_faults + 1 => read_faults
+    else:
+        "unclassified" => diagnosis
+        misread + 1 => misread
+
+    ("  " + kind + " at " + str(index) + " -> " + message)^0
+    ("      diagnosed as: " + diagnosis)^0
+    report + [diagnosis] => report
+
+# ------------------------------------------------------------------ checks
+""^0
+("probes:        " + str(len(probes)))^0
+("read faults:   " + str(read_faults))^0
+("write faults:  " + str(write_faults))^0
+("unclassified:  " + str(misread))^0
+
+# Every probe must be classified, and the diagnosis must match what the probe
+# actually did - counting alone would pass even if reads and writes were
+# swapped.
+True => matched
+0 => i
+while i < len(probes):
+    probes[i][0] => intended
+    report[i] => got
+    if intended == "read" and not (got == "read out of bounds"):
+        False => matched
+    if intended == "write" and not (got == "write out of bounds"):
+        False => matched
+    i + 1 => i
+
+""^0
+if misread == 0 and matched and read_faults == 2 and write_faults == 2:
+    "Every out-of-range access was classified correctly from its message." => verdict
+else:
+    "FAILED - reads and writes are indistinguishable from the error text." => verdict
+verdict^0
+
+"If both wordings were the same string, the counts above would still be 4," => n1
+n1^0
+"the program would still run, and every one of these faults would be filed" => n2
+n2^0
+"as the same bug. An error message is output, and output is behaviour." => n3
+n3^0
