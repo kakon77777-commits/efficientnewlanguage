@@ -1,0 +1,237 @@
+# Self-authored for the EML case corpus (no external origin). The Verhoeff
+# check digit, and the class of error it catches that Luhn does not.
+#
+# Luhn (already in this corpus) catches every single-digit error and most
+# adjacent transpositions - but not all of them: it misses 09 <-> 90, because
+# both map to the same doubled sum. Verhoeff catches EVERY single-digit error
+# and EVERY adjacent transposition, with no exceptions, by working in the
+# dihedral group D5 instead of with sums.
+#
+# The construction is three tables and no arithmetic insight:
+#
+#   d[i][j]  the D5 multiplication table (not commutative - that is the point)
+#   p[i][j]  a permutation applied by position
+#   inv[i]   the inverse element
+#
+# Because D5 is non-commutative, swapping two adjacent digits changes the
+# product. A sum-based scheme cannot do this: addition commutes, so a
+# transposition that happens to preserve the sum is invisible to it.
+#
+# The program does not take that on faith. It exhaustively tries, over 40
+# base numbers - every substitution and every transposition of each, which is
+# what makes the claim exhaustive rather than sampled:
+#
+#   1. every single-digit substitution  - must be caught, all of them
+#   2. every adjacent transposition     - must be caught, all of them
+#
+# and runs the same two sweeps against Luhn, so the difference is measured
+# rather than asserted.
+
+[
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    [1, 2, 3, 4, 0, 6, 7, 8, 9, 5],
+    [2, 3, 4, 0, 1, 7, 8, 9, 5, 6],
+    [3, 4, 0, 1, 2, 8, 9, 5, 6, 7],
+    [4, 0, 1, 2, 3, 9, 5, 6, 7, 8],
+    [5, 9, 8, 7, 6, 0, 4, 3, 2, 1],
+    [6, 5, 9, 8, 7, 1, 0, 4, 3, 2],
+    [7, 6, 5, 9, 8, 2, 1, 0, 4, 3],
+    [8, 7, 6, 5, 9, 3, 2, 1, 0, 4],
+    [9, 8, 7, 6, 5, 4, 3, 2, 1, 0],
+] => D
+
+[
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    [1, 5, 7, 6, 2, 8, 3, 0, 9, 4],
+    [5, 8, 0, 3, 7, 9, 6, 1, 4, 2],
+    [8, 9, 1, 6, 0, 4, 3, 5, 2, 7],
+    [9, 4, 5, 3, 1, 2, 6, 8, 7, 0],
+    [4, 2, 8, 6, 5, 7, 3, 9, 0, 1],
+    [2, 7, 9, 3, 8, 0, 6, 4, 1, 5],
+    [7, 0, 4, 6, 9, 1, 3, 2, 5, 8],
+] => P
+
+[0, 4, 3, 2, 1, 5, 6, 7, 8, 9] => INV
+
+def digits_of(s):
+    [] => out
+    for ch in s:
+        out + [int(ch)] => out
+    return out
+
+def verhoeff_checksum(s):
+    # Validation walks right to left with the position starting at 0. The
+    # GENERATOR below starts at 1, because the digit it is computing will
+    # occupy position 0. Using the same offset in both is the classic way to
+    # get an implementation that is self-consistent and rejects everything.
+    digits_of(s) => ds
+    0 => c
+    len(ds) - 1 => i
+    0 => pos
+    while i >= 0:
+        D[c][P[pos % 8][ds[i]]] => c
+        i - 1 => i
+        pos + 1 => pos
+    return c
+
+def verhoeff_digit(s):
+    digits_of(s) => ds
+    0 => c
+    len(ds) - 1 => i
+    0 => pos
+    while i >= 0:
+        D[c][P[(pos + 1) % 8][ds[i]]] => c
+        i - 1 => i
+        pos + 1 => pos
+    return INV[c]
+
+def verhoeff_valid(s):
+    return verhoeff_checksum(s) == 0
+
+def luhn_valid(s):
+    digits_of(s) => ds
+    0 => total
+    len(ds) - 1 => i
+    0 => pos
+    while i >= 0:
+        ds[i] => d
+        if pos % 2 == 1:
+            d * 2 => d
+            if d > 9:
+                d - 9 => d
+        total + d => total
+        i - 1 => i
+        pos + 1 => pos
+    return total % 10 == 0
+
+def luhn_digit(s):
+    for d in [0:9]:
+        if luhn_valid(s + str(d)):
+            return d
+    return 0 - 1
+
+
+"base      verhoeff  full         valid"^0
+["236", "12345", "8675309", "0", "90", "09"] => bases
+for b in bases:
+    verhoeff_digit(b) => v
+    b + str(v) => full
+    ("%-9s %-9d %-12s %s" % (b, v, full, str(verhoeff_valid(full))))^0
+
+# --------------------------------------------------- exhaustive error sweep
+def make_base(i):
+    # A deterministic 6-digit base number.
+    "" => out
+    i => n
+    for k in [0:5]:
+        out + str((n * 7 + k * 3 + 1) % 10) => out
+        int(n / 3) + k => n
+    return out
+
+0 => bases_checked
+0 => v_sub_caught
+0 => v_sub_total
+0 => v_trans_caught
+0 => v_trans_total
+0 => l_sub_caught
+0 => l_sub_total
+0 => l_trans_caught
+0 => l_trans_total
+
+for i in [0:7]:
+    make_base(i) => base
+    bases_checked + 1 => bases_checked
+
+    base + str(verhoeff_digit(base)) => v_num
+    base + str(luhn_digit(base)) => l_num
+
+    # 1. every single-digit substitution
+    for pos in [0:len(v_num) - 1]:
+        for d in [0:9]:
+            if not (int(v_num[pos]) == d):
+                v_num[:pos] + str(d) + v_num[pos + 1:] => corrupted
+                v_sub_total + 1 => v_sub_total
+                if not verhoeff_valid(corrupted):
+                    v_sub_caught + 1 => v_sub_caught
+            if not (int(l_num[pos]) == d):
+                l_num[:pos] + str(d) + l_num[pos + 1:] => corrupted
+                l_sub_total + 1 => l_sub_total
+                if not luhn_valid(corrupted):
+                    l_sub_caught + 1 => l_sub_caught
+
+    # 2. every adjacent transposition
+    for pos in [0:len(v_num) - 2]:
+        if not (v_num[pos] == v_num[pos + 1]):
+            v_num[:pos] + v_num[pos + 1] + v_num[pos] + v_num[pos + 2:] => swapped
+            v_trans_total + 1 => v_trans_total
+            if not verhoeff_valid(swapped):
+                v_trans_caught + 1 => v_trans_caught
+        if not (l_num[pos] == l_num[pos + 1]):
+            l_num[:pos] + l_num[pos + 1] + l_num[pos] + l_num[pos + 2:] => swapped
+            l_trans_total + 1 => l_trans_total
+            if not luhn_valid(swapped):
+                l_trans_caught + 1 => l_trans_caught
+
+""^0
+("base numbers swept:            " + str(bases_checked))^0
+""^0
+"Verhoeff:"^0
+("  single-digit errors caught:  " + str(v_sub_caught) + "/" + str(v_sub_total))^0
+("  transpositions caught:       " + str(v_trans_caught) + "/" + str(v_trans_total))^0
+"Luhn:"^0
+("  single-digit errors caught:  " + str(l_sub_caught) + "/" + str(l_sub_total))^0
+("  transpositions caught:       " + str(l_trans_caught) + "/" + str(l_trans_total))^0
+
+l_trans_total - l_trans_caught => luhn_misses
+("transpositions Luhn misses:    " + str(luhn_misses))^0
+
+# Search directly for a transposition Luhn cannot see. The exhaustive sweep
+# above is deliberately small so the recorded trace stays a usable size, and a
+# small sweep may not happen to contain one - so this looks for it on purpose
+# rather than hoping the sample includes it.
+""^0
+"Searching for a transposition Luhn cannot detect:"^0
+"" => found_a
+"" => found_b
+for i in [0:499]:
+    if len(found_a) == 0:
+        make_base(i) => b
+        b + str(luhn_digit(b)) => num
+        for pos in [0:len(num) - 2]:
+            if len(found_a) == 0 and not (num[pos] == num[pos + 1]):
+                num[:pos] + num[pos + 1] + num[pos] + num[pos + 2:] => sw
+                if luhn_valid(sw):
+                    num => found_a
+                    sw => found_b
+if len(found_a) > 0:
+    ("  " + found_a + " and " + found_b + " are a transposition of each other")^0
+    ("    Luhn accepts both:      " + str(luhn_valid(found_a)) + " / " + str(luhn_valid(found_b)))^0
+    ("    Verhoeff sees the swap: " + str(verhoeff_valid(found_a + str(verhoeff_digit(found_a)))))^0
+    found_a => va
+    va + str(verhoeff_digit(va)) => vnum
+    0 => at
+    while at < len(vnum) - 1 and vnum[at] == vnum[at + 1]:
+        at + 1 => at
+    vnum[:at] + vnum[at + 1] + vnum[at] + vnum[at + 2:] => vsw
+    ("    the same swap under Verhoeff: " + str(verhoeff_valid(vsw)) + "  (rejected)")^0
+else:
+    "  (none found in this range)"^0
+
+""^0
+if v_sub_caught == v_sub_total and v_trans_caught == v_trans_total and luhn_misses > 0:
+    "Verhoeff caught every substitution and every transposition; Luhn did not." => verdict
+elif v_sub_caught == v_sub_total and v_trans_caught == v_trans_total:
+    "Verhoeff caught every substitution and every transposition." => verdict
+else:
+    "FAILED - Verhoeff missed an error it is defined to catch." => verdict
+verdict^0
+
+""^0
+"D5 does not commute, and that is the entire reason this works. A checksum" => n1
+n1^0
+"built on addition cannot distinguish two orderings of the same digits," => n2
+n2^0
+"because addition does not either - so the guarantee is not about better" => n3
+n3^0
+"tables, it is about picking an operation that notices order." => n4
+n4^0

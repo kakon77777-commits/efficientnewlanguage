@@ -1,0 +1,242 @@
+# Self-authored for the EML case corpus (no external origin). Run-length
+# encoding, and the ambiguity that every naive RLE has - including the fix
+# that feels like it works and does not.
+#
+# The naive encoder writes a character followed by its count:
+#
+#     "aaabbc"  ->  "a3b2c1"
+#
+# and it is unambiguous right up until the input contains a digit:
+#
+#     "a3"      ->  "a1" + "31"  ->  "a131"
+#     "a131"    decodes to "a" x 1, then "3" x 1, then "1"  ->  "a31"   WRONG
+#
+# The data got shorter and the decoder returned something plausible. That is
+# the whole failure: RLE has no error state, so a broken codec does not raise,
+# it silently returns different text.
+#
+# The obvious fix is to put the count FIRST - "3a2b1c" - on the theory that
+# the parser then always knows where it is. That was this program's own first
+# premise, and it is wrong, which is why it is still here:
+#
+#     "a3"  ->  "1a" + "13"  ->  "1a13"
+#     decoding: count 1, character 'a'; then count 13, and the string ends
+#
+# Moving the count does not remove the ambiguity, it moves it - a digit in the
+# data still runs together with the next count. A format needs an explicit
+# boundary, not a convention:
+#
+#     delimited   "3:a2:b1:c" - the character is always exactly one position
+#                 after the ':', so it can be a digit, a colon, anything
+#
+# The property that decides which of the three is a codec at all:
+#
+#     decode(encode(s)) == s     for EVERY s, including ones full of digits
+#
+# checked over 92 generated strings, not the eight in the demo. The result is
+# worth stating up front: count-first round-trips fewer of them than the naive
+# form does. The intuitive fix made things worse.
+
+def encode_naive(s):
+    "" => out
+    0 => i
+    while i < len(s):
+        s[i] => ch
+        1 => run
+        while i + run < len(s) and s[i + run] == ch:
+            run + 1 => run
+        out + ch + str(run) => out
+        i + run => i
+    return out
+
+def decode_naive(s):
+    "" => out
+    0 => i
+    while i < len(s):
+        s[i] => ch
+        i + 1 => i
+        "" => digits
+        while i < len(s) and s[i] >= "0" and s[i] <= "9":
+            digits + s[i] => digits
+            i + 1 => i
+        1 => n
+        if len(digits) > 0:
+            int(digits) => n
+        out + ch * n => out
+    return out
+
+def encode_count_first(s):
+    "" => out
+    0 => i
+    while i < len(s):
+        s[i] => ch
+        1 => run
+        while i + run < len(s) and s[i + run] == ch:
+            run + 1 => run
+        out + str(run) + ch => out
+        i + run => i
+    return out
+
+def decode_count_first(s):
+    "" => out
+    0 => i
+    while i < len(s):
+        "" => digits
+        while i < len(s) and s[i] >= "0" and s[i] <= "9":
+            digits + s[i] => digits
+            i + 1 => i
+        if len(digits) == 0:
+            raise ValueError("expected a count at position " + str(i))
+        if i >= len(s):
+            raise ValueError("count with no character at position " + str(i))
+        out + s[i] * int(digits) => out
+        i + 1 => i
+    return out
+
+def encode_delimited(s):
+    # count, separator, then exactly one character. Whatever follows the ':'
+    # is data - digit, colon, anything.
+    "" => out
+    0 => i
+    while i < len(s):
+        s[i] => ch
+        1 => run
+        while i + run < len(s) and s[i + run] == ch:
+            run + 1 => run
+        out + str(run) + ":" + ch => out
+        i + run => i
+    return out
+
+def decode_delimited(s):
+    "" => out
+    0 => i
+    while i < len(s):
+        "" => digits
+        while i < len(s) and s[i] >= "0" and s[i] <= "9":
+            digits + s[i] => digits
+            i + 1 => i
+        if len(digits) == 0:
+            raise ValueError("expected a count at position " + str(i))
+        if i >= len(s) or not (s[i] == ":"):
+            raise ValueError("expected a separator after the count at position " + str(i))
+        i + 1 => i
+        if i >= len(s):
+            raise ValueError("count and separator with no character")
+        out + s[i] * int(digits) => out
+        i + 1 => i
+    return out
+
+
+def brief(s):
+    if len(s) <= 12:
+        return s
+    return s[:9] + "...(" + str(len(s)) + ")"
+
+# "a13" rather than "a131": the naive decode of the latter is 1,113,111
+# characters, which is the same failure at a size that makes the recorded
+# execution trace unusable. The corruption is the point, not its magnitude.
+["aaabbc", "", "x", "aaaaaaaaaaaa", "a3", "a13", "112233", "9"] => samples
+
+"input          naive     back        cnt-first back        delimited     back"^0
+0 => naive_ok
+0 => cf_ok
+0 => del_ok
+for s in samples:
+    encode_naive(s) => n_enc
+    decode_naive(n_enc) => n_dec
+    if n_dec == s:
+        naive_ok + 1 => naive_ok
+
+    encode_count_first(s) => c_enc
+    "<raised>" => c_dec
+    try:
+        decode_count_first(c_enc) => c_dec
+    except ValueError as e:
+        "<raised>" => c_dec
+    if c_dec == s:
+        cf_ok + 1 => cf_ok
+
+    encode_delimited(s) => d_enc
+    decode_delimited(d_enc) => d_dec
+    if d_dec == s:
+        del_ok + 1 => del_ok
+
+    # The naive decode of "a131" is 1,113,111 characters of 'a' - the
+    # corruption is not subtle. Printing it whole would bury the table and
+    # inflate the execution trace by megabytes, so the DISPLAY is capped.
+    # The comparisons above use the full strings.
+    ("%-14s %-9s %-11s %-9s %-11s %-13s %s" % (s, n_enc, brief(n_dec), c_enc, brief(c_dec), d_enc, brief(d_dec)))^0
+
+# --------------------------------------------- round trip over many inputs
+# A small alphabet that deliberately mixes letters and digits, since digits
+# are the entire problem.
+"ab19" => alphabet
+[] => generated
+for a in [0:3]:
+    for b in [0:3]:
+        for c in [0:3]:
+            generated + [alphabet[a] + alphabet[b] + alphabet[c]] => generated
+# plus pure runs, which is what RLE is actually for
+for a in [0:3]:
+    for n in [1:8]:
+        generated + [alphabet[a] * n] => generated
+
+0 => gen_naive_ok
+0 => gen_cf_ok
+0 => gen_del_ok
+for s in generated:
+    if decode_naive(encode_naive(s)) == s:
+        gen_naive_ok + 1 => gen_naive_ok
+    try:
+        if decode_count_first(encode_count_first(s)) == s:
+            gen_cf_ok + 1 => gen_cf_ok
+    except ValueError as e:
+        pass
+    if decode_delimited(encode_delimited(s)) == s:
+        gen_del_ok + 1 => gen_del_ok
+
+""^0
+("demo samples:                    " + str(len(samples)))^0
+("  naive round-tripped:           " + str(naive_ok) + "/" + str(len(samples)))^0
+("  count-first round-tripped:     " + str(cf_ok) + "/" + str(len(samples)))^0
+("  delimited round-tripped:       " + str(del_ok) + "/" + str(len(samples)))^0
+""^0
+("generated strings:               " + str(len(generated)))^0
+("  naive round-tripped:           " + str(gen_naive_ok) + "/" + str(len(generated)))^0
+("  count-first round-tripped:     " + str(gen_cf_ok) + "/" + str(len(generated)))^0
+("  delimited round-tripped:       " + str(gen_del_ok) + "/" + str(len(generated)))^0
+
+len(generated) - gen_naive_ok => naive_broken
+len(generated) - gen_cf_ok => cf_broken
+""^0
+("strings the naive form corrupts:            " + str(naive_broken))^0
+("strings count-first corrupts or rejects:    " + str(cf_broken))^0
+
+# A malformed encoding must be refused, not decoded into something.
+""^0
+"Malformed delimited input:"^0
+0 => refused
+for bad in ["a", "3", "12", "3a"]:
+    try:
+        decode_delimited(bad) => v
+        ("  " + bad + " -> " + v + "  (SHOULD HAVE RAISED)")^0
+    except ValueError as e:
+        refused + 1 => refused
+        ("  %-4s -> %s" % (bad, str(e)))^0
+
+""^0
+if gen_del_ok == len(generated) and refused == 4 and naive_broken > 0 and cf_broken > 0:
+    "Only the delimited codec round-trips everything. Both others break on digits." => verdict
+else:
+    "FAILED - a codec lost data or accepted malformed input." => verdict
+verdict^0
+
+""^0
+"Moving the count to the front FEELS like it fixes the ambiguity and does" => n1
+n1^0
+"not - it only changes where two numbers run together. That was this file's" => n2
+n2^0
+"own first premise, and the round trip over generated strings is what" => n3
+n3^0
+"disproved it. A format needs an explicit boundary, not a convention." => n4
+n4^0

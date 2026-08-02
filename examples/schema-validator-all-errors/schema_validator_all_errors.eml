@@ -1,0 +1,178 @@
+# Self-authored for the EML case corpus (no external origin). Validating
+# records against a schema and reporting EVERY failure, not just the first.
+#
+# Fail-fast and fail-complete are different products, and the choice is usually
+# made by accident:
+#
+#   fail-fast      returns on the first problem. Cheap, and correct for a
+#                  pipeline that must not proceed. Useless for a form, because
+#                  the user fixes one field, resubmits, and is told about the
+#                  next one.
+#   fail-complete  checks everything and returns the whole list. Costs one
+#                  extra pass and turns five round trips into one.
+#
+# The trap is that fail-fast code LOOKS like fail-complete code. Both take a
+# record and return errors; both say "invalid" for an invalid record. The
+# difference only shows on a record with two problems, and a test suite built
+# from single-defect fixtures never produces one.
+#
+# So every record here is checked both ways, and the program reports how many
+# errors each approach found. The check that matters:
+#
+#     for every record, fail_complete finds >= as many errors as fail_fast,
+#     and fail_fast finds at most one
+#
+# plus the invariant that both agree on the VERDICT - a record is invalid under
+# one exactly when it is invalid under the other. An implementation that
+# collects errors but changes its mind about validity is worse than either.
+
+# (field, kind, required)  kind in {"text", "int", "email"}
+[
+    ["name", "text", True],
+    ["age", "int", True],
+    ["email", "email", True],
+    ["nickname", "text", False],
+] => schema
+
+def is_digits(s):
+    if len(s) == 0:
+        return False
+    for ch in s:
+        if ch < "0" or ch > "9":
+            return False
+    return True
+
+def looks_like_email(s):
+    0 => at
+    for ch in s:
+        if ch == "@":
+            at + 1 => at
+    if not (at == 1):
+        return False
+    # something before the @, and a dot after it
+    0 => i
+    while i < len(s) and not (s[i] == "@"):
+        i + 1 => i
+    if i == 0 or i == len(s) - 1:
+        return False
+    False => dot_after
+    for j in [i:len(s) - 1]:
+        if s[j] == ".":
+            True => dot_after
+    return dot_after
+
+def check_field(field, value):
+    # Returns "" when the field is fine, or the reason it is not.
+    field[0] => name
+    field[1] => kind
+    field[2] => required
+    if len(value) == 0:
+        if required:
+            return name + ": required"
+        return ""
+    if kind == "int":
+        if not is_digits(value):
+            return name + ": not an integer (" + value + ")"
+    if kind == "email":
+        if not looks_like_email(value):
+            return name + ": not an email address (" + value + ")"
+    if kind == "text":
+        if len(value) > 20:
+            return name + ": too long (" + str(len(value)) + " chars, max 20)"
+    return ""
+
+def validate_fast(record, sch):
+    for field in sch:
+        check_field(field, record[field[0]]) => problem
+        if len(problem) > 0:
+            return [problem]
+    return []
+
+def validate_complete(record, sch):
+    [] => problems
+    for field in sch:
+        check_field(field, record[field[0]]) => problem
+        if len(problem) > 0:
+            problems + [problem] => problems
+    return problems
+
+
+[
+    {"name": "Ada", "age": "36", "email": "ada@example.com", "nickname": ""},
+    {"name": "", "age": "notanumber", "email": "nope", "nickname": ""},
+    {"name": "Grace", "age": "", "email": "grace@example.com", "nickname": ""},
+    {"name": "a name that is really rather too long to accept", "age": "7", "email": "x@y.z", "nickname": ""},
+    {"name": "Alan", "age": "41", "email": "alan@at@example.com", "nickname": ""},
+] => records
+
+"record                     fast          complete"^0
+0 => idx
+0 => verdicts_agree
+0 => complete_at_least
+0 => fast_at_most_one
+[] => all_problems
+for rec in records:
+    idx + 1 => idx
+    validate_fast(rec, schema) => fast
+    validate_complete(rec, schema) => complete
+
+    len(fast) > 0 => fast_says_bad
+    len(complete) > 0 => complete_says_bad
+    if fast_says_bad == complete_says_bad:
+        verdicts_agree + 1 => verdicts_agree
+    if len(complete) >= len(fast):
+        complete_at_least + 1 => complete_at_least
+    if len(fast) <= 1:
+        fast_at_most_one + 1 => fast_at_most_one
+    all_problems + [complete] => all_problems
+
+    "s" => fast_plural
+    if len(fast) == 1:
+        "" => fast_plural
+    "s" => complete_plural
+    if len(complete) == 1:
+        "" => complete_plural
+    ("  record %d                 %d error%-7s %d error%s" % (idx, len(fast), fast_plural, len(complete), complete_plural))^0
+
+""^0
+"What fail-complete actually reports:"^0
+0 => idx
+for problems in all_problems:
+    idx + 1 => idx
+    if len(problems) == 0:
+        ("  record " + str(idx) + ": ok")^0
+    else:
+        ("  record " + str(idx) + ":")^0
+        for p in problems:
+            ("      " + p)^0
+
+# --------------------------------------------------------- the cost of fast
+""^0
+0 => hidden
+for problems in all_problems:
+    if len(problems) > 1:
+        hidden + len(problems) - 1 => hidden
+("Errors fail-fast would have hidden on a first submission: " + str(hidden))^0
+
+""^0
+("records checked:                  " + str(len(records)))^0
+("verdicts agree:                   " + str(verdicts_agree) + "/" + str(len(records)))^0
+("complete found >= fast:           " + str(complete_at_least) + "/" + str(len(records)))^0
+("fast returned at most one:        " + str(fast_at_most_one) + "/" + str(len(records)))^0
+
+""^0
+if verdicts_agree == len(records) and complete_at_least == len(records) and fast_at_most_one == len(records) and hidden > 0:
+    "Both agree on validity; only fail-complete says how much is wrong." => verdict
+else:
+    "FAILED - the two validators disagree about what is valid." => verdict
+verdict^0
+
+""^0
+"Record 2 has three problems and record 4 has one. A fail-fast validator" => n1
+n1^0
+"reports one error for both, so a test suite whose fixtures each contain a" => n2
+n2^0
+"single defect cannot tell the two implementations apart - which is why the" => n3
+n3^0
+"check here is on the COUNT, not on the verdict." => n4
+n4^0

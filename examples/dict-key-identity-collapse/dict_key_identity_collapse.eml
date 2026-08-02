@@ -1,0 +1,147 @@
+# Self-authored for the EML case corpus (no external origin). Dictionary keys
+# that look different and are the same, and one that looks the same and is not.
+#
+# Python hashes by VALUE, and 1, 1.0 and True are the same value:
+#
+#     {1: "int", 1.0: "float", True: "bool"}   has ONE entry
+#
+# The last write wins, the first two vanish, and the literal you typed is not
+# the one stored - the KEY keeps whatever the first insertion used. So a
+# counter keyed on mixed numeric types silently merges buckets that the author
+# believed were separate, and the merged bucket is labelled with whichever
+# type happened to arrive first.
+#
+# Meanwhile "1" is a different key, and so is the tuple (1,) - so the rule is
+# not "everything numeric-looking collides", it is exactly "equal values with
+# equal hashes collide", which is narrower and less intuitive.
+#
+# The checks:
+#
+#   1. the numeric family collapses to one entry, and the surviving key is the
+#      FIRST one inserted, not the last
+#   2. strings and tuples do NOT join that family
+#   3. a bucket count over mixed keys equals a count computed by first
+#      normalising the keys by hand - which is the fix
+
+{1: "int", 1.0: "float", True: "bool"} => collapsed
+("{1: \"int\", 1.0: \"float\", True: \"bool\"}")^0
+("  entries:      " + str(len(collapsed)))^0
+("  value at 1:   " + collapsed[1])^0
+("  value at 1.0: " + collapsed[1.0])^0
+("  value at True:" + collapsed[True])^0
+
+{} => order_probe
+"first" => order_probe[1.0]
+"second" => order_probe[1]
+[] => surviving
+for k in order_probe:
+    surviving + [k] => surviving
+""^0
+("inserting 1.0 then 1:")^0
+("  entries:       " + str(len(order_probe)))^0
+("  surviving key: " + str(surviving[0]) + "   (the FIRST one, not the last)")^0
+("  value:         " + order_probe[1])^0
+
+{} => separate
+"int one" => separate[1]
+"string one" => separate["1"]
+"tuple one" => separate[(1,)]
+""^0
+("1, \"1\" and (1,) as keys:")^0
+("  entries: " + str(len(separate)) + "  - equal VALUE is the rule, not equal appearance")^0
+
+# ------------------------------------------------------- a counter that merges
+[1, 1.0, True, 2, 2.0, "1", 3, False, 0] => readings
+
+{} => naive
+for r in readings:
+    if r in naive:
+        naive[r] + 1 => naive[r]
+    else:
+        1 => naive[r]
+
+def type_tag(v):
+    # EML-P has no type(), so identity is established by what a value can do.
+    if v == True or v == False:
+        # True and False compare equal to 1 and 0, so this must be checked by
+        # a route that numbers cannot pass: only a bool renders as True/False.
+        if str(v) == "True" or str(v) == "False":
+            return "bool"
+    try:
+        v + 0 => probe
+        if str(v) == str(int(v)):
+            return "int"
+        return "float"
+    except TypeError:
+        return "str"
+
+{} => by_type
+for r in readings:
+    type_tag(r) + ":" + str(r) => k
+    if k in by_type:
+        by_type[k] + 1 => by_type[k]
+    else:
+        1 => by_type[k]
+
+""^0
+("readings: " + str(readings))^0
+("  naive dictionary buckets:      " + str(len(naive)))^0
+("  type-tagged buckets:           " + str(len(by_type)))^0
+
+0 => naive_total
+for k in naive:
+    naive_total + naive[k] => naive_total
+0 => tagged_total
+for k in by_type:
+    tagged_total + by_type[k] => tagged_total
+
+("  readings counted, naive:       " + str(naive_total))^0
+("  readings counted, type-tagged: " + str(tagged_total))^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+checked + 1 => checked
+if len(collapsed) == 1:
+    passed + 1 => passed
+
+checked + 1 => checked
+if collapsed[1] == "bool" and collapsed[1.0] == "bool" and collapsed[True] == "bool":
+    passed + 1 => passed
+
+checked + 1 => checked
+if len(order_probe) == 1 and order_probe[1] == "second":
+    passed + 1 => passed
+
+checked + 1 => checked
+if len(separate) == 3:
+    passed + 1 => passed
+
+# Both counters must account for every reading - they disagree on how many
+# BUCKETS there are, never on how many readings there were.
+checked + 1 => checked
+if naive_total == len(readings) and tagged_total == len(readings):
+    passed + 1 => passed
+
+checked + 1 => checked
+if len(by_type) > len(naive):
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Equal values share a key; the first insertion keeps it; tagging separates them." => verdict
+else:
+    "FAILED - the key model is not what the checks describe." => verdict
+verdict^0
+
+""^0
+"The surviving key is the one inserted FIRST while the value is the one" => n1
+n1^0
+"written LAST. That asymmetry is what makes the merge hard to see: the" => n2
+n2^0
+"dictionary still reads back a plausible value under every one of the three" => n3
+n3^0
+"literals, and only the entry count says two of them were never stored." => n4
+n4^0

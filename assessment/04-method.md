@@ -10,12 +10,14 @@ to Python, or to language implementation.
 > When a coverage metric reaches 100%, do not read it as *done*.
 > Read it as **"this axis is exhausted — now find the one it cannot see."**
 
-Then build a different measurement and run it. It has fired six times, and
-**every single time it found real divergences on the first run**.
+Then build a different measurement and run it. It has fired eight times. The
+first four found real divergences on the first run; the last four came back
+clean. Both outcomes are results — and the shift from one to the other is
+itself the most useful thing this table records.
 
 ---
 
-## The six axes, in the order they were built
+## The eight axes, in the order they were built
 
 | # | axis | result | what it could not see |
 |---|---|---|---|
@@ -25,11 +27,41 @@ Then build a different measurement and run it. It has fired six times, and
 | 3b | …the same matrix, comparing **messages** | 273 more cells, 3 families | statement **ordering** |
 | 4 | statement-level interaction (33 nestings) | 4 defects | **values** at their boundaries |
 | 5 | value-model boundaries (55 values) | 0 — clean first run | the **reverse** direction under nesting |
-| 6 | reverse transpilation by construct pair (100 pairs) | 0 — clean first run | `@cold` cache keys (not yet measured) |
+| 6 | reverse transpilation by construct pair (100 pairs) | 0 — clean first run | **slice** bounds and clamping |
+| 7 | slice bounds (3 containers × 10 starts × 10 stops) | 0 — clean first run | the compiler's **refusal** surface |
+| 8 | diagnostic reachability (23 codes) | 0 unreachable, 0 spurious | `@cold` cache keys (not yet measured) |
 
 Read the right-hand column downward. Each axis was honest, each went green, and
 each was blind in a direction that could only be named after building the next
 one. That is the shape of the whole discipline.
+
+### What four clean axes in a row actually mean
+
+It would be easy to write this table as a success story — *every axis fires,
+every axis finds something*. It stopped being true at axis 5, and saying so is
+the point. A new axis returning clean means one of three things, and they are
+not equally good news:
+
+1. the implementation really is correct along that axis (axes 5–8 look like this);
+2. the axis is a re-slice of one already exhausted, so it was never going to
+   find anything new;
+3. the measurement itself is broken and cannot fail — the failure mode this
+   whole document exists to guard against.
+
+Distinguishing (1) from (3) is not optional and is not free. Each of these
+gates was **drilled**: the fix it guards was deliberately broken, the gate was
+confirmed to fail, and the file was restored byte-identically. A clean axis
+that has not been drilled is an untested assertion about an untested assertion.
+
+There is a fourth thing four clean axes mean, and it is about the person
+rather than the code. As the implementation converged, the error rate moved.
+On the day axes 7 and 8 were built, **four separate expectations written by
+hand were wrong and the code was right** — a slice bound, a truncation rule,
+three diagnostic triggers, and a premise about run-length encoding that the
+measurement disproved outright. That ratio is the real signal here: once the
+implementation is good enough, the checks become the least reliable part of
+the system, and a differential — where the expected side is *computed* rather
+than typed — is the only kind that keeps working.
 
 ---
 

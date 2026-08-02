@@ -1,0 +1,165 @@
+# Self-authored for the EML case corpus (no external origin). Parsing
+# fixed-width records - the format where slice clamping does the most damage,
+# because a truncated line and a valid line are indistinguishable afterwards.
+#
+# Fixed-width is still everywhere: bank statements, mainframe exports, legacy
+# EDI. A record is defined by column offsets:
+#
+#     id     columns  0..5
+#     name   columns  6..25
+#     amount columns 26..35
+#
+# and each field is `line[start:end]`. That is the whole parser, and it is why
+# the format is treacherous: if a line is short - trailing spaces stripped by
+# an editor, a truncated transfer, a final line without a newline - every
+# slice past the end returns "" or a short string instead of raising. The
+# record parses. The fields are wrong. Nothing says so.
+#
+# A parser for this format is only trustworthy if it validates the LINE before
+# trusting the slices. So this one:
+#
+#   1. checks the line length against the schema before extracting anything
+#   2. extracts fields only from lines that pass
+#   3. reports rejected lines with the reason, instead of parsing them anyway
+#
+# and then proves the point by parsing the same damaged lines both ways.
+
+# (name, start, end) - end is exclusive, as a slice bound
+[
+    ["id", 0, 6],
+    ["name", 6, 26],
+    ["amount", 26, 36],
+] => schema
+
+def schema_width(sch):
+    0 => widest
+    for field in sch:
+        if field[2] > widest:
+            field[2] => widest
+    return widest
+
+def strip_right(s):
+    len(s) => end
+    while end > 0 and s[end - 1] == " ":
+        end - 1 => end
+    return s[:end]
+
+def parse_unchecked(line, sch):
+    # What everyone writes. Every slice is legal, so nothing ever fails.
+    [] => out
+    for field in sch:
+        out + [strip_right(line[field[1]:field[2]])] => out
+    return out
+
+def parse_checked(line, sch):
+    # Returns [ok, fields_or_reason].
+    schema_width(sch) => need
+    if len(line) < need:
+        return [False, "short line: " + str(len(line)) + " chars, need " + str(need)]
+    for field in sch:
+        strip_right(line[field[1]:field[2]]) => value
+        if len(value) == 0:
+            return [False, "empty field: " + field[0]]
+    return [True, parse_unchecked(line, sch)]
+
+
+schema_width(schema) => width
+("schema width: " + str(width) + " columns")^0
+"columns: "^0
+for field in schema:
+    ("  %-8s %2d..%-2d" % (field[0], field[1], field[2]))^0
+
+[
+    "A1001 Widget assembly      0000125.50",
+    "A1002 Grommet pack         0000007.25",
+    "A1003 Flange",
+    "A1004 Bracket, heavy duty  0000342.00",
+    "A1005",
+    "",
+] => lines
+
+""^0
+"Unchecked parse - every line 'succeeds':"^0
+for line in lines:
+    parse_unchecked(line, schema) => f
+    ("  %-40s -> %s" % ('"' + line + '"', str(f)))^0
+
+""^0
+"Checked parse:"^0
+0 => accepted
+0 => rejected
+[] => records
+for line in lines:
+    parse_checked(line, schema) => result
+    if result[0]:
+        accepted + 1 => accepted
+        records + [result[1]] => records
+        ("  OK      " + str(result[1]))^0
+    else:
+        rejected + 1 => rejected
+        ("  REJECT  " + result[1])^0
+
+# ------------------------------------------------------------------- checks
+""^0
+"What the unchecked parser produced for the damaged lines:"^0
+0 => silently_wrong
+for line in lines:
+    parse_checked(line, schema) => checked_result
+    parse_unchecked(line, schema) => unchecked
+    if not checked_result[0]:
+        silently_wrong + 1 => silently_wrong
+        # Every field the unchecked parser invented out of clamping
+        0 => invented
+        for f in unchecked:
+            if len(f) == 0:
+                invented + 1 => invented
+        ("  " + str(unchecked) + "  (" + str(invented) + " of " + str(len(schema)) + " fields empty, no error raised)")^0
+
+# The accepted records must reconstruct: id + name + amount all non-empty,
+# and the amount must parse as a number.
+0 => sound
+for rec in records:
+    True => ok
+    for f in rec:
+        if len(f) == 0:
+            False => ok
+    if ok:
+        try:
+            float(rec[2]) => amount
+        except ValueError:
+            False => ok
+    if ok:
+        sound + 1 => sound
+
+# Totals, from the accepted records only.
+0.0 => total
+for rec in records:
+    total + float(rec[2]) => total
+
+""^0
+("lines in:            " + str(len(lines)))^0
+("accepted:            " + str(accepted))^0
+("rejected:            " + str(rejected))^0
+("accepted + rejected: " + str(accepted + rejected))^0
+("sound records:       " + str(sound) + "/" + str(len(records)))^0
+("total amount:        " + str(total))^0
+("damaged lines the unchecked parser accepted: " + str(silently_wrong))^0
+
+""^0
+if accepted + rejected == len(lines) and sound == len(records) and silently_wrong == rejected and rejected > 0:
+    "Every line accounted for; the length check caught what slicing could not." => verdict
+else:
+    "FAILED - a line was lost, or a damaged record was accepted." => verdict
+verdict^0
+
+""^0
+"Line 5 is 'A1005' - five characters against a 36-column schema. Sliced" => n1
+n1^0
+"blindly it yields an id and two empty strings, which is a record. It has" => n2
+n2^0
+"the right shape, the right field count, and no error attached to it. The" => n3
+n3^0
+"only thing that distinguishes it from a real record is its length, and" => n4
+n4^0
+"that has to be checked BEFORE the slices, because afterwards it is gone." => n5
+n5^0

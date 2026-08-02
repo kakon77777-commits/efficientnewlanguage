@@ -1,0 +1,214 @@
+# Self-authored for the EML case corpus (no external origin). A Base32 codec
+# written by hand, and the padding rule that is the only hard part.
+#
+# Base32 packs 5 bits per output character, so it consumes input 5 BYTES at a
+# time and emits 8 characters. When the input length is not a multiple of 5,
+# the final group is short and has to be padded - and RFC 4648 specifies
+# exactly how many '=' characters that is, per remainder:
+#
+#     bytes left   1    2    3    4
+#     characters   2    4    5    7
+#     padding      6    4    3    1
+#
+# Those numbers are not derivable by intuition and are wrong in most
+# hand-written implementations. The usual bug is padding to a multiple of 8
+# without computing how many DATA characters the leftover bits produce, which
+# yields a string of the right length carrying the wrong number of real
+# characters. A decoder that ignores padding then returns a value that is one
+# byte too long or too short - silently, because nothing about it is malformed.
+#
+# The property, checked over every length from 0 to 40:
+#
+#     decode(encode(bytes)) == bytes
+#     len(encode(bytes)) is a multiple of 8, always
+#     the padding count matches the table above
+
+"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567" => ALPHABET
+
+def index_of(ch):
+    0 => i
+    while i < len(ALPHABET):
+        if ALPHABET[i] == ch:
+            return i
+        i + 1 => i
+    return 0 - 1
+
+def encode(data):
+    # `data` is a list of byte values 0..255.
+    "" => out
+    0 => i
+    while i < len(data):
+        # take up to five bytes
+        [] => group
+        0 => k
+        while k < 5 and i + k < len(data):
+            group + [data[i + k]] => group
+            k + 1 => k
+        len(group) => n
+
+        # pack them into one integer, left-aligned in 40 bits
+        0 => bits
+        for b in group:
+            bits * 256 + b => bits
+        for pad in [n:4]:
+            bits * 256 => bits
+
+        # 8 characters of 5 bits each. Peel from the least significant end,
+        # then emit reversed - the direction that avoids computing a shift.
+        [] => five
+        bits => rest
+        for c in [0:7]:
+            five + [rest % 32] => five
+            int(rest / 32) => rest
+        # `five` is least-significant-first; emit reversed
+        "" => piece
+        7 => idx
+        while idx >= 0:
+            piece + ALPHABET[five[idx]] => piece
+            idx - 1 => idx
+
+        # Characters produced per number of real bytes. Index 5 is a FULL
+        # group and needs an entry too - leaving it off made the encoder crash
+        # on the first complete 5-byte block.
+        [0, 2, 4, 5, 7, 8] => keep_for
+        keep_for[n] => keep
+        out + piece[:keep] => out
+        for p in [keep:7]:
+            out + "=" => out
+        i + 5 => i
+    return out
+
+def decode(text):
+    if not (len(text) % 8 == 0):
+        raise ValueError("length " + str(len(text)) + " is not a multiple of 8")
+    [] => out
+    0 => i
+    while i < len(text):
+        text[i:i + 8] => block
+        0 => real
+        for ch in block:
+            if not (ch == "="):
+                real + 1 => real
+        # invert the keep table
+        [0, 0, 1, 0, 2, 3, 0, 4] => bytes_for
+        if real == 8:
+            5 => nbytes
+        else:
+            bytes_for[real] => nbytes
+        if nbytes == 0 and real > 0:
+            raise ValueError("block has " + str(real) + " data characters, which is not a legal count")
+
+        0 => bits
+        for c in [0:7]:
+            block[c] => ch
+            0 => v
+            if not (ch == "="):
+                index_of(ch) => v
+                if v < 0:
+                    raise ValueError("character not in the alphabet: " + ch)
+            bits * 32 + v => bits
+
+        # 40 bits -> five bytes, most significant first
+        [] => five
+        bits => rest
+        for c in [0:4]:
+            five + [rest % 256] => five
+            int(rest / 256) => rest
+        4 => idx
+        0 => taken
+        while idx >= 0:
+            if taken < nbytes:
+                out + [five[idx]] => out
+                taken + 1 => taken
+            idx - 1 => idx
+        i + 8 => i
+    return out
+
+
+def bytes_of(n):
+    # A deterministic pseudo-byte sequence of length n.
+    [] => out
+    for i in [0:n - 1]:
+        out + [(i * 37 + 11) % 256] => out
+    return out
+
+
+"length  encoded                                   pad  round-trips"^0
+0 => trips
+0 => multiples
+0 => pad_right
+0 => checked
+[0, 2, 4, 5, 7] => keep_for
+for n in [0:12]:
+    checked + 1 => checked
+    bytes_of(n) => data
+    encode(data) => enc
+    decode(enc) => back
+
+    if back == data:
+        trips + 1 => trips
+    if len(enc) % 8 == 0:
+        multiples + 1 => multiples
+
+    0 => pads
+    for ch in enc:
+        if ch == "=":
+            pads + 1 => pads
+    n % 5 => rem
+    0 => want_pad
+    if not (rem == 0):
+        8 - keep_for[rem] => want_pad
+    if pads == want_pad:
+        pad_right + 1 => pad_right
+
+    ("%-7d %-41s %-4d %s" % (n, enc, pads, str(back == data)))^0
+
+# ---------------------------------------------------- the padding table
+""^0
+"RFC 4648 padding, re-derived from the encoder:"^0
+"  bytes left   1    2    3    4"^0
+"  characters   2    4    5    7"^0
+"  padding      6    4    3    1"^0
+
+# ------------------------------------------------------------ wider sweep
+0 => wide_ok
+0 => wide_checked
+for n in [0:40]:
+    wide_checked + 1 => wide_checked
+    bytes_of(n) => data
+    if decode(encode(data)) == data:
+        wide_ok + 1 => wide_ok
+
+# malformed input must be refused
+0 => refused
+for bad in ["A", "ABCDEFG", "ABCDEF1="]:
+    try:
+        decode(bad) => v
+    except ValueError as e:
+        refused + 1 => refused
+
+""^0
+("demo lengths:            " + str(checked))^0
+("  round-tripped:         " + str(trips) + "/" + str(checked))^0
+("  length a multiple of 8:" + str(multiples) + "/" + str(checked))^0
+("  padding count correct: " + str(pad_right) + "/" + str(checked))^0
+("lengths 0..40 swept:     " + str(wide_checked))^0
+("  round-tripped:         " + str(wide_ok) + "/" + str(wide_checked))^0
+("malformed inputs refused:" + str(refused) + "/3")^0
+
+""^0
+if trips == checked and multiples == checked and pad_right == checked and wide_ok == wide_checked and refused == 3:
+    "Every length round-trips, and the padding matches RFC 4648 exactly." => verdict
+else:
+    "FAILED - a length lost bytes or the padding is wrong." => verdict
+verdict^0
+
+""^0
+"The keep table [0, 2, 4, 5, 7] is the whole specification. Padding to a" => n1
+n1^0
+"multiple of 8 without it produces output of the right LENGTH carrying the" => n2
+n2^0
+"wrong number of real characters, and a decoder that trusts the length is" => n3
+n3^0
+"off by a byte with nothing malformed to notice." => n4
+n4^0
