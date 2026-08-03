@@ -1,0 +1,223 @@
+# Self-authored for the EML case corpus (no external origin). Normalizing
+# identifiers for uniqueness, and the accounts that disappear into each other.
+#
+# "Usernames are case-insensitive" is a product decision. Implementing it by
+# folding to lower case turns it into a claim about a MAPPING, and the mapping
+# is many-to-one:
+#
+#     "Alice"  "alice"  "ALICE"  ->  "alice"
+#
+# which is exactly what was wanted. The trouble starts when the same fold is
+# applied to things that were never meant to be merged, and the merge is
+# invisible because the result is a perfectly ordinary identifier.
+#
+# Three folds, increasingly aggressive, all of them shipped somewhere:
+#
+#     lower            case only
+#     lower + strip    also removes dots and dashes
+#     lower + strip
+#          + digits    also strips trailing digits, "to catch typo variants"
+#
+# Each step merges more, and each step merges things a person would call
+# different accounts. The last one is not a straw man: stripping trailing
+# digits is a real anti-abuse heuristic, and it collapses "user1" and "user2".
+#
+# The check is not "does the fold work". It is the property that makes a fold
+# usable as a uniqueness key at all:
+#
+#     fold(a) == fold(b)  =>  a and b are the SAME person
+#
+# which cannot be checked against the fold itself - it has to be checked
+# against a separately stated ground truth about who is who. That ground truth
+# is the list of intended identities below, and the measurement is how many
+# distinct people each fold destroys.
+
+def to_lower(s):
+    # EML-P has no .lower(), so the mapping is written out. That turns out to
+    # be useful: it makes visible that the fold is a table, and a table is
+    # exactly the thing that can be many-to-one.
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ" => upper
+    "abcdefghijklmnopqrstuvwxyz" => lower
+    "" => out
+    for ch in s:
+        0 => i
+        ch => mapped
+        while i < len(upper):
+            if upper[i] == ch:
+                lower[i] => mapped
+            i + 1 => i
+        out + mapped => out
+    return out
+
+def is_digit(ch):
+    return ch >= "0" and ch <= "9"
+
+def fold_lower(s):
+    return to_lower(s)
+
+def fold_strip(s):
+    to_lower(s) => t
+    "" => out
+    for ch in t:
+        if not (ch == "." or ch == "-" or ch == "_"):
+            out + ch => out
+    return out
+
+def fold_strip_digits(s):
+    fold_strip(s) => t
+    len(t) => i
+    while i > 0 and is_digit(t[i - 1]):
+        i - 1 => i
+    return t[:i]
+
+
+# Ground truth: accounts that BELONG together carry the same person id.
+# Written independently of every fold, which is the only thing that makes the
+# measurement below a measurement.
+[
+    ["Alice", 1],
+    ["alice", 1],
+    ["ALICE", 1],
+    ["al.ice", 2],
+    ["al-ice", 2],
+    ["alice1", 3],
+    ["alice2", 4],
+    ["Bob", 5],
+    ["bob", 5],
+    ["bob.smith", 6],
+    ["bobsmith", 6],
+    ["carol", 7],
+    ["carol7", 8],
+    ["carol_7", 8],
+    ["dave", 9],
+    ["Dave2024", 10],
+] => accounts
+
+def fold_of(which, s):
+    if which == "lower":
+        return fold_lower(s)
+    elif which == "strip":
+        return fold_strip(s)
+    return fold_strip_digits(s)
+
+def measure(which):
+    # Two failure modes, and they are not the same failure:
+    #   MERGED  - two different people landed on one key (an account is lost)
+    #   SPLIT   - one person landed on two keys (a login stops working)
+    {} => key_to_person
+    0 => merged
+    0 => split
+    {} => person_to_key
+    for row in accounts:
+        row[0] => name
+        row[1] => who
+        fold_of(which, name) => k
+        if k in key_to_person:
+            if not (key_to_person[k] == who):
+                merged + 1 => merged
+        else:
+            who => key_to_person[k]
+        if who in person_to_key:
+            if not (person_to_key[who] == k):
+                split + 1 => split
+        else:
+            k => person_to_key[who]
+    return [merged, split, len(key_to_person)]
+
+"fold            keys  merged  split"^0
+for which in ["lower", "strip", "digits"]:
+    measure(which) => m
+    ("%-15s %-5d %-7d %d" % (which, m[2], m[0], m[1]))^0
+
+measure("lower") => m_lower
+measure("strip") => m_strip
+measure("digits") => m_digits
+
+# ------------------------------------------------------- who collided with whom
+""^0
+"Collisions under the most aggressive fold:"^0
+{} => seen
+for row in accounts:
+    fold_strip_digits(row[0]) => k
+    if k in seen:
+        if not (seen[k][1] == row[1]):
+            ("  " + seen[k][0] + " (person " + str(seen[k][1]) + ")  and  " + row[0] + " (person " + str(row[1]) + ")  both fold to '" + k + "'")^0
+    else:
+        [row[0], row[1]] => seen[k]
+
+""^0
+"Logins that stop working under the plain lower-case fold:"^0
+{} => firstkey
+for row in accounts:
+    fold_lower(row[0]) => k
+    if row[1] in firstkey:
+        if not (firstkey[row[1]] == k):
+            ("  person " + str(row[1]) + ": '" + firstkey[row[1]] + "' and '" + k + "' are different keys for the same account")^0
+    else:
+        k => firstkey[row[1]]
+
+# --------------------------------------------------- the number that decides it
+# There are 10 distinct people. A fold is usable as a uniqueness key only if it
+# produces exactly 10 keys with no merges. Every one here fails, in different
+# directions - which is the point: no single fold is right, so the design has
+# to name which accounts are equivalent instead of computing it.
+{} => people
+for row in accounts:
+    1 => people[row[1]]
+
+""^0
+("distinct people:            " + str(len(people)))^0
+("keys under lower:           " + str(m_lower[2]) + "  (merged " + str(m_lower[0]) + ", split " + str(m_lower[1]) + ")")^0
+("keys under strip:           " + str(m_strip[2]) + "  (merged " + str(m_strip[0]) + ", split " + str(m_strip[1]) + ")")^0
+("keys under strip+digits:    " + str(m_digits[2]) + "  (merged " + str(m_digits[0]) + ", split " + str(m_digits[1]) + ")")^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# Every fold must fail to be a clean uniqueness key. If one of them succeeded,
+# the ground truth would be describing that fold rather than describing people.
+checked + 1 => checked
+if m_lower[0] + m_lower[1] > 0 and m_strip[0] + m_strip[1] > 0 and m_digits[0] + m_digits[1] > 0:
+    passed + 1 => passed
+
+# The two failure modes must go in opposite directions as the fold gets more
+# aggressive: fewer splits, more merges.
+checked + 1 => checked
+if m_digits[0] > m_lower[0] and m_digits[1] < m_lower[1]:
+    passed + 1 => passed
+
+# The aggressive fold must actually merge distinct people, not just look scary.
+checked + 1 => checked
+if fold_strip_digits("alice1") == fold_strip_digits("alice2"):
+    passed + 1 => passed
+
+# And the mild one must actually leave a real account unreachable.
+checked + 1 => checked
+if not (fold_lower("al.ice") == fold_lower("al-ice")):
+    passed + 1 => passed
+
+# The hand-written lower-case table must agree with what it claims to be.
+checked + 1 => checked
+if to_lower("ALICE") == "alice" and to_lower("al-Ice9") == "al-ice9" and to_lower("") == "":
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Every fold either loses an account or loses a person. None is a uniqueness key." => verdict
+else:
+    "FAILED - a fold did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"The two failure modes cost different things and are usually discussed as" => n1
+n1^0
+"one. A SPLIT is a support ticket: someone cannot log in, they say so, it" => n2
+n2^0
+"gets fixed. A MERGE is silent on both sides - the second person simply" => n3
+n3^0
+"never gets an account, and the first never learns why their name was taken." => n4
+n4^0
+"Making the fold more aggressive trades the loud failure for the quiet one." => n5
+n5^0

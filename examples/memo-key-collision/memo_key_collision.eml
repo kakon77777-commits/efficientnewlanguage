@@ -1,0 +1,230 @@
+# Self-authored for the EML case corpus (no external origin). Memoization, and
+# the cache key that quietly answers the wrong question.
+#
+# Memoizing a two-argument function needs one key per argument PAIR. The
+# obvious way to build one is to glue the arguments together:
+#
+#     key = str(a) + str(b)
+#
+# and it is wrong for a reason that never announces itself:
+#
+#     f(1, 23)  -> key "123"
+#     f(12, 3)  -> key "123"     the SAME entry
+#
+# The second call is a cache hit. It returns the first call's answer, which is
+# a perfectly ordinary number for a perfectly ordinary input. Nothing raises,
+# nothing looks wrong, and the memoized function is now a different function
+# from the one it was memoizing.
+#
+# The usual fix is a separator:
+#
+#     key = str(a) + "|" + str(b)
+#
+# which fixes integers and breaks the moment an argument is a string that
+# contains the separator:
+#
+#     f("1", "2|3")  -> "1|2|3"
+#     f("1|2", "3")  -> "1|2|3"     the SAME entry again
+#
+# A separator is a convention, not a boundary - the same lesson the run-length
+# codec in this corpus learned. What actually works is a key that cannot be
+# ambiguous by construction: prefix each part with its own length.
+#
+#     key = "2:12" + "1:3"     vs     "1:1" + "2:23"
+#
+# The property that decides whether a memo cache is a memo cache at all:
+#
+#     memoized(a, b) == plain(a, b)    for EVERY (a, b)
+#
+# checked over a full grid of argument pairs, not a handful. The result is
+# stated up front: the naive key gets answers wrong, the separator key gets
+# answers wrong on string arguments, and only the length-prefixed key agrees
+# with the unmemoized function everywhere.
+
+def plain(a, b):
+    # The function being memoized. Deliberately asymmetric so that swapping
+    # digits between the arguments produces a DIFFERENT answer - otherwise a
+    # colliding key would return the right number by luck and the whole bug
+    # would be invisible.
+    return len(str(a)) * 1000 + int(str(a) + str(b)) % 997
+
+
+def key_naive(a, b):
+    return str(a) + str(b)
+
+def key_separator(a, b):
+    return str(a) + "|" + str(b)
+
+def key_length_prefixed(a, b):
+    str(a) => sa
+    str(b) => sb
+    return str(len(sa)) + ":" + sa + str(len(sb)) + ":" + sb
+
+
+{} => cache_naive
+{} => cache_sep
+{} => cache_len
+
+def memo_naive(a, b):
+    key_naive(a, b) => k
+    if k in cache_naive:
+        return cache_naive[k]
+    plain(a, b) => v
+    v => cache_naive[k]
+    return v
+
+def memo_sep(a, b):
+    key_separator(a, b) => k
+    if k in cache_sep:
+        return cache_sep[k]
+    plain(a, b) => v
+    v => cache_sep[k]
+    return v
+
+def memo_len(a, b):
+    key_length_prefixed(a, b) => k
+    if k in cache_len:
+        return cache_len[k]
+    plain(a, b) => v
+    v => cache_len[k]
+    return v
+
+
+"The two calls that share a key:"^0
+("  key_naive(1, 23)  = " + key_naive(1, 23))^0
+("  key_naive(12, 3)  = " + key_naive(12, 3))^0
+("  plain(1, 23)      = " + str(plain(1, 23)))^0
+("  plain(12, 3)      = " + str(plain(12, 3)))^0
+("  memo_naive(1, 23) = " + str(memo_naive(1, 23)))^0
+("  memo_naive(12, 3) = " + str(memo_naive(12, 3)) + "   <- should be " + str(plain(12, 3)))^0
+
+# --------------------------------------------------- exhaustive integer grid
+# Every ordered pair from a set chosen so that concatenations overlap: 1..3
+# are one digit, 11..33 are two, so a+b and b+a collide across the boundary.
+[1, 2, 3, 11, 12, 23, 123, 1, 12] => left
+[1, 2, 3, 11, 12, 23, 123] => right
+
+0 => pairs
+0 => naive_ok
+0 => sep_ok
+0 => len_ok
+for a in left:
+    for b in right:
+        pairs + 1 => pairs
+        plain(a, b) => truth
+        if memo_naive(a, b) == truth:
+            naive_ok + 1 => naive_ok
+        if memo_sep(a, b) == truth:
+            sep_ok + 1 => sep_ok
+        if memo_len(a, b) == truth:
+            len_ok + 1 => len_ok
+
+""^0
+("integer pairs checked:        " + str(pairs))^0
+("  naive key agreed:           " + str(naive_ok) + "/" + str(pairs))^0
+("  separator key agreed:       " + str(sep_ok) + "/" + str(pairs))^0
+("  length-prefixed key agreed: " + str(len_ok) + "/" + str(pairs))^0
+
+# ---------------------------------------------------- the separator's own bug
+# The separator survives integers and dies on strings that contain it. A key
+# scheme that is correct only for the argument types you happened to test is
+# not a key scheme.
+{} => cache_sep2
+{} => cache_len2
+
+def plain_s(a, b):
+    return len(a) * 100 + len(b) * 10 + len(a + b)
+
+def memo_sep_s(a, b):
+    a + "|" + b => k
+    if k in cache_sep2:
+        return cache_sep2[k]
+    plain_s(a, b) => v
+    v => cache_sep2[k]
+    return v
+
+def memo_len_s(a, b):
+    str(len(a)) + ":" + a + str(len(b)) + ":" + b => k
+    if k in cache_len2:
+        return cache_len2[k]
+    plain_s(a, b) => v
+    v => cache_len2[k]
+    return v
+
+["1", "1|2", "2|3", "3", "a", "a|b|c"] => words
+0 => spairs
+0 => sep_s_ok
+0 => len_s_ok
+for a in words:
+    for b in words:
+        spairs + 1 => spairs
+        plain_s(a, b) => truth
+        if memo_sep_s(a, b) == truth:
+            sep_s_ok + 1 => sep_s_ok
+        if memo_len_s(a, b) == truth:
+            len_s_ok + 1 => len_s_ok
+
+""^0
+("string pairs checked:         " + str(spairs))^0
+("  separator key agreed:       " + str(sep_s_ok) + "/" + str(spairs))^0
+("  length-prefixed key agreed: " + str(len_s_ok) + "/" + str(spairs))^0
+
+""^0
+"The pair that breaks the separator:"^0
+('  "1" + "|" + "2|3"  = ' + "1" + "|" + "2|3")^0
+('  "1|2" + "|" + "3"  = ' + "1|2" + "|" + "3")^0
+('  length-prefixed:     ' + str(len("1")) + ":1" + str(len("2|3")) + ":2|3" + "   and   " + str(len("1|2")) + ":1|2" + str(len("3")) + ":3")^0
+
+# ------------------------------------------------------------------ checks
+pairs - naive_ok => naive_wrong
+spairs - sep_s_ok => sep_wrong
+
+0 => passed
+0 => checked
+
+checked + 1 => checked
+if len_ok == pairs and len_s_ok == spairs:
+    passed + 1 => passed
+
+checked + 1 => checked
+if naive_wrong > 0:
+    passed + 1 => passed
+
+checked + 1 => checked
+if sep_ok == pairs:
+    passed + 1 => passed
+
+checked + 1 => checked
+if sep_wrong > 0:
+    passed + 1 => passed
+
+# A cache that never hits is trivially correct and useless. This is the check
+# that stops the "fix" from being "disable the cache".
+checked + 1 => checked
+if len(cache_len) < pairs and len(cache_len) > 0:
+    passed + 1 => passed
+
+""^0
+("wrong answers from the naive key:      " + str(naive_wrong) + "/" + str(pairs))^0
+("wrong answers from the separator key:  " + str(sep_wrong) + "/" + str(spairs) + " (strings only)")^0
+("distinct length-prefixed entries:      " + str(len(cache_len)) + " for " + str(pairs) + " calls")^0
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Only the length-prefixed key agrees with the unmemoized function everywhere." => verdict
+else:
+    "FAILED - a key scheme did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"A memo cache has no error state. When the key is wrong the second caller" => n1
+n1^0
+"receives the first caller's answer, which is a well-formed value of the" => n2
+n2^0
+"right type, and the function has quietly become a different function. The" => n3
+n3^0
+"separator is the instructive part: it is correct for every integer and" => n4
+n4^0
+"wrong for strings, so the type you tested with decides whether you ship it." => n5
+n5^0

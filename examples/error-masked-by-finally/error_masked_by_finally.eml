@@ -1,0 +1,242 @@
+# Self-authored for the EML case corpus (no external origin). Cleanup code that
+# deletes the reason things went wrong.
+#
+# A `finally` block runs on the way out whether the way out was a return or an
+# exception. That is the whole point of it. What is easy to miss is that if the
+# cleanup itself RAISES, the original exception is gone - replaced by whatever
+# the cleanup was unhappy about, which is almost always the less interesting
+# of the two:
+#
+#     try:      open a file, read it, fail on a parse error
+#     finally:  close the file, which fails because it was never opened
+#
+# The caller sees the close failure. The parse error - the thing that actually
+# went wrong - was never reported, and the stack trace points at the cleanup.
+#
+# The same erasure happens more quietly with a `return` inside `finally`: the
+# function returns normally and the exception simply does not propagate. No
+# error, no log line, a value that looks like a successful result.
+#
+# Four shapes are run against the same failing operation:
+#
+#     bare          finally with cleanup that succeeds     original survives
+#     raising       cleanup raises                         original replaced
+#     returning     finally returns a value                original erased
+#     guarded       cleanup wrapped in its own try         original survives
+#
+# The `returning` shape is the one that is broken on BOTH paths - a finally
+# that returns overrides a normal return too, so it answers "swallowed" even
+# when nothing failed. The `raising` shape is the dangerous one, because its
+# cleanup only fails when the operation did, so the success path is clean.
+#
+# The measurement is what the CALLER observes for each shape, over both a
+# failing operation and a succeeding one - because a wrapper that erases errors
+# usually looks perfect on the success path, which is the path the tests take.
+
+# `record` is a one-element list used as a counter. Appending with
+# `record + [x] => record` inside a function REBINDS the parameter and the
+# caller sees nothing - the same rebinding rule that costs this corpus a case
+# every few rounds. Writing through a subscript reaches the caller's list.
+def note(record):
+    record[0] + 1 => record[0]
+
+def work(acquired, should_fail):
+    acquired[0] + 1 => acquired[0]
+    if should_fail:
+        raise ValueError("the real problem")
+    return "result"
+
+def cleanup(acquired, record, fail_on_unwind):
+    # Releasing a resource that was never fully acquired is what actually goes
+    # wrong in the real version of this: the close fails BECAUSE the open did.
+    # So the cleanup only raises when the operation raised, which is exactly
+    # what makes the defect invisible on the success path.
+    note(record)
+    if fail_on_unwind:
+        raise TypeError("cleanup could not run")
+    return 0
+
+
+def shape_bare(should_fail, record):
+    [0] => acquired
+    try:
+        work(acquired, should_fail) => v
+        return v
+    finally:
+        cleanup(acquired, record, False)
+
+def shape_raising(should_fail, record):
+    [0] => acquired
+    try:
+        work(acquired, should_fail) => v
+        return v
+    finally:
+        cleanup(acquired, record, should_fail)
+
+def shape_returning(should_fail, record):
+    [0] => acquired
+    try:
+        work(acquired, should_fail) => v
+        return v
+    finally:
+        note(record)
+        return "swallowed"
+
+def shape_guarded(should_fail, record):
+    # The cleanup gets its own try. A failure to clean up is recorded and does
+    # not displace the failure that caused the unwind.
+    [0] => acquired
+    try:
+        work(acquired, should_fail) => v
+        return v
+    finally:
+        try:
+            cleanup(acquired, record, should_fail)
+        except TypeError as e:
+            note(record)
+
+
+def observe(shape, should_fail):
+    # What the caller actually sees: a value, or the class and message of
+    # whatever escaped.
+    [0] => record
+    try:
+        if shape == "bare":
+            shape_bare(should_fail, record) => v
+        elif shape == "raising":
+            shape_raising(should_fail, record) => v
+        elif shape == "returning":
+            shape_returning(should_fail, record) => v
+        else:
+            shape_guarded(should_fail, record) => v
+        return "value " + v
+    except ValueError as e:
+        return "ValueError: " + str(e)
+    except TypeError as e:
+        return "TypeError: " + str(e)
+
+
+"shape        operation fails              operation succeeds"^0
+for shape in ["bare", "raising", "returning", "guarded"]:
+    ("%-12s %-28s %s" % (shape, observe(shape, True), observe(shape, False)))^0
+
+# --------------------------------------------------- who reports the truth
+0 => truthful
+0 => shapes
+[] => liars
+for shape in ["bare", "raising", "returning", "guarded"]:
+    shapes + 1 => shapes
+    observe(shape, True) => seen
+    if seen == "ValueError: the real problem":
+        truthful + 1 => truthful
+    else:
+        liars + [shape + " -> " + seen] => liars
+
+""^0
+("shapes tried:                       " + str(shapes))^0
+("reported the real problem:          " + str(truthful) + "/" + str(shapes))^0
+""^0
+"what the other shapes reported instead:"^0
+for l in liars:
+    ("  " + l)^0
+
+# ----------------------------------------- all four look identical on success
+0 => same_on_success
+"" => success_answer
+for shape in ["bare", "raising", "returning", "guarded"]:
+    observe(shape, False) => seen
+    if len(success_answer) == 0:
+        seen => success_answer
+    if seen == success_answer:
+        same_on_success + 1 => same_on_success
+
+""^0
+("shapes agreeing on the success path: " + str(same_on_success) + "/" + str(shapes))^0
+("the answer the agreeing ones give:   " + success_answer)^0
+("the odd one out is `returning`, which is broken on BOTH paths.")^0
+("`raising` is identical to the correct shapes here - that is why it ships.")^0
+
+# --------------------------------------------- the cleanup still has to run
+# A guard that skips the cleanup is not a fix either. Every shape must leave a
+# record showing the cleanup was attempted.
+0 => attempted
+for shape in ["bare", "raising", "returning", "guarded"]:
+    [0] => record
+    try:
+        if shape == "bare":
+            shape_bare(True, record)
+        elif shape == "raising":
+            shape_raising(True, record)
+        elif shape == "returning":
+            shape_returning(True, record)
+        else:
+            shape_guarded(True, record)
+    except ValueError as e:
+        pass
+    except TypeError as e:
+        pass
+    if record[0] > 0:
+        attempted + 1 => attempted
+
+""^0
+("shapes that still ran their cleanup: " + str(attempted) + "/" + str(shapes))^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# Exactly the shapes that do not let cleanup escape may report the truth.
+checked + 1 => checked
+if observe("bare", True) == "ValueError: the real problem":
+    if observe("guarded", True) == "ValueError: the real problem":
+        passed + 1 => passed
+
+# A raising cleanup must REPLACE the error, not merely add to it.
+checked + 1 => checked
+if observe("raising", True) == "TypeError: cleanup could not run":
+    passed + 1 => passed
+
+# A returning finally must erase the error completely - no exception at all.
+checked + 1 => checked
+if observe("returning", True) == "value swallowed":
+    passed + 1 => passed
+
+# THREE of the four are indistinguishable on the success path, and the odd one
+# out is `returning` - visibly broken even when nothing fails, so a test would
+# catch it. `raising` is the one that ships: on the success path it is
+# byte-identical to the correct shapes, and it only lies while something else
+# is already going wrong. This file asserted all four would agree and was
+# wrong; the split is the finding.
+checked + 1 => checked
+if same_on_success == shapes - 1:
+    if observe("raising", False) == observe("bare", False):
+        if not (observe("returning", False) == observe("bare", False)):
+            passed + 1 => passed
+
+# And every shape must still have run its cleanup - suppressing the error by
+# skipping the work is not the fix being demonstrated.
+checked + 1 => checked
+if attempted == shapes:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Two shapes erase the error; only one of them is invisible when nothing fails." => verdict
+else:
+    "FAILED - a shape did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"The two broken shapes are not equally dangerous, which is the thing this" => n1
+n1^0
+"file got wrong at first. A finally that RETURNS is wrong on every path and" => n2
+n2^0
+"any test catches it. A cleanup that raises only while unwinding is" => n3
+n3^0
+"byte-identical to the correct version whenever nothing has failed - so it" => n4
+n4^0
+"is discovered during an incident rather than before one, and what it" => n5
+n5^0
+"destroyed is exactly the information the incident needed." => n6
+n6^0

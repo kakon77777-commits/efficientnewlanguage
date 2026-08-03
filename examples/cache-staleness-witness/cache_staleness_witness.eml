@@ -1,0 +1,269 @@
+# Self-authored for the EML case corpus (no external origin). A cache that is
+# correct at the moment it is filled and wrong from then on.
+#
+# Memoization is only sound for a PURE function. The moment the thing being
+# cached depends on state that can change, the cache stops being an
+# optimization and becomes a second, divergent copy of the truth:
+#
+#     total_for("north")   -> 300     cached
+#     ... a sale is recorded in "north" ...
+#     total_for("north")   -> 300     still. It is a cache hit.
+#
+# There is no error here to catch. The cache returns a number that was true,
+# is the right type, is in the right range, and is stale. The only way to see
+# it is to compute the answer twice - once through the cache and once from
+# scratch - and compare, which is exactly what nobody does in production
+# because the whole point of the cache was to not compute it twice.
+#
+# Three strategies, all cheap, all commonly written, and only one correct:
+#
+#     never invalidate         wrong after the first write
+#     invalidate the key       right for that key, wrong for anything derived
+#     version the whole store  right, at the cost of dropping unrelated entries
+#
+# The middle one is the interesting failure. Evicting the key you wrote to
+# feels sufficient and is not: an aggregate like "the region with the largest
+# total" is derived from EVERY key, so writing to "north" invalidates the
+# answer for a cache entry whose name does not mention "north" at all.
+#
+# The check is a replay: after every single write, all three caches are asked
+# every question, and the answers are compared against a freshly computed
+# truth. A strategy is correct only if it never disagrees, at any point in the
+# history - not just at the end.
+#
+# One EML-P note, because writing this program hit it immediately. There is no
+# `global`, so assigning to a module-level name inside a function creates a
+# LOCAL - Python's rule, faithfully carried over. Mutating through a subscript
+# (`store[r] + n => store[r]`) reaches the module-level dict; rebinding a bare
+# name (`version + 1 => version`) does not. Counters that have to survive a
+# call therefore live in one-element lists, which is what `version` is here.
+#
+# A second boundary showed up in the same place, and it is sharper. EML-P has
+# no `del` statement, and `c_key.pop(region)` - which does compile, and emits
+# correct Python - makes the interpreter defer, so the program runs and loses
+# its equivalence guarantee. Between the two, a function in EML-P cannot
+# REMOVE an entry from a module-level dictionary at all. Eviction here is
+# therefore a written-down absence: a sentinel value that lookups treat as a
+# miss. That is what a cache looks like in a language without deletion, and it
+# is worth knowing that the resulting cache never shrinks.
+
+"#evicted" => GONE
+
+{"north": 100, "south": 50, "east": 70} => store
+[0] => version
+
+def record(region, amount):
+    store[region] + amount => store[region]
+    version[0] + 1 => version[0]
+
+def truth_total(region):
+    return store[region]
+
+def truth_leader():
+    # The region with the largest total. Derived from every key, which is what
+    # makes per-key invalidation insufficient.
+    "" => best
+    0 - 1 => best_v
+    for r in ["north", "south", "east"]:
+        if store[r] > best_v:
+            store[r] => best_v
+            r => best
+    return best
+
+# --------------------------------------------------------------- strategy 1
+{} => c_never
+
+def total_never(region):
+    if region in c_never:
+        return c_never[region]
+    truth_total(region) => v
+    v => c_never[region]
+    return v
+
+def leader_never():
+    if "#leader" in c_never:
+        return c_never["#leader"]
+    truth_leader() => v
+    v => c_never["#leader"]
+    return v
+
+# --------------------------------------------------------------- strategy 2
+{} => c_key
+
+def total_key(region):
+    if region in c_key and not (c_key[region] == GONE):
+        return c_key[region]
+    truth_total(region) => v
+    v => c_key[region]
+    return v
+
+def leader_key():
+    if "#leader" in c_key and not (c_key["#leader"] == GONE):
+        return c_key["#leader"]
+    truth_leader() => v
+    v => c_key["#leader"]
+    return v
+
+def evict_key(region):
+    # Evict exactly what was written. Feels complete; is not.
+    # Written as a sentinel because EML-P cannot delete - see the note above.
+    GONE => c_key[region]
+
+# --------------------------------------------------------------- strategy 3
+{} => c_ver
+[0] => c_ver_stamp
+
+def drop_versioned():
+    # Clearing has to MUTATE the dict, not rebind the name - see the note at
+    # the top. Rebinding would leave the module-level cache untouched and the
+    # strategy would look correct while doing nothing.
+    [] => keys
+    for k in c_ver:
+        keys + [k] => keys
+    for k in keys:
+        GONE => c_ver[k]
+    version[0] => c_ver_stamp[0]
+
+def total_versioned(region):
+    if not (c_ver_stamp[0] == version[0]):
+        drop_versioned()
+    if region in c_ver and not (c_ver[region] == GONE):
+        return c_ver[region]
+    truth_total(region) => v
+    v => c_ver[region]
+    return v
+
+def leader_versioned():
+    if not (c_ver_stamp[0] == version[0]):
+        drop_versioned()
+    if "#leader" in c_ver and not (c_ver["#leader"] == GONE):
+        return c_ver["#leader"]
+    truth_leader() => v
+    v => c_ver["#leader"]
+    return v
+
+
+# --------------------------------------------------------------- the replay
+[["north", 30], ["south", 90], ["east", 5], ["south", 200], ["north", 400]] => writes
+
+"after     truth      never      per-key    versioned  leader(truth/never/key/ver)"^0
+
+def probe_all(label):
+    # Ask every question through every cache and compare with a fresh answer.
+    # Returns tallies rather than accumulating into module-level counters,
+    # which a function in EML-P cannot do without a mutable cell.
+    0 => n_probes
+    0 => n_never
+    0 => n_key
+    0 => n_ver
+    for r in ["north", "south", "east"]:
+        n_probes + 1 => n_probes
+        truth_total(r) => t
+        if total_never(r) == t:
+            n_never + 1 => n_never
+        if total_key(r) == t:
+            n_key + 1 => n_key
+        if total_versioned(r) == t:
+            n_ver + 1 => n_ver
+
+    truth_leader() => lt
+    0 => l_never
+    0 => l_key
+    0 => l_ver
+    if leader_never() == lt:
+        1 => l_never
+    if leader_key() == lt:
+        1 => l_key
+    if leader_versioned() == lt:
+        1 => l_ver
+
+    ("%-9s %-10d %-10d %-10d %-10d %s/%s/%s/%s" % (label, truth_total("north"), total_never("north"), total_key("north"), total_versioned("north"), lt, leader_never(), leader_key(), leader_versioned()))^0
+    return [n_probes, n_never, n_key, n_ver, l_never, l_key, l_ver]
+
+def tally(acc, row):
+    [] => out
+    for i in [0:len(acc) - 1]:
+        out + [acc[i] + row[i]] => out
+    return out
+
+[0, 0, 0, 0, 0, 0, 0] => acc
+1 => leader_probes
+tally(acc, probe_all("start")) => acc
+for w in writes:
+    record(w[0], w[1])
+    evict_key(w[0])
+    leader_probes + 1 => leader_probes
+    tally(acc, probe_all(w[0] + "+" + str(w[1]))) => acc
+
+acc[0] => probes
+acc[1] => never_ok
+acc[2] => key_ok
+acc[3] => ver_ok
+acc[4] => never_leader_ok
+acc[5] => key_leader_ok
+acc[6] => ver_leader_ok
+
+""^0
+("per-region probes:        " + str(probes))^0
+("  never-invalidate right: " + str(never_ok) + "/" + str(probes))^0
+("  per-key evict right:    " + str(key_ok) + "/" + str(probes))^0
+("  versioned right:        " + str(ver_ok) + "/" + str(probes))^0
+""^0
+("leader probes:            " + str(leader_probes))^0
+("  never-invalidate right: " + str(never_leader_ok) + "/" + str(leader_probes))^0
+("  per-key evict right:    " + str(key_leader_ok) + "/" + str(leader_probes))^0
+("  versioned right:        " + str(ver_leader_ok) + "/" + str(leader_probes))^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# The versioned cache must be right about everything, always.
+checked + 1 => checked
+if ver_ok == probes and ver_leader_ok == leader_probes:
+    passed + 1 => passed
+
+# Never-invalidate must be visibly wrong, or this program proves nothing.
+checked + 1 => checked
+if never_ok < probes:
+    passed + 1 => passed
+
+# Per-key eviction must be RIGHT on the per-region question...
+checked + 1 => checked
+if key_ok == probes:
+    passed + 1 => passed
+
+# ...and WRONG on the derived one. That gap is the whole case.
+checked + 1 => checked
+if key_leader_ok < leader_probes:
+    passed + 1 => passed
+
+# And the versioned cache must actually be caching, not just recomputing
+# behind a dictionary that is always empty.
+checked + 1 => checked
+0 => live_entries
+for k in c_ver:
+    if not (c_ver[k] == GONE):
+        live_entries + 1 => live_entries
+if live_entries > 0:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Per-key eviction is right about the key it evicted and wrong about the aggregate." => verdict
+else:
+    "FAILED - a strategy did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"Evicting the key you just wrote to is the fix that looks complete. It is" => n1
+n1^0
+"complete for reads NAMED by that key, and an aggregate is not named by any" => n2
+n2^0
+"of the keys it depends on - so the entry that goes stale is the one whose" => n3
+n3^0
+"name gives no hint that the write touched it. Correctness here is a" => n4
+n4^0
+"property of the dependency graph, not of the write." => n5
+n5^0

@@ -1,0 +1,195 @@
+# Self-authored for the EML case corpus (no external origin). Looking something
+# up by a number you computed.
+#
+# A dictionary keyed by a float is fine as long as the key you look up with is
+# the same float you stored with. The trouble is that "the same number" and
+# "the same float" are different questions:
+#
+#     0.1 + 0.2  ==  0.3        False
+#
+# A price table keyed on 0.3 - the number a person typed - has no entry for a
+# total that arrived by adding 0.1 and 0.2, even though everyone involved
+# agrees the total is 0.3. The lookup does not return a wrong value. It raises,
+# or falls through to a default, and a default looks like a decision.
+#
+# This file went through three wrong premises before it measured anything, and
+# they are recorded because they are the interesting part.
+#
+# The first was the check. The original version stored every ORDERING of every
+# sum and then looked up a reordering - which is in the table by construction,
+# so the float key scored a perfect 216/216 and the program proved nothing. A
+# probe that cannot miss is not a probe. The table here is keyed on the decimal
+# amounts a human would write; the lookups arrive as computed sums.
+#
+# The second was a fact. The closing note originally claimed
+# `int((0.1 + 0.2) * 100)` is 29. It is 30 - the multiply lands just above.
+# Truncation and rounding do diverge, and finding where takes a search rather
+# than an anecdote: at 2.675, whose float is a hair BELOW 2.675, `* 100`
+# gives 267.49999999999997, and int() takes 267 where the answer is 268.
+#
+# The third was a demand. A check insisted the grand total differ between the
+# two routes. It does not, for any set of amounts in this range - and that is
+# the sharper finding: the totals agree while 193 of 512 individual lookups
+# miss, so a test suite that checks the total is green while the key scheme
+# underneath it is broken.
+#
+# So the two keying strategies compared here are:
+#
+#     float key      store and look up the float itself
+#     integer cents  round to an integer at the boundary, once, then stay there
+
+def to_cents(x):
+    # Convert at the BOUNDARY and stay in integers afterwards. The + 0.5 makes
+    # this a round rather than a truncate, which is the whole difference at
+    # 2.675 below.
+    return int(x * 100 + 0.5)
+
+def cents_to_text(c):
+    if c < 0:
+        return "-" + cents_to_text(0 - c)
+    str(int(c / 100)) => whole
+    str(c % 100) => frac
+    if len(frac) < 2:
+        "0" + frac => frac
+    return whole + "." + frac
+
+
+[0.1, 0.2, 0.3, 0.05, 0.7, 1.1, 0.15, 0.25] => amounts
+
+"The comparison everyone has seen, and what actually follows from it:"^0
+("  0.1 + 0.2 == 0.3      " + str(0.1 + 0.2 == 0.3))^0
+("  0.1 + 0.2             " + repr(0.1 + 0.2))^0
+("  int((0.1+0.2) * 100)  " + str(int((0.1 + 0.2) * 100)) + "   <- 30, not 29. The anecdote is wrong here.")^0
+("  int(2.675 * 100)      " + str(int(2.675 * 100)) + "   <- 267. THIS is where truncation loses a cent.")^0
+("  to_cents(2.675)       " + str(to_cents(2.675)))^0
+
+# ------------------------------------------- a table of the amounts as written
+# Keys are the decimal values a person typed. Every legitimate total is a sum
+# of two of them, so every lookup below SHOULD find an entry.
+{} => by_float
+{} => by_cents
+[] => totals
+for a in amounts:
+    for b in amounts:
+        a + b => t
+        if not (t in by_float):
+            ("total " + repr(t)) => by_float[t]
+        to_cents(a) + to_cents(b) => tc
+        if not (tc in by_cents):
+            ("total " + str(tc)) => by_cents[tc]
+
+# The probe: the SAME totals, reached by a different route. Adding a third
+# amount and taking it away again is arithmetic that must not change anything
+# and, in binary floating point, sometimes does.
+0 => lookups
+0 => float_hits
+0 => cent_hits
+[] => misses
+for a in amounts:
+    for b in amounts:
+        for c in amounts:
+            lookups + 1 => lookups
+            a + c + b - c => probe
+            if probe in by_float:
+                float_hits + 1 => float_hits
+            else:
+                if len(misses) < 4:
+                    misses + [repr(a) + " + " + repr(b) + " via " + repr(c) + " -> " + repr(probe) + ", table has " + repr(a + b)] => misses
+            to_cents(a) + to_cents(c) + to_cents(b) - to_cents(c) => cprobe
+            if cprobe in by_cents:
+                cent_hits + 1 => cent_hits
+
+""^0
+("lookups (same total, other route): " + str(lookups))^0
+("  float key found the entry:       " + str(float_hits) + "/" + str(lookups))^0
+("  integer cents found it:          " + str(cent_hits) + "/" + str(lookups))^0
+
+""^0
+"Totals that are not the total:"^0
+for m in misses:
+    ("  " + m)^0
+
+# ------------------------------------- how far the two routes drift in total
+0 => c_total
+for a in amounts:
+    c_total + to_cents(a) => c_total
+0.0 => f_total
+for a in amounts:
+    f_total + a => f_total
+
+""^0
+("sum of every amount, cents:  " + cents_to_text(c_total))^0
+("the same, as floats:         " + repr(f_total))^0
+("the two routes agree:        " + str(float(c_total) / 100 == f_total))^0
+("...and that agreement says nothing about the lookups above.")^0
+
+# ----------------------------------------- where truncation and rounding part
+0 => trunc_differs
+[] => trunc_cases
+for a in [0.1, 0.2, 0.25, 0.7, 1.005, 2.675, 3.35, 4.045]:
+    int(a * 100) => t
+    to_cents(a) => r
+    if not (t == r):
+        trunc_differs + 1 => trunc_differs
+        trunc_cases + [repr(a) + ": truncate " + str(t) + ", round " + str(r)] => trunc_cases
+
+""^0
+("values where truncating loses a cent: " + str(trunc_differs))^0
+for t in trunc_cases:
+    ("  " + t)^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# Integer cents must find every entry. This is the claim.
+checked + 1 => checked
+if cent_hits == lookups:
+    passed + 1 => passed
+
+# The float key must visibly MISS. Without this the sweep proves nothing, and
+# the first version of this file failed exactly here.
+checked + 1 => checked
+if float_hits < lookups:
+    passed + 1 => passed
+
+# The GRAND TOTAL agrees between the two routes while individual lookups miss
+# by the hundred. This was the third wrong premise in this file: the original
+# check demanded that the totals differ, and no set of amounts in range makes
+# them. What is true is worse - a suite that checks only the final total
+# passes while the key scheme is broken underneath it.
+checked + 1 => checked
+if float(c_total) / 100 == f_total and float_hits < lookups:
+    passed + 1 => passed
+
+# Truncation must be shown to lose a cent somewhere, since that is what the
+# + 0.5 is for.
+checked + 1 => checked
+if trunc_differs > 0:
+    passed + 1 => passed
+
+# And the popular anecdote must be shown FALSE, because repeating it is how
+# people learn to look in the wrong place.
+checked + 1 => checked
+if int((0.1 + 0.2) * 100) == 30 and int(2.675 * 100) == 267:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Integer cents find every entry; the float key misses totals it created itself." => verdict
+else:
+    "FAILED - a key scheme did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"Three premises in this file were wrong, all in the same way: they were" => n1
+n1^0
+"claims about floating point that sounded right. One made a check unable to" => n2
+n2^0
+"fail, one put a wrong number in a closing sentence, and one demanded a" => n3
+n3^0
+"divergence that does not occur. The last is the useful one - the totals DO" => n4
+n4^0
+"agree, which is precisely why a suite that checks the total finds nothing." => n5
+n5^0

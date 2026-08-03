@@ -35,8 +35,20 @@ function fnv1a(input: string): string {
 
 /**
  * Structural hash of a function's *logic*: its parameters and body only. The
- * name, decorators (cold/hot), and spans are intentionally excluded so two
- * identically-bodied functions crystallize to the same key.
+ * function's own name, its decorators (cold/hot), and all spans are excluded,
+ * so two identically-bodied functions crystallize to the same key.
+ *
+ * "Identically-bodied" is meant literally, and the boundary is narrower than it
+ * reads. Excluding *the name* means the function's own name only — parameter
+ * names and local names are part of the body, so `f(n) = n` and `f(m) = m` are
+ * alpha-equivalent and get DIFFERENT keys. Likewise `n * 2` and `2 * n`. Both
+ * are missed cache hits: a lost reuse, never a wrong answer, and closing them
+ * would mean deciding program equivalence.
+ *
+ * The direction that must hold is the other one — two functions that behave
+ * differently must never share a key. `tests/crystal-key.test.ts` enforces it
+ * over a cross product of variants whose behaviour is measured by running
+ * them, not asserted by hand.
  */
 export function hashFunction(fn: FunctionDef): string {
   return fnv1a(canonical({ params: fn.params, body: fn.body }));

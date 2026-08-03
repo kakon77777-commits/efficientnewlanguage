@@ -1,0 +1,239 @@
+# Self-authored for the EML case corpus (no external origin). Operations that
+# are safe to run once and not safe to run twice.
+#
+# A cleanup function is idempotent when applying it again changes nothing:
+#
+#     f(f(x)) == f(x)     for every x
+#
+# Almost every "normalize", "sanitize", "trim", "escape" and "migrate" routine
+# is written as if this were automatic. It is not automatic - it is a property
+# that has to hold, and the ones that fail do so quietly, because the second
+# application produces a value that still looks like a clean value.
+#
+# Four routines are compared, all plausible, all doing the same job:
+#
+#     strip_prefix     removes ONE leading "-" if present
+#     strip_prefixes   removes every leading "-"
+#     escape_once      turns "&" into "&amp;"
+#     escape_guarded   the same, but leaves an already-escaped "&amp;" alone
+#
+# `strip_prefix` and `escape_once` are the ones that fail, and they fail in
+# opposite directions. Stripping one prefix per call loses data on the second
+# call; escaping on every call ADDS data on the second, so "&" becomes
+# "&amp;amp;" and a retry that was meant to be harmless corrupts the payload.
+#
+# Retries are why this matters. A queue that redelivers a message, a form that
+# is submitted twice, a migration re-run after a partial failure - all of them
+# apply the operation a second time to something that has already had it. The
+# system is correct only if the operation is idempotent, and nothing in the
+# type of the value records whether it is.
+#
+# The check is not a spot test. Every routine is applied up to five times to
+# every input, and the run is only idempotent if the value stops changing
+# after the first application and stays stopped.
+
+def strip_prefix(s):
+    # Removes ONE leading dash. Correct once, lossy forever after.
+    if len(s) > 0 and s[0] == "-":
+        return s[1:]
+    return s
+
+def strip_prefixes(s):
+    # Removes every leading dash, so there is nothing left to remove.
+    0 => i
+    while i < len(s) and s[i] == "-":
+        i + 1 => i
+    return s[i:]
+
+def escape_once(s):
+    "" => out
+    for ch in s:
+        if ch == "&":
+            out + "&amp;" => out
+        else:
+            out + ch => out
+    return out
+
+def escape_guarded(s):
+    # Skip a "&" that already begins "&amp;". The guard is what makes it a
+    # function you can apply twice.
+    "" => out
+    0 => i
+    while i < len(s):
+        if s[i] == "&" and s[i:i + 5] == "&amp;":
+            out + "&amp;" => out
+            i + 5 => i
+        elif s[i] == "&":
+            out + "&amp;" => out
+            i + 1 => i
+        else:
+            out + s[i] => out
+            i + 1 => i
+    return out
+
+
+def apply_n(name, s, n):
+    s => v
+    for k in [1:n]:
+        if name == "strip_prefix":
+            strip_prefix(v) => v
+        elif name == "strip_prefixes":
+            strip_prefixes(v) => v
+        elif name == "escape_once":
+            escape_once(v) => v
+        else:
+            escape_guarded(v) => v
+    return v
+
+def is_idempotent_on(name, s):
+    # f(f(x)) == f(x), and it must stay true for further applications - a
+    # routine that settles at the third is still not idempotent.
+    apply_n(name, s, 1) => once
+    for k in [2:5]:
+        if not (apply_n(name, s, k) == once):
+            return False
+    return True
+
+
+["--draft", "-x", "plain", "---", "", "a-b", "-"] => dash_inputs
+["a&b", "&", "&amp;", "a&amp;b", "plain", "&&", "&amp;&"] => amp_inputs
+
+"input        f(x)            f(f(x))         idempotent"^0
+for s in dash_inputs:
+    ("%-12s %-15s %-15s %s" % ("'" + s + "'", "'" + apply_n("strip_prefix", s, 1) + "'", "'" + apply_n("strip_prefix", s, 2) + "'", str(is_idempotent_on("strip_prefix", s))))^0
+
+""^0
+"the same inputs through strip_prefixes:"^0
+for s in dash_inputs:
+    ("%-12s %-15s %-15s %s" % ("'" + s + "'", "'" + apply_n("strip_prefixes", s, 1) + "'", "'" + apply_n("strip_prefixes", s, 2) + "'", str(is_idempotent_on("strip_prefixes", s))))^0
+
+""^0
+"escaping, where the second application ADDS rather than removes:"^0
+for s in amp_inputs:
+    ("%-12s %-15s %-15s %s" % ("'" + s + "'", "'" + apply_n("escape_once", s, 1) + "'", "'" + apply_n("escape_once", s, 2) + "'", str(is_idempotent_on("escape_once", s))))^0
+
+""^0
+"the same inputs through escape_guarded:"^0
+for s in amp_inputs:
+    ("%-12s %-15s %-15s %s" % ("'" + s + "'", "'" + apply_n("escape_guarded", s, 1) + "'", "'" + apply_n("escape_guarded", s, 2) + "'", str(is_idempotent_on("escape_guarded", s))))^0
+
+# ------------------------------------------------------------- wider sweep
+# Every string of length 0..3 over an alphabet chosen so that both routines
+# have something to chew on.
+"-&a" => alphabet
+[""] => generated
+for a in alphabet:
+    generated + [a] => generated
+for a in alphabet:
+    for b in alphabet:
+        generated + [a + b] => generated
+for a in alphabet:
+    for b in alphabet:
+        for c in alphabet:
+            generated + [a + b + c] => generated
+
+0 => n
+0 => sp_ok
+0 => sps_ok
+0 => eo_ok
+0 => eg_ok
+[] => sp_witness
+[] => eo_witness
+for s in generated:
+    n + 1 => n
+    if is_idempotent_on("strip_prefix", s):
+        sp_ok + 1 => sp_ok
+    else:
+        if len(sp_witness) < 3:
+            sp_witness + ["'" + s + "' -> '" + apply_n("strip_prefix", s, 1) + "' -> '" + apply_n("strip_prefix", s, 2) + "'"] => sp_witness
+    if is_idempotent_on("strip_prefixes", s):
+        sps_ok + 1 => sps_ok
+    if is_idempotent_on("escape_once", s):
+        eo_ok + 1 => eo_ok
+    else:
+        if len(eo_witness) < 3:
+            eo_witness + ["'" + s + "' -> '" + apply_n("escape_once", s, 1) + "' -> '" + apply_n("escape_once", s, 2) + "'"] => eo_witness
+    if is_idempotent_on("escape_guarded", s):
+        eg_ok + 1 => eg_ok
+
+""^0
+("strings swept:              " + str(n))^0
+("  strip_prefix idempotent:  " + str(sp_ok) + "/" + str(n))^0
+("  strip_prefixes:           " + str(sps_ok) + "/" + str(n))^0
+("  escape_once:              " + str(eo_ok) + "/" + str(n))^0
+("  escape_guarded:           " + str(eg_ok) + "/" + str(n))^0
+
+""^0
+"where strip_prefix loses data on the retry:"^0
+for w in sp_witness:
+    ("  " + w)^0
+""^0
+"where escape_once adds data on the retry:"^0
+for w in eo_witness:
+    ("  " + w)^0
+
+# --------------------------------------------------- the retry that corrupts
+# The scenario, end to end: a message is escaped, delivered, the delivery is
+# reported as failed, and the SAME already-escaped payload is retried.
+"tom & jerry" => payload
+escape_once(payload) => sent
+escape_once(sent) => resent
+escape_guarded(sent) => resent_guarded
+
+""^0
+("original:                " + payload)^0
+("escaped once:            " + sent)^0
+("retried through once:    " + resent)^0
+("retried through guarded: " + resent_guarded)^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+checked + 1 => checked
+if sps_ok == n and eg_ok == n:
+    passed + 1 => passed
+
+# Both broken routines must be visibly broken, or the sweep proves nothing.
+checked + 1 => checked
+if sp_ok < n and eo_ok < n:
+    passed + 1 => passed
+
+# The two failures must be in OPPOSITE directions: one shortens, one grows.
+checked + 1 => checked
+if len(apply_n("strip_prefix", "--x", 2)) < len(apply_n("strip_prefix", "--x", 1)):
+    if len(apply_n("escape_once", "&", 2)) > len(apply_n("escape_once", "&", 1)):
+        passed + 1 => passed
+
+# The retry must actually corrupt, and the guard must actually save it.
+checked + 1 => checked
+if not (resent == sent) and resent_guarded == sent:
+    passed + 1 => passed
+
+# A routine that returns its input unchanged is trivially idempotent and
+# useless. escape_guarded must still DO something.
+checked + 1 => checked
+if not (escape_guarded("a&b") == "a&b"):
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Two routines settle on the first application; two never do." => verdict
+else:
+    "FAILED - a routine did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"Nothing in the value records whether it has been through the operation." => n1
+n1^0
+"That is the whole difficulty: `strip_prefix` cannot tell a string it has" => n2
+n2^0
+"already trimmed from one that arrived that way, and `escape_once` cannot" => n3
+n3^0
+"tell an escaped ampersand from a literal one. Idempotence is bought by" => n4
+n4^0
+"making the OUTPUT recognisable to the function - which is what the guard" => n5
+n5^0
+"does, and what removing every prefix rather than one does." => n6
+n6^0

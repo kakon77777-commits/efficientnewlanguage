@@ -1,0 +1,270 @@
+# Self-authored for the EML case corpus (no external origin). A multi-step
+# update that fails in the middle.
+#
+# Moving money between two accounts is two writes:
+#
+#     debit  A by 100
+#     credit B by 100
+#
+# and if the second one fails, the first has already happened. The system is
+# now in a state that no single operation produced and no invariant describes:
+# the money is nowhere. Nothing raised twice, nothing is corrupt in the sense
+# of being unreadable, and every individual row is a valid row.
+#
+# Three strategies:
+#
+#     direct       write as you go; a mid-way failure leaves the damage
+#     checked      validate everything first, then write
+#     journalled   record the intended state, apply, and roll back on failure
+#
+# The middle one is the interesting failure again, and this file learned it
+# the hard way twice. "Validate first, then write" removes the failures you
+# can PREDICT and does nothing about the ones you cannot.
+#
+# First lesson: the original `checked` here validated only the SOURCE, and
+# every failure in the attempt list came from the destination - so it scored
+# exactly the same as the naive version. A pre-check protects against the
+# failures it names.
+#
+# Second: even after checking both sides, a per-account ceiling enforced
+# inside the write still leaves the half-applied state, because the caller
+# does not know the rule exists. Validation converts a common bug into a rare
+# one, which is a real improvement and is not the same as correctness.
+#
+# The measurement is the invariant, checked after every single transfer
+# attempt including the failed ones:
+#
+#     the total across all accounts never changes
+#
+# One thing that measurement does NOT do is rank the two broken strategies.
+# Once money is lost it stays lost, so every later check fails as well and
+# both score zero. Separating them takes the AMOUNT lost, which is a different
+# question from how often the invariant held.
+#
+# That is the only statement that distinguishes the three, because every other
+# property - non-negative balances, integer amounts, accounts that exist - is
+# preserved by all of them even when money vanishes.
+
+def total_of(accounts):
+    0 => t
+    for a in accounts:
+        t + accounts[a] => t
+    return t
+
+def copy_of(accounts):
+    {} => out
+    for a in accounts:
+        accounts[a] => out[a]
+    return out
+
+def restore(target, snapshot):
+    # Restoring has to MUTATE - EML-P has no `global`, so rebinding inside a
+    # function would leave the caller's dictionary untouched.
+    for a in snapshot:
+        snapshot[a] => target[a]
+
+# A write fails when the destination is frozen. The direct and checked
+# strategies differ only in whether they look before they leap.
+["frozen"] => FROZEN
+
+def is_frozen(name):
+    for f in FROZEN:
+        if f == name:
+            return True
+    return False
+
+# A per-account ceiling, enforced only at write time. It stands for every
+# failure that validation cannot see in advance: a constraint enforced
+# downstream, a remote call that rejects, a disk that fills.
+600 => CAP
+
+def write(accounts, name, delta):
+    if is_frozen(name):
+        raise ValueError("account " + name + " is frozen")
+    if accounts[name] + delta < 0:
+        raise ValueError("account " + name + " would go negative")
+    if accounts[name] + delta > CAP:
+        raise ValueError("account " + name + " would exceed its ceiling")
+    accounts[name] + delta => accounts[name]
+
+
+def transfer_direct(accounts, src, dst, amount):
+    write(accounts, src, 0 - amount)
+    write(accounts, dst, amount)
+
+def transfer_checked(accounts, src, dst, amount):
+    # Everything the author thought of, checked up front - BOTH sides, which
+    # the first version of this file did not do. Validating only the source
+    # made this strategy behave identically to the direct one, because the
+    # failure in this attempt list comes from the destination. That is worth
+    # keeping as a note: a pre-check protects against the failures it names,
+    # and the ones it does not name are exactly the ones that bite.
+    if accounts[src] - amount < 0:
+        raise ValueError("insufficient funds")
+    if is_frozen(src):
+        raise ValueError("source frozen")
+    if is_frozen(dst):
+        raise ValueError("destination frozen")
+    write(accounts, src, 0 - amount)
+    write(accounts, dst, amount)
+
+def transfer_journalled(accounts, src, dst, amount):
+    copy_of(accounts) => before
+    try:
+        write(accounts, src, 0 - amount)
+        write(accounts, dst, amount)
+    except ValueError as e:
+        restore(accounts, before)
+        raise ValueError(str(e))
+
+
+def fresh():
+    return {"a": 500, "b": 300, "frozen": 100}
+
+# b->a 200 is first on purpose: from the opening balances it debits b, then
+# fails crediting a because a would pass the ceiling. That is the failure no
+# amount of caller-side validation sees, and it has to happen while the state
+# is still known or the later attempts mask it.
+[
+    ["b", "a", 200],
+    ["a", "b", 100],
+    ["a", "frozen", 50],
+    ["b", "a", 1000],
+    ["frozen", "a", 10],
+    ["a", "b", 9999]
+] => attempts
+
+"transfer            direct(total/ok)  checked(total/ok)  journalled(total/ok)"^0
+
+fresh() => acc_d
+fresh() => acc_c
+fresh() => acc_j
+total_of(fresh()) => start_total
+
+0 => n
+0 => d_invariant
+0 => c_invariant
+0 => j_invariant
+0 => d_ok
+0 => c_ok
+0 => j_ok
+
+for t in attempts:
+    n + 1 => n
+    "y" => rd
+    try:
+        transfer_direct(acc_d, t[0], t[1], t[2])
+        d_ok + 1 => d_ok
+    except ValueError as e:
+        "n" => rd
+    "y" => rc
+    try:
+        transfer_checked(acc_c, t[0], t[1], t[2])
+        c_ok + 1 => c_ok
+    except ValueError as e:
+        "n" => rc
+    "y" => rj
+    try:
+        transfer_journalled(acc_j, t[0], t[1], t[2])
+        j_ok + 1 => j_ok
+    except ValueError as e:
+        "n" => rj
+
+    if total_of(acc_d) == start_total:
+        d_invariant + 1 => d_invariant
+    if total_of(acc_c) == start_total:
+        c_invariant + 1 => c_invariant
+    if total_of(acc_j) == start_total:
+        j_invariant + 1 => j_invariant
+
+    ("%-19s %-17s %-18s %s" % (t[0] + "->" + t[1] + " " + str(t[2]), str(total_of(acc_d)) + "/" + rd, str(total_of(acc_c)) + "/" + rc, str(total_of(acc_j)) + "/" + rj))^0
+
+""^0
+("starting total:               " + str(start_total))^0
+("transfers attempted:          " + str(n))^0
+("  direct:     succeeded " + str(d_ok) + ", invariant held " + str(d_invariant) + "/" + str(n))^0
+("  checked:    succeeded " + str(c_ok) + ", invariant held " + str(c_invariant) + "/" + str(n))^0
+("  journalled: succeeded " + str(j_ok) + ", invariant held " + str(j_invariant) + "/" + str(n))^0
+
+""^0
+("money lost by direct:  " + str(start_total - total_of(acc_d)))^0
+("money lost by checked: " + str(start_total - total_of(acc_c)))^0
+("money lost by journal: " + str(start_total - total_of(acc_j)))^0
+
+# ------------------------------------- every other property still holds
+# The point of listing these: each is a real invariant, each is preserved by
+# all three strategies, and none of them notices the missing money.
+def all_non_negative(accounts):
+    for a in accounts:
+        if accounts[a] < 0:
+            return False
+    return True
+
+def all_integers(accounts):
+    for a in accounts:
+        if not (str(accounts[a]) == str(int(accounts[a]))):
+            return False
+    return True
+
+""^0
+"properties that hold for ALL THREE, including the one that lost money:"^0
+("  no negative balance:  " + str(all_non_negative(acc_d)) + " / " + str(all_non_negative(acc_c)) + " / " + str(all_non_negative(acc_j)))^0
+("  all integers:         " + str(all_integers(acc_d)) + " / " + str(all_integers(acc_c)) + " / " + str(all_integers(acc_j)))^0
+("  same account set:     " + str(len(acc_d) == 3) + " / " + str(len(acc_c) == 3) + " / " + str(len(acc_j) == 3))^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# Only the journalled strategy holds the invariant at every step.
+checked + 1 => checked
+if j_invariant == n:
+    passed + 1 => passed
+
+# The direct strategy must lose money, or the program proves nothing.
+checked + 1 => checked
+if d_invariant < n and total_of(acc_d) < start_total:
+    passed + 1 => passed
+
+# The checked strategy must be BETTER than direct and still not correct. Note
+# what "better" had to be measured as: both hold the invariant on ZERO of the
+# attempts, because once money is lost it stays lost and every later check
+# fails too. The invariant COUNT cannot separate them - only the amount lost
+# can. This file asserted the count first and was wrong.
+checked + 1 => checked
+start_total - total_of(acc_c) => c_lost
+start_total - total_of(acc_d) => d_lost
+if c_lost > 0 and c_lost < d_lost:
+    passed + 1 => passed
+
+# All three must satisfy every other invariant, which is why those invariants
+# cannot be the test.
+checked + 1 => checked
+if all_non_negative(acc_d) and all_integers(acc_d) and len(acc_d) == 3:
+    passed + 1 => passed
+
+# The journal must not simply refuse everything - a strategy that never
+# succeeds also never breaks the invariant.
+checked + 1 => checked
+if j_ok > 0:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Only the rollback keeps the total. Every other invariant survives the loss." => verdict
+else:
+    "FAILED - a strategy did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"Validating first is a real improvement and is not a fix. It removes the" => n1
+n1^0
+"failures you can enumerate; the half-applied state is caused by the ones you" => n2
+n2^0
+"cannot. The difference between the two is not how careful the code is - it" => n3
+n3^0
+"is whether there is a way back, which has to be built before the write" => n4
+n4^0
+"rather than reasoned about after it." => n5
+n5^0

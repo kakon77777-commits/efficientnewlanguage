@@ -10,14 +10,14 @@ to Python, or to language implementation.
 > When a coverage metric reaches 100%, do not read it as *done*.
 > Read it as **"this axis is exhausted — now find the one it cannot see."**
 
-Then build a different measurement and run it. It has fired eight times. The
-first four found real divergences on the first run; the last four came back
+Then build a different measurement and run it. It has fired nine times. The
+first four found real divergences on the first run; the last five came back
 clean. Both outcomes are results — and the shift from one to the other is
 itself the most useful thing this table records.
 
 ---
 
-## The eight axes, in the order they were built
+## The nine axes, in the order they were built
 
 | # | axis | result | what it could not see |
 |---|---|---|---|
@@ -29,20 +29,21 @@ itself the most useful thing this table records.
 | 5 | value-model boundaries (55 values) | 0 — clean first run | the **reverse** direction under nesting |
 | 6 | reverse transpilation by construct pair (100 pairs) | 0 — clean first run | **slice** bounds and clamping |
 | 7 | slice bounds (3 containers × 10 starts × 10 stops) | 0 — clean first run | the compiler's **refusal** surface |
-| 8 | diagnostic reachability (23 codes) | 0 unreachable, 0 spurious | `@cold` cache keys (not yet measured) |
+| 8 | diagnostic reachability (23 codes) | 0 unreachable, 0 spurious | what the compiler decides two things ARE |
+| 9 | crystallization cache keys (35 variants, every pair) | 0 false cache hits | trace-protocol completeness (not yet measured) |
 
 Read the right-hand column downward. Each axis was honest, each went green, and
 each was blind in a direction that could only be named after building the next
 one. That is the shape of the whole discipline.
 
-### What four clean axes in a row actually mean
+### What five clean axes in a row actually mean
 
 It would be easy to write this table as a success story — *every axis fires,
 every axis finds something*. It stopped being true at axis 5, and saying so is
 the point. A new axis returning clean means one of three things, and they are
 not equally good news:
 
-1. the implementation really is correct along that axis (axes 5–8 look like this);
+1. the implementation really is correct along that axis (axes 5–9 look like this);
 2. the axis is a re-slice of one already exhausted, so it was never going to
    find anything new;
 3. the measurement itself is broken and cannot fail — the failure mode this
@@ -53,7 +54,21 @@ gates was **drilled**: the fix it guards was deliberately broken, the gate was
 confirmed to fail, and the file was restored byte-identically. A clean axis
 that has not been drilled is an untested assertion about an untested assertion.
 
-There is a fourth thing four clean axes mean, and it is about the person
+Axis 9 is the sharpest example of the discipline so far, because the thing it
+measures is not an output. `hashFunction` decides whether two `@cold`
+functions are "the same logic"; before this file the whole claim rested on two
+hand-written pairs, one that must match and one that must not. Two points do
+not describe a space. The rule now enforced is the sound direction only —
+**two functions that behave differently must never share a cache key** — and
+the expected side is computed by RUNNING all 35 variants over a shared battery
+of inputs rather than by asserting which pairs differ. The opposite direction
+(same behaviour, different key) is counted and reported, not enforced, because
+forbidding it would mean deciding program equivalence.
+
+Drilling it dropped the body from the hash: 528 collisions, plus three named
+rules. The file was then restored byte-identically and the gate went green.
+
+There is a fourth thing the clean axes mean, and it is about the person
 rather than the code. As the implementation converged, the error rate moved.
 On the day axes 7 and 8 were built, **four separate expectations written by
 hand were wrong and the code was right** — a slice bound, a truncation rule,
