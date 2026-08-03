@@ -10,14 +10,14 @@ to Python, or to language implementation.
 > When a coverage metric reaches 100%, do not read it as *done*.
 > Read it as **"this axis is exhausted — now find the one it cannot see."**
 
-Then build a different measurement and run it. It has fired nine times. The
-first four found real divergences on the first run; the last five came back
-clean. Both outcomes are results — and the shift from one to the other is
+Then build a different measurement and run it. It has fired ten times. The
+first four found real divergences on the first run, the next five came back
+clean, and the tenth broke the streak. Both outcomes are results — and the shift from one to the other is
 itself the most useful thing this table records.
 
 ---
 
-## The nine axes, in the order they were built
+## The ten axes, in the order they were built
 
 | # | axis | result | what it could not see |
 |---|---|---|---|
@@ -30,13 +30,14 @@ itself the most useful thing this table records.
 | 6 | reverse transpilation by construct pair (100 pairs) | 0 — clean first run | **slice** bounds and clamping |
 | 7 | slice bounds (3 containers × 10 starts × 10 stops) | 0 — clean first run | the compiler's **refusal** surface |
 | 8 | diagnostic reachability (23 codes) | 0 unreachable, 0 spurious | what the compiler decides two things ARE |
-| 9 | crystallization cache keys (35 variants, every pair) | 0 false cache hits | trace-protocol completeness (not yet measured) |
+| 9 | crystallization cache keys (35 variants, every pair) | 0 false cache hits | what the compiler RECORDS, as opposed to what it decides |
+| 10 | trace completeness (15 constructs, 12 output shapes) | **2 real defects** | `eml explain` / CTS metadata (not yet measured) |
 
 Read the right-hand column downward. Each axis was honest, each went green, and
 each was blind in a direction that could only be named after building the next
 one. That is the shape of the whole discipline.
 
-### What five clean axes in a row actually mean
+### What five clean axes in a row meant, and what ended it
 
 It would be easy to write this table as a success story — *every axis fires,
 every axis finds something*. It stopped being true at axis 5, and saying so is
@@ -67,6 +68,34 @@ forbidding it would mean deciding program equivalence.
 
 Drilling it dropped the body from the hash: 528 collisions, plus three named
 rules. The file was then restored byte-identically and the gate went green.
+
+**Axis 10 ended the streak, and where it looked is the reason.** Every axis
+before it checks something the compiler PRODUCES — Python text, diagnostics,
+cache keys. Axis 10 checks the RECORD of what happened, which is load-bearing
+in a way none of the others are: the committed `.trace.jsonl` goldens, the
+`eml:equiv` execution check and the workbench trace panel are all downstream
+of it. A trace that silently under-records is the worst possible failure,
+because a golden missing events still matches itself — the check passes
+forever and the thing it was checking stopped being observed.
+
+It found two defects on the first run:
+
+- `eml:output` carried `text` and not `end`, so stdout could not be
+  reconstructed from the trace. A program using `^0("")` writes one line and
+  a trace carrying only `text` claims two.
+- A list comprehension executed **invisibly**. `[i for i in [1:1000]] => xs`
+  produced the same event census as `[] => xs`, so rewriting a loop as a
+  comprehension deleted the work from the record.
+
+Both properties are computed, not asserted: stdout rebuilt from events is
+compared against the stdout the same run produced, and a construct's
+visibility is measured by diffing two traces rather than by declaring which
+events it "should" emit.
+
+The monitor then caught the follow-on: the interpreter changed and none of
+its listed conformance tests did, because the new gate was not on its list
+for that file. Same shape as the hole found on 2026-08-01, and fixed the same
+way — by adding the test, not by accepting the alert.
 
 There is a fourth thing the clean axes mean, and it is about the person
 rather than the code. As the implementation converged, the error rate moved.

@@ -229,6 +229,13 @@ const SEMANTIC_FILES = [
       'tests/phase7d-exceptions.test.ts',
       'tests/builtin-shapes.test.ts',
       'tests/statement-interaction.test.ts',
+      // Added 2026-08-04. The interpreter decides not only what a program
+      // computes but what it RECORDS, and the record is what every golden,
+      // every equivalence check and the workbench panel actually read. A
+      // change that alters the trace without altering any of the tests above
+      // is exactly the kind this monitor exists to stop, and it happened:
+      // `eml:output` was dropping `end` and comprehensions emitted nothing.
+      'tests/trace-completeness.test.ts',
     ],
   ],
   ['packages/transpiler-python/src/emitter.ts', ['tests/interp.test.ts', 'tests/statement-interaction.test.ts']],

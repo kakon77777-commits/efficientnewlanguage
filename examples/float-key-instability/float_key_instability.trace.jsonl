@@ -2,14 +2,14 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":2,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":2,"fn":"to_cents","params":["x"],"temperature":"neutral","async":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":3,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":3,"fn":"cents_to_text","params":["c"],"temperature":"neutral","async":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":4,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":4,"name":"amounts","value":"[0.1, 0.2, 0.3, 0.05, 0.7, 1.1, 0.15, 0.25]","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":5,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":5,"text":"The comparison everyone has seen, and what actually follows from it:"}
-{"stream":"eml","proto":"eml-trace-v1","seq":6,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6,"text":"  0.1 + 0.2 == 0.3      False"}
-{"stream":"eml","proto":"eml-trace-v1","seq":7,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7,"text":"  0.1 + 0.2             0.30000000000000004"}
-{"stream":"eml","proto":"eml-trace-v1","seq":8,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":8,"text":"  int((0.1+0.2) * 100)  30   <- 30, not 29. The anecdote is wrong here."}
-{"stream":"eml","proto":"eml-trace-v1","seq":9,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":9,"text":"  int(2.675 * 100)      267   <- 267. THIS is where truncation loses a cent."}
+{"stream":"eml","proto":"eml-trace-v1","seq":5,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":5,"text":"The comparison everyone has seen, and what actually follows from it:","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":6,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6,"text":"  0.1 + 0.2 == 0.3      False","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":7,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7,"text":"  0.1 + 0.2             0.30000000000000004","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":8,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":8,"text":"  int((0.1+0.2) * 100)  30   <- 30, not 29. The anecdote is wrong here.","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":9,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":9,"text":"  int(2.675 * 100)      267   <- 267. THIS is where truncation loses a cent.","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":10,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":10,"fn":"to_cents","args":["2.675"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":11,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":11,"fn":"to_cents","value":"268"}
-{"stream":"eml","proto":"eml-trace-v1","seq":12,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":12,"text":"  to_cents(2.675)       268"}
+{"stream":"eml","proto":"eml-trace-v1","seq":12,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":12,"text":"  to_cents(2.675)       268","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":13,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":13,"name":"by_float","value":"{}","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":14,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":14,"name":"by_cents","value":"{}","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":15,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":15,"name":"totals","value":"[]","declares":true}
@@ -6921,16 +6921,16 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":6921,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":6921,"fn":"to_cents","value":"25"}
 {"stream":"eml","proto":"eml-trace-v1","seq":6922,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":6922,"name":"cprobe","value":"50","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":6923,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":6923,"name":"cent_hits","value":"512","declares":false}
-{"stream":"eml","proto":"eml-trace-v1","seq":6924,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6924,"text":""}
-{"stream":"eml","proto":"eml-trace-v1","seq":6925,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6925,"text":"lookups (same total, other route): 512"}
-{"stream":"eml","proto":"eml-trace-v1","seq":6926,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6926,"text":"  float key found the entry:       319/512"}
-{"stream":"eml","proto":"eml-trace-v1","seq":6927,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6927,"text":"  integer cents found it:          512/512"}
-{"stream":"eml","proto":"eml-trace-v1","seq":6928,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6928,"text":""}
-{"stream":"eml","proto":"eml-trace-v1","seq":6929,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6929,"text":"Totals that are not the total:"}
-{"stream":"eml","proto":"eml-trace-v1","seq":6930,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6930,"text":"  0.1 + 0.1 via 0.1 -> 0.20000000000000004, table has 0.2"}
-{"stream":"eml","proto":"eml-trace-v1","seq":6931,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6931,"text":"  0.1 + 0.1 via 0.7 -> 0.19999999999999996, table has 0.2"}
-{"stream":"eml","proto":"eml-trace-v1","seq":6932,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6932,"text":"  0.1 + 0.1 via 1.1 -> 0.20000000000000018, table has 0.2"}
-{"stream":"eml","proto":"eml-trace-v1","seq":6933,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6933,"text":"  0.1 + 0.1 via 0.15 -> 0.19999999999999998, table has 0.2"}
+{"stream":"eml","proto":"eml-trace-v1","seq":6924,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6924,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":6925,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6925,"text":"lookups (same total, other route): 512","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":6926,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6926,"text":"  float key found the entry:       319/512","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":6927,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6927,"text":"  integer cents found it:          512/512","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":6928,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6928,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":6929,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6929,"text":"Totals that are not the total:","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":6930,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6930,"text":"  0.1 + 0.1 via 0.1 -> 0.20000000000000004, table has 0.2","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":6931,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6931,"text":"  0.1 + 0.1 via 0.7 -> 0.19999999999999996, table has 0.2","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":6932,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6932,"text":"  0.1 + 0.1 via 1.1 -> 0.20000000000000018, table has 0.2","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":6933,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6933,"text":"  0.1 + 0.1 via 0.15 -> 0.19999999999999998, table has 0.2","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":6934,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":6934,"name":"c_total","value":"0","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":6935,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":6935,"fn":"to_cents","args":["0.1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":6936,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":6936,"fn":"to_cents","value":"10"}
@@ -6965,15 +6965,15 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":6965,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":6965,"name":"f_total","value":"2.45","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":6966,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":6966,"name":"f_total","value":"2.6","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":6967,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":6967,"name":"f_total","value":"2.85","declares":false}
-{"stream":"eml","proto":"eml-trace-v1","seq":6968,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6968,"text":""}
+{"stream":"eml","proto":"eml-trace-v1","seq":6968,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6968,"text":"","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":6969,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":6969,"fn":"cents_to_text","args":["285"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":6970,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":6970,"name":"whole","value":"'2'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":6971,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":6971,"name":"frac","value":"'85'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":6972,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":6972,"fn":"cents_to_text","value":"'2.85'"}
-{"stream":"eml","proto":"eml-trace-v1","seq":6973,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6973,"text":"sum of every amount, cents:  2.85"}
-{"stream":"eml","proto":"eml-trace-v1","seq":6974,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6974,"text":"the same, as floats:         2.85"}
-{"stream":"eml","proto":"eml-trace-v1","seq":6975,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6975,"text":"the two routes agree:        True"}
-{"stream":"eml","proto":"eml-trace-v1","seq":6976,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6976,"text":"...and that agreement says nothing about the lookups above."}
+{"stream":"eml","proto":"eml-trace-v1","seq":6973,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6973,"text":"sum of every amount, cents:  2.85","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":6974,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6974,"text":"the same, as floats:         2.85","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":6975,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6975,"text":"the two routes agree:        True","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":6976,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":6976,"text":"...and that agreement says nothing about the lookups above.","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":6977,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":6977,"name":"trunc_differs","value":"0","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":6978,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":6978,"name":"trunc_cases","value":"[]","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":6979,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":6979,"name":"t","value":"10","declares":false}
@@ -7012,10 +7012,10 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":7012,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":7012,"name":"r","value":"405","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":7013,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":7013,"name":"trunc_differs","value":"2","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":7014,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":7014,"name":"trunc_cases","value":"['2.675: truncate 267, round 268', '4.045: truncate 404, round 405']","declares":false}
-{"stream":"eml","proto":"eml-trace-v1","seq":7015,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7015,"text":""}
-{"stream":"eml","proto":"eml-trace-v1","seq":7016,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7016,"text":"values where truncating loses a cent: 2"}
-{"stream":"eml","proto":"eml-trace-v1","seq":7017,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7017,"text":"  2.675: truncate 267, round 268"}
-{"stream":"eml","proto":"eml-trace-v1","seq":7018,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7018,"text":"  4.045: truncate 404, round 405"}
+{"stream":"eml","proto":"eml-trace-v1","seq":7015,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7015,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":7016,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7016,"text":"values where truncating loses a cent: 2","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":7017,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7017,"text":"  2.675: truncate 267, round 268","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":7018,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7018,"text":"  4.045: truncate 404, round 405","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":7019,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":7019,"name":"passed","value":"0","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":7020,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":7020,"name":"checked","value":"0","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":7021,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":7021,"name":"checked","value":"1","declares":false}
@@ -7028,19 +7028,19 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":7028,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":7028,"name":"passed","value":"4","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":7029,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":7029,"name":"checked","value":"5","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":7030,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":7030,"name":"passed","value":"5","declares":false}
-{"stream":"eml","proto":"eml-trace-v1","seq":7031,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7031,"text":""}
-{"stream":"eml","proto":"eml-trace-v1","seq":7032,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7032,"text":"checks passed: 5/5"}
+{"stream":"eml","proto":"eml-trace-v1","seq":7031,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7031,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":7032,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7032,"text":"checks passed: 5/5","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":7033,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":7033,"name":"verdict","value":"'Integer cents find every entry; the float key misses totals it created itself.'","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":7034,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7034,"text":"Integer cents find every entry; the float key misses totals it created itself."}
-{"stream":"eml","proto":"eml-trace-v1","seq":7035,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7035,"text":""}
+{"stream":"eml","proto":"eml-trace-v1","seq":7034,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7034,"text":"Integer cents find every entry; the float key misses totals it created itself.","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":7035,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7035,"text":"","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":7036,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":7036,"name":"n1","value":"'Three premises in this file were wrong, all in the same way: they were'","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":7037,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7037,"text":"Three premises in this file were wrong, all in the same way: they were"}
+{"stream":"eml","proto":"eml-trace-v1","seq":7037,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7037,"text":"Three premises in this file were wrong, all in the same way: they were","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":7038,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":7038,"name":"n2","value":"'claims about floating point that sounded right. One made a check unable to'","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":7039,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7039,"text":"claims about floating point that sounded right. One made a check unable to"}
+{"stream":"eml","proto":"eml-trace-v1","seq":7039,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7039,"text":"claims about floating point that sounded right. One made a check unable to","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":7040,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":7040,"name":"n3","value":"'fail, one put a wrong number in a closing sentence, and one demanded a'","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":7041,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7041,"text":"fail, one put a wrong number in a closing sentence, and one demanded a"}
+{"stream":"eml","proto":"eml-trace-v1","seq":7041,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7041,"text":"fail, one put a wrong number in a closing sentence, and one demanded a","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":7042,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":7042,"name":"n4","value":"'divergence that does not occur. The last is the useful one - the totals DO'","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":7043,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7043,"text":"divergence that does not occur. The last is the useful one - the totals DO"}
+{"stream":"eml","proto":"eml-trace-v1","seq":7043,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7043,"text":"divergence that does not occur. The last is the useful one - the totals DO","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":7044,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":7044,"name":"n5","value":"'agree, which is precisely why a suite that checks the total finds nothing.'","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":7045,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7045,"text":"agree, which is precisely why a suite that checks the total finds nothing."}
+{"stream":"eml","proto":"eml-trace-v1","seq":7045,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":7045,"text":"agree, which is precisely why a suite that checks the total finds nothing.","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":7046,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:done","mono":7046,"ok":true,"outputs":34,"anomalies":0}

@@ -1,0 +1,205 @@
+# Self-authored for the EML case corpus (no external origin). Putting events
+# back in order using the timestamps you wrote down.
+#
+# Two services log to the same store. To reconstruct what happened you sort by
+# timestamp, and the sort is correct only if the timestamps are:
+#
+#     from one clock          they are not - each service stamps its own
+#     finer than the events   they are not - two events share a millisecond
+#     monotonic               they are not - clocks are corrected backwards
+#
+# Every one of those failures produces a plausible ordering. There is no error
+# to catch: the sort completes, the log reads as a story, and the story is
+# wrong in a way that only shows up when someone asks "how did the response
+# arrive before the request?"
+#
+# Four orderings are compared against the ground truth - which exists here
+# because the events are GENERATED with a known order and the timestamps are
+# derived from it, not the other way round:
+#
+#     by timestamp          ties broken arbitrarily by the sort's stability
+#     by (timestamp, node)  deterministic, still wrong across clock skew
+#     by Lamport counter    causality preserved, wall-clock order lost
+#     by (counter, node)    a total order that respects causality
+#
+# The measurement is how many ADJACENT PAIRS each ordering gets right, plus a
+# stricter question that only matters here: how many causally dependent pairs
+# it inverts. Getting 90% of pairs right while inverting a cause and its
+# effect is worse than it sounds.
+
+# Each event: [true_order, node, wall_clock, lamport, causes]
+# `causes` is the true_order of the event that had to happen first (-1 if none).
+# Node B's clock runs 5 ms behind A's, which is the skew.
+[
+    [0, "A", 100, 1, 0 - 1],
+    [1, "B", 96, 2, 0],
+    [2, "A", 102, 3, 1],
+    [3, "B", 98, 4, 2],
+    [4, "A", 102, 5, 3],
+    [5, "B", 100, 6, 4],
+    [6, "A", 105, 7, 5],
+    [7, "B", 101, 8, 6]
+] => events
+
+def render(order):
+    "" => s
+    for e in order:
+        if len(s) > 0:
+            s + " " => s
+        s + e[1] + str(e[0]) => s
+    return s
+
+def sort_by(rows, keyfn):
+    [] => out
+    for r in rows:
+        out + [r] => out
+    1 => i
+    while i < len(out):
+        out[i] => cur
+        i - 1 => j
+        while j >= 0 and keyfn(out[j]) > keyfn(cur):
+            out[j] => out[j + 1]
+            j - 1 => j
+        cur => out[j + 1]
+        i + 1 => i
+    return out
+
+def key_wall(e):
+    return e[2]
+
+def key_wall_node(e):
+    # A composite key as a single comparable number: wall * 10 plus a node
+    # rank. Building it arithmetically rather than as a tuple keeps the
+    # comparison total without needing tuple ordering.
+    0 => rank
+    if e[1] == "B":
+        1 => rank
+    return e[2] * 10 + rank
+
+def key_lamport(e):
+    return e[3]
+
+def key_lamport_node(e):
+    0 => rank
+    if e[1] == "B":
+        1 => rank
+    return e[3] * 10 + rank
+
+def position_of(order, true_order):
+    for i in [0:len(order) - 1]:
+        if order[i][0] == true_order:
+            return i
+    return 0 - 1
+
+def adjacent_correct(order):
+    # How many adjacent pairs are in the true relative order.
+    0 => ok
+    for i in [1:len(order) - 1]:
+        if order[i - 1][0] < order[i][0]:
+            ok + 1 => ok
+    return ok
+
+def causal_violations(order):
+    # A cause must appear before its effect. This is the question the wall
+    # clock cannot answer.
+    0 => bad
+    for e in order:
+        if e[4] >= 0:
+            if position_of(order, e[4]) > position_of(order, e[0]):
+                bad + 1 => bad
+    return bad
+
+
+sort_by(events, key_wall) => o_wall
+sort_by(events, key_wall_node) => o_wall_node
+sort_by(events, key_lamport) => o_lamport
+sort_by(events, key_lamport_node) => o_lamport_node
+
+"true order:        " + render(events)^0
+""^0
+"ordering           result                          adjacent  causal violations"^0
+for pair in [["by wall clock", o_wall], ["by (wall, node)", o_wall_node], ["by lamport", o_lamport], ["by (lamport, node)", o_lamport_node]]:
+    ("%-18s %-31s %-9s %d" % (pair[0], render(pair[1]), str(adjacent_correct(pair[1])) + "/" + str(len(events) - 1), causal_violations(pair[1])))^0
+
+# ------------------------------------------------------- where the skew bites
+""^0
+"The pair that reads backwards:"^0
+for e in events:
+    if e[4] >= 0:
+        events[e[4]] => cause
+        if cause[2] > e[2]:
+            ("  " + cause[1] + str(cause[0]) + " (t=" + str(cause[2]) + ") caused " + e[1] + str(e[0]) + " (t=" + str(e[2]) + ") - the effect is stamped EARLIER")^0
+
+# -------------------------------------------------------------- ties
+{} => stamps
+0 => tied
+for e in events:
+    if e[2] in stamps:
+        tied + 1 => tied
+    else:
+        1 => stamps[e[2]]
+
+""^0
+("events sharing a wall-clock value: " + str(tied))^0
+("distinct wall-clock values:        " + str(len(stamps)) + " for " + str(len(events)) + " events")^0
+("distinct lamport values:           " + str(len(events)))^0
+
+# ------------------------------------------ what each ordering can be used for
+""^0
+"what survives:"^0
+("  wall clock recovers real elapsed time:  True")^0
+("  wall clock recovers causality:          " + str(causal_violations(o_wall) == 0))^0
+("  lamport recovers causality:             " + str(causal_violations(o_lamport_node) == 0))^0
+("  lamport recovers elapsed time:          False")^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# The Lamport ordering must be causally perfect. That is what it is for.
+checked + 1 => checked
+if causal_violations(o_lamport_node) == 0 and adjacent_correct(o_lamport_node) == len(events) - 1:
+    passed + 1 => passed
+
+# The wall-clock ordering must violate causality, or the skew is not doing
+# anything and the case is vacuous.
+checked + 1 => checked
+if causal_violations(o_wall) > 0:
+    passed + 1 => passed
+
+# Adding the node as a tiebreak must NOT fix causality - it makes the order
+# deterministic, which is a different property and the one people mistake it
+# for.
+checked + 1 => checked
+if causal_violations(o_wall_node) > 0:
+    passed + 1 => passed
+
+# There must be real ties in the wall clock, since that is the second, quieter
+# failure - two events in one millisecond.
+checked + 1 => checked
+if tied > 0 and len(stamps) < len(events):
+    passed + 1 => passed
+
+# And the wall-clock ordering must still get MOST adjacent pairs right. A
+# reconstruction that were obviously scrambled would be caught by eye.
+checked + 1 => checked
+if adjacent_correct(o_wall) >= (len(events) - 1) / 2:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "A skewed clock orders most pairs correctly and inverts the ones that matter." => verdict
+else:
+    "FAILED - an ordering did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"Adding the node id as a tiebreak makes the ordering DETERMINISTIC, which" => n1
+n1^0
+"feels like progress and fixes nothing: the same wrong answer every time is" => n2
+n2^0
+"still the wrong answer. The two properties get conflated because both are" => n3
+n3^0
+"described as 'a stable ordering', and only one of them is about causality." => n4
+n4^0

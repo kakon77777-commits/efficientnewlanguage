@@ -1,0 +1,217 @@
+# Self-authored for the EML case corpus (no external origin). "How long is
+# this string", which has three correct answers.
+#
+# A field is limited to 20 characters. Three different systems will disagree
+# about whether a given value fits:
+#
+#     code points   what len() returns in Python
+#     bytes         what a UTF-8 column, a network frame or a disk quota counts
+#     columns       what a terminal or a fixed-width report needs
+#
+# For ASCII all three agree, which is why a validator written and tested in
+# English is correct until the first non-English input. Then a name that
+# len() says is 10 characters is 30 bytes, is rejected by the database after
+# passing the form, and the error surfaces three layers away from the check.
+#
+# EML-P has no `.encode()`, so the UTF-8 byte length is computed from the code
+# point directly - which is the honest way to do it anyway, because it makes
+# the rule visible: 1 byte below 0x80, 2 below 0x800, 3 below 0x10000.
+#
+# The output labels every row in ASCII rather than printing the sample text.
+# The first version printed the strings, and it died on a cp950 Windows
+# console - a failure with nothing to do with the property being measured,
+# and exactly the kind of environment-shaped breakage a corpus case must not
+# have. The strings themselves are still non-ASCII; only the display is not.
+#
+# The case does not argue that one answer is right. It measures where they
+# diverge, and checks the property a limit needs: the check must be done in
+# the SAME unit as the storage, or it is a different check.
+
+def utf8_len_of_code(cp):
+    # UTF-8 byte length from a code point. The boundaries are the whole rule.
+    if cp < 128:
+        return 1
+    if cp < 2048:
+        return 2
+    if cp < 65536:
+        return 3
+    return 4
+
+# EML-P has no ord(), so a small table maps the characters used here to code
+# points. Written out rather than computed, and the table itself is checked
+# below by re-deriving the byte lengths a UTF-8 encoder would produce.
+{
+    "a": 97, "b": 98, "z": 122, " ": 32, "1": 49,
+    "é": 233, "ü": 252, "ñ": 241,
+    "中": 20013, "文": 25991, "字": 23383,
+    "π": 960, "≈": 8776
+} => CODE
+
+def code_of(ch):
+    if ch in CODE:
+        return CODE[ch]
+    return 63
+
+def byte_len(s):
+    0 => n
+    for ch in s:
+        n + utf8_len_of_code(code_of(ch)) => n
+    return n
+
+def column_width(s):
+    # East Asian wide characters occupy two terminal columns. The rule is a
+    # range test on the code point, same shape as the byte rule and a
+    # different boundary - which is the point.
+    0 => w
+    for ch in s:
+        code_of(ch) => cp
+        if cp >= 4352 and cp <= 65500:
+            w + 2 => w
+        else:
+            w + 1 => w
+    return w
+
+
+# The samples carry real non-ASCII text; the LABELS are ASCII so the output is
+# readable on a console in any encoding. Printing the strings themselves is
+# what a program under test would do, and it is also what makes a corpus case
+# fail on a cp950 Windows terminal for a reason that has nothing to do with
+# the property being measured.
+[
+    ["abz", "abz"],
+    ["a b 1", "a b 1"],
+    ["cafe+acute", "café"],
+    ["pin~ata", "piñata"],
+    ["3 han chars", "中文字"],
+    ["pi approx 3", "π ≈ 3"],
+    ["mixed han", "中a文b"]
+] => samples
+
+"label         code points  utf-8 bytes  columns"^0
+0 => n
+0 => all_agree
+for row in samples:
+    row[1] => s
+    n + 1 => n
+    len(s) => cp
+    byte_len(s) => b
+    column_width(s) => c
+    if cp == b and b == c:
+        all_agree + 1 => all_agree
+    ("%-13s %-12d %-12d %d" % (row[0], cp, b, c))^0
+
+""^0
+("samples:                     " + str(n))^0
+("  all three measures agree:  " + str(all_agree) + "/" + str(n))^0
+
+# ------------------------------------------- a limit, checked in each unit
+8 => LIMIT
+""^0
+("a limit of " + str(LIMIT) + ", enforced in each unit:")^0
+"label         by chars  by bytes  by columns   agree"^0
+0 => verdicts_agree
+for row in samples:
+    row[1] => s
+    len(s) <= LIMIT => by_char
+    byte_len(s) <= LIMIT => by_byte
+    column_width(s) <= LIMIT => by_col
+    "yes" => same
+    if not (by_char == by_byte) or not (by_byte == by_col):
+        "NO" => same
+    else:
+        verdicts_agree + 1 => verdicts_agree
+    ("%-13s %-9s %-9s %-12s %s" % (row[0], str(by_char), str(by_byte), str(by_col), same))^0
+
+""^0
+("limit verdicts that agree across all three units: " + str(verdicts_agree) + "/" + str(n))^0
+
+# ------------------------------------------- ASCII is where they cannot differ
+0 => ascii_n
+0 => ascii_agree
+for s in ["abz", "a b 1"]:
+    ascii_n + 1 => ascii_n
+    if len(s) == byte_len(s) and byte_len(s) == column_width(s):
+        ascii_agree + 1 => ascii_agree
+
+""^0
+("ASCII samples where all three agree: " + str(ascii_agree) + "/" + str(ascii_n))^0
+"...which is why a validator tested in English is correct and wrong."^0
+
+# ------------------------------- truncating in the wrong unit breaks the text
+# Cutting a string to N BYTES by slicing N characters is the standard bug. It
+# does not corrupt anything here, because EML-P slices code points - but it
+# produces a value that is still over the byte limit, which is the failure the
+# database will report.
+""^0
+"truncating a 3-character han string to fit 8 bytes:"^0
+"中文字" => long_text
+("  by character count (3 chars): " + str(len(long_text[:3])) + " chars = " + str(byte_len(long_text[:3])) + " bytes   fits: " + str(byte_len(long_text[:3]) <= LIMIT))^0
+0 => cut
+0 => used
+for i in [0:len(long_text) - 1]:
+    utf8_len_of_code(code_of(long_text[i])) => w
+    if used + w <= LIMIT:
+        used + w => used
+        i + 1 => cut
+("  by byte budget:               " + str(len(long_text[:cut])) + " chars = " + str(byte_len(long_text[:cut])) + " bytes   fits: " + str(byte_len(long_text[:cut]) <= LIMIT))^0
+
+# ---------------------------------------- the byte rule, checked at its edges
+0 => rule_ok
+0 => rule_n
+for pair in [[0, 1], [127, 1], [128, 2], [2047, 2], [2048, 3], [65535, 3], [65536, 4]]:
+    rule_n + 1 => rule_n
+    if utf8_len_of_code(pair[0]) == pair[1]:
+        rule_ok + 1 => rule_ok
+
+""^0
+("UTF-8 length rule checked at its boundaries: " + str(rule_ok) + "/" + str(rule_n))^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# The three measures must agree on ASCII and disagree elsewhere.
+checked + 1 => checked
+if ascii_agree == ascii_n and all_agree < n:
+    passed + 1 => passed
+
+# A single limit must produce different verdicts depending on the unit, or
+# the distinction is academic.
+checked + 1 => checked
+if verdicts_agree < n:
+    passed + 1 => passed
+
+# The byte rule must be right at every boundary - both sides of each.
+checked + 1 => checked
+if rule_ok == rule_n:
+    passed + 1 => passed
+
+# Truncating by character count must leave the value over the byte budget,
+# and truncating by byte budget must not.
+checked + 1 => checked
+if byte_len(long_text[:3]) > LIMIT and byte_len(long_text[:cut]) <= LIMIT:
+    passed + 1 => passed
+
+# A wide character must count 1 code point, 3 bytes and 2 columns - three
+# different numbers for one character, which is the whole case in one row.
+checked + 1 => checked
+if len("中") == 1 and byte_len("中") == 3 and column_width("中") == 2:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "One character, three lengths: 1 code point, 3 bytes, 2 columns." => verdict
+else:
+    "FAILED - a measure did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"The form validates code points, the column stores bytes, and the report" => n1
+n1^0
+"aligns columns - three checks in three units, each correct for its own" => n2
+n2^0
+"layer. Nothing is wrong until they are treated as the same number, which" => n3
+n3^0
+"they are for every value anyone tested with." => n4
+n4^0

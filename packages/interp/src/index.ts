@@ -213,7 +213,13 @@ function runProgram(
 
   const write = (text: string, end = '\n'): void => {
     out.push(text + end);
-    emitter.emit('eml:output', { text });
+    // `end` is part of the event, not just of `out`. Without it the trace
+    // cannot reconstruct what the program printed: `^0("")` writes one line
+    // and a trace carrying only `text` claims two. Every consumer of a trace -
+    // the workbench panel, the committed goldens, any replay - reads the
+    // reconstruction, so an event that drops it is a record of a different
+    // program. Found by tests/trace-completeness.test.ts.
+    emitter.emit('eml:output', { text, end });
   };
 
   // ── Expression evaluation ──────────────────────────────────────────────────
@@ -512,6 +518,12 @@ function runProgram(
     for (const item of items) {
       tick();
       const iterScope: Scope = { vars: new Map([[expr.iterator.name, item]]), parent: scope };
+      // Record the binding, exactly as the equivalent `for` loop does. Without
+      // this a comprehension executes invisibly: `[i for i in [1:1000]] => xs`
+      // produced the same trace as `[] => xs`, so rewriting a loop as a
+      // comprehension silently deleted the work from the record. Found by
+      // tests/trace-completeness.test.ts.
+      emitter.emit('eml:assign', { name: expr.iterator.name, value: pyRepr(item), declares: false });
       if (expr.condition && !truthy(evalExpr(expr.condition, iterScope))) continue;
       result.push(evalExpr(expr.expr, iterScope));
     }

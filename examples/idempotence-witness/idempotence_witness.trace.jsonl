@@ -7,7 +7,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":7,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":7,"fn":"is_idempotent_on","params":["name","s"],"temperature":"neutral","async":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":8,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":8,"name":"dash_inputs","value":"['--draft', '-x', 'plain', '---', '', 'a-b', '-']","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":9,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":9,"name":"amp_inputs","value":"['a&b', '&', '&amp;', 'a&amp;b', 'plain', '&&', '&amp;&']","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":10,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":10,"text":"input        f(x)            f(f(x))         idempotent"}
+{"stream":"eml","proto":"eml-trace-v1","seq":10,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":10,"text":"input        f(x)            f(f(x))         idempotent","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":11,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":11,"fn":"apply_n","args":["'strip_prefix'","'--draft'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":12,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":12,"name":"v","value":"'--draft'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":13,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":13,"fn":"strip_prefix","args":["'--draft'"],"temperature":"neutral"}
@@ -41,7 +41,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":41,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":41,"name":"v","value":"'draft'","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":42,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":42,"fn":"apply_n","value":"'draft'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":43,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":43,"fn":"is_idempotent_on","value":"False"}
-{"stream":"eml","proto":"eml-trace-v1","seq":44,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":44,"text":"'--draft'    '-draft'        'draft'         False"}
+{"stream":"eml","proto":"eml-trace-v1","seq":44,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":44,"text":"'--draft'    '-draft'        'draft'         False","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":45,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":45,"fn":"apply_n","args":["'strip_prefix'","'-x'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":46,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":46,"name":"v","value":"'-x'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":47,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":47,"fn":"strip_prefix","args":["'-x'"],"temperature":"neutral"}
@@ -120,7 +120,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":120,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":120,"name":"v","value":"'x'","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":121,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":121,"fn":"apply_n","value":"'x'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":122,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":122,"fn":"is_idempotent_on","value":"True"}
-{"stream":"eml","proto":"eml-trace-v1","seq":123,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":123,"text":"'-x'         'x'             'x'             True"}
+{"stream":"eml","proto":"eml-trace-v1","seq":123,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":123,"text":"'-x'         'x'             'x'             True","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":124,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":124,"fn":"apply_n","args":["'strip_prefix'","'plain'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":125,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":125,"name":"v","value":"'plain'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":126,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":126,"fn":"strip_prefix","args":["'plain'"],"temperature":"neutral"}
@@ -199,7 +199,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":199,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":199,"name":"v","value":"'plain'","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":200,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":200,"fn":"apply_n","value":"'plain'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":201,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":201,"fn":"is_idempotent_on","value":"True"}
-{"stream":"eml","proto":"eml-trace-v1","seq":202,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":202,"text":"'plain'      'plain'         'plain'         True"}
+{"stream":"eml","proto":"eml-trace-v1","seq":202,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":202,"text":"'plain'      'plain'         'plain'         True","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":203,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":203,"fn":"apply_n","args":["'strip_prefix'","'---'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":204,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":204,"name":"v","value":"'---'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":205,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":205,"fn":"strip_prefix","args":["'---'"],"temperature":"neutral"}
@@ -233,7 +233,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":233,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":233,"name":"v","value":"'-'","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":234,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":234,"fn":"apply_n","value":"'-'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":235,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":235,"fn":"is_idempotent_on","value":"False"}
-{"stream":"eml","proto":"eml-trace-v1","seq":236,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":236,"text":"'---'        '--'            '-'             False"}
+{"stream":"eml","proto":"eml-trace-v1","seq":236,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":236,"text":"'---'        '--'            '-'             False","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":237,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":237,"fn":"apply_n","args":["'strip_prefix'","''","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":238,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":238,"name":"v","value":"''","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":239,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":239,"fn":"strip_prefix","args":["''"],"temperature":"neutral"}
@@ -312,7 +312,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":312,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":312,"name":"v","value":"''","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":313,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":313,"fn":"apply_n","value":"''"}
 {"stream":"eml","proto":"eml-trace-v1","seq":314,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":314,"fn":"is_idempotent_on","value":"True"}
-{"stream":"eml","proto":"eml-trace-v1","seq":315,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":315,"text":"''           ''              ''              True"}
+{"stream":"eml","proto":"eml-trace-v1","seq":315,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":315,"text":"''           ''              ''              True","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":316,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":316,"fn":"apply_n","args":["'strip_prefix'","'a-b'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":317,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":317,"name":"v","value":"'a-b'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":318,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":318,"fn":"strip_prefix","args":["'a-b'"],"temperature":"neutral"}
@@ -391,7 +391,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":391,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":391,"name":"v","value":"'a-b'","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":392,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":392,"fn":"apply_n","value":"'a-b'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":393,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":393,"fn":"is_idempotent_on","value":"True"}
-{"stream":"eml","proto":"eml-trace-v1","seq":394,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":394,"text":"'a-b'        'a-b'           'a-b'           True"}
+{"stream":"eml","proto":"eml-trace-v1","seq":394,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":394,"text":"'a-b'        'a-b'           'a-b'           True","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":395,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":395,"fn":"apply_n","args":["'strip_prefix'","'-'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":396,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":396,"name":"v","value":"'-'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":397,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":397,"fn":"strip_prefix","args":["'-'"],"temperature":"neutral"}
@@ -470,9 +470,9 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":470,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":470,"name":"v","value":"''","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":471,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":471,"fn":"apply_n","value":"''"}
 {"stream":"eml","proto":"eml-trace-v1","seq":472,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":472,"fn":"is_idempotent_on","value":"True"}
-{"stream":"eml","proto":"eml-trace-v1","seq":473,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":473,"text":"'-'          ''              ''              True"}
-{"stream":"eml","proto":"eml-trace-v1","seq":474,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":474,"text":""}
-{"stream":"eml","proto":"eml-trace-v1","seq":475,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":475,"text":"the same inputs through strip_prefixes:"}
+{"stream":"eml","proto":"eml-trace-v1","seq":473,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":473,"text":"'-'          ''              ''              True","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":474,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":474,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":475,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":475,"text":"the same inputs through strip_prefixes:","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":476,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":476,"fn":"apply_n","args":["'strip_prefixes'","'--draft'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":477,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":477,"name":"v","value":"'--draft'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":478,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":478,"fn":"strip_prefixes","args":["'--draft'"],"temperature":"neutral"}
@@ -583,7 +583,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":583,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":583,"name":"v","value":"'draft'","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":584,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":584,"fn":"apply_n","value":"'draft'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":585,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":585,"fn":"is_idempotent_on","value":"True"}
-{"stream":"eml","proto":"eml-trace-v1","seq":586,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":586,"text":"'--draft'    'draft'         'draft'         True"}
+{"stream":"eml","proto":"eml-trace-v1","seq":586,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":586,"text":"'--draft'    'draft'         'draft'         True","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":587,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":587,"fn":"apply_n","args":["'strip_prefixes'","'-x'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":588,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":588,"name":"v","value":"'-x'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":589,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":589,"fn":"strip_prefixes","args":["'-x'"],"temperature":"neutral"}
@@ -687,7 +687,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":687,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":687,"name":"v","value":"'x'","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":688,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":688,"fn":"apply_n","value":"'x'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":689,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":689,"fn":"is_idempotent_on","value":"True"}
-{"stream":"eml","proto":"eml-trace-v1","seq":690,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":690,"text":"'-x'         'x'             'x'             True"}
+{"stream":"eml","proto":"eml-trace-v1","seq":690,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":690,"text":"'-x'         'x'             'x'             True","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":691,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":691,"fn":"apply_n","args":["'strip_prefixes'","'plain'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":692,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":692,"name":"v","value":"'plain'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":693,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":693,"fn":"strip_prefixes","args":["'plain'"],"temperature":"neutral"}
@@ -784,7 +784,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":784,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":784,"name":"v","value":"'plain'","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":785,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":785,"fn":"apply_n","value":"'plain'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":786,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":786,"fn":"is_idempotent_on","value":"True"}
-{"stream":"eml","proto":"eml-trace-v1","seq":787,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":787,"text":"'plain'      'plain'         'plain'         True"}
+{"stream":"eml","proto":"eml-trace-v1","seq":787,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":787,"text":"'plain'      'plain'         'plain'         True","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":788,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":788,"fn":"apply_n","args":["'strip_prefixes'","'---'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":789,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":789,"name":"v","value":"'---'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":790,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":790,"fn":"strip_prefixes","args":["'---'"],"temperature":"neutral"}
@@ -902,7 +902,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":902,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":902,"name":"v","value":"''","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":903,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":903,"fn":"apply_n","value":"''"}
 {"stream":"eml","proto":"eml-trace-v1","seq":904,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":904,"fn":"is_idempotent_on","value":"True"}
-{"stream":"eml","proto":"eml-trace-v1","seq":905,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":905,"text":"'---'        ''              ''              True"}
+{"stream":"eml","proto":"eml-trace-v1","seq":905,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":905,"text":"'---'        ''              ''              True","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":906,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":906,"fn":"apply_n","args":["'strip_prefixes'","''","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":907,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":907,"name":"v","value":"''","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":908,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":908,"fn":"strip_prefixes","args":["''"],"temperature":"neutral"}
@@ -999,7 +999,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":999,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":999,"name":"v","value":"''","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":1000,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":1000,"fn":"apply_n","value":"''"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1001,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":1001,"fn":"is_idempotent_on","value":"True"}
-{"stream":"eml","proto":"eml-trace-v1","seq":1002,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1002,"text":"''           ''              ''              True"}
+{"stream":"eml","proto":"eml-trace-v1","seq":1002,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1002,"text":"''           ''              ''              True","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1003,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":1003,"fn":"apply_n","args":["'strip_prefixes'","'a-b'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1004,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":1004,"name":"v","value":"'a-b'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":1005,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":1005,"fn":"strip_prefixes","args":["'a-b'"],"temperature":"neutral"}
@@ -1096,7 +1096,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":1096,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":1096,"name":"v","value":"'a-b'","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":1097,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":1097,"fn":"apply_n","value":"'a-b'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1098,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":1098,"fn":"is_idempotent_on","value":"True"}
-{"stream":"eml","proto":"eml-trace-v1","seq":1099,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1099,"text":"'a-b'        'a-b'           'a-b'           True"}
+{"stream":"eml","proto":"eml-trace-v1","seq":1099,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1099,"text":"'a-b'        'a-b'           'a-b'           True","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1100,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":1100,"fn":"apply_n","args":["'strip_prefixes'","'-'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1101,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":1101,"name":"v","value":"'-'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":1102,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":1102,"fn":"strip_prefixes","args":["'-'"],"temperature":"neutral"}
@@ -1200,9 +1200,9 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":1200,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":1200,"name":"v","value":"''","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":1201,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":1201,"fn":"apply_n","value":"''"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1202,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":1202,"fn":"is_idempotent_on","value":"True"}
-{"stream":"eml","proto":"eml-trace-v1","seq":1203,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1203,"text":"'-'          ''              ''              True"}
-{"stream":"eml","proto":"eml-trace-v1","seq":1204,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1204,"text":""}
-{"stream":"eml","proto":"eml-trace-v1","seq":1205,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1205,"text":"escaping, where the second application ADDS rather than removes:"}
+{"stream":"eml","proto":"eml-trace-v1","seq":1203,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1203,"text":"'-'          ''              ''              True","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":1204,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1204,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":1205,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1205,"text":"escaping, where the second application ADDS rather than removes:","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1206,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":1206,"fn":"apply_n","args":["'escape_once'","'a&b'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1207,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":1207,"name":"v","value":"'a&b'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":1208,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":1208,"fn":"escape_once","args":["'a&b'"],"temperature":"neutral"}
@@ -1268,7 +1268,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":1268,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":1268,"name":"v","value":"'a&amp;amp;b'","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":1269,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":1269,"fn":"apply_n","value":"'a&amp;amp;b'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1270,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":1270,"fn":"is_idempotent_on","value":"False"}
-{"stream":"eml","proto":"eml-trace-v1","seq":1271,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1271,"text":"'a&b'        'a&amp;b'       'a&amp;amp;b'   False"}
+{"stream":"eml","proto":"eml-trace-v1","seq":1271,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1271,"text":"'a&b'        'a&amp;b'       'a&amp;amp;b'   False","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1272,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":1272,"fn":"apply_n","args":["'escape_once'","'&'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1273,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":1273,"name":"v","value":"'&'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":1274,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":1274,"fn":"escape_once","args":["'&'"],"temperature":"neutral"}
@@ -1322,7 +1322,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":1322,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":1322,"name":"v","value":"'&amp;amp;'","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":1323,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":1323,"fn":"apply_n","value":"'&amp;amp;'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1324,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":1324,"fn":"is_idempotent_on","value":"False"}
-{"stream":"eml","proto":"eml-trace-v1","seq":1325,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1325,"text":"'&'          '&amp;'         '&amp;amp;'     False"}
+{"stream":"eml","proto":"eml-trace-v1","seq":1325,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1325,"text":"'&'          '&amp;'         '&amp;amp;'     False","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1326,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":1326,"fn":"apply_n","args":["'escape_once'","'&amp;'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1327,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":1327,"name":"v","value":"'&amp;'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":1328,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":1328,"fn":"escape_once","args":["'&amp;'"],"temperature":"neutral"}
@@ -1400,7 +1400,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":1400,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":1400,"name":"v","value":"'&amp;amp;amp;'","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":1401,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":1401,"fn":"apply_n","value":"'&amp;amp;amp;'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1402,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":1402,"fn":"is_idempotent_on","value":"False"}
-{"stream":"eml","proto":"eml-trace-v1","seq":1403,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1403,"text":"'&amp;'      '&amp;amp;'     '&amp;amp;amp;' False"}
+{"stream":"eml","proto":"eml-trace-v1","seq":1403,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1403,"text":"'&amp;'      '&amp;amp;'     '&amp;amp;amp;' False","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1404,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":1404,"fn":"apply_n","args":["'escape_once'","'a&amp;b'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1405,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":1405,"name":"v","value":"'a&amp;b'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":1406,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":1406,"fn":"escape_once","args":["'a&amp;b'"],"temperature":"neutral"}
@@ -1490,7 +1490,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":1490,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":1490,"name":"v","value":"'a&amp;amp;amp;b'","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":1491,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":1491,"fn":"apply_n","value":"'a&amp;amp;amp;b'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1492,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":1492,"fn":"is_idempotent_on","value":"False"}
-{"stream":"eml","proto":"eml-trace-v1","seq":1493,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1493,"text":"'a&amp;b'    'a&amp;amp;b'   'a&amp;amp;amp;b' False"}
+{"stream":"eml","proto":"eml-trace-v1","seq":1493,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1493,"text":"'a&amp;b'    'a&amp;amp;b'   'a&amp;amp;amp;b' False","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1494,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":1494,"fn":"apply_n","args":["'escape_once'","'plain'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1495,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":1495,"name":"v","value":"'plain'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":1496,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":1496,"fn":"escape_once","args":["'plain'"],"temperature":"neutral"}
@@ -1677,7 +1677,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":1677,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":1677,"name":"v","value":"'plain'","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":1678,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":1678,"fn":"apply_n","value":"'plain'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1679,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":1679,"fn":"is_idempotent_on","value":"True"}
-{"stream":"eml","proto":"eml-trace-v1","seq":1680,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1680,"text":"'plain'      'plain'         'plain'         True"}
+{"stream":"eml","proto":"eml-trace-v1","seq":1680,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1680,"text":"'plain'      'plain'         'plain'         True","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1681,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":1681,"fn":"apply_n","args":["'escape_once'","'&&'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1682,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":1682,"name":"v","value":"'&&'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":1683,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":1683,"fn":"escape_once","args":["'&&'"],"temperature":"neutral"}
@@ -1745,7 +1745,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":1745,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":1745,"name":"v","value":"'&amp;amp;&amp;amp;'","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":1746,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":1746,"fn":"apply_n","value":"'&amp;amp;&amp;amp;'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1747,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":1747,"fn":"is_idempotent_on","value":"False"}
-{"stream":"eml","proto":"eml-trace-v1","seq":1748,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1748,"text":"'&&'         '&amp;&amp;'    '&amp;amp;&amp;amp;' False"}
+{"stream":"eml","proto":"eml-trace-v1","seq":1748,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1748,"text":"'&&'         '&amp;&amp;'    '&amp;amp;&amp;amp;' False","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1749,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":1749,"fn":"apply_n","args":["'escape_once'","'&amp;&'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1750,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":1750,"name":"v","value":"'&amp;&'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":1751,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":1751,"fn":"escape_once","args":["'&amp;&'"],"temperature":"neutral"}
@@ -1837,9 +1837,9 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":1837,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":1837,"name":"v","value":"'&amp;amp;amp;&amp;amp;'","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":1838,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":1838,"fn":"apply_n","value":"'&amp;amp;amp;&amp;amp;'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1839,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":1839,"fn":"is_idempotent_on","value":"False"}
-{"stream":"eml","proto":"eml-trace-v1","seq":1840,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1840,"text":"'&amp;&'     '&amp;amp;&amp;' '&amp;amp;amp;&amp;amp;' False"}
-{"stream":"eml","proto":"eml-trace-v1","seq":1841,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1841,"text":""}
-{"stream":"eml","proto":"eml-trace-v1","seq":1842,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1842,"text":"the same inputs through escape_guarded:"}
+{"stream":"eml","proto":"eml-trace-v1","seq":1840,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1840,"text":"'&amp;&'     '&amp;amp;&amp;' '&amp;amp;amp;&amp;amp;' False","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":1841,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1841,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":1842,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":1842,"text":"the same inputs through escape_guarded:","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1843,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":1843,"fn":"apply_n","args":["'escape_guarded'","'a&b'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":1844,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":1844,"name":"v","value":"'a&b'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":1845,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":1845,"fn":"escape_guarded","args":["'a&b'"],"temperature":"neutral"}
@@ -2062,7 +2062,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":2062,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":2062,"name":"v","value":"'a&amp;b'","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":2063,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":2063,"fn":"apply_n","value":"'a&amp;b'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":2064,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":2064,"fn":"is_idempotent_on","value":"True"}
-{"stream":"eml","proto":"eml-trace-v1","seq":2065,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":2065,"text":"'a&b'        'a&amp;b'       'a&amp;b'       True"}
+{"stream":"eml","proto":"eml-trace-v1","seq":2065,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":2065,"text":"'a&b'        'a&amp;b'       'a&amp;b'       True","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":2066,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":2066,"fn":"apply_n","args":["'escape_guarded'","'&'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":2067,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":2067,"name":"v","value":"'&'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":2068,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":2068,"fn":"escape_guarded","args":["'&'"],"temperature":"neutral"}
@@ -2213,7 +2213,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":2213,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":2213,"name":"v","value":"'&amp;'","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":2214,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":2214,"fn":"apply_n","value":"'&amp;'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":2215,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":2215,"fn":"is_idempotent_on","value":"True"}
-{"stream":"eml","proto":"eml-trace-v1","seq":2216,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":2216,"text":"'&'          '&amp;'         '&amp;'         True"}
+{"stream":"eml","proto":"eml-trace-v1","seq":2216,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":2216,"text":"'&'          '&amp;'         '&amp;'         True","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":2217,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":2217,"fn":"apply_n","args":["'escape_guarded'","'&amp;'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":2218,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":2218,"name":"v","value":"'&amp;'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":2219,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":2219,"fn":"escape_guarded","args":["'&amp;'"],"temperature":"neutral"}
@@ -2364,7 +2364,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":2364,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":2364,"name":"v","value":"'&amp;'","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":2365,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":2365,"fn":"apply_n","value":"'&amp;'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":2366,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":2366,"fn":"is_idempotent_on","value":"True"}
-{"stream":"eml","proto":"eml-trace-v1","seq":2367,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":2367,"text":"'&amp;'      '&amp;'         '&amp;'         True"}
+{"stream":"eml","proto":"eml-trace-v1","seq":2367,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":2367,"text":"'&amp;'      '&amp;'         '&amp;'         True","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":2368,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":2368,"fn":"apply_n","args":["'escape_guarded'","'a&amp;b'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":2369,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":2369,"name":"v","value":"'a&amp;b'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":2370,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":2370,"fn":"escape_guarded","args":["'a&amp;b'"],"temperature":"neutral"}
@@ -2587,7 +2587,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":2587,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":2587,"name":"v","value":"'a&amp;b'","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":2588,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":2588,"fn":"apply_n","value":"'a&amp;b'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":2589,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":2589,"fn":"is_idempotent_on","value":"True"}
-{"stream":"eml","proto":"eml-trace-v1","seq":2590,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":2590,"text":"'a&amp;b'    'a&amp;b'       'a&amp;b'       True"}
+{"stream":"eml","proto":"eml-trace-v1","seq":2590,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":2590,"text":"'a&amp;b'    'a&amp;b'       'a&amp;b'       True","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":2591,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":2591,"fn":"apply_n","args":["'escape_guarded'","'plain'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":2592,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":2592,"name":"v","value":"'plain'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":2593,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":2593,"fn":"escape_guarded","args":["'plain'"],"temperature":"neutral"}
@@ -2882,7 +2882,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":2882,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":2882,"name":"v","value":"'plain'","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":2883,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":2883,"fn":"apply_n","value":"'plain'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":2884,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":2884,"fn":"is_idempotent_on","value":"True"}
-{"stream":"eml","proto":"eml-trace-v1","seq":2885,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":2885,"text":"'plain'      'plain'         'plain'         True"}
+{"stream":"eml","proto":"eml-trace-v1","seq":2885,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":2885,"text":"'plain'      'plain'         'plain'         True","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":2886,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":2886,"fn":"apply_n","args":["'escape_guarded'","'&&'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":2887,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":2887,"name":"v","value":"'&&'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":2888,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":2888,"fn":"escape_guarded","args":["'&&'"],"temperature":"neutral"}
@@ -3069,7 +3069,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":3069,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":3069,"name":"v","value":"'&amp;&amp;'","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":3070,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":3070,"fn":"apply_n","value":"'&amp;&amp;'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":3071,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":3071,"fn":"is_idempotent_on","value":"True"}
-{"stream":"eml","proto":"eml-trace-v1","seq":3072,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":3072,"text":"'&&'         '&amp;&amp;'    '&amp;&amp;'    True"}
+{"stream":"eml","proto":"eml-trace-v1","seq":3072,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":3072,"text":"'&&'         '&amp;&amp;'    '&amp;&amp;'    True","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":3073,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":3073,"fn":"apply_n","args":["'escape_guarded'","'&amp;&'","1"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":3074,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":3074,"name":"v","value":"'&amp;&'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":3075,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":3075,"fn":"escape_guarded","args":["'&amp;&'"],"temperature":"neutral"}
@@ -3256,7 +3256,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":3256,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":3256,"name":"v","value":"'&amp;&amp;'","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":3257,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":3257,"fn":"apply_n","value":"'&amp;&amp;'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":3258,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":3258,"fn":"is_idempotent_on","value":"True"}
-{"stream":"eml","proto":"eml-trace-v1","seq":3259,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":3259,"text":"'&amp;&'     '&amp;&amp;'    '&amp;&amp;'    True"}
+{"stream":"eml","proto":"eml-trace-v1","seq":3259,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":3259,"text":"'&amp;&'     '&amp;&amp;'    '&amp;&amp;'    True","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":3260,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":3260,"name":"alphabet","value":"'-&a'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":3261,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":3261,"name":"generated","value":"['']","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":3262,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":3262,"name":"generated","value":"['', '-']","declares":false}
@@ -18483,22 +18483,22 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":18483,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":18483,"fn":"apply_n","value":"'aaa'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":18484,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":18484,"fn":"is_idempotent_on","value":"True"}
 {"stream":"eml","proto":"eml-trace-v1","seq":18485,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":18485,"name":"eg_ok","value":"40","declares":false}
-{"stream":"eml","proto":"eml-trace-v1","seq":18486,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18486,"text":""}
-{"stream":"eml","proto":"eml-trace-v1","seq":18487,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18487,"text":"strings swept:              40"}
-{"stream":"eml","proto":"eml-trace-v1","seq":18488,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18488,"text":"  strip_prefix idempotent:  36/40"}
-{"stream":"eml","proto":"eml-trace-v1","seq":18489,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18489,"text":"  strip_prefixes:           40/40"}
-{"stream":"eml","proto":"eml-trace-v1","seq":18490,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18490,"text":"  escape_once:              15/40"}
-{"stream":"eml","proto":"eml-trace-v1","seq":18491,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18491,"text":"  escape_guarded:           40/40"}
-{"stream":"eml","proto":"eml-trace-v1","seq":18492,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18492,"text":""}
-{"stream":"eml","proto":"eml-trace-v1","seq":18493,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18493,"text":"where strip_prefix loses data on the retry:"}
-{"stream":"eml","proto":"eml-trace-v1","seq":18494,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18494,"text":"  '--' -> '-' -> ''"}
-{"stream":"eml","proto":"eml-trace-v1","seq":18495,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18495,"text":"  '---' -> '--' -> '-'"}
-{"stream":"eml","proto":"eml-trace-v1","seq":18496,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18496,"text":"  '--&' -> '-&' -> '&'"}
-{"stream":"eml","proto":"eml-trace-v1","seq":18497,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18497,"text":""}
-{"stream":"eml","proto":"eml-trace-v1","seq":18498,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18498,"text":"where escape_once adds data on the retry:"}
-{"stream":"eml","proto":"eml-trace-v1","seq":18499,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18499,"text":"  '&' -> '&amp;' -> '&amp;amp;'"}
-{"stream":"eml","proto":"eml-trace-v1","seq":18500,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18500,"text":"  '-&' -> '-&amp;' -> '-&amp;amp;'"}
-{"stream":"eml","proto":"eml-trace-v1","seq":18501,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18501,"text":"  '&-' -> '&amp;-' -> '&amp;amp;-'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18486,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18486,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18487,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18487,"text":"strings swept:              40","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18488,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18488,"text":"  strip_prefix idempotent:  36/40","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18489,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18489,"text":"  strip_prefixes:           40/40","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18490,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18490,"text":"  escape_once:              15/40","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18491,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18491,"text":"  escape_guarded:           40/40","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18492,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18492,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18493,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18493,"text":"where strip_prefix loses data on the retry:","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18494,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18494,"text":"  '--' -> '-' -> ''","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18495,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18495,"text":"  '---' -> '--' -> '-'","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18496,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18496,"text":"  '--&' -> '-&' -> '&'","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18497,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18497,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18498,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18498,"text":"where escape_once adds data on the retry:","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18499,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18499,"text":"  '&' -> '&amp;' -> '&amp;amp;'","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18500,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18500,"text":"  '-&' -> '-&amp;' -> '-&amp;amp;'","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18501,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18501,"text":"  '&-' -> '&amp;-' -> '&amp;amp;-'","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":18502,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":18502,"name":"payload","value":"'tom & jerry'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":18503,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":18503,"fn":"escape_once","args":["'tom & jerry'"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":18504,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":18504,"name":"out","value":"''","declares":true}
@@ -18561,11 +18561,11 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":18561,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":18561,"name":"i","value":"15","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":18562,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":18562,"fn":"escape_guarded","value":"'tom &amp; jerry'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":18563,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":18563,"name":"resent_guarded","value":"'tom &amp; jerry'","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":18564,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18564,"text":""}
-{"stream":"eml","proto":"eml-trace-v1","seq":18565,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18565,"text":"original:                tom & jerry"}
-{"stream":"eml","proto":"eml-trace-v1","seq":18566,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18566,"text":"escaped once:            tom &amp; jerry"}
-{"stream":"eml","proto":"eml-trace-v1","seq":18567,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18567,"text":"retried through once:    tom &amp;amp; jerry"}
-{"stream":"eml","proto":"eml-trace-v1","seq":18568,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18568,"text":"retried through guarded: tom &amp; jerry"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18564,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18564,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18565,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18565,"text":"original:                tom & jerry","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18566,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18566,"text":"escaped once:            tom &amp; jerry","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18567,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18567,"text":"retried through once:    tom &amp;amp; jerry","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18568,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18568,"text":"retried through guarded: tom &amp; jerry","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":18569,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":18569,"name":"passed","value":"0","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":18570,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":18570,"name":"checked","value":"0","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":18571,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":18571,"name":"checked","value":"1","declares":false}
@@ -18628,21 +18628,21 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":18628,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":18628,"name":"i","value":"3","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":18629,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":18629,"fn":"escape_guarded","value":"'a&amp;b'"}
 {"stream":"eml","proto":"eml-trace-v1","seq":18630,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":18630,"name":"passed","value":"5","declares":false}
-{"stream":"eml","proto":"eml-trace-v1","seq":18631,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18631,"text":""}
-{"stream":"eml","proto":"eml-trace-v1","seq":18632,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18632,"text":"checks passed: 5/5"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18631,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18631,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18632,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18632,"text":"checks passed: 5/5","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":18633,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":18633,"name":"verdict","value":"'Two routines settle on the first application; two never do.'","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":18634,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18634,"text":"Two routines settle on the first application; two never do."}
-{"stream":"eml","proto":"eml-trace-v1","seq":18635,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18635,"text":""}
+{"stream":"eml","proto":"eml-trace-v1","seq":18634,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18634,"text":"Two routines settle on the first application; two never do.","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18635,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18635,"text":"","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":18636,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":18636,"name":"n1","value":"'Nothing in the value records whether it has been through the operation.'","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":18637,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18637,"text":"Nothing in the value records whether it has been through the operation."}
+{"stream":"eml","proto":"eml-trace-v1","seq":18637,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18637,"text":"Nothing in the value records whether it has been through the operation.","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":18638,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":18638,"name":"n2","value":"'That is the whole difficulty: `strip_prefix` cannot tell a string it has'","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":18639,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18639,"text":"That is the whole difficulty: `strip_prefix` cannot tell a string it has"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18639,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18639,"text":"That is the whole difficulty: `strip_prefix` cannot tell a string it has","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":18640,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":18640,"name":"n3","value":"'already trimmed from one that arrived that way, and `escape_once` cannot'","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":18641,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18641,"text":"already trimmed from one that arrived that way, and `escape_once` cannot"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18641,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18641,"text":"already trimmed from one that arrived that way, and `escape_once` cannot","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":18642,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":18642,"name":"n4","value":"'tell an escaped ampersand from a literal one. Idempotence is bought by'","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":18643,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18643,"text":"tell an escaped ampersand from a literal one. Idempotence is bought by"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18643,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18643,"text":"tell an escaped ampersand from a literal one. Idempotence is bought by","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":18644,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":18644,"name":"n5","value":"'making the OUTPUT recognisable to the function - which is what the guard'","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":18645,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18645,"text":"making the OUTPUT recognisable to the function - which is what the guard"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18645,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18645,"text":"making the OUTPUT recognisable to the function - which is what the guard","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":18646,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":18646,"name":"n6","value":"'does, and what removing every prefix rather than one does.'","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":18647,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18647,"text":"does, and what removing every prefix rather than one does."}
+{"stream":"eml","proto":"eml-trace-v1","seq":18647,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18647,"text":"does, and what removing every prefix rather than one does.","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":18648,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:done","mono":18648,"ok":true,"outputs":66,"anomalies":0}

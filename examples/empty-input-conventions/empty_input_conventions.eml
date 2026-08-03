@@ -1,0 +1,227 @@
+# Self-authored for the EML case corpus (no external origin). What a fold
+# should return when there is nothing to fold.
+#
+# Every aggregate has an answer for the empty input, and the answers are not
+# all of the same kind:
+#
+#     sum([])      0      the identity of +, forced by the algebra
+#     product([])  1      the identity of *, likewise
+#     count([])    0      forced
+#     max([])      ???    there is no identity for max over the reals
+#     all([])      True   vacuous truth
+#     any([])      False  vacuous falsity
+#
+# The first three are not conventions, they are the only values that make
+# `f(xs + ys) == combine(f(xs), f(ys))` hold when one side is empty. The
+# `all`/`any` pair is the same argument in disguise. `max` genuinely has no
+# answer, which is why Python raises and every hand-written version returns
+# something.
+#
+# The bug this produces is not in the aggregate. It is one level up: code that
+# handles the empty case by returning 0 from `max` puts a zero into a
+# comparison, and zero is a plausible maximum. A raise would have stopped it.
+#
+# This program checks the identity law directly - for each aggregate, the
+# empty answer must be the one that makes splitting a list anywhere give the
+# same result - and separately checks that `max` cannot satisfy it, which is
+# the reason it must refuse.
+
+def my_sum(xs):
+    0 => a
+    for x in xs:
+        a + x => a
+    return a
+
+def my_product(xs):
+    1 => a
+    for x in xs:
+        a * x => a
+    return a
+
+def my_all(xs):
+    for x in xs:
+        if not x:
+            return False
+    return True
+
+def my_any(xs):
+    for x in xs:
+        if x:
+            return True
+    return False
+
+def max_raising(xs):
+    if len(xs) == 0:
+        raise ValueError("max() arg is an empty sequence")
+    xs[0] => m
+    for x in xs:
+        if x > m:
+            x => m
+    return m
+
+def max_zero(xs):
+    # The version people write. Correct on every non-empty input.
+    0 => m
+    for x in xs:
+        if x > m:
+            x => m
+    return m
+
+def max_sentinel(xs):
+    # Also common: a "very small" starting value. Correct until the data is
+    # smaller than the sentinel, which is a claim about the data.
+    0 - 1000000 => m
+    for x in xs:
+        if x > m:
+            x => m
+    return m
+
+
+# ------------------------------------------------------ the identity law
+# For every split point, f(whole) must equal combine(f(left), f(right)).
+# The empty answer is whatever makes the split at the very end work.
+[3, 1, 4, 1, 5] => data
+
+def check_split(name, fold, combine):
+    0 => ok
+    0 => n
+    for i in [0:len(data)]:
+        n + 1 => n
+        data[:i] => left
+        data[i:] => right
+        if combine(fold(left), fold(right)) == fold(data):
+            ok + 1 => ok
+    return [ok, n]
+
+def add2(a, b):
+    return a + b
+
+def mul2(a, b):
+    return a * b
+
+def and2(a, b):
+    return a and b
+
+def or2(a, b):
+    return a or b
+
+def max2(a, b):
+    if a > b:
+        return a
+    return b
+
+"aggregate     empty answer   splits where the law holds"^0
+check_split("sum", my_sum, add2) => s_sum
+check_split("product", my_product, mul2) => s_prod
+("%-13s %-14s %d/%d" % ("sum", str(my_sum([])), s_sum[0], s_sum[1]))^0
+("%-13s %-14s %d/%d" % ("product", str(my_product([])), s_prod[0], s_prod[1]))^0
+
+[1, 1, 0, 1] => flags
+def check_split_flags(fold, combine):
+    0 => ok
+    0 => n
+    for i in [0:len(flags)]:
+        n + 1 => n
+        if combine(fold(flags[:i]), fold(flags[i:])) == fold(flags):
+            ok + 1 => ok
+    return [ok, n]
+
+check_split_flags(my_all, and2) => s_all
+check_split_flags(my_any, or2) => s_any
+("%-13s %-14s %d/%d" % ("all", str(my_all([])), s_all[0], s_all[1]))^0
+("%-13s %-14s %d/%d" % ("any", str(my_any([])), s_any[0], s_any[1]))^0
+
+# --------------------------------------------------------------- max
+# max has no identity element, so no empty answer can satisfy the law. Both
+# "fixes" are checked against it, and both fail on data they were never
+# tested with.
+""^0
+"max, where there is no answer that works:"^0
+0 => zero_ok
+0 => sent_ok
+0 => n_max
+[[3, 1, 4], [0 - 5, 0 - 2, 0 - 9], [0 - 3000000, 0 - 4000000]] => datasets
+for d in datasets:
+    n_max + 1 => n_max
+    max_raising(d) => truth
+    if max_zero(d) == truth:
+        zero_ok + 1 => zero_ok
+    if max_sentinel(d) == truth:
+        sent_ok + 1 => sent_ok
+    ("  %-26s true max %-12d zero-start %-12d sentinel %d" % (str(d), truth, max_zero(d), max_sentinel(d)))^0
+
+""^0
+("datasets checked:        " + str(n_max))^0
+("  zero-start correct:    " + str(zero_ok) + "/" + str(n_max))^0
+("  sentinel correct:      " + str(sent_ok) + "/" + str(n_max))^0
+
+0 => raised
+try:
+    max_raising([]) => v
+except ValueError as e:
+    1 => raised
+    ("  max_raising([]) raises: " + str(e))^0
+("  max_zero([])     = " + str(max_zero([])) + "   <- a plausible maximum")^0
+("  max_sentinel([]) = " + str(max_sentinel([])) + "   <- also plausible")^0
+
+# ------------------------------------------ what an empty aggregate feeds
+# The reason the empty case matters is what happens next. A threshold check
+# reads the maximum and decides.
+100 => THRESHOLD
+""^0
+"a threshold check on an empty batch:"^0
+("  raising version:  cannot answer - the caller has to decide")^0
+("  zero version:     " + str(max_zero([]) > THRESHOLD) + "  (reads as 'nothing exceeded the threshold')")^0
+("  sentinel version: " + str(max_sentinel([]) > THRESHOLD) + "  (same conclusion, different reason)")^0
+"...both of which are indistinguishable from a real, correct 'no'."^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# sum and product must satisfy the split law at every split point.
+checked + 1 => checked
+if s_sum[0] == s_sum[1] and s_prod[0] == s_prod[1]:
+    passed + 1 => passed
+
+# all and any likewise - vacuous truth is not a convention, it is forced.
+checked + 1 => checked
+if s_all[0] == s_all[1] and s_any[0] == s_any[1]:
+    passed + 1 => passed
+
+# The empty answers must be exactly the identities.
+checked + 1 => checked
+if my_sum([]) == 0 and my_product([]) == 1 and my_all([]) == True and my_any([]) == False:
+    passed + 1 => passed
+
+# Both max "fixes" must be correct on ordinary data and wrong on data that
+# lies outside their assumption - which is the whole reason they ship.
+checked + 1 => checked
+if zero_ok < n_max and sent_ok < n_max:
+    if max_zero([3, 1, 4]) == 4 and max_sentinel([3, 1, 4]) == 4:
+        passed + 1 => passed
+
+# And max on empty must raise rather than return a number.
+checked + 1 => checked
+if raised == 1:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Four empty answers are forced by algebra. The fifth has none, so it must refuse." => verdict
+else:
+    "FAILED - an aggregate did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"sum([]) == 0 is not a convention someone chose - it is the only value that" => n1
+n1^0
+"keeps the fold associative, and the same argument fixes product, all and" => n2
+n2^0
+"any. max has no such value, which is exactly why returning one is a" => n3
+n3^0
+"decision disguised as a default: the caller who needed to know the batch" => n4
+n4^0
+"was empty is told a number instead." => n5
+n5^0

@@ -1,0 +1,202 @@
+# Self-authored for the EML case corpus (no external origin). Dividing a
+# negative number, which four languages do three different ways.
+#
+# There are two defensible answers to `-7 / 2` in integers:
+#
+#     floor      -4    round toward negative infinity   (Python, Ruby)
+#     truncate   -3    round toward zero                (C, Java, Go, Rust)
+#
+# and the remainder follows from whichever you picked, because the identity
+# that must hold is:
+#
+#     q * b + r == a
+#
+# So Python's `-7 % 2` is 1 and C's is -1. Both are correct; they are
+# answers to different questions. What is never correct is mixing them, which
+# is exactly what happens when an algorithm is prototyped in one and shipped
+# in the other.
+#
+# The place this bites hardest is anything cyclic - a ring buffer index, a day
+# of the week, a hue - because those are all `x % n` and the two conventions
+# disagree on precisely the inputs that wrap backwards.
+#
+# EML-P follows Python. This program implements the truncating convention
+# explicitly and checks BOTH against the identity, so neither is treated as
+# the reference. Then it measures where they disagree, and shows the wrapping
+# idiom that is correct under either.
+
+def trunc_div(a, b):
+    # Round toward zero. `int()` in Python truncates, which is the whole
+    # mechanism - and the reason `int(a / b)` is not the same as `a // b`.
+    if b == 0:
+        raise ZeroDivisionError("integer division or modulo by zero")
+    0 => neg
+    a => x
+    b => y
+    if x < 0:
+        1 - neg => neg
+        0 - x => x
+    if y < 0:
+        1 - neg => neg
+        0 - y => y
+    int(x / y) => q
+    if neg == 1:
+        return 0 - q
+    return q
+
+def trunc_mod(a, b):
+    return a - trunc_div(a, b) * b
+
+def floor_div(a, b):
+    if b == 0:
+        raise ZeroDivisionError("integer division or modulo by zero")
+    return int((a - a % b) / b)
+
+def floor_mod(a, b):
+    return a % b
+
+
+"a     b     floor q  floor r   trunc q  trunc r   agree"^0
+0 => cells
+0 => agree
+0 => floor_identity
+0 => trunc_identity
+[] => disagreements
+for a in [7, 0 - 7, 8, 0 - 8, 1, 0 - 1, 0, 15, 0 - 15]:
+    for b in [2, 0 - 2, 3, 0 - 3]:
+        cells + 1 => cells
+        floor_div(a, b) => fq
+        floor_mod(a, b) => fr
+        trunc_div(a, b) => tq
+        trunc_mod(a, b) => tr
+        if fq * b + fr == a:
+            floor_identity + 1 => floor_identity
+        if tq * b + tr == a:
+            trunc_identity + 1 => trunc_identity
+        "yes" => same
+        if not (fq == tq):
+            "NO" => same
+            if len(disagreements) < 4:
+                disagreements + [str(a) + "/" + str(b) + ": floor " + str(fq) + " rem " + str(fr) + ", trunc " + str(tq) + " rem " + str(tr)] => disagreements
+        else:
+            agree + 1 => agree
+        if a == 7 or a == 0 - 7 or a == 0 - 8:
+            ("%-5d %-5d %-8d %-9d %-8d %-9d %s" % (a, b, fq, fr, tq, tr, same))^0
+
+""^0
+("(a, b) pairs checked:            " + str(cells))^0
+("  q * b + r == a, floor:         " + str(floor_identity) + "/" + str(cells))^0
+("  q * b + r == a, truncate:      " + str(trunc_identity) + "/" + str(cells))^0
+("  the two conventions agree on:  " + str(agree) + "/" + str(cells))^0
+""^0
+"where they part:"^0
+for d in disagreements:
+    ("  " + d)^0
+
+# ------------------------------------------------- the sign of the remainder
+0 => floor_sign_follows_divisor
+0 => trunc_sign_follows_dividend
+0 => nonzero
+for a in [7, 0 - 7, 8, 0 - 8, 15, 0 - 15]:
+    for b in [2, 0 - 2, 3, 0 - 3]:
+        floor_mod(a, b) => fr
+        trunc_mod(a, b) => tr
+        if not (fr == 0):
+            nonzero + 1 => nonzero
+            if (fr > 0 and b > 0) or (fr < 0 and b < 0):
+                floor_sign_follows_divisor + 1 => floor_sign_follows_divisor
+            if (tr > 0 and a > 0) or (tr < 0 and a < 0):
+                trunc_sign_follows_dividend + 1 => trunc_sign_follows_dividend
+
+""^0
+("non-zero remainders:                        " + str(nonzero))^0
+("  floor: remainder has the DIVISOR's sign:  " + str(floor_sign_follows_divisor) + "/" + str(nonzero))^0
+("  trunc: remainder has the DIVIDEND's sign: " + str(trunc_sign_follows_dividend) + "/" + str(nonzero))^0
+
+# ------------------------------------------------------ the wrapping idiom
+# A ring buffer index. `i % n` is correct under floor and wrong under
+# truncation for negative i; `((i % n) + n) % n` is correct under both, which
+# is why it is worth writing even in Python.
+8 => RING
+"index  i%n   trunc i%n   ((i%n)+n)%n   in range"^0
+0 => naive_in_range
+0 => safe_in_range
+0 => probes
+for i in [0 - 3:11]:
+    probes + 1 => probes
+    trunc_mod(i, RING) => t
+    floor_mod(i, RING) => f
+    floor_mod(floor_mod(i, RING) + RING, RING) => safe
+    if t >= 0 and t < RING:
+        naive_in_range + 1 => naive_in_range
+    if safe >= 0 and safe < RING:
+        safe_in_range + 1 => safe_in_range
+    if i < 2 or i > 8:
+        "yes" => ok
+        if t < 0 or t >= RING:
+            "NO" => ok
+        ("%-6d %-5d %-11d %-13d %s" % (i, f, t, safe, ok))^0
+
+""^0
+("ring indices probed:                   " + str(probes))^0
+("  truncating remainder in range:       " + str(naive_in_range) + "/" + str(probes))^0
+("  ((i%n)+n)%n in range:                " + str(safe_in_range) + "/" + str(probes))^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# Both conventions must satisfy the identity on every pair. Neither is being
+# treated as the reference - this is what makes them both correct.
+checked + 1 => checked
+if floor_identity == cells and trunc_identity == cells:
+    passed + 1 => passed
+
+# They must disagree somewhere, and agree somewhere, or there is no
+# convention to choose.
+checked + 1 => checked
+if agree > 0 and agree < cells:
+    passed + 1 => passed
+
+# The remainder signs must follow the stated rule in every non-zero case.
+checked + 1 => checked
+if floor_sign_follows_divisor == nonzero and trunc_sign_follows_dividend == nonzero:
+    passed + 1 => passed
+
+# The truncating remainder must leave the ring range for negative indices,
+# and the guarded idiom must not.
+checked + 1 => checked
+if naive_in_range < probes and safe_in_range == probes:
+    passed + 1 => passed
+
+# And division by zero must raise under both, with the same class.
+checked + 1 => checked
+0 => raised
+try:
+    floor_div(1, 0) => v
+except ZeroDivisionError as e:
+    raised + 1 => raised
+try:
+    trunc_div(1, 0) => v
+except ZeroDivisionError as e:
+    raised + 1 => raised
+if raised == 2:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Both conventions satisfy the identity. Only one of them is the one you meant." => verdict
+else:
+    "FAILED - a convention did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"Neither answer is a bug. The bug is the assumption that there is only one," => n1
+n1^0
+"which survives because every test with non-negative inputs passes under" => n2
+n2^0
+"both - and non-negative inputs are what test fixtures are made of. The" => n3
+n3^0
+"guarded wrap costs one addition and removes the question entirely." => n4
+n4^0

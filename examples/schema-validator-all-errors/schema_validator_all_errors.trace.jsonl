@@ -6,7 +6,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":6,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":6,"fn":"validate_fast","params":["record","sch"],"temperature":"neutral","async":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":7,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":7,"fn":"validate_complete","params":["record","sch"],"temperature":"neutral","async":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":8,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":8,"name":"records","value":"[{'name': 'Ada', 'age': '36', 'email': 'ada@example.com', 'nickname': ''}, {'name': '', 'age': 'notanumber', 'email': 'nope', 'nickname': ''}, {'name': 'Grace', 'age': '', 'email': 'grace@example.com', 'nickname': ''}, {'name': 'a name that is really rather too long to accept', 'age': '7', 'email': 'x@y.z', 'nickname': ''}, {'name': 'Alan', 'age': '41', 'email': 'alan@at@example.com', 'nickname': ''}]","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":9,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":9,"text":"record                     fast          complete"}
+{"stream":"eml","proto":"eml-trace-v1","seq":9,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":9,"text":"record                     fast          complete","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":10,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":10,"name":"idx","value":"0","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":11,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":11,"name":"verdicts_agree","value":"0","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":12,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":12,"name":"complete_at_least","value":"0","declares":true}
@@ -100,7 +100,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":100,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":100,"name":"all_problems","value":"[[]]","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":101,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":101,"name":"fast_plural","value":"'s'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":102,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":102,"name":"complete_plural","value":"'s'","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":103,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":103,"text":"  record 1                 0 errors       0 errors"}
+{"stream":"eml","proto":"eml-trace-v1","seq":103,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":103,"text":"  record 1                 0 errors       0 errors","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":104,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":104,"name":"idx","value":"2","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":105,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":105,"fn":"validate_fast","args":["{'name': '', 'age': 'notanumber', 'email': 'nope', 'nickname': ''}","[['name', 'text', True], ['age', 'int', True], ['email', 'email', True], ['nickname', 'text', False]]"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":106,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":106,"fn":"check_field","args":["['name', 'text', True]","''"],"temperature":"neutral"}
@@ -156,7 +156,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":156,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":156,"name":"fast_plural","value":"'s'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":157,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":157,"name":"fast_plural","value":"''","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":158,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":158,"name":"complete_plural","value":"'s'","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":159,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":159,"text":"  record 2                 1 error        3 errors"}
+{"stream":"eml","proto":"eml-trace-v1","seq":159,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":159,"text":"  record 2                 1 error        3 errors","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":160,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":160,"name":"idx","value":"3","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":161,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":161,"fn":"validate_fast","args":["{'name': 'Grace', 'age': '', 'email': 'grace@example.com', 'nickname': ''}","[['name', 'text', True], ['age', 'int', True], ['email', 'email', True], ['nickname', 'text', False]]"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":162,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":162,"fn":"check_field","args":["['name', 'text', True]","'Grace'"],"temperature":"neutral"}
@@ -224,7 +224,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":224,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":224,"name":"fast_plural","value":"''","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":225,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":225,"name":"complete_plural","value":"'s'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":226,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":226,"name":"complete_plural","value":"''","declares":false}
-{"stream":"eml","proto":"eml-trace-v1","seq":227,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":227,"text":"  record 3                 1 error        1 error"}
+{"stream":"eml","proto":"eml-trace-v1","seq":227,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":227,"text":"  record 3                 1 error        1 error","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":228,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":228,"name":"idx","value":"4","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":229,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":229,"fn":"validate_fast","args":["{'name': 'a name that is really rather too long to accept', 'age': '7', 'email': 'x@y.z', 'nickname': ''}","[['name', 'text', True], ['age', 'int', True], ['email', 'email', True], ['nickname', 'text', False]]"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":230,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":230,"fn":"check_field","args":["['name', 'text', True]","'a name that is really rather too long to accept'"],"temperature":"neutral"}
@@ -284,7 +284,7 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":284,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":284,"name":"fast_plural","value":"''","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":285,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":285,"name":"complete_plural","value":"'s'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":286,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":286,"name":"complete_plural","value":"''","declares":false}
-{"stream":"eml","proto":"eml-trace-v1","seq":287,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":287,"text":"  record 4                 1 error        1 error"}
+{"stream":"eml","proto":"eml-trace-v1","seq":287,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":287,"text":"  record 4                 1 error        1 error","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":288,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":288,"name":"idx","value":"5","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":289,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":289,"fn":"validate_fast","args":["{'name': 'Alan', 'age': '41', 'email': 'alan@at@example.com', 'nickname': ''}","[['name', 'text', True], ['age', 'int', True], ['email', 'email', True], ['nickname', 'text', False]]"],"temperature":"neutral"}
 {"stream":"eml","proto":"eml-trace-v1","seq":290,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":290,"fn":"check_field","args":["['name', 'text', True]","'Alan'"],"temperature":"neutral"}
@@ -360,45 +360,45 @@
 {"stream":"eml","proto":"eml-trace-v1","seq":360,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":360,"name":"fast_plural","value":"''","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":361,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":361,"name":"complete_plural","value":"'s'","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":362,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":362,"name":"complete_plural","value":"''","declares":false}
-{"stream":"eml","proto":"eml-trace-v1","seq":363,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":363,"text":"  record 5                 1 error        1 error"}
-{"stream":"eml","proto":"eml-trace-v1","seq":364,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":364,"text":""}
-{"stream":"eml","proto":"eml-trace-v1","seq":365,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":365,"text":"What fail-complete actually reports:"}
+{"stream":"eml","proto":"eml-trace-v1","seq":363,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":363,"text":"  record 5                 1 error        1 error","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":364,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":364,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":365,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":365,"text":"What fail-complete actually reports:","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":366,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":366,"name":"idx","value":"0","declares":false}
 {"stream":"eml","proto":"eml-trace-v1","seq":367,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":367,"name":"idx","value":"1","declares":false}
-{"stream":"eml","proto":"eml-trace-v1","seq":368,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":368,"text":"  record 1: ok"}
+{"stream":"eml","proto":"eml-trace-v1","seq":368,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":368,"text":"  record 1: ok","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":369,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":369,"name":"idx","value":"2","declares":false}
-{"stream":"eml","proto":"eml-trace-v1","seq":370,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":370,"text":"  record 2:"}
-{"stream":"eml","proto":"eml-trace-v1","seq":371,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":371,"text":"      name: required"}
-{"stream":"eml","proto":"eml-trace-v1","seq":372,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":372,"text":"      age: not an integer (notanumber)"}
-{"stream":"eml","proto":"eml-trace-v1","seq":373,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":373,"text":"      email: not an email address (nope)"}
+{"stream":"eml","proto":"eml-trace-v1","seq":370,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":370,"text":"  record 2:","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":371,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":371,"text":"      name: required","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":372,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":372,"text":"      age: not an integer (notanumber)","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":373,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":373,"text":"      email: not an email address (nope)","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":374,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":374,"name":"idx","value":"3","declares":false}
-{"stream":"eml","proto":"eml-trace-v1","seq":375,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":375,"text":"  record 3:"}
-{"stream":"eml","proto":"eml-trace-v1","seq":376,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":376,"text":"      age: required"}
+{"stream":"eml","proto":"eml-trace-v1","seq":375,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":375,"text":"  record 3:","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":376,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":376,"text":"      age: required","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":377,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":377,"name":"idx","value":"4","declares":false}
-{"stream":"eml","proto":"eml-trace-v1","seq":378,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":378,"text":"  record 4:"}
-{"stream":"eml","proto":"eml-trace-v1","seq":379,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":379,"text":"      name: too long (47 chars, max 20)"}
+{"stream":"eml","proto":"eml-trace-v1","seq":378,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":378,"text":"  record 4:","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":379,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":379,"text":"      name: too long (47 chars, max 20)","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":380,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":380,"name":"idx","value":"5","declares":false}
-{"stream":"eml","proto":"eml-trace-v1","seq":381,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":381,"text":"  record 5:"}
-{"stream":"eml","proto":"eml-trace-v1","seq":382,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":382,"text":"      email: not an email address (alan@at@example.com)"}
-{"stream":"eml","proto":"eml-trace-v1","seq":383,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":383,"text":""}
+{"stream":"eml","proto":"eml-trace-v1","seq":381,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":381,"text":"  record 5:","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":382,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":382,"text":"      email: not an email address (alan@at@example.com)","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":383,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":383,"text":"","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":384,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":384,"name":"hidden","value":"0","declares":true}
 {"stream":"eml","proto":"eml-trace-v1","seq":385,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":385,"name":"hidden","value":"2","declares":false}
-{"stream":"eml","proto":"eml-trace-v1","seq":386,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":386,"text":"Errors fail-fast would have hidden on a first submission: 2"}
-{"stream":"eml","proto":"eml-trace-v1","seq":387,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":387,"text":""}
-{"stream":"eml","proto":"eml-trace-v1","seq":388,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":388,"text":"records checked:                  5"}
-{"stream":"eml","proto":"eml-trace-v1","seq":389,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":389,"text":"verdicts agree:                   5/5"}
-{"stream":"eml","proto":"eml-trace-v1","seq":390,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":390,"text":"complete found >= fast:           5/5"}
-{"stream":"eml","proto":"eml-trace-v1","seq":391,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":391,"text":"fast returned at most one:        5/5"}
-{"stream":"eml","proto":"eml-trace-v1","seq":392,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":392,"text":""}
+{"stream":"eml","proto":"eml-trace-v1","seq":386,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":386,"text":"Errors fail-fast would have hidden on a first submission: 2","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":387,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":387,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":388,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":388,"text":"records checked:                  5","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":389,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":389,"text":"verdicts agree:                   5/5","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":390,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":390,"text":"complete found >= fast:           5/5","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":391,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":391,"text":"fast returned at most one:        5/5","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":392,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":392,"text":"","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":393,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":393,"name":"verdict","value":"'Both agree on validity; only fail-complete says how much is wrong.'","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":394,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":394,"text":"Both agree on validity; only fail-complete says how much is wrong."}
-{"stream":"eml","proto":"eml-trace-v1","seq":395,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":395,"text":""}
+{"stream":"eml","proto":"eml-trace-v1","seq":394,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":394,"text":"Both agree on validity; only fail-complete says how much is wrong.","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":395,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":395,"text":"","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":396,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":396,"name":"n1","value":"'Record 2 has three problems and record 4 has one. A fail-fast validator'","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":397,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":397,"text":"Record 2 has three problems and record 4 has one. A fail-fast validator"}
+{"stream":"eml","proto":"eml-trace-v1","seq":397,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":397,"text":"Record 2 has three problems and record 4 has one. A fail-fast validator","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":398,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":398,"name":"n2","value":"'reports one error for both, so a test suite whose fixtures each contain a'","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":399,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":399,"text":"reports one error for both, so a test suite whose fixtures each contain a"}
+{"stream":"eml","proto":"eml-trace-v1","seq":399,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":399,"text":"reports one error for both, so a test suite whose fixtures each contain a","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":400,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":400,"name":"n3","value":"'single defect cannot tell the two implementations apart - which is why the'","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":401,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":401,"text":"single defect cannot tell the two implementations apart - which is why the"}
+{"stream":"eml","proto":"eml-trace-v1","seq":401,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":401,"text":"single defect cannot tell the two implementations apart - which is why the","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":402,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":402,"name":"n4","value":"'check here is on the COUNT, not on the verdict.'","declares":true}
-{"stream":"eml","proto":"eml-trace-v1","seq":403,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":403,"text":"check here is on the COUNT, not on the verdict."}
+{"stream":"eml","proto":"eml-trace-v1","seq":403,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":403,"text":"check here is on the COUNT, not on the verdict.","end":"\n"}
 {"stream":"eml","proto":"eml-trace-v1","seq":404,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:done","mono":404,"ok":true,"outputs":33,"anomalies":0}
