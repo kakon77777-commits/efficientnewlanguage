@@ -1,0 +1,272 @@
+# Self-authored for the EML case corpus (no external origin). Retrying politely
+# and all at the same moment.
+#
+# A service fails; a hundred clients retry. Exponential backoff spaces the
+# retries out over time, which is the whole point - and it does not space them
+# out from EACH OTHER, because every client computes the same delay from the
+# same attempt number:
+#
+#     attempt 1 -> wait 1     all hundred wake at t+1
+#     attempt 2 -> wait 2     all hundred wake at t+3
+#     attempt 3 -> wait 4     all hundred wake at t+7
+#
+# The load is no longer continuous; it is a series of spikes, and each spike
+# is the full population. Backoff reduced the AVERAGE rate and left the peak
+# untouched, which is the wrong half - a service falls over on peak.
+#
+# Jitter fixes it by making the delay depend on the client as well as the
+# attempt. There is no random() in EML-P, and that turns out to be honest
+# rather than limiting: the jitter here is a deterministic function of the
+# client id, which is what a real implementation should do anyway if it wants
+# reproducible behaviour under test.
+#
+# The measurement is the peak: the largest number of clients arriving in any
+# single tick, over the whole retry storm. Also reported is the total number
+# of retries, so it is visible that jitter changes the SHAPE of the load and
+# not its volume.
+#
+# Two things the sweep corrected in this file. Jitter's benefit depends
+# entirely on the BASE delay - with a base of 1 the first window is two ticks
+# wide and a hundred clients still collide, so the peak falls from 100 to 93
+# and the fix looks useless. And the improvement is NOT monotonic in the base:
+# a wider window can alias with the population and undo itself. Both are
+# measured below rather than reasoned about.
+
+100 => CLIENTS
+6 => ATTEMPTS
+
+def delay_fixed(attempt, client):
+    return attempt
+
+5 => BASE
+
+def delay_exponential(attempt, client):
+    BASE => d
+    for k in [1:attempt - 1]:
+        d * 2 => d
+    return d
+
+def delay_jittered(attempt, client):
+    # Full jitter: a value in [0, exponential], derived from the client id.
+    # Deterministic, reproducible, and different per client - which is all
+    # random() was ever providing here.
+    delay_exponential(attempt, client) => cap
+    return client % (cap + 1)
+
+def delay_decorrelated(attempt, client):
+    # Spread across the whole window rather than clustering at the start,
+    # which is what plain modulo does when the cap is small.
+    delay_exponential(attempt, client) => cap
+    return (client * 7 + attempt * 13) % (cap + 1)
+
+def arrivals(which):
+    # tick -> how many clients arrive. Returns [peak, total, distinct_ticks].
+    {} => hits
+    0 => total
+    for c in [0:CLIENTS - 1]:
+        0 => t
+        for a in [1:ATTEMPTS]:
+            if which == "fixed":
+                delay_fixed(a, c) => d
+            elif which == "exponential":
+                delay_exponential(a, c) => d
+            elif which == "jittered":
+                delay_jittered(a, c) => d
+            else:
+                delay_decorrelated(a, c) => d
+            t + d => t
+            total + 1 => total
+            if t in hits:
+                hits[t] + 1 => hits[t]
+            else:
+                1 => hits[t]
+    0 => peak
+    for k in hits:
+        if hits[k] > peak:
+            hits[k] => peak
+    return [peak, total, len(hits)]
+
+
+["fixed", "exponential", "jittered", "decorrelated"] => strategies
+
+"strategy       peak arrivals  total retries  ticks used"^0
+{} => res
+for st in strategies:
+    arrivals(st) => r
+    r => res[st]
+    ("%-14s %-14d %-14d %d" % (st, r[0], r[1], r[2]))^0
+
+""^0
+("clients: " + str(CLIENTS) + ", attempts each: " + str(ATTEMPTS))^0
+("every strategy issues the same number of retries: " + str(res["fixed"][1] == res["decorrelated"][1]))^0
+"...so what changes is the shape of the load, not its volume."^0
+
+# ------------------------------------------- where the spikes land
+""^0
+"exponential backoff, arrivals per tick (first 20 ticks):"^0
+{} => exp_hits
+for c in [0:CLIENTS - 1]:
+    0 => t
+    for a in [1:ATTEMPTS]:
+        t + delay_exponential(a, c) => t
+        if t in exp_hits:
+            exp_hits[t] + 1 => exp_hits[t]
+        else:
+            1 => exp_hits[t]
+"" => line
+for t in [1:20]:
+    0 => n
+    if t in exp_hits:
+        exp_hits[t] => n
+    if n > 0:
+        line + str(t) + ":" + str(n) + " " => line
+("  " + line)^0
+
+""^0
+"decorrelated jitter, arrivals per tick (first 20 ticks):"^0
+{} => jit_hits
+for c in [0:CLIENTS - 1]:
+    0 => t
+    for a in [1:ATTEMPTS]:
+        t + delay_decorrelated(a, c) => t
+        if t in jit_hits:
+            jit_hits[t] + 1 => jit_hits[t]
+        else:
+            1 => jit_hits[t]
+"" => line2
+for t in [1:20]:
+    0 => n
+    if t in jit_hits:
+        jit_hits[t] => n
+    if n > 0:
+        line2 + str(t) + ":" + str(n) + " " => line2
+("  " + line2)^0
+
+# --------------------------------- how much room the jitter needs
+# The same jitter function against different base delays. The window has to be
+# wide relative to the population before the collisions stop, and past a point
+# the arithmetic aliases with the client count and the peak climbs again.
+""^0
+"peak arrivals by base delay, decorrelated jitter:"^0
+"base   peak  ticks used"^0
+0 => best_base
+1000 => best_peak
+for b in [1, 2, 5, 10, 20]:
+    {} => h
+    for c in [0:CLIENTS - 1]:
+        0 => t
+        for a in [1:ATTEMPTS]:
+            b => cap
+            for k in [1:a - 1]:
+                cap * 2 => cap
+            t + (c * 7 + a * 13) % (cap + 1) => t
+            if t in h:
+                h[t] + 1 => h[t]
+            else:
+                1 => h[t]
+    0 => pk
+    for k in h:
+        if h[k] > pk:
+            h[k] => pk
+    if pk < best_peak:
+        pk => best_peak
+        b => best_base
+    ("%-6d %-5d %d" % (b, pk, len(h)))^0
+("  lowest peak at base " + str(best_base) + ": " + str(best_peak))^0
+"...and a larger base is not uniformly better - the window can alias."^0
+
+# ------------------------------------ what backoff alone actually buys
+# Against a fixed retry interval, exponential backoff DOES reduce the peak -
+# but only because the retries drift apart over attempts, not because the
+# clients differ. With one attempt each, they are identical.
+""^0
+"with a single attempt, every strategy that ignores the client is the same:"^0
+{} => single
+for st in strategies:
+    {} => h
+    for c in [0:CLIENTS - 1]:
+        if st == "fixed":
+            delay_fixed(1, c) => d
+        elif st == "exponential":
+            delay_exponential(1, c) => d
+        elif st == "jittered":
+            delay_jittered(1, c) => d
+        else:
+            delay_decorrelated(1, c) => d
+        if d in h:
+            h[d] + 1 => h[d]
+        else:
+            1 => h[d]
+    0 => pk
+    for k in h:
+        if h[k] > pk:
+            h[k] => pk
+    pk => single[st]
+    ("  %-14s peak %d" % (st, pk))^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# Every strategy must issue exactly the same number of retries.
+checked + 1 => checked
+0 => same_total
+for st in strategies:
+    if res[st][1] == CLIENTS * ATTEMPTS:
+        same_total + 1 => same_total
+if same_total == 4:
+    passed + 1 => passed
+
+# Jitter must reduce the peak substantially against undithered backoff. How
+# substantially depends on the base, which is why BASE is 5 here and why the
+# sweep above exists - at base 1 the reduction is 100 -> 93 and would not
+# support this claim.
+checked + 1 => checked
+if res["decorrelated"][0] * 2 < res["exponential"][0]:
+    passed + 1 => passed
+
+# Undithered backoff must have a peak equal to the whole population - every
+# client arriving together is the failure being demonstrated.
+checked + 1 => checked
+if res["exponential"][0] == CLIENTS and res["fixed"][0] == CLIENTS:
+    passed + 1 => passed
+
+# Jitter must SPREAD the load over more ticks, not merely delay it.
+checked + 1 => checked
+if res["decorrelated"][2] > res["exponential"][2]:
+    passed + 1 => passed
+
+# And with a single attempt, the client-independent strategies must still
+# spike - which is the proof that backoff alone never addressed this.
+checked + 1 => checked
+if single["fixed"] == CLIENTS and single["exponential"] == CLIENTS:
+    if single["decorrelated"] < CLIENTS:
+        passed + 1 => passed
+
+# The base sweep must show a non-monotonic peak: the widest window must not
+# be the best one. This file assumed more room was always better.
+checked + 1 => checked
+if best_base < 20:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Backoff lowers the average and leaves the peak at the full population." => verdict
+else:
+    "FAILED - a backoff strategy did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"Every client computes the same delay from the same attempt number, so a" => n1
+n1^0
+"policy that looks like spreading load is synchronising it. The fix is not a" => n2
+n2^0
+"longer wait - it is a delay that depends on WHICH client is waiting. And" => n3
+n3^0
+"the sweep added the part this file did not expect: how much that buys" => n4
+n4^0
+"depends on the base delay, and a wider window is not uniformly better," => n5
+n5^0
+"because the jitter arithmetic can alias with the population size." => n6
+n6^0

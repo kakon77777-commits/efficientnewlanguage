@@ -1,0 +1,231 @@
+# Self-authored for the EML case corpus (no external origin). "Week 1", which
+# is at least three different weeks.
+#
+# A weekly report is grouped by week number, and the number depends on a
+# convention nobody states:
+#
+#     ISO       week 1 contains the first Thursday; weeks start Monday
+#     simple    week 1 starts 1 January; weeks start whenever that was
+#     US        week 1 contains 1 January; weeks start Sunday
+#
+# They disagree at both ends of the year, which is exactly where an annual
+# report is read. Under ISO, 1 January can be in week 52 or 53 of the
+# PREVIOUS year, and 31 December can be in week 1 of the NEXT - so a naive
+# grouping by (year, week) puts December revenue in next year's first week or
+# loses it entirely.
+#
+# The measurement is a year swept day by day under each convention, checking
+# the properties a week numbering needs if it is to be used as a grouping key:
+#
+#     every day gets exactly one (year, week)
+#     every week has exactly seven days, or is a boundary week
+#     the sequence is contiguous - no gaps, no repeats within a year
+#
+# ISO satisfies the first and third and the second only in the interior; the
+# simple scheme fails the second badly and the third not at all. Which one is
+# right depends on the report, and the point is that the choice is a choice.
+
+[31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] => DAYS
+
+def is_leap(y):
+    if y % 400 == 0:
+        return True
+    if y % 100 == 0:
+        return False
+    return y % 4 == 0
+
+def days_in_year(y):
+    if is_leap(y):
+        return 366
+    return 365
+
+def day_of_year(y, m, d):
+    0 => n
+    for mm in [1:m - 1]:
+        n + DAYS[mm - 1] => n
+        if mm == 2 and is_leap(y):
+            n + 1 => n
+    return n + d
+
+def weekday_of(y, doy):
+    # 0 = Monday. 2026-01-01 is a Thursday, which is index 3.
+    # Anchored on that and stepped by whole years so the arithmetic is visible.
+    3 => anchor
+    y - 2026 => dy
+    anchor => w
+    if dy >= 0:
+        for k in [0:dy - 1]:
+            w + days_in_year(2026 + k) => w
+    else:
+        for k in [1:0 - dy]:
+            w - days_in_year(2026 - k) => w
+    return (w + doy - 1) % 7
+
+def iso_week(y, m, d):
+    # Week 1 is the week containing the first Thursday, i.e. the week
+    # containing 4 January. Returns [year, week].
+    day_of_year(y, m, d) => doy
+    weekday_of(y, doy) => wd
+    doy - wd + 3 => thursday_doy
+    if thursday_doy < 1:
+        # Belongs to the last week of the previous year.
+        y - 1 => py
+        thursday_doy + days_in_year(py) => t2
+        return [py, int((t2 - 1) / 7) + 1]
+    if thursday_doy > days_in_year(y):
+        return [y + 1, 1]
+    return [y, int((thursday_doy - 1) / 7) + 1]
+
+def simple_week(y, m, d):
+    day_of_year(y, m, d) => doy
+    return [y, int((doy - 1) / 7) + 1]
+
+def us_week(y, m, d):
+    # Weeks start Sunday; week 1 is the week containing 1 January.
+    day_of_year(y, m, d) => doy
+    weekday_of(y, doy) => wd
+    (wd + 1) % 7 => sun_index
+    weekday_of(y, 1) => jan1
+    (jan1 + 1) % 7 => jan1_sun
+    return [y, int((doy + jan1_sun - 1) / 7) + 1]
+
+
+"date          ISO        simple     US"^0
+for row in [[2026, 1, 1], [2026, 1, 4], [2026, 1, 5], [2026, 6, 15], [2026, 12, 28], [2026, 12, 31]]:
+    row[0] => y
+    row[1] => m
+    row[2] => d
+    iso_week(y, m, d) => i
+    simple_week(y, m, d) => s
+    us_week(y, m, d) => u
+    ("%-13s %-10s %-10s %s" % (str(y) + "-" + str(m) + "-" + str(d), str(i[0]) + "w" + str(i[1]), str(s[0]) + "w" + str(s[1]), str(u[0]) + "w" + str(u[1])))^0
+
+# ---------------------------------------------- sweep the year
+{} => iso_sizes
+{} => simple_sizes
+0 => days
+0 => iso_other_year
+for m in [1:12]:
+    for d in [1:DAYS[m - 1]]:
+        days + 1 => days
+        iso_week(2026, m, d) => i
+        simple_week(2026, m, d) => s
+        str(i[0]) + "w" + str(i[1]) => ik
+        if ik in iso_sizes:
+            iso_sizes[ik] + 1 => iso_sizes[ik]
+        else:
+            1 => iso_sizes[ik]
+        if not (i[0] == 2026):
+            iso_other_year + 1 => iso_other_year
+        str(s[0]) + "w" + str(s[1]) => sk
+        if sk in simple_sizes:
+            simple_sizes[sk] + 1 => simple_sizes[sk]
+        else:
+            1 => simple_sizes[sk]
+
+0 => iso_full
+0 => iso_short
+for k in iso_sizes:
+    if iso_sizes[k] == 7:
+        iso_full + 1 => iso_full
+    else:
+        iso_short + 1 => iso_short
+0 => simple_full
+0 => simple_short
+for k in simple_sizes:
+    if simple_sizes[k] == 7:
+        simple_full + 1 => simple_full
+    else:
+        simple_short + 1 => simple_short
+
+""^0
+("days in 2026: " + str(days))^0
+("ISO:    " + str(len(iso_sizes)) + " distinct weeks, " + str(iso_full) + " full, " + str(iso_short) + " partial")^0
+("simple: " + str(len(simple_sizes)) + " distinct weeks, " + str(simple_full) + " full, " + str(simple_short) + " partial")^0
+("days ISO assigns to another YEAR: " + str(iso_other_year))^0
+
+# ---------------------------------------- where the conventions disagree
+0 => disagree
+0 => first_shown
+for m in [1:12]:
+    for d in [1:DAYS[m - 1]]:
+        iso_week(2026, m, d) => i
+        us_week(2026, m, d) => u
+        if not (i[1] == u[1]) or not (i[0] == u[0]):
+            disagree + 1 => disagree
+            if first_shown == 0 and m > 5:
+                1 => first_shown
+                ("  mid-year disagreement: 2026-" + str(m) + "-" + str(d) + " is ISO w" + str(i[1]) + " and US w" + str(u[1]))^0
+
+""^0
+("days where ISO and US disagree on the week number: " + str(disagree) + "/" + str(days))^0
+
+# ------------------------------------- a report grouped by week
+""^0
+"revenue booked on 2026-12-31, grouped by week:"^0
+iso_week(2026, 12, 31) => dec_iso
+simple_week(2026, 12, 31) => dec_simple
+("  ISO:    " + str(dec_iso[0]) + " week " + str(dec_iso[1]))^0
+("  simple: " + str(dec_simple[0]) + " week " + str(dec_simple[1]))^0
+if not (dec_iso[0] == 2026):
+    "  ...so an annual report filtered on year 2026 loses it under ISO."^0
+else:
+    "  ...both keep it inside 2026 this year, which is not true every year."^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# Every day must get exactly one week under each scheme - the counts must sum
+# back to the length of the year.
+checked + 1 => checked
+0 => iso_total
+for k in iso_sizes:
+    iso_total + iso_sizes[k] => iso_total
+0 => simple_total
+for k in simple_sizes:
+    simple_total + simple_sizes[k] => simple_total
+if iso_total == days and simple_total == days:
+    passed + 1 => passed
+
+# ISO must have mostly full weeks; the simple scheme must end with a short one
+# because 365 is not a multiple of 7.
+checked + 1 => checked
+if simple_short >= 1 and iso_full >= 50:
+    passed + 1 => passed
+
+# The simple scheme must produce a 53rd bucket, since 365/7 is 52 and a bit.
+checked + 1 => checked
+if len(simple_sizes) == 53:
+    passed + 1 => passed
+
+# ISO and US must agree in the interior and differ somewhere - if they never
+# differed the convention would not matter.
+checked + 1 => checked
+if disagree > 0 and disagree < days:
+    passed + 1 => passed
+
+# The weekday anchor must be right: 2026-01-01 is a Thursday.
+checked + 1 => checked
+if weekday_of(2026, 1) == 3 and weekday_of(2026, 5) == 0:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Three conventions, one phrase, and they part at both ends of the year." => verdict
+else:
+    "FAILED - a week numbering did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"A week number is only a grouping key if the convention is written down" => n1
+n1^0
+"next to it, because the three schemes agree through the middle of the year" => n2
+n2^0
+"and part exactly where an annual report is read. Under ISO a week can even" => n3
+n3^0
+"belong to a different YEAR than its days, which is the part that surprises" => n4
+n4^0
+"a filter written as `year = 2026`." => n5
+n5^0

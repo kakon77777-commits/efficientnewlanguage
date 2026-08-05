@@ -1,0 +1,214 @@
+# Self-authored for the EML case corpus (no external origin). Two leaders at
+# once, from a lease that both sides believe.
+#
+# A lease says "you are the leader until time T". The holder renews before T;
+# if it fails to renew, someone else takes over after T. That is correct only
+# if the two clocks agree, and they do not:
+#
+#     holder's clock says   T is at 100, it is now 98, I am still leader
+#     grantor's clock says  T is at 100, it is now 102, the lease is free
+#
+# Four milliseconds of skew and both processes believe they hold the lease.
+# Neither is faulty. Neither can detect the other.
+#
+# The standard repair is a guard band: the holder stands down EARLY, at
+# T - delta, and the grantor waits LATE, until T + delta.
+#
+# This file expected that to be a pure trade - remove the overlap, create a
+# gap. The sweep says otherwise, and the real answer is sharper. The overlap
+# has width `skew - 2*delta` and the gap has width `2*delta - skew`, so
+# BOTH are zero at exactly one point:
+#
+#     delta == skew / 2
+#
+# A guard band is therefore not a safety margin you can be generous with. Too
+# small leaves two leaders; too large leaves none; and the single correct
+# value is a function of a skew bound you have to KNOW. Nothing in either
+# process measures it.
+#
+# The measurement is a sweep over clock skew and guard-band size, counting
+# ticks in three states. The window widths are counted rather than derived,
+# because the derivation above is exactly the kind of interval arithmetic
+# that is easy to get backwards:
+#
+#     overlap    two leaders    - a correctness failure
+#     gap        no leader      - an availability failure
+#     clean      exactly one
+#
+# All three quantities are computed by simulating both processes against their
+# own clocks rather than by reasoning about the interval arithmetic, which is
+# where a hand-written argument would go wrong.
+
+100 => LEASE_END
+
+def holder_believes_leader(now_holder, guard):
+    # The holder stands down `guard` early, on ITS clock.
+    return now_holder < LEASE_END - guard
+
+def grantor_may_reassign(now_grantor, guard):
+    # The grantor waits `guard` past the end, on ITS clock.
+    return now_grantor >= LEASE_END + guard
+
+def leaders_at(tick, skew, guard):
+    # `tick` is real time. The holder's clock runs `skew` behind the grantor's.
+    tick - skew => now_holder
+    tick => now_grantor
+    0 => n
+    if holder_believes_leader(now_holder, guard):
+        n + 1 => n
+    if grantor_may_reassign(now_grantor, guard):
+        n + 1 => n
+    return n
+
+def sweep(skew, guard):
+    0 => overlap
+    0 => gap
+    0 => clean
+    # 86..114 rather than 80..130: the interesting region is within 10 of the
+    # lease end, and the wider window multiplied the recorded trace to 20 MB
+    # for a program whose output is thirty lines.
+    for tick in [86:114]:
+        leaders_at(tick, skew, guard) => n
+        if n > 1:
+            overlap + 1 => overlap
+        elif n == 0:
+            gap + 1 => gap
+        else:
+            clean + 1 => clean
+    return [overlap, gap, clean]
+
+
+"skew  guard  overlap  gap  clean"^0
+0 => cells
+0 => any_overlap
+0 => any_gap
+for skew in [0, 2, 5, 10]:
+    for guard in [0, 3, 8]:
+        cells + 1 => cells
+        sweep(skew, guard) => r
+        if r[0] > 0:
+            any_overlap + 1 => any_overlap
+        if r[1] > 0:
+            any_gap + 1 => any_gap
+        ("%-5d %-6d %-8d %-4d %d" % (skew, guard, r[0], r[1], r[2]))^0
+
+""^0
+("(skew, guard) combinations: " + str(cells))^0
+("  with an overlap (two leaders): " + str(any_overlap))^0
+("  with a gap (no leader):        " + str(any_gap))^0
+
+# ------------------------------------------- the guard band is a trade
+# For a fixed skew, growing the guard removes overlap and creates gap. The
+# total of the two is what a guard band cannot reduce.
+""^0
+"at skew 5, as the guard grows:"^0
+"guard  overlap  gap  overlap+gap"^0
+for guard in [0, 2, 4, 5, 6, 8, 10]:
+    sweep(5, guard) => r
+    ("%-6d %-8d %-4d %d" % (guard, r[0], r[1], r[0] + r[1]))^0
+
+# -------------------------------------- the guard that is exactly enough
+# The smallest guard with no overlap, found by search rather than by formula -
+# a formula is exactly the thing this program exists to check.
+""^0
+"the guard that removes BOTH failures, found by search:"^0
+0 => found_all
+0 => skews
+for skew in [0, 2, 5, 10]:
+    skews + 1 => skews
+    0 - 1 => best
+    for guard in [0:8]:
+        sweep(skew, guard) => r
+        if r[0] == 0 and best < 0:
+            guard => best
+    if best >= 0:
+        found_all + 1 => found_all
+        sweep(skew, best) => r
+        "" => note
+        if best * 2 == skew:
+            "   = skew/2, and the gap it creates is 0" => note
+        ("  skew %-3d smallest guard with no overlap: %-3d  gap: %d%s" % (skew, best, r[1], note))^0
+
+# ------------------------------------------ zero skew is the only clean case
+""^0
+sweep(0, 0) => perfect
+("with no skew and no guard: overlap " + str(perfect[0]) + ", gap " + str(perfect[1]) + ", clean " + str(perfect[2]))^0
+"...which is the configuration every test runs under."^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# With perfect clocks and no guard there must be neither overlap nor gap.
+checked + 1 => checked
+if perfect[0] == 0 and perfect[1] == 0:
+    passed + 1 => passed
+
+# Skew with no guard must produce an overlap - two leaders.
+checked + 1 => checked
+sweep(5, 0) => s5
+if s5[0] > 0:
+    passed + 1 => passed
+
+# Overshooting the guard must create a gap. Undershooting must leave an
+# overlap. Both halves, because the point is that the value is exact.
+checked + 1 => checked
+sweep(6, 8) => over
+sweep(6, 1) => under
+if over[0] == 0 and over[1] > 0 and under[0] > 0:
+    passed + 1 => passed
+
+# The smallest safe guard must be found for every skew, and it must grow with
+# the skew rather than being a constant.
+checked + 1 => checked
+0 => g0
+0 => g10
+for guard in [0:8]:
+    if sweep(0, guard)[0] == 0 and g0 == 0:
+        guard => g0
+    if sweep(10, guard)[0] == 0 and g10 == 0:
+        guard => g10
+if found_all == skews and g10 > g0:
+    passed + 1 => passed
+
+# There must be exactly ONE guard per skew that removes both failures, and it
+# must be half the skew. This file first asserted that no such guard exists -
+# the sweep disproved it, and the truth is the more useful statement: the
+# guard band has a single correct value, not a safe range.
+checked + 1 => checked
+0 => perfect_guards
+0 => wrong_value
+for skew in [2, 4, 6, 10]:
+    0 => found
+    for guard in [0:8]:
+        sweep(skew, guard) => r
+        if r[0] == 0 and r[1] == 0:
+            found + 1 => found
+            if not (guard * 2 == skew):
+                wrong_value + 1 => wrong_value
+    if found == 1:
+        perfect_guards + 1 => perfect_guards
+if perfect_guards == 4 and wrong_value == 0:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "The guard band has one correct value, and it is half a skew nobody measures." => verdict
+else:
+    "FAILED - the lease model did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"Neither process is wrong and neither can detect the other, because each is" => n1
+n1^0
+"reading the only clock it has. What the sweep corrected is the shape of the" => n2
+n2^0
+"repair: the guard band is not a margin to be generous with, it has ONE" => n3
+n3^0
+"correct value - half the skew - and both directions of error are failures." => n4
+n4^0
+"Which means the parameter everyone tunes by feel is a function of a number" => n5
+n5^0
+"nobody measures." => n6
+n6^0

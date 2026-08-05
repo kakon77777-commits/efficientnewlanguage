@@ -1,0 +1,237 @@
+# Self-authored for the EML case corpus (no external origin). 03/04/2026,
+# which is two dates.
+#
+# A slashed date is ambiguous whenever both components are 12 or less, which
+# is most of the year:
+#
+#     03/04/2026   3 April in most of the world
+#                  4 March  in the United States
+#
+# The failure has no error state. Both readings produce a valid date, and a
+# system that guesses is right about 88% of the time - the 12/31 of pairs
+# where one component exceeds 12 and the ambiguity resolves itself.
+#
+# The measurement is exactly that: over every day of a year, how many
+# formatted dates are ambiguous, how many are resolvable from the values
+# alone, and how far apart the two readings are when they differ. Then the
+# same sweep with an unambiguous format, which resolves everything by
+# construction.
+#
+# What the program does NOT do is pick a locale. That is the point: the
+# information is not in the string, so no parser can recover it, and the only
+# repair is to change what is written down.
+
+[31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] => DAYS
+
+def slashed(d, m):
+    "" => s
+    if d < 10:
+        s + "0" => s
+    s + str(d) + "/" => s
+    if m < 10:
+        s + "0" => s
+    return s + str(m) + "/2026"
+
+def iso(d, m):
+    "2026-" => s
+    if m < 10:
+        s + "0" => s
+    s + str(m) + "-" => s
+    if d < 10:
+        s + "0" => s
+    return s + str(d)
+
+def day_of_year(d, m):
+    0 => n
+    for k in [1:m - 1]:
+        n + DAYS[k - 1] => n
+    return n + d
+
+def parse_dmy(s):
+    # "DD/MM/YYYY" -> [day, month] or a raise.
+    int(s[0:2]) => a
+    int(s[3:5]) => b
+    if b < 1 or b > 12:
+        raise ValueError("month " + str(b) + " is not a month")
+    if a < 1 or a > DAYS[b - 1]:
+        raise ValueError("day " + str(a) + " is not a day of month " + str(b))
+    return [a, b]
+
+def parse_mdy(s):
+    # The same string, read the other way.
+    int(s[0:2]) => a
+    int(s[3:5]) => b
+    if a < 1 or a > 12:
+        raise ValueError("month " + str(a) + " is not a month")
+    if b < 1 or b > DAYS[a - 1]:
+        raise ValueError("day " + str(b) + " is not a day of month " + str(a))
+    return [b, a]
+
+def parse_iso(s):
+    int(s[5:7]) => m
+    int(s[8:10]) => d
+    if m < 1 or m > 12:
+        raise ValueError("month " + str(m) + " is not a month")
+    if d < 1 or d > DAYS[m - 1]:
+        raise ValueError("day " + str(d) + " is not a day of month " + str(m))
+    return [d, m]
+
+
+"the date that is two dates:"^0
+"03/04/2026" => sample
+parse_dmy(sample) => as_dmy
+parse_mdy(sample) => as_mdy
+("  as DD/MM: day " + str(as_dmy[0]) + " of month " + str(as_dmy[1]) + "  (day " + str(day_of_year(as_dmy[0], as_dmy[1])) + " of the year)")^0
+("  as MM/DD: day " + str(as_mdy[0]) + " of month " + str(as_mdy[1]) + "  (day " + str(day_of_year(as_mdy[0], as_mdy[1])) + " of the year)")^0
+("  they are " + str(day_of_year(as_dmy[0], as_dmy[1]) - day_of_year(as_mdy[0], as_mdy[1])) + " days apart")^0
+
+# ------------------------------------------------- sweep the whole year
+0 => total
+0 => ambiguous
+0 => resolvable
+0 => worst_gap
+"" => worst_date
+for m in [1:12]:
+    for d in [1:DAYS[m - 1]]:
+        total + 1 => total
+        slashed(d, m) => s
+        0 => ok_dmy
+        0 => ok_mdy
+        try:
+            parse_dmy(s) => a
+            1 => ok_dmy
+        except ValueError as e:
+            0 => ok_dmy
+        try:
+            parse_mdy(s) => b
+            1 => ok_mdy
+        except ValueError as e:
+            0 => ok_mdy
+        if ok_dmy == 1 and ok_mdy == 1:
+            parse_dmy(s) => a
+            parse_mdy(s) => b
+            if day_of_year(a[0], a[1]) == day_of_year(b[0], b[1]):
+                resolvable + 1 => resolvable
+            else:
+                ambiguous + 1 => ambiguous
+                day_of_year(a[0], a[1]) - day_of_year(b[0], b[1]) => gap
+                if gap < 0:
+                    0 - gap => gap
+                if gap > worst_gap:
+                    gap => worst_gap
+                    s => worst_date
+        else:
+            resolvable + 1 => resolvable
+
+""^0
+("dates in the year:                    " + str(total))^0
+("  slashed form is ambiguous:          " + str(ambiguous))^0
+("  resolvable from the values alone:   " + str(resolvable))^0
+("  worst disagreement:                 " + str(worst_gap) + " days, on " + worst_date)^0
+
+# ------------------------------------ the resolvable ones are resolvable by luck
+# A date resolves only because one component exceeds 12 - a fact about the
+# date, not about the format. So the parser is correct on a majority of inputs
+# for a reason that has nothing to do with the parser.
+0 => resolved_by_range
+for m in [1:12]:
+    for d in [1:DAYS[m - 1]]:
+        if d > 12:
+            resolved_by_range + 1 => resolved_by_range
+
+""^0
+("dates where the day exceeds 12: " + str(resolved_by_range))^0
+("...which is why the slashed form works most of the time.")^0
+
+# -------------------------------------------------- the unambiguous format
+0 => iso_total
+0 => iso_ok
+for m in [1:12]:
+    for d in [1:DAYS[m - 1]]:
+        iso_total + 1 => iso_total
+        parse_iso(iso(d, m)) => r
+        if r[0] == d and r[1] == m:
+            iso_ok + 1 => iso_ok
+
+""^0
+("ISO dates parsed back exactly: " + str(iso_ok) + "/" + str(iso_total))^0
+
+# --------------------------------------- a wrong reading is still a valid date
+""^0
+"what a system does with a misread date:"^0
+for s in ["03/04/2026", "12/01/2026", "01/12/2026"]:
+    parse_dmy(s) => a
+    parse_mdy(s) => b
+    ("  " + s + " -> " + iso(a[0], a[1]) + " or " + iso(b[0], b[1]) + "   both valid, " + str(day_of_year(a[0], a[1]) - day_of_year(b[0], b[1])) + " days apart")^0
+
+# --------------------------------------------- malformed input is refused
+0 => refused
+for s in ["32/01/2026", "01/13/2026", "00/05/2026", "31/02/2026"]:
+    try:
+        parse_dmy(s) => v
+    except ValueError as e:
+        refused + 1 => refused
+
+""^0
+("clearly malformed slashed dates refused by DD/MM: " + str(refused) + "/4")^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# The ISO form must round-trip every date. This is the repair.
+checked + 1 => checked
+if iso_ok == iso_total:
+    passed + 1 => passed
+
+# The slashed form must be ambiguous on a real number of dates, and
+# unambiguous on a majority - the majority is why it survives.
+checked + 1 => checked
+if ambiguous > 0 and resolvable > ambiguous:
+    passed + 1 => passed
+
+# Every ambiguous date must have both components <= 12, and the count must
+# match exactly - the ambiguity is a property of the values, computed rather
+# than assumed.
+checked + 1 => checked
+0 => both_small
+for m in [1:12]:
+    for d in [1:DAYS[m - 1]]:
+        if d <= 12 and m <= 12 and not (d == m):
+            both_small + 1 => both_small
+if ambiguous == both_small:
+    passed + 1 => passed
+
+# A date where day equals month must NOT be ambiguous, since both readings
+# give the same answer. That is the edge the count above depends on.
+checked + 1 => checked
+parse_dmy("05/05/2026") => same_a
+parse_mdy("05/05/2026") => same_b
+if day_of_year(same_a[0], same_a[1]) == day_of_year(same_b[0], same_b[1]):
+    passed + 1 => passed
+
+# And malformed input must still be refused - ambiguity is not the same as
+# accepting anything.
+checked + 1 => checked
+if refused == 4:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "The information is not in the string, so no parser can recover it." => verdict
+else:
+    "FAILED - a parser did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"The slashed form is correct on most dates because most dates have a day" => n1
+n1^0
+"above 12, which is a fact about calendars rather than about the parser." => n2
+n2^0
+"That is the shape of the whole problem: the code appears to work, its" => n3
+n3^0
+"success rate is high and stable, and the reason has nothing to do with any" => n4
+n4^0
+"decision anyone made." => n5
+n5^0

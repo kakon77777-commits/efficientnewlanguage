@@ -1,0 +1,221 @@
+# Self-authored for the EML case corpus (no external origin). The state a
+# participant is in when nobody can tell it what to do.
+#
+# Two-phase commit has a window that is not a bug and cannot be removed. A
+# participant that has voted YES has promised it can commit, so it may not
+# abort unilaterally - and if the coordinator dies before sending the
+# decision, the participant is IN DOUBT. It holds its locks and waits.
+#
+#     PREPARED and no decision  ->  blocked, indefinitely
+#
+# The interesting part is what each recovery strategy does with that window,
+# because all three are implementable and only one preserves the guarantee:
+#
+#     presume-abort     a participant with no decision aborts
+#     presume-commit    a participant with no decision commits
+#     wait              a participant with no decision does nothing
+#
+# The first two are attempts to remove the blocking, and both break atomicity
+# on some crash point: some participants decide one way and some the other,
+# which is precisely the thing 2PC exists to prevent.
+#
+# The measurement is over every point at which the coordinator can crash,
+# crossed with every strategy. The property is ATOMICITY - all participants
+# reach the same outcome - checked by counting, and reported alongside how
+# many participants are left blocked, so the trade is visible rather than
+# asserted.
+
+# Participants vote in order. The coordinator writes its decision, then
+# notifies each participant in turn; a crash at step k means participants
+# after k never heard.
+3 => N
+
+def run(votes, crash_at, strategy):
+    # crash_at: -1 = no crash; 0 = before the decision is durable;
+    # k in 1..N = after notifying k participants.
+    # Returns [outcomes, blocked] where outcomes is a list per participant.
+    "commit" => decision
+    for v in votes:
+        if not v:
+            "abort" => decision
+
+    # A crash before the decision is durable means there IS no decision.
+    "" => durable
+    if not (crash_at == 0):
+        decision => durable
+
+    [] => outcomes
+    0 => blocked
+    for i in [0:N - 1]:
+        "" => told
+        if crash_at < 0:
+            durable => told
+        elif i < crash_at:
+            durable => told
+
+        if len(told) > 0:
+            outcomes + [told] => outcomes
+        else:
+            # In doubt. What happens now is the strategy.
+            if not votes[i]:
+                # A participant that voted NO may always abort - it never
+                # promised anything.
+                outcomes + ["abort"] => outcomes
+            elif strategy == "presume-abort":
+                outcomes + ["abort"] => outcomes
+            elif strategy == "presume-commit":
+                outcomes + ["commit"] => outcomes
+            else:
+                outcomes + ["blocked"] => outcomes
+                blocked + 1 => blocked
+    return [outcomes, blocked]
+
+def atomic(outcomes):
+    # Every participant that reached a decision reached the SAME one.
+    "" => seen
+    for o in outcomes:
+        if not (o == "blocked"):
+            if len(seen) == 0:
+                o => seen
+            elif not (seen == o):
+                return False
+    return True
+
+def render(outcomes):
+    "" => s
+    for o in outcomes:
+        if len(s) > 0:
+            s + "," => s
+        s + o[:1] => s
+    return s
+
+
+[[True, True, True], [True, True, False], [False, True, True]] => vote_sets
+["presume-abort", "presume-commit", "wait"] => strategies
+
+"votes      crash  presume-abort  presume-commit  wait"^0
+0 => cells
+{} => atomic_ok
+{} => blocked_total
+for st in strategies:
+    0 => atomic_ok[st]
+    0 => blocked_total[st]
+
+for votes in vote_sets:
+    for crash_at in [0 - 1:N]:
+        cells + 1 => cells
+        [] => cols
+        for st in strategies:
+            run(votes, crash_at, st) => r
+            if atomic(r[0]):
+                atomic_ok[st] + 1 => atomic_ok[st]
+            blocked_total[st] + r[1] => blocked_total[st]
+            cols + [render(r[0])] => cols
+        "" => vs
+        for v in votes:
+            if v:
+                vs + "Y" => vs
+            else:
+                vs + "N" => vs
+        ("%-10s %-6d %-14s %-15s %s" % (vs, crash_at, cols[0], cols[1], cols[2]))^0
+
+""^0
+("(votes, crash point) cells: " + str(cells))^0
+"strategy         atomic  participants left blocked"^0
+for st in strategies:
+    ("%-16s %-7s %d" % (st, str(atomic_ok[st]) + "/" + str(cells), blocked_total[st]))^0
+
+# ------------------------------------------------- where each one breaks
+""^0
+"the crash point that splits the participants:"^0
+for st in ["presume-abort", "presume-commit"]:
+    for votes in vote_sets:
+        for crash_at in [0 - 1:N]:
+            run(votes, crash_at, st) => r
+            if not atomic(r[0]):
+                "" => vs
+                for v in votes:
+                    if v:
+                        vs + "Y" => vs
+                    else:
+                        vs + "N" => vs
+                ("  " + st + ": votes " + vs + ", crash after " + str(crash_at) + " -> " + render(r[0]))^0
+
+# ------------------------------------------- the guarantee that survives
+# Waiting never produces a split. That is the whole of what 2PC promises, and
+# the price is written in the blocked column above rather than hidden.
+""^0
+0 => wait_splits
+for votes in vote_sets:
+    for crash_at in [0 - 1:N]:
+        run(votes, crash_at, "wait") => r
+        if not atomic(r[0]):
+            wait_splits + 1 => wait_splits
+("wait strategy, split outcomes: " + str(wait_splits))^0
+("wait strategy, blocked participant-cells: " + str(blocked_total["wait"]))^0
+"...blocking is the cost of atomicity, not a defect in the implementation."^0
+
+# ----------------------------------- with no crash, all three agree
+0 => nocrash_same
+0 => nocrash_n
+for votes in vote_sets:
+    nocrash_n + 1 => nocrash_n
+    run(votes, 0 - 1, "presume-abort") => a
+    run(votes, 0 - 1, "presume-commit") => b
+    run(votes, 0 - 1, "wait") => c
+    if render(a[0]) == render(b[0]) and render(b[0]) == render(c[0]):
+        nocrash_same + 1 => nocrash_same
+
+""^0
+("with no crash, strategies agreeing: " + str(nocrash_same) + "/" + str(nocrash_n))^0
+"...which is the entire happy path, and the only path most tests exercise."^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# Waiting must be atomic on every cell. This is the property.
+checked + 1 => checked
+if atomic_ok["wait"] == cells:
+    passed + 1 => passed
+
+# Both presumption strategies must break atomicity somewhere, or they would
+# be free improvements.
+checked + 1 => checked
+if atomic_ok["presume-abort"] < cells and atomic_ok["presume-commit"] < cells:
+    passed + 1 => passed
+
+# Waiting must actually block - a strategy that never blocks and never splits
+# would mean the window does not exist.
+checked + 1 => checked
+if blocked_total["wait"] > 0:
+    passed + 1 => passed
+
+# The presumption strategies must NOT block. That is what they bought.
+checked + 1 => checked
+if blocked_total["presume-abort"] == 0 and blocked_total["presume-commit"] == 0:
+    passed + 1 => passed
+
+# And with no crash all three must agree, which is why the difference is
+# invisible until something fails.
+checked + 1 => checked
+if nocrash_same == nocrash_n:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Blocking is what atomicity costs. Both ways of not blocking split the outcome." => verdict
+else:
+    "FAILED - a strategy did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"The in-doubt window is not an implementation gap that a better protocol" => n1
+n1^0
+"closes - it is what a participant knows, which is nothing. Presuming an" => n2
+n2^0
+"answer converts an availability problem into a correctness one, and the" => n3
+n3^0
+"conversion is invisible on every run where nothing crashed." => n4
+n4^0

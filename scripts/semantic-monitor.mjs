@@ -253,6 +253,23 @@ const SEMANTIC_FILES = [
   ],
   ['packages/transpiler-eml/src/py-parser.ts', ['tests/reverse-regression.test.ts', 'tests/reverse-blocks.test.ts']],
   ['packages/transpiler-eml/src/py-lexer.ts', ['tests/reverse-regression.test.ts', 'tests/reverse-blocks.test.ts']],
+  // Added 2026-08-05, and the third instance of the same hole. None of these
+  // files were on this list at all, and every one of them decides what the
+  // compiler CLAIMS about a program: whether a function is pure, how often it
+  // is called, how deep the call graph runs, whether a loop terminates. That
+  // account is what `eml explain`, the workbench panel and any agent reading
+  // EML output take at face value, and a claim that drifts from the program
+  // is self-consistent forever.
+  //
+  // The pattern to notice: the first hole was the forward grammar, the second
+  // was the trace, this one is the semantic account. Each time the missing
+  // files were ones that do not change what a program COMPUTES - which is
+  // exactly why they were easy to leave off, and exactly why leaving them off
+  // is a mistake.
+  ['packages/transpiler-python/src/purity.ts', ['tests/cts-faithfulness.test.ts', 'tests/phase2-functions.test.ts']],
+  ['packages/transpiler-python/src/importance.ts', ['tests/cts-faithfulness.test.ts', 'tests/phase2-functions.test.ts']],
+  ['packages/transpiler-python/src/loop-classifier.ts', ['tests/cts-faithfulness.test.ts', 'tests/phase2-functions.test.ts']],
+  ['packages/cts-generator/src/index.ts', ['tests/cts-faithfulness.test.ts', 'tests/bug-classifier.test.ts']],
 ];
 
 const hashOf = (rel) => {

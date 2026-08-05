@@ -17,7 +17,7 @@ itself the most useful thing this table records.
 
 ---
 
-## The ten axes, in the order they were built
+## The eleven axes, in the order they were built
 
 | # | axis | result | what it could not see |
 |---|---|---|---|
@@ -31,7 +31,8 @@ itself the most useful thing this table records.
 | 7 | slice bounds (3 containers × 10 starts × 10 stops) | 0 — clean first run | the compiler's **refusal** surface |
 | 8 | diagnostic reachability (23 codes) | 0 unreachable, 0 spurious | what the compiler decides two things ARE |
 | 9 | crystallization cache keys (35 variants, every pair) | 0 false cache hits | what the compiler RECORDS, as opposed to what it decides |
-| 10 | trace completeness (15 constructs, 12 output shapes) | **2 real defects** | `eml explain` / CTS metadata (not yet measured) |
+| 10 | trace completeness (15 constructs, 12 output shapes) | **2 real defects** | the compiler's SEMANTIC ACCOUNT of a program — purity, importance, loop kind |
+| 11 | CTS faithfulness (17 tests) | 0 — clean first run | cross-program claims: what the CTS says about a corpus, not a file |
 
 Read the right-hand column downward. Each axis was honest, each went green, and
 each was blind in a direction that could only be named after building the next
@@ -97,8 +98,31 @@ its listed conformance tests did, because the new gate was not on its list
 for that file. Same shape as the hole found on 2026-08-01, and fixed the same
 way — by adding the test, not by accepting the alert.
 
+**Axis 11 checks the compiler's account of a program rather than its output.**
+The CTS (Compact Task Summary) states what each function *is* — pure or not,
+important or not, what kind of loop it contains — and that summary is consumed
+by `eml explain`, by the BUG classifier and by every agent-facing tool. It is
+the layer where a wrong answer is most quietly authoritative, because nothing
+executes it: the CTS can say a function is pure while the function prints, and
+every downstream consumer will repeat the claim.
+
+It ran clean on the first pass. Purity is settled by execution — the test runs
+the function and asks whether anything reached stdout — so the expected side is
+measured, not typed, which is the only reason a clean result here means
+anything.
+
+The monitor had a **third** hole, and it was larger than the first two: the
+four files that produce the CTS (`purity.ts`, `importance.ts`,
+`loop-classifier.ts`, `cts-generator/src/index.ts`) were absent from its map
+entirely, so a change to any of them alerted on nothing. The three holes share
+a shape worth naming — every one of them is a file that does not change what a
+program COMPUTES. The forward grammar, the trace, and the semantic account are
+all *descriptions*, and a description that drifts still runs.
+
 There is a fourth thing the clean axes mean, and it is about the person
 rather than the code. As the implementation converged, the error rate moved.
+Across 2026-08-03 to 08-05 the count was six wrong premises, then three, then
+five — every one of them written by hand, every one corrected by a measurement.
 On the day axes 7 and 8 were built, **four separate expectations written by
 hand were wrong and the code was right** — a slice bound, a truncation rule,
 three diagnostic triggers, and a premise about run-length encoding that the

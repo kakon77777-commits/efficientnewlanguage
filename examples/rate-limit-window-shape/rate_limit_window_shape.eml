@@ -1,0 +1,182 @@
+# Self-authored for the EML case corpus (no external origin). "100 requests per
+# minute", enforced three ways with three different actual limits.
+#
+# A fixed window counts requests per calendar minute and resets at the
+# boundary. That allows a client to send the full quota at 0:59 and the full
+# quota again at 1:00 - twice the stated rate, inside one second, and every
+# individual minute is within limit.
+#
+# A sliding window counts the last 60 seconds from now, which has no boundary
+# to exploit. A token bucket refills continuously and additionally bounds the
+# BURST, which is the quantity a downstream service actually cares about.
+#
+# The measurement is a worst-case client - one that sends exactly at the
+# boundary - replayed through each limiter, reporting the largest number of
+# requests admitted in ANY 60-tick window. That number is the real limit, and
+# it is not the configured one for two of the three.
+
+60 => WINDOW
+10 => LIMIT
+
+def fixed_window(times):
+    # Admit while the count within the current calendar window is under LIMIT.
+    [] => admitted
+    {} => count
+    for t in times:
+        int(t / WINDOW) => w
+        0 => c
+        if w in count:
+            count[w] => c
+        if c < LIMIT:
+            c + 1 => count[w]
+            admitted + [t] => admitted
+    return admitted
+
+def sliding_window(times):
+    [] => admitted
+    for t in times:
+        0 => recent
+        for a in admitted:
+            if a > t - WINDOW and a <= t:
+                recent + 1 => recent
+        if recent < LIMIT:
+            admitted + [t] => admitted
+    return admitted
+
+def token_bucket(times, capacity):
+    # Refills at LIMIT per WINDOW; `capacity` bounds the burst. Tokens are
+    # tracked in thousandths so the refill is integer arithmetic.
+    [] => admitted
+    capacity * 1000 => tokens
+    0 => last
+    for t in times:
+        t - last => elapsed
+        t => last
+        tokens + int(elapsed * LIMIT * 1000 / WINDOW) => tokens
+        if tokens > capacity * 1000:
+            capacity * 1000 => tokens
+        if tokens >= 1000:
+            tokens - 1000 => tokens
+            admitted + [t] => admitted
+    return admitted
+
+def worst_window(admitted):
+    # The largest number admitted in any 60-tick span.
+    0 => worst
+    for a in admitted:
+        0 => c
+        for b in admitted:
+            if b >= a and b < a + WINDOW:
+                c + 1 => c
+        if c > worst:
+            c => worst
+    return worst
+
+
+# A client that has learned where the boundary is: everything at 55..59 and
+# again at 60..64.
+[] => burst_client
+for t in [55:59]:
+    for k in [1:4]:
+        burst_client + [t] => burst_client
+for t in [60:64]:
+    for k in [1:4]:
+        burst_client + [t] => burst_client
+
+# A steady client at one request per seven ticks - about 8.5 per window,
+# which is UNDER the configured limit. The first version used one per three
+# ticks, i.e. 20 per window, and then asserted a correct limiter would admit
+# all of them: a compliant-client check whose client was not compliant.
+[] => steady_client
+for k in [0:39]:
+    steady_client + [k * 7] => steady_client
+
+"limiter          burst client: admitted / worst 60-tick   steady client"^0
+{} => res
+for pair in [["fixed", 0], ["sliding", 0], ["bucket-10", 10], ["bucket-3", 3]]:
+    pair[0] => nm
+    pair[1] => cap
+    if nm == "fixed":
+        fixed_window(burst_client) => ab
+        fixed_window(steady_client) => as_
+    elif nm == "sliding":
+        sliding_window(burst_client) => ab
+        sliding_window(steady_client) => as_
+    else:
+        token_bucket(burst_client, cap) => ab
+        token_bucket(steady_client, cap) => as_
+    [len(ab), worst_window(ab), len(as_)] => res[nm]
+    ("%-16s %-12d %-15d %d" % (nm, len(ab), worst_window(ab), len(as_)))^0
+
+""^0
+("configured limit: " + str(LIMIT) + " per " + str(WINDOW) + " ticks")^0
+("burst client sent: " + str(len(burst_client)) + " requests")^0
+("steady client sent: " + str(len(steady_client)) + " requests")^0
+
+# ------------------------------------------ the boundary exploit, in numbers
+""^0
+("the real limit each one enforces, in the worst 60-tick window:")^0
+for nm in ["fixed", "sliding", "bucket-10", "bucket-3"]:
+    "" => note
+    if res[nm][1] > LIMIT:
+        " <- above the configured limit" => note
+    ("  %-11s %d%s" % (nm, res[nm][1], note))^0
+
+# ----------------------------------------- what the burst bound costs
+""^0
+("a tighter burst bound also admits fewer from the steady client:")^0
+("  bucket-10 steady admitted: " + str(res["bucket-10"][2]) + "/" + str(len(steady_client)))^0
+("  bucket-3  steady admitted: " + str(res["bucket-3"][2]) + "/" + str(len(steady_client)))^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# The fixed window must admit more than the configured limit in some 60-tick
+# span. That is the boundary exploit.
+checked + 1 => checked
+if res["fixed"][1] > LIMIT:
+    passed + 1 => passed
+
+# The sliding window must not.
+checked + 1 => checked
+if res["sliding"][1] <= LIMIT:
+    passed + 1 => passed
+
+# Every limiter must admit at most as many as were sent, and at least one.
+checked + 1 => checked
+0 => sane
+for nm in ["fixed", "sliding", "bucket-10", "bucket-3"]:
+    if res[nm][0] > 0 and res[nm][0] <= len(burst_client):
+        sane + 1 => sane
+if sane == 4:
+    passed + 1 => passed
+
+# A tighter burst bound must admit strictly fewer of the burst client.
+checked + 1 => checked
+if res["bucket-3"][0] < res["bucket-10"][0]:
+    passed + 1 => passed
+
+# And the steady client must be admitted in full by the sliding window - a
+# limiter that throttles a compliant client is not enforcing the stated rate.
+checked + 1 => checked
+if res["sliding"][2] == len(steady_client):
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "A fixed window enforces twice its stated rate for one second per minute." => verdict
+else:
+    "FAILED - a limiter did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"Every individual minute is within limit, which is what the limiter checks" => n1
+n1^0
+"and what a dashboard shows. The quantity the downstream service feels is" => n2
+n2^0
+"the worst window across the boundary, and no fixed-window implementation" => n3
+n3^0
+"ever computes it." => n4
+n4^0
