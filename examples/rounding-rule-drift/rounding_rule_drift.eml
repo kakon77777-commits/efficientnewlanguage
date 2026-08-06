@@ -1,0 +1,180 @@
+# Self-authored for the EML case corpus (no external origin). Four rounding
+# rules, one of which is why banks use the one that looks arbitrary.
+#
+# "Round to the nearest" is unambiguous except at exactly one half, and half is
+# where every rule differs:
+#
+#     half-up      1.5 -> 2, 2.5 -> 3    the one taught in school
+#     half-even    1.5 -> 2, 2.5 -> 2    ties go to the even neighbour
+#     half-down    1.5 -> 1, 2.5 -> 2
+#     truncate     1.5 -> 1, 2.5 -> 2    not rounding at all, but common
+#
+# On any single value the difference is at most one unit and looks like a
+# detail. Over a column of values it is not a detail, because half-up moves
+# EVERY tie in the same direction, so the error does not cancel - it
+# accumulates linearly in the number of ties. Half-even sends half the ties up
+# and half down, so it does cancel.
+#
+# Everything here is exact integer arithmetic on rationals n/d, so the
+# measurement is of the RULES and not of floating point. Values are
+# non-negative, which is the case where all four rules are at their most
+# similar; negatives make truncate and half-down diverge further.
+
+def floor_div(n, d):
+    # n and d non-negative, so truncation is floor.
+    return int(n / d)
+
+def round_rule(n, d, rule):
+    # Round n/d to an integer under `rule`.
+    floor_div(n, d) => q
+    n - q * d => r
+    if 2 * r > d:
+        return q + 1
+    if 2 * r < d:
+        return q
+    # Exactly a tie.
+    if rule == "half-up":
+        return q + 1
+    if rule == "half-down":
+        return q
+    if rule == "trunc":
+        return q
+    if q % 2 == 0:
+        return q
+    return q + 1
+
+def is_tie(n, d):
+    floor_div(n, d) => q
+    n - q * d => r
+    return 2 * r == d
+
+
+["half-up", "half-even", "half-down", "trunc"] => RULES
+
+# Every half from 0/2 to 40/2, which is 21 whole numbers and 20 ties.
+2 => D
+40 => TOP
+
+"rule        sum of rounded   exact sum   drift   ties sent up"^0
+0 => exact_n
+0 => ties
+for n in [0:TOP]:
+    exact_n + n => exact_n
+    if is_tie(n, D):
+        ties + 1 => ties
+exact_n / D => exact_sum
+
+{} => res
+for rule in RULES:
+    0 => total
+    0 => up
+    for n in [0:TOP]:
+        round_rule(n, D, rule) => v
+        total + v => total
+        if is_tie(n, D) and v * D > n:
+            up + 1 => up
+    total - exact_sum => drift
+    [total, drift, up] => res[rule]
+    ("%-11s %-16d %-11s %-7s %d" % (rule, total, str(exact_sum), str(drift), up))^0
+
+""^0
+("values rounded: " + str(TOP + 1) + " (every half from 0 to " + str(TOP / D) + ")")^0
+("of which exact ties: " + str(ties))^0
+
+# -------------------------------- the drift a tie-breaking rule must have
+""^0
+"a rule that sends every tie the same way must drift by half a unit per tie:"^0
+ties / 2 => predicted
+("  ties: " + str(ties) + ", so predicted drift for a one-directional rule: " + str(predicted))^0
+for rule in RULES:
+    res[rule] => r
+    "" => note
+    if r[1] == predicted:
+        " = predicted" => note
+    if r[1] == 0 - predicted:
+        " = minus predicted" => note
+    if r[1] == 0:
+        " = no drift" => note
+    ("  %-11s drift %s%s" % (rule, str(r[1]), note))^0
+
+# ------------------------------------- sum of rounded vs round of sum
+""^0
+"summing then rounding is not rounding then summing:"^0
+0 => disagree
+for rule in RULES:
+    round_rule(exact_n, D, rule) => round_of_sum
+    res[rule] => r
+    if not (r[0] == round_of_sum):
+        disagree + 1 => disagree
+    ("  %-11s sum of rounded %-6d round of sum %d" % (rule, r[0], round_of_sum))^0
+("rules where the two orders disagree: " + str(disagree) + "/" + str(len(RULES)))^0
+
+# --------------------------------- where the rules cannot be told apart
+""^0
+0 => non_tie_same
+0 => non_tie_n
+for n in [0:TOP]:
+    if not is_tie(n, D):
+        non_tie_n + 1 => non_tie_n
+        round_rule(n, D, "half-up") => a
+        1 => same
+        for rule in RULES:
+            if not (round_rule(n, D, rule) == a):
+                0 => same
+        if same == 1:
+            non_tie_same + 1 => non_tie_same
+("values that are NOT ties: " + str(non_tie_n) + ", on which all four rules agree: " + str(non_tie_same))^0
+"...so a test whose fixtures avoid exact halves cannot distinguish the rules."^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# All four rules must agree on every non-tie. If they differed anywhere else
+# the comparison would not be about tie-breaking.
+checked + 1 => checked
+if non_tie_same == non_tie_n:
+    passed + 1 => passed
+
+# Half-up must drift by exactly half a unit per tie - the predicted value,
+# computed from the tie count rather than written down.
+checked + 1 => checked
+if res["half-up"][1] == predicted:
+    passed + 1 => passed
+
+# Half-even must not drift at all over this range. That is the entire reason
+# it exists, and it is a measurement rather than a claim.
+checked + 1 => checked
+if res["half-even"][1] == 0:
+    passed + 1 => passed
+
+# Half-up must send every tie up, and half-even exactly half of them.
+checked + 1 => checked
+if res["half-up"][2] == ties and res["half-even"][2] * 2 == ties:
+    passed + 1 => passed
+
+# And the two orders of summing and rounding must disagree for at least one
+# rule, or 'sum of rounded' would be a safe substitution.
+checked + 1 => checked
+if disagree > 0:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Half-even looks arbitrary because its purpose only appears in a column." => verdict
+else:
+    "FAILED - a rounding rule did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"The rule that looks strange on one value is the one that is correct on a" => n1
+n1^0
+"thousand, because the question a rounding rule answers is not 'which way" => n2
+n2^0
+"does this go' but 'what happens to the total'. Any rule that resolves ties" => n3
+n3^0
+"in a fixed direction has a bias proportional to the number of ties, and a" => n4
+n4^0
+"test suite whose fixtures are not exact halves will never see it." => n5
+n5^0

@@ -1,0 +1,186 @@
+# Self-authored for the EML case corpus (no external origin). A satisfaction
+# score that rises every quarter while the product gets worse.
+#
+# Metrics computed over the population that is still here are computed over a
+# sample that the thing being measured selected. As a product degrades, the
+# users who mind leave; the ones who remain are by definition the ones who mind
+# least; so the average tolerance of the remaining users goes UP. The metric is
+# not lying and is not miscomputed. It is measuring a different population
+# every period, and the selection is done by the variable under study.
+#
+# Three quantities are tracked per period, all over the same population:
+#
+#     population       the number still active
+#     mean tolerance   average over the SURVIVORS - rises, always
+#     mean headroom    tolerance minus the current annoyance, which is what a
+#                      satisfaction survey of active users actually measures
+#
+# The third is the interesting one, because whether it rises or falls is not
+# obvious in advance: the annoyance rises for everyone, and the survivors are
+# increasingly tolerant. Which effect wins is a measurement, not an argument,
+# and this file reports which one did.
+#
+# Everything is integer. Users have a fixed integer tolerance; a user churns
+# in the first period where the annoyance exceeds their tolerance. Nothing is
+# random, so the result is a property of the shape rather than of a seed.
+
+def build_users(n):
+    # Tolerances spread from 1 to n. A user with tolerance t leaves as soon as
+    # annoyance > t, so the population is a step function of annoyance.
+    [] => us
+    for i in [1:n]:
+        us + [i] => us
+    return us
+
+def survivors(users, annoyance):
+    [] => out
+    for t in users:
+        if t >= annoyance:
+            out + [t] => out
+    return out
+
+def mean_x10(xs):
+    if len(xs) == 0:
+        return 0
+    0 => s
+    for x in xs:
+        s + x => s
+    return int(s * 10 / len(xs))
+
+def show10(v):
+    return str(int(v / 10)) + "." + str(v % 10)
+
+
+40 => N
+build_users(N) => users
+
+"period  annoyance  population  mean tolerance  mean headroom"^0
+{} => hist
+[] => tol_series
+[] => head_series
+[] => pop_series
+for p in [1:8]:
+    p * 4 => annoy
+    survivors(users, annoy) => alive
+    mean_x10(alive) => tol
+    tol - annoy * 10 => head
+    [len(alive), tol, head] => hist[str(p)]
+    tol_series + [tol] => tol_series
+    head_series + [head] => head_series
+    pop_series + [len(alive)] => pop_series
+    ("%-7d %-10d %-11d %-15s %s" % (p, annoy, len(alive), show10(tol), show10(head)))^0
+
+""^0
+("users at the start: " + str(N))^0
+("annoyance rises by 4 every period - the product only ever gets worse")^0
+
+# ------------------------------------------ the three directions
+""^0
+"direction of each series from first period to last:"^0
+0 => tol_rising
+0 => pop_falling
+0 => head_rising
+0 => head_falling
+for i in [0:len(tol_series) - 2]:
+    if tol_series[i + 1] > tol_series[i]:
+        tol_rising + 1 => tol_rising
+    if pop_series[i + 1] < pop_series[i]:
+        pop_falling + 1 => pop_falling
+    if head_series[i + 1] > head_series[i]:
+        head_rising + 1 => head_rising
+    if head_series[i + 1] < head_series[i]:
+        head_falling + 1 => head_falling
+len(tol_series) - 1 => steps
+("  mean tolerance rose on   " + str(tol_rising) + "/" + str(steps) + " steps")^0
+("  population fell on       " + str(pop_falling) + "/" + str(steps) + " steps")^0
+("  mean headroom rose on    " + str(head_rising) + "/" + str(steps) + " steps")^0
+("  mean headroom fell on    " + str(head_falling) + "/" + str(steps) + " steps")^0
+
+# --------------------------------- the same question asked of everyone
+""^0
+"the same metric over EVERYONE who ever signed up, not just survivors:"^0
+mean_x10(users) => all_tol
+("  mean tolerance of the full cohort: " + show10(all_tol) + " (constant - nobody's tolerance changed)")^0
+for p in [1, 4, 8]:
+    hist[str(p)] => h
+    ("  period " + str(p) + ": survivors report " + show10(h[1]) + ", cohort is still " + show10(all_tol))^0
+"...the cohort number cannot move, because tolerance is a fact about a user"^0
+"and not about a period. Only the sample moved."^0
+
+# -------------------------------- what the churned users would have said
+""^0
+"mean tolerance of the users who LEFT, by period:"^0
+0 => leavers_lower
+0 => leaver_periods
+for p in [1:8]:
+    p * 4 => annoy
+    [] => gone
+    for t in users:
+        if t < annoy:
+            gone + [t] => gone
+    if len(gone) > 0:
+        leaver_periods + 1 => leaver_periods
+        mean_x10(gone) => g
+        if g < hist[str(p)][1]:
+            leavers_lower + 1 => leavers_lower
+        ("  period %d: %d left, mean tolerance %s" % (p, len(gone), show10(g)))^0
+("periods where the leavers were less tolerant than the stayers: " + str(leavers_lower) + "/" + str(leaver_periods))^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# Mean tolerance among survivors must rise on EVERY step. Not usually - every
+# one, because the selection is deterministic.
+checked + 1 => checked
+if tol_rising == steps:
+    passed + 1 => passed
+
+# The population must fall on every step, so nothing about the rise can be
+# explained by the cohort growing.
+checked + 1 => checked
+if pop_falling == steps:
+    passed + 1 => passed
+
+# The full-cohort figure must not move at all. If it did, tolerance would be
+# changing and the selection story would have a competitor.
+checked + 1 => checked
+0 => cohort_stable
+for p in [1:8]:
+    if mean_x10(users) == all_tol:
+        cohort_stable + 1 => cohort_stable
+if cohort_stable == 8:
+    passed + 1 => passed
+
+# Mean headroom must FALL throughout - the measured answer to the question
+# this file could not settle in advance. The survivor bias is real and it is
+# not large enough to outrun the annoyance it selects on.
+checked + 1 => checked
+if head_falling == steps and head_rising == 0:
+    passed + 1 => passed
+
+# And the leavers must be less tolerant than the stayers in every period, or
+# the mechanism is something other than selection.
+checked + 1 => checked
+if leavers_lower == leaver_periods and leaver_periods > 0:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Tolerance rises every period, and nobody became more tolerant." => verdict
+else:
+    "FAILED - a cohort metric did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"A metric over active users answers a question about a sample chosen by the" => n1
+n1^0
+"thing being measured, so it will improve as the product loses the people" => n2
+n2^0
+"who would have dragged it down. What separates the two readings is not a" => n3
+n3^0
+"better statistic - it is asking the question of the cohort instead of the" => n4
+n4^0
+"population, which requires having kept the people who left." => n5
+n5^0

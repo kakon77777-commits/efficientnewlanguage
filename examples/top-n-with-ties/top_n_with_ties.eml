@@ -1,0 +1,273 @@
+# Self-authored for the EML case corpus (no external origin). "The top three"
+# when four people are tied for third.
+#
+# Top-N is not a well-defined operation on a list with ties. When the score at
+# position N is shared, choosing N items requires choosing WHICH of the tied
+# items, and nothing in the data says. Every implementation resolves it
+# somehow - by input order, by whatever the sort happened to do, by an id that
+# was never meant to be a ranking - and the resolution is stable only by
+# accident.
+#
+# Three defensible policies, and they return different numbers of rows:
+#
+#     strict-N     exactly N rows, tie broken arbitrarily - reproducible only
+#                  if the underlying order is
+#     dense        every row whose score reaches the Nth score - more than N
+#                  rows when the boundary is tied
+#     exclude-tie  drop the whole tied band - fewer than N rows
+#
+# The measurement runs all three over several orderings of the same scores and
+# reports the row counts and whether the answer depends on input order.
+
+def sort_desc(rows):
+    # Insertion sort on score, descending. Stable: equal scores keep their
+    # input order, which is what makes strict-N's answer a function of the
+    # INPUT ORDER rather than of the data.
+    [] => out
+    for r in rows:
+        out + [r] => out
+    1 => i
+    while i < len(out):
+        out[i] => cur
+        i - 1 => j
+        while j >= 0 and out[j][1] < cur[1]:
+            out[j] => out[j + 1]
+            j - 1 => j
+        cur => out[j + 1]
+        i + 1 => i
+    return out
+
+def top_strict(rows, n):
+    sort_desc(rows) => s
+    [] => out
+    for i in [0:len(s) - 1]:
+        if len(out) < n:
+            out + [s[i]] => out
+    return out
+
+def top_dense(rows, n):
+    sort_desc(rows) => s
+    if len(s) < n:
+        return s
+    s[n - 1][1] => cutoff
+    [] => out
+    for r in s:
+        if r[1] >= cutoff:
+            out + [r] => out
+    return out
+
+def top_exclude(rows, n):
+    # The largest prefix of at most n rows that does not SPLIT a tied group.
+    #
+    # The first version of this returned every row scoring strictly above the
+    # nth score, which drops the nth row even when nothing is tied - so it
+    # returned n-1 rows on data with no ties at all, and the case blamed the
+    # tie for a defect in the policy's implementation. The measurement caught
+    # it because the no-tie control was in the file.
+    sort_desc(rows) => s
+    if len(s) <= n:
+        return s
+    n => k
+    while k > 0 and s[k - 1][1] == s[k][1]:
+        k - 1 => k
+    [] => out
+    for i in [0:len(s) - 1]:
+        if i < k:
+            out + [s[i]] => out
+    return out
+
+def names_of(rows):
+    # In the order the policy emitted them.
+    "" => s
+    for r in rows:
+        if len(s) > 0:
+            s + "," => s
+        s + r[0] => s
+    return s
+
+def canon_names(rows):
+    # Alphabetically, so two results can be compared as SETS.
+    #
+    # This distinction is the second thing the measurement forced. Comparing
+    # dense's output as a rendered string made it look unstable across input
+    # orderings; it is not - the membership is fixed and only the emitted
+    # ORDER within the tied band moves. Both facts are worth having, and only
+    # one of them is a defect in the policy.
+    [] => ns
+    for r in rows:
+        ns + [r[0]] => ns
+    1 => i
+    while i < len(ns):
+        ns[i] => cur
+        i - 1 => j
+        while j >= 0 and ns[j] > cur:
+            ns[j] => ns[j + 1]
+            j - 1 => j
+        cur => ns[j + 1]
+        i + 1 => i
+    "" => s
+    for n in ns:
+        if len(s) > 0:
+            s + "," => s
+        s + n => s
+    return s
+
+
+3 => N
+
+[
+    ["ana", 95], ["bo", 88], ["cy", 71], ["di", 71],
+    ["eli", 71], ["fay", 64], ["gus", 71]
+] => scores
+
+"scores:"^0
+for r in sort_desc(scores):
+    ("  %-5s %d" % (r[0], r[1]))^0
+
+sort_desc(scores) => sorted_all
+sorted_all[N - 1][1] => cutoff
+0 => at_cutoff
+for r in scores:
+    if r[1] == cutoff:
+        at_cutoff + 1 => at_cutoff
+""^0
+("asking for the top " + str(N))^0
+("  the " + str(N) + "th score is " + str(cutoff))^0
+("  entries holding that score: " + str(at_cutoff))^0
+
+""^0
+"policy         rows   who"^0
+{} => res
+for pol in ["strict", "dense", "exclude"]:
+    [] => out
+    if pol == "strict":
+        top_strict(scores, N) => out
+    elif pol == "dense":
+        top_dense(scores, N) => out
+    else:
+        top_exclude(scores, N) => out
+    len(out) => res[pol]
+    ("%-14s %-6d %s" % (pol, len(out), names_of(out)))^0
+
+""^0
+("policies returning exactly " + str(N) + " rows: ")^0
+0 => exactly_n
+for pol in ["strict", "dense", "exclude"]:
+    if res[pol] == N:
+        exactly_n + 1 => exactly_n
+        ("  " + pol)^0
+("  count: " + str(exactly_n) + "/3")^0
+
+# ------------------------- strict-N depends on the order it was given
+""^0
+"strict-" + str(N) + " over different orderings of the SAME scores:"^0
+[
+    ["ana", "bo", "cy", "di", "eli", "fay", "gus"],
+    ["gus", "eli", "di", "cy", "fay", "bo", "ana"],
+    ["di", "ana", "gus", "fay", "cy", "bo", "eli"]
+] => orders
+{} => strict_answers
+{} => dense_sets
+{} => dense_orders
+for o in orders:
+    [] => rows
+    for nm in o:
+        for r in scores:
+            if r[0] == nm:
+                rows + [r] => rows
+    names_of(top_strict(rows, N)) => a
+    1 => strict_answers[canon_names(top_strict(rows, N))]
+    1 => dense_sets[canon_names(top_dense(rows, N))]
+    1 => dense_orders[names_of(top_dense(rows, N))]
+    ("  " + a)^0
+("distinct strict-" + str(N) + " results, as sets:   " + str(len(strict_answers)))^0
+("distinct dense results, as sets:      " + str(len(dense_sets)))^0
+("distinct dense results, as SEQUENCES: " + str(len(dense_orders)))^0
+"...dense answers a well-posed question and still renders it differently"^0
+"each time, because the order inside the tied band comes from the input."^0
+
+# ------------------------------------ everyone at the cutoff is equal
+""^0
+"the entries strict-" + str(N) + " kept and dropped at the cutoff score:"^0
+top_strict(scores, N) => kept
+for r in sorted_all:
+    if r[1] == cutoff:
+        0 => in_kept
+        for k in kept:
+            if k[0] == r[0]:
+                1 => in_kept
+        "dropped" => what
+        if in_kept == 1:
+            "kept" => what
+        ("  " + r[0] + " (" + str(r[1]) + "): " + what)^0
+"...and nothing in the data distinguishes them."^0
+
+# ------------------------ with no tie at the boundary, all three agree
+""^0
+[["ana", 95], ["bo", 88], ["cy", 80], ["di", 71], ["eli", 64]] => distinct_scores
+0 => agree
+for pol in ["strict", "dense", "exclude"]:
+    [] => out
+    if pol == "strict":
+        top_strict(distinct_scores, N) => out
+    elif pol == "dense":
+        top_dense(distinct_scores, N) => out
+    else:
+        top_exclude(distinct_scores, N) => out
+    if len(out) == N:
+        agree + 1 => agree
+("with all scores distinct, policies returning exactly " + str(N) + ": " + str(agree) + "/3")^0
+"...which is the fixture, and it hides the entire question."^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# The boundary must actually be tied, or there is nothing to decide.
+checked + 1 => checked
+if at_cutoff > 1:
+    passed + 1 => passed
+
+# The three policies must return three different row counts.
+checked + 1 => checked
+if not (res["strict"] == res["dense"]) and not (res["dense"] == res["exclude"]) and not (res["strict"] == res["exclude"]):
+    passed + 1 => passed
+
+# Only strict may return exactly N. Dense must return more and exclude fewer.
+checked + 1 => checked
+if res["strict"] == N and res["dense"] > N and res["exclude"] < N:
+    passed + 1 => passed
+
+# Strict must select different SETS on different orderings of the same data,
+# and dense must select the same set every time - while still emitting it in
+# more than one order. Three counts, because comparing the wrong one of them
+# is how this check was wrong the first time.
+checked + 1 => checked
+if len(strict_answers) > 1 and len(dense_sets) == 1 and len(dense_orders) > 1:
+    passed + 1 => passed
+
+# And with all scores distinct every policy must return exactly N, so the
+# disagreement is caused by the tie and by nothing else.
+checked + 1 => checked
+if agree == 3:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Four people tied for third, and the top three is a choice." => verdict
+else:
+    "FAILED - a top-N policy did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"Top-N asks for a count from data that only supplies an order, and when" => n1
+n1^0
+"the order runs out at the boundary the count has to come from somewhere" => n2
+n2^0
+"else. Every implementation has an answer to that and almost none of them" => n3
+n3^0
+"wrote it down, so the tie-break is whatever the sort, the index or the" => n4
+n4^0
+"insertion order happened to be - a detail that becomes a policy." => n5
+n5^0

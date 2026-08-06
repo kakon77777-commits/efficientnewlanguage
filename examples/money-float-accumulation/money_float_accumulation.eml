@@ -1,0 +1,168 @@
+# Self-authored for the EML case corpus (no external origin). A ledger that
+# balances, and a difference that prints as -0.00.
+#
+# 0.01 is not representable in binary floating point. The usual story about
+# this is that the error accumulates over a long ledger - that a thousand line
+# items drift somewhere a handful of items do not. This file was written to
+# demonstrate that story and the measurement disagreed with it twice:
+#
+#     TEN items already differ.  0.01 added ten times is not 0.1, and the
+#     shortest run measured here is already wrong. There is no safe length.
+#
+#     The direction is not stable. Over 10, 100, 500, 1000 and 2000 items the
+#     float total comes out low, high, low, low, high. It is not a drift in a
+#     known direction that a correction factor could absorb - two teams
+#     sampling different batch sizes will reach opposite conclusions about
+#     which side the money is on.
+#
+# A third premise also failed, and it is stated here as a check rather than
+# quietly dropped: converting a float price back to cents with the obvious
+# `int(x * 100 + 0.5)` is SAFE for every price from one cent to twenty
+# dollars. The danger is not representing a price. It is adding prices up.
+#
+# The measurement adds the same money two ways - as floats and as integer
+# cents - over runs of increasing length, and reports equality, the direction
+# of the gap, and what a reconciliation report would print.
+
+def add_float(n, cent):
+    0.0 => total
+    for k in [1:n]:
+        total + cent => total
+    return total
+
+def add_int(n, cent_i):
+    0 => total
+    for k in [1:n]:
+        total + cent_i => total
+    return total
+
+def cents_of(f):
+    # The conversion every system does at the boundary, written the obvious way.
+    return int(f * 100 + 0.5)
+
+
+[10, 100, 500, 1000, 2000] => RUNS
+
+"items    float total          exact total   equal"^0
+0 => agreed
+{} => res
+for n in RUNS:
+    add_float(n, 0.01) => f
+    add_int(n, 1) / 100 => exact
+    f == exact => same
+    [f, exact, same] => res[str(n)]
+    if same:
+        agreed + 1 => agreed
+    ("%-8d %-20s %-13s %s" % (n, str(f), str(exact), str(same)))^0
+
+""^0
+("run lengths tested: " + str(len(RUNS)))^0
+("  run lengths where the two totals are equal: " + str(agreed))^0
+"...including the shortest, which is ten cents."^0
+
+# ------------------------------------------- the direction of the error
+""^0
+"which side of the exact total the float lands on:"^0
+0 => low
+0 => high
+"" => pattern
+for n in RUNS:
+    res[str(n)] => r
+    "same" => side
+    if r[0] < r[1]:
+        low + 1 => low
+        "low" => side
+    if r[0] > r[1]:
+        high + 1 => high
+        "high" => side
+    if len(pattern) > 0:
+        pattern + " " => pattern
+    pattern + side => pattern
+    ("  n=%-6d %s" % (n, side))^0
+("  pattern across increasing n: " + pattern)^0
+("  runs low: " + str(low) + ", runs high: " + str(high))^0
+
+# ---------------------------------- the comparison that still looks right
+""^0
+"what a reconciliation report prints for a thousand items:"^0
+add_float(1000, 0.01) => f1000
+add_int(1000, 1) / 100 => e1000
+("  float total:      " + ("%.2f" % f1000))^0
+("  expected total:   " + ("%.2f" % e1000))^0
+("  difference:       " + ("%.2f" % (f1000 - e1000)))^0
+"...and the same two numbers compared before formatting:"^0
+("  equal: " + str(f1000 == e1000))^0
+
+# ------------------------------- the part that turned out to be fine
+""^0
+"converting a float price back to cents, every price from 1 to 2000:"^0
+0 => convert_bad
+0 => convert_n
+for cents in [1:2000]:
+    convert_n + 1 => convert_n
+    cents / 100 => as_float
+    if not (cents_of(as_float) == cents):
+        convert_bad + 1 => convert_bad
+("  prices tested: " + str(convert_n) + ", failed to round trip: " + str(convert_bad))^0
+"...so representing a single price is not the problem this case is about."^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# No run length may agree, including the shortest. The premise this file was
+# written to show - that short ledgers are safe - is the one the measurement
+# killed, and this check is what keeps it dead.
+checked + 1 => checked
+if agreed == 0:
+    passed + 1 => passed
+
+# The error must go BOTH ways across the run lengths. A one-directional error
+# would be a drift, and a drift can be corrected for; this cannot.
+checked + 1 => checked
+if low > 0 and high > 0:
+    passed + 1 => passed
+
+# The integer path must be exact at every length - it is the reference, and a
+# reference that drifts is not one.
+checked + 1 => checked
+0 => int_exact
+for n in RUNS:
+    if add_int(n, 1) == n:
+        int_exact + 1 => int_exact
+if int_exact == len(RUNS):
+    passed + 1 => passed
+
+# Formatted to two decimal places the difference must read as a zero - and
+# because the float came out LOW at a thousand items, it reads as "-0.00",
+# which is what the report actually shows.
+checked + 1 => checked
+if ("%.2f" % (f1000 - e1000)) == "-0.00" and not (f1000 == e1000):
+    passed + 1 => passed
+
+# And the boundary conversion must survive every price. This check asserts
+# that something is FINE: it holds the scope of the case honest, and if a
+# future change breaks it, the case is wrong rather than merely incomplete.
+checked + 1 => checked
+if convert_bad == 0:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Ten cents is already wrong, and the difference prints as -0.00." => verdict
+else:
+    "FAILED - the arithmetic did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"Money is a count of the smallest coin, not a measurement of a quantity." => n1
+n1^0
+"What the measurement corrected is the shape of the danger: it is not a" => n2
+n2^0
+"slow drift that appears at scale and leans one way. It is present at ten" => n3
+n3^0
+"items, it leans whichever way the bit pattern happens to fall, and every" => n4
+n4^0
+"check that formats before comparing will pass on both sides." => n5
+n5^0

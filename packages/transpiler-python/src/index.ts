@@ -38,6 +38,22 @@ const countNonEmpty = (s: string): number =>
   s.split('\n').filter((l) => l.trim() !== '').length;
 
 /**
+ * Byte offset of a 1-based (line, column) in `text`. Every other span in the
+ * pipeline carries an offset because the AST nodes do; lex and parse errors do
+ * not, so theirs is computed from the position they DO carry. Clamped to the
+ * text length so a position past the end still lands somewhere real.
+ */
+const offsetOfLineColumn = (text: string, line: number, column: number): number => {
+  let offset = 0;
+  for (let l = 1; l < line; l++) {
+    const nl = text.indexOf('\n', offset);
+    if (nl < 0) break;
+    offset = nl + 1;
+  }
+  return Math.min(offset + Math.max(0, column - 1), text.length);
+};
+
+/**
  * The deterministic EML/Py+ -> Python transpilation pipeline.
  * Never throws: lex/parse failures are returned as error diagnostics.
  */
@@ -99,13 +115,23 @@ export function transpileEmlToPython(
       },
     };
   } catch (err) {
+    // LexError and ParseError carry a line and a column and no offset, so the
+    // offset half of the span has to be derived here, where the text they were
+    // measured against is still in scope. It used to be hardcoded to 0: the
+    // line/column said one place and the offset said the top of the file, and
+    // nothing compared the two halves of a span to each other. The span is
+    // zero-width because the error carries no token length — a caret, not a
+    // range.
+    const errLine = err instanceof LexError || err instanceof ParseError ? err.line : 1;
+    const errColumn = err instanceof LexError || err instanceof ParseError ? err.column : 1;
+    const errStart = offsetOfLineColumn(normalized, errLine, errColumn);
     const diagnostic =
       err instanceof LexError || err instanceof ParseError
         ? {
             severity: 'error' as const,
             code: err instanceof LexError ? 'E_LEX' : 'E_PARSE',
             message: err.message,
-            span: { start: 0, end: 0, line: err.line, column: err.column },
+            span: { start: errStart, end: errStart, line: err.line, column: err.column },
           }
         : {
             severity: 'error' as const,

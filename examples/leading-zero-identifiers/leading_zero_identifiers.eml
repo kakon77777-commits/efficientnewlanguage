@@ -1,0 +1,159 @@
+# Self-authored for the EML case corpus (no external origin). An identifier
+# stored as a number, and the two customers who became one.
+#
+# Account numbers, ZIP codes, part numbers, phone numbers and order references
+# are written with digits and are not quantities. Nothing is ever added to
+# them. The only operations they support are equality and display. Stored as an
+# integer they lose leading zeros, which means:
+#
+#     "007" and "7" become the same key       - two records merge silently
+#     "0123" prints as "123"                  - the display is wrong
+#     a 19-digit reference loses its last digits to float precision
+#
+# None of these raise. The insert succeeds, the lookup succeeds, and the
+# customer whose account begins with a zero is served someone else's data.
+#
+# The measurement runs a set of real-shaped identifiers through an integer
+# round trip and counts three separate failures: identifiers that do not come
+# back as themselves, distinct identifiers that COLLIDE, and identifiers that
+# lose digits entirely.
+
+def digits_only(s):
+    # An identifier is a string of digits; anything else is not this problem.
+    if len(s) == 0:
+        return False
+    for i in [0:len(s) - 1]:
+        s[i] => c
+        if not (c == "0" or c == "1" or c == "2" or c == "3" or c == "4" or c == "5" or c == "6" or c == "7" or c == "8" or c == "9"):
+            return False
+    return True
+
+def through_int(s):
+    # Store as an integer, read back as a string. The obvious implementation.
+    return str(int(s))
+
+def through_float(s):
+    # What a JSON parser without a big-integer path does.
+    return str(int(float(s)))
+
+
+[
+    "007",
+    "7",
+    "0123",
+    "123",
+    "00000",
+    "0",
+    "90210",
+    "02134",
+    "4007000000000000",
+    "9007199254740993"
+] => ids
+
+"identifier          via int             via float           survives"^0
+0 => n
+0 => broken
+{} => back
+for s in ids:
+    n + 1 => n
+    through_int(s) => a
+    through_float(s) => b
+    s == a => ok
+    if not ok:
+        broken + 1 => broken
+    a => back[s]
+    ("%-19s %-19s %-19s %s" % (s, a, b, str(ok)))^0
+
+""^0
+("identifiers tested: " + str(n))^0
+("  do not survive an integer round trip: " + str(broken))^0
+
+# ------------------------------------------------ the silent merge
+""^0
+"distinct identifiers that map to the SAME integer key:"^0
+0 => collisions
+for i in [0:len(ids) - 1]:
+    for j in [i + 1:len(ids) - 1]:
+        ids[i] => a
+        ids[j] => b
+        if not (a == b) and back[a] == back[b]:
+            collisions + 1 => collisions
+            ("  " + a + " and " + b + " both become " + back[a])^0
+("distinct pairs that collide: " + str(collisions))^0
+
+# ------------------------------------------- the digits that disappear
+""^0
+"identifiers where the float path loses a digit:"^0
+0 => float_lost
+for s in ids:
+    through_float(s) => b
+    if not (b == through_int(s)):
+        float_lost + 1 => float_lost
+        ("  " + s + " -> " + b)^0
+("identifiers damaged by the float path but not the integer path: " + str(float_lost))^0
+
+# ------------------------------- every one of them is a valid identifier
+""^0
+0 => all_digits
+for s in ids:
+    if digits_only(s):
+        all_digits + 1 => all_digits
+("identifiers that are entirely digits: " + str(all_digits) + "/" + str(n))^0
+"...so no validation rule based on 'is it numeric' rejects any of them."^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# Some identifiers must survive and some must not. If none survived the bug
+# would be obvious; if all survived there would be nothing to show.
+checked + 1 => checked
+if broken > 0 and broken < n:
+    passed + 1 => passed
+
+# At least one pair of DISTINCT identifiers must collide. That is the failure
+# that costs data rather than appearance.
+checked + 1 => checked
+if collisions > 0:
+    passed + 1 => passed
+
+# The float path must be strictly worse than the integer path somewhere.
+checked + 1 => checked
+if float_lost > 0:
+    passed + 1 => passed
+
+# Storing them as strings must be lossless for every one - the fix has to
+# actually work, or this case is only complaining.
+checked + 1 => checked
+0 => str_ok
+for s in ids:
+    if str(s) == s:
+        str_ok + 1 => str_ok
+if str_ok == n:
+    passed + 1 => passed
+
+# And every identifier must pass a digits-only validator, so that no schema
+# check phrased as 'must be numeric' can catch any of this.
+checked + 1 => checked
+if all_digits == n:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Two different customers, one key, and no error anywhere." => verdict
+else:
+    "FAILED - an identifier did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"The test for whether something is a number is not whether it is spelled" => n1
+n1^0
+"with digits - it is whether adding one to it means anything. Nothing is" => n2
+n2^0
+"ever added to an account number, so the leading zero is not padding: it" => n3
+n3^0
+"is part of the name. A schema that says 'integer' has thrown away part of" => n4
+n4^0
+"the name and recorded the loss nowhere." => n5
+n5^0

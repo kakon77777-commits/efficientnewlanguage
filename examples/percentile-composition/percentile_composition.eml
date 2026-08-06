@@ -1,0 +1,175 @@
+# Self-authored for the EML case corpus (no external origin). Every service
+# meets its p99, and one request in ten is slow.
+#
+# A request that fans out to N backends and waits for all of them takes the
+# MAXIMUM of N latencies, not one of them. If each backend is slow with
+# probability 1%, the request is fast only when all N are fast, which happens
+# with probability 0.99^N. At N = 10 that is 90.4% - so about one request in
+# ten exceeds the backend p99, while every backend is inside its budget.
+#
+# Stated the other way round, which is the useful direction: the p99 of a
+# ten-way fan-out is set by the backend's p99.9, not its p99. The tail a
+# service must control is deeper than the tail anyone reports, by a factor
+# that grows with the fan-out.
+#
+# The measurement is EXACT rather than simulated. The backend latency
+# distribution is 1000 quantiles given by a formula, so the k-th smallest value
+# is available directly, and P(max of N <= the k-th value) is (k/1000)^N. The
+# smallest k satisfying a target is found by binary search over integers, with
+# the comparison done as k^N * 1000 >= target * 1000^N so that no floating
+# point enters the decision at all.
+
+1000 => Q
+
+def quantile(k):
+    # The k-th smallest of 1000 backend latencies, in milliseconds. Monotone
+    # in k by construction, so the list is already its own sorted order and
+    # never has to be materialised.
+    #
+    # The shape matters. A polynomial tail is nearly flat at the top, which
+    # makes the fan-out cost look like one percent even while the required
+    # quantile moves from p99 to p99.9 - the index moves and the milliseconds
+    # do not, so the table would understate its own finding. A real latency
+    # tail grows like 1/(1-p), which is what this is.
+    return 20 + int(10000 / (1001 - k))
+
+def ipow(base, n):
+    1 => r
+    for k in [1:n]:
+        r * base => r
+    return r
+
+def smallest_k(n, target_permille):
+    # Smallest k in 1..Q with (k/Q)^n >= target/1000, decided in integers.
+    ipow(Q, n) => denom
+    target_permille * denom => rhs
+    1 => lo
+    Q => hi
+    while lo < hi:
+        int((lo + hi) / 2) => mid
+        ipow(mid, n) * 1000 => lhs
+        if lhs >= rhs:
+            mid => hi
+        else:
+            mid + 1 => lo
+    return lo
+
+def fast_permille(n, k):
+    # P(all n backends land at or below the k-th quantile), in per mille.
+    return int(ipow(k, n) * 1000 / ipow(Q, n))
+
+
+990 => TARGET
+
+"fan-out   request p99 comes from   backend quantile   latency ms   backend p99 ms"^0
+{} => res
+for n in [1, 2, 5, 10, 20]:
+    smallest_k(n, TARGET) => k
+    quantile(k) => ms
+    quantile(990) => base_ms
+    [k, ms, base_ms] => res[str(n)]
+    ("%-9d %-24s p%-17s %-12d %d" % (n, "the max of " + str(n), str(int(k / 10)) + "." + str(k % 10), ms, base_ms))^0
+
+""^0
+("backend p99 latency: " + str(quantile(990)) + " ms")^0
+("backend p99.9 latency: " + str(quantile(999)) + " ms")^0
+("worst backend latency: " + str(quantile(1000)) + " ms")^0
+
+# --------------------------- how often a fan-out exceeds the backend p99
+""^0
+"if every backend is inside its p99, how often is the REQUEST inside it?"^0
+for n in [1, 2, 5, 10, 20]:
+    fast_permille(n, 990) => f
+    ("  fan-out %-4d request within the backend p99: %d.%d%%   slow: %d.%d%%" % (n, int(f / 10), f % 10, int((1000 - f) / 10), (1000 - f) % 10))^0
+"...every backend meets its stated target in all of these rows."^0
+
+# ------------------------------ what the fan-out costs in latency terms
+""^0
+"the p99 of the whole request, against the p99 of one backend:"^0
+quantile(990) => one
+for n in [1, 2, 5, 10, 20]:
+    res[str(n)] => r
+    ("  fan-out %-4d p99 = %-5d ms   (%d%% of the single-backend p99)" % (n, r[1], int(r[1] * 100 / one)))^0
+
+# ------------------------------------- the tail that has to be controlled
+""^0
+res["10"][0] => k10
+("to hold a ten-way fan-out at p99, the backend must be controlled at p" + str(int(k10 / 10)) + "." + str(k10 % 10))^0
+("  which is the backend's " + str(1000 - k10) + "-in-1000 tail, not its 10-in-1000 tail")^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# With a single backend the request p99 must BE the backend p99. If it were
+# not, the model is wrong before the interesting part starts.
+checked + 1 => checked
+if res["1"][0] == 990:
+    passed + 1 => passed
+
+# The required backend quantile must rise with fan-out, strictly, at every
+# step. A flat step would mean the effect saturates, and it does not.
+checked + 1 => checked
+0 => rising
+0 => steps
+[1, 2, 5, 10, 20] => NS
+for i in [0:len(NS) - 2]:
+    steps + 1 => steps
+    if res[str(NS[i])][0] < res[str(NS[i + 1])][0]:
+        rising + 1 => rising
+if rising == steps:
+    passed + 1 => passed
+
+# A ten-way fan-out must need the backend's p99.9 or deeper - the headline
+# claim, as an integer comparison rather than a rounded probability.
+checked + 1 => checked
+if res["10"][0] >= 999:
+    passed + 1 => passed
+
+# With every backend inside its p99, a ten-way request must be outside it
+# more than 5% of the time.
+checked + 1 => checked
+if 1000 - fast_permille(10, 990) > 50:
+    passed + 1 => passed
+
+# And the binary search must agree with a direct scan, so the exactness claim
+# rests on two implementations rather than on one being clever.
+checked + 1 => checked
+0 => agree
+0 => scanned
+for n in [1, 2, 5]:
+    scanned + 1 => scanned
+    0 => found
+    # The right-hand side does not depend on k. Recomputing it inside the loop
+    # is a thousand big-integer powers per fan-out and shows up as megabytes of
+    # execution trace, which is how it was noticed.
+    TARGET * ipow(Q, n) => rhs
+    for k in [1:Q]:
+        if found == 0 and ipow(k, n) * 1000 >= rhs:
+            k => found
+        if found > 0:
+            break
+    if found == smallest_k(n, TARGET):
+        agree + 1 => agree
+if agree == scanned:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Ten backends inside their p99 make a request that misses it one time in ten." => verdict
+else:
+    "FAILED - a tail did not compose as the checks describe." => verdict
+verdict^0
+
+""^0
+"A percentile is not a budget that can be handed out and added up. Waiting" => n1
+n1^0
+"for N things takes the maximum, and the maximum of N tails is a deeper" => n2
+n2^0
+"tail - so a service-level objective written per backend does not compose" => n3
+n3^0
+"into one for the request. The number that has to be agreed is the fan-out" => n4
+n4^0
+"first, and only then the quantile." => n5
+n5^0

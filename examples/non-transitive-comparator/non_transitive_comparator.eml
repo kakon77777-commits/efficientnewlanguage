@@ -1,0 +1,250 @@
+# Self-authored for the EML case corpus (no external origin). A comparator
+# with a cycle in it, and three sorts that each believe they finished.
+#
+# Sorting requires a total order. Most comparators written by hand are not one,
+# and the way they fail is not an exception - it is a result. Every comparison
+# the sort makes returns a definite answer, the loop terminates, the output is
+# a permutation of the input, and nothing anywhere reports a problem. The list
+# is simply not sorted, and it is not sorted DIFFERENTLY depending on which
+# algorithm ran and what order the input arrived in.
+#
+# The comparator here has a three-element cycle: A beats B, B beats C, C beats
+# A. That shape appears in real code whenever "better" is decided by whichever
+# of several criteria happens to differ first, or by head-to-head records, or
+# by a preference matrix collected from people.
+#
+# The measurement runs three sorting algorithms over every permutation of the
+# cycle and counts DISTINCT outputs. A total order would give exactly one.
+#
+# It also corrects the premise this file was written on. The obvious defence
+# is a postcondition - sort the list, then assert the result is sorted. That
+# assertion passes on EVERY ONE of these runs, because the usual is-sorted
+# check tests adjacent pairs, and with a three-cycle every rotation has all of
+# its adjacent pairs in order. Three different answers, and the check written
+# to catch exactly this cannot separate them. Comparing ALL pairs does.
+
+def beats(a, b):
+    # The preference matrix. Every pair has a definite winner, which is what
+    # makes this look like a valid comparator.
+    {} => wins
+    1 => wins["A>B"]
+    1 => wins["B>C"]
+    1 => wins["C>A"]
+    a + ">" + b => k
+    if k in wins:
+        return 1
+    return 0
+
+def cmp_pref(a, b):
+    if a == b:
+        return 0
+    if beats(a, b) == 1:
+        return 0 - 1
+    return 1
+
+def insertion(xs):
+    [] => out
+    for x in xs:
+        out + [x] => out
+    1 => i
+    while i < len(out):
+        out[i] => cur
+        i - 1 => j
+        1 => moving
+        while moving == 1:
+            0 => moving
+            if j >= 0:
+                if cmp_pref(out[j], cur) > 0:
+                    out[j] => out[j + 1]
+                    j - 1 => j
+                    1 => moving
+        cur => out[j + 1]
+        i + 1 => i
+    return out
+
+def selection(xs):
+    [] => out
+    for x in xs:
+        out + [x] => out
+    for i in [0:len(out) - 1]:
+        i => best
+        for j in [i + 1:len(out) - 1]:
+            if cmp_pref(out[j], out[best]) < 0:
+                j => best
+        out[i] => t
+        out[best] => out[i]
+        t => out[best]
+    return out
+
+def bubble(xs):
+    [] => out
+    for x in xs:
+        out + [x] => out
+    for p in [1:len(out)]:
+        for i in [0:len(out) - 2]:
+            if cmp_pref(out[i], out[i + 1]) > 0:
+                out[i] => t
+                out[i + 1] => out[i]
+                t => out[i + 1]
+    return out
+
+def join(xs):
+    "" => s
+    for x in xs:
+        s + x => s
+    return s
+
+def is_sorted(xs):
+    # The usual postcondition: every adjacent pair is in order.
+    for i in [0:len(xs) - 2]:
+        if cmp_pref(xs[i], xs[i + 1]) > 0:
+            return False
+    return True
+
+def is_totally_sorted(xs):
+    # What sorted actually means: EVERY pair is in order, not just neighbours.
+    # On a total order the two checks are equivalent, which is why nobody
+    # writes this one.
+    for i in [0:len(xs) - 1]:
+        for j in [i + 1:len(xs) - 1]:
+            if cmp_pref(xs[i], xs[j]) > 0:
+                return False
+    return True
+
+
+[
+    ["A", "B", "C"], ["A", "C", "B"], ["B", "A", "C"],
+    ["B", "C", "A"], ["C", "A", "B"], ["C", "B", "A"]
+] => perms
+
+"input   insertion   selection   bubble"^0
+{} => seen
+0 => sorted_claims
+0 => total_claims
+0 => runs
+for p in perms:
+    insertion(p) => a
+    selection(p) => b
+    bubble(p) => c
+    for out in [a, b, c]:
+        runs + 1 => runs
+        1 => seen[join(out)]
+        if is_sorted(out):
+            sorted_claims + 1 => sorted_claims
+        if is_totally_sorted(out):
+            total_claims + 1 => total_claims
+    ("%-7s %-11s %-11s %s" % (join(p), join(a), join(b), join(c)))^0
+
+""^0
+("inputs: " + str(len(perms)) + ", algorithms: 3, runs: " + str(runs))^0
+("distinct outputs: " + str(len(seen)))^0
+("runs passing the adjacent-pair check: " + str(sorted_claims) + "/" + str(runs))^0
+("runs passing the all-pairs check:     " + str(total_claims) + "/" + str(runs))^0
+"...the postcondition anyone would add to catch this passes on all of them."^0
+
+# ------------------------------------------ the cycle, stated directly
+""^0
+"the comparator on each pair:"^0
+for pair in [["A", "B"], ["B", "C"], ["C", "A"]]:
+    pair[0] => x
+    pair[1] => y
+    ("  " + x + " vs " + y + ": " + str(cmp_pref(x, y)) + "   (" + y + " vs " + x + ": " + str(cmp_pref(y, x)) + ")")^0
+"...every pair has a definite winner, and the three answers form a loop."^0
+
+# ---------------------------- the two properties a comparator must have
+""^0
+0 => anti_ok
+0 => anti_n
+0 => trans_ok
+0 => trans_n
+["A", "B", "C"] => items
+for x in items:
+    for y in items:
+        anti_n + 1 => anti_n
+        if cmp_pref(x, y) == 0 - cmp_pref(y, x):
+            anti_ok + 1 => anti_ok
+        for z in items:
+            if cmp_pref(x, y) < 0 and cmp_pref(y, z) < 0:
+                trans_n + 1 => trans_n
+                if cmp_pref(x, z) < 0:
+                    trans_ok + 1 => trans_ok
+("antisymmetry holds on " + str(anti_ok) + "/" + str(anti_n) + " pairs")^0
+("transitivity holds on " + str(trans_ok) + "/" + str(trans_n) + " chains")^0
+"...the property that holds is the one a unit test would check."^0
+
+# ------------------------------------- a valid comparator, for contrast
+""^0
+"the same three algorithms over the same permutations, ordered by NAME:"^0
+{} => name_seen
+for p in perms:
+    [] => s
+    for x in p:
+        s + [x] => s
+    1 => i
+    while i < len(s):
+        s[i] => cur
+        i - 1 => j
+        while j >= 0 and s[j] > cur:
+            s[j] => s[j + 1]
+            j - 1 => j
+        cur => s[j + 1]
+        i + 1 => i
+    1 => name_seen[join(s)]
+("  distinct outputs: " + str(len(name_seen)))^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# The comparator must be antisymmetric - the property that looks like
+# correctness and is not sufficient for it.
+checked + 1 => checked
+if anti_ok == anti_n:
+    passed + 1 => passed
+
+# And it must NOT be transitive. That is the defect, located.
+checked + 1 => checked
+if trans_ok < trans_n:
+    passed + 1 => passed
+
+# More than one distinct output must appear. A single output would mean the
+# cycle happened not to matter for these inputs.
+checked + 1 => checked
+if len(seen) > 1:
+    passed + 1 => passed
+
+# EVERY run must pass the adjacent-pair check and NO run may pass the
+# all-pairs check. This is the premise the measurement corrected: the file was
+# written expecting the sorts to produce visibly unsorted output, and instead
+# they produce three different outputs that all satisfy the check anybody
+# writes. The defence fails silently along with the sort.
+checked + 1 => checked
+if sorted_claims == runs and total_claims == 0:
+    passed + 1 => passed
+
+# A real total order over the same inputs and algorithms must give exactly
+# one output, or the comparison above is measuring the sorts rather than
+# the comparator.
+checked + 1 => checked
+if len(name_seen) == 1:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Every sort terminated, returned a permutation, and none of them sorted." => verdict
+else:
+    "FAILED - a sort did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"A comparator is a claim about a relation, and the sort trusts the claim" => n1
+n1^0
+"rather than checking it - checking would cost more than sorting. What the" => n2
+n2^0
+"measurement added is that the cheap postcondition inherits the same blind" => n3
+n3^0
+"spot: adjacent pairs are exactly what a sort already looked at. Both the" => n4
+n4^0
+"missing test and the missing check need three elements instead of two." => n5
+n5^0

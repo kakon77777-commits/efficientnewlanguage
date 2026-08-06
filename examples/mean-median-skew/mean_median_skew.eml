@@ -1,0 +1,191 @@
+# Self-authored for the EML case corpus (no external origin). The average
+# response time, which nobody experienced.
+#
+# "Average" names three different statistics and a report almost never says
+# which. On a symmetric distribution they agree and the ambiguity costs
+# nothing. On a skewed one - which is what latency, income, file size, session
+# length and basket value all are - they can be far apart, and the mean is the
+# one that is furthest from any actual observation.
+#
+# Two properties are measured here rather than asserted:
+#
+#     what FRACTION of observations are worse than the mean - if the mean
+#     described a typical case this would be about half, and on a skewed
+#     distribution it is not
+#
+#     how far each statistic MOVES when a single extreme value is added - the
+#     mean is a function of every point, so one point can move it anywhere;
+#     the median is a function of the ordering, so one point moves it by at
+#     most one position
+#
+# All values are integers in milliseconds and all statistics are computed by
+# hand, so nothing here depends on a library's definition of anything.
+
+def sort_ints(xs):
+    [] => out
+    for x in xs:
+        out + [x] => out
+    1 => i
+    while i < len(out):
+        out[i] => cur
+        i - 1 => j
+        while j >= 0 and out[j] > cur:
+            out[j] => out[j + 1]
+            j - 1 => j
+        cur => out[j + 1]
+        i + 1 => i
+    return out
+
+def mean_x10(xs):
+    # Tenths, as an integer, so the mean is exact for these inputs.
+    0 => s
+    for x in xs:
+        s + x => s
+    return int(s * 10 / len(xs))
+
+def median_x10(xs):
+    sort_ints(xs) => s
+    len(s) => n
+    if n % 2 == 1:
+        return s[int(n / 2)] * 10
+    return int((s[int(n / 2) - 1] + s[int(n / 2)]) * 10 / 2)
+
+def mode_of(xs):
+    # The most common value; ties resolved toward the smallest, stated so that
+    # "the mode" means one thing here.
+    sort_ints(xs) => s
+    s[0] => best
+    0 => best_n
+    for v in s:
+        0 => c
+        for w in s:
+            if w == v:
+                c + 1 => c
+        if c > best_n:
+            c => best_n
+            v => best
+    return best
+
+def worse_than(xs, threshold_x10):
+    0 => c
+    for x in xs:
+        if x * 10 > threshold_x10:
+            c + 1 => c
+    return c
+
+def show10(v):
+    return str(int(v / 10)) + "." + str(v % 10)
+
+
+# A latency sample: most requests fast, a long thin tail. Written out rather
+# than generated, so the shape is visible in the source.
+[
+    20, 20, 20, 21, 21, 22, 22, 22, 23, 24,
+    24, 25, 25, 26, 27, 28, 30, 32, 35, 40,
+    48, 60, 85, 140, 400
+] => latency
+
+# A symmetric sample of the same size, as the control.
+[
+    20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+    30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+    40, 41, 42, 43, 44
+] => symmetric
+
+"sample       n    mean    median  mode   worse than mean"^0
+{} => res
+for pair in [["skewed", latency], ["symmetric", symmetric]]:
+    pair[0] => nm
+    pair[1] => xs
+    mean_x10(xs) => m
+    median_x10(xs) => md
+    mode_of(xs) => mo
+    worse_than(xs, m) => w
+    [m, md, mo, w, len(xs)] => res[nm]
+    ("%-12s %-4d %-7s %-7s %-6d %d/%d" % (nm, len(xs), show10(m), show10(md), mo, w, len(xs)))^0
+
+""^0
+"fraction of observations worse than the mean:"^0
+for nm in ["skewed", "symmetric"]:
+    res[nm] => r
+    ("  %-11s %d of %d  (%d%%)" % (nm, r[3], r[4], int(r[3] * 100 / r[4])))^0
+"...on a symmetric sample that is about half, which is what makes the mean"^0
+"sound like a typical value in the first place."^0
+
+# --------------------------------- how far one value can move each statistic
+""^0
+"adding ONE more observation of 10000 ms to the skewed sample:"^0
+latency + [10000] => outlier_sample
+mean_x10(latency) => m0
+median_x10(latency) => d0
+mean_x10(outlier_sample) => m1
+median_x10(outlier_sample) => d1
+("  mean:   " + show10(m0) + " -> " + show10(m1) + "  (moved " + show10(m1 - m0) + ")")^0
+("  median: " + show10(d0) + " -> " + show10(d1) + "  (moved " + show10(d1 - d0) + ")")^0
+m1 - m0 => mean_move
+d1 - d0 => median_move
+
+# ---------------------------- the mean is not one of the observations
+""^0
+0 => equals_mean
+for x in latency:
+    if x * 10 == m0:
+        equals_mean + 1 => equals_mean
+("observations exactly equal to the mean: " + str(equals_mean))^0
+sort_ints(latency) => sorted_lat
+("the sample runs from " + str(sorted_lat[0]) + " to " + str(sorted_lat[len(sorted_lat) - 1]) + " ms")^0
+("the mean sits at " + show10(m0) + ", between " + str(sorted_lat[19]) + " and " + str(sorted_lat[20]))^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# On the skewed sample the mean must exceed the median, and the median must
+# exceed or equal the mode. That ordering is what skew means, measured.
+checked + 1 => checked
+if res["skewed"][0] > res["skewed"][1] and res["skewed"][1] >= res["skewed"][2] * 10:
+    passed + 1 => passed
+
+# Fewer than a third of the skewed observations may be worse than the mean.
+checked + 1 => checked
+if res["skewed"][3] * 3 < res["skewed"][4]:
+    passed + 1 => passed
+
+# On the symmetric control the three statistics must be close and about half
+# the observations must be worse than the mean - otherwise the comparison is
+# measuring the samples rather than the skew.
+checked + 1 => checked
+if res["symmetric"][3] * 2 >= res["symmetric"][4] - 2 and res["symmetric"][3] * 2 <= res["symmetric"][4] + 2:
+    passed + 1 => passed
+
+# One added observation must move the mean by more than it moves the median,
+# by a wide margin - that is the sensitivity difference, as a number.
+checked + 1 => checked
+if mean_move > median_move * 10:
+    passed + 1 => passed
+
+# And no observation may be equal to the mean. The number reported as typical
+# is not one that any request took.
+checked + 1 => checked
+if equals_mean == 0:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Four requests in five were faster than average, and none was average." => verdict
+else:
+    "FAILED - a statistic did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"The word average is doing two jobs: it names a computation and it implies" => n1
+n1^0
+"a typical case. On a symmetric distribution those coincide, which is where" => n2
+n2^0
+"the habit comes from. Latency is never symmetric, so the number that gets" => n3
+n3^0
+"reported is a real quantity describing no user - and the giveaway is not" => n4
+n4^0
+"the value but the fraction of observations on each side of it." => n5
+n5^0

@@ -1,0 +1,239 @@
+# Self-authored for the EML case corpus (no external origin). The list is
+# sorted, the item is in it, and the binary search says no.
+#
+# Binary search does not require a sorted list. It requires a list sorted BY
+# THE SAME COMPARISON the search uses. Those are two different requirements and
+# only the first one is ever stated, so when a list arrives sorted by a
+# database collation and is searched with the application's own `<`, the
+# precondition is violated in a way that no assertion checks and no type
+# expresses.
+#
+# The mismatch used here is case: the list is ordered case-insensitively, which
+# is what almost every database and file system does by default, and searched
+# with an ordinary case-sensitive comparison, which is what almost every
+# programming language does by default. Both orderings are correct. Neither
+# knows about the other.
+#
+# The failure is not a crash and not a wrong item - it is a MISS. The search
+# reports "not found" for an item that is present, so the calling code takes
+# the create-if-absent branch and inserts a duplicate.
+#
+# The measurement searches for every element of the list, with both search
+# comparisons, and counts misses. A correct pairing must find all of them.
+
+def lower_char(c):
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ" => up
+    "abcdefghijklmnopqrstuvwxyz" => lo
+    for i in [0:25]:
+        if up[i] == c:
+            return lo[i]
+    return c
+
+def fold(s):
+    "" => out
+    for i in [0:len(s) - 1]:
+        out + lower_char(s[i]) => out
+    return out
+
+def cmp_str(a, b):
+    len(a) => la
+    len(b) => lb
+    la => m
+    if lb < m:
+        lb => m
+    for i in [0:m - 1]:
+        if a[i] < b[i]:
+            return 0 - 1
+        if a[i] > b[i]:
+            return 1
+    if la < lb:
+        return 0 - 1
+    if la > lb:
+        return 1
+    return 0
+
+def cmp_folded(a, b):
+    return cmp_str(fold(a), fold(b))
+
+def sort_by(xs, folded):
+    [] => out
+    for x in xs:
+        out + [x] => out
+    1 => i
+    while i < len(out):
+        out[i] => cur
+        i - 1 => j
+        1 => moving
+        while moving == 1:
+            0 => moving
+            if j >= 0:
+                0 => c
+                if folded == 1:
+                    cmp_folded(out[j], cur) => c
+                else:
+                    cmp_str(out[j], cur) => c
+                if c > 0:
+                    out[j] => out[j + 1]
+                    j - 1 => j
+                    1 => moving
+        cur => out[j + 1]
+        i + 1 => i
+    return out
+
+def bsearch(xs, target, folded):
+    0 => lo
+    len(xs) - 1 => hi
+    while lo <= hi:
+        int((lo + hi) / 2) => mid
+        0 => c
+        if folded == 1:
+            cmp_folded(xs[mid], target) => c
+        else:
+            cmp_str(xs[mid], target) => c
+        if c == 0:
+            return mid
+        if c < 0:
+            mid + 1 => lo
+        else:
+            mid - 1 => hi
+    return 0 - 1
+
+def linear(xs, target):
+    for i in [0:len(xs) - 1]:
+        if xs[i] == target:
+            return i
+    return 0 - 1
+
+def join(xs):
+    "" => s
+    for x in xs:
+        if len(s) > 0:
+            s + " " => s
+        s + x => s
+    return s
+
+
+["apple", "Banana", "cherry", "Date", "elder", "Fig", "grape"] => names
+
+sort_by(names, 1) => folded_list
+sort_by(names, 0) => exact_list
+"the same names, ordered two correct ways:"^0
+("  case-insensitive: " + join(folded_list))^0
+("  case-sensitive:   " + join(exact_list))^0
+
+""^0
+"searching a case-insensitively sorted list:"^0
+0 => miss_mismatch
+0 => miss_matched
+for t in names:
+    if bsearch(folded_list, t, 0) < 0:
+        miss_mismatch + 1 => miss_mismatch
+    if bsearch(folded_list, t, 1) < 0:
+        miss_matched + 1 => miss_matched
+("  with a case-SENSITIVE comparison:   " + str(miss_mismatch) + " of " + str(len(names)) + " present items not found")^0
+("  with the MATCHING comparison:       " + str(miss_matched) + " of " + str(len(names)) + " present items not found")^0
+
+# ------------------------------------------- which ones went missing
+""^0
+"items present in the list and reported absent:"^0
+for t in names:
+    if bsearch(folded_list, t, 0) < 0:
+        ("  " + t + "  (linear scan finds it at index " + str(linear(folded_list, t)) + ")")^0
+
+# ---------------------------------- the list really is sorted, by its rule
+""^0
+0 => folded_ok
+for i in [0:len(folded_list) - 2]:
+    if cmp_folded(folded_list[i], folded_list[i + 1]) <= 0:
+        folded_ok + 1 => folded_ok
+("the list is in order under its own comparison: " + str(folded_ok) + "/" + str(len(folded_list) - 1) + " adjacent pairs")^0
+0 => exact_ok
+for i in [0:len(folded_list) - 2]:
+    if cmp_str(folded_list[i], folded_list[i + 1]) <= 0:
+        exact_ok + 1 => exact_ok
+("...and under the SEARCH's comparison: " + str(exact_ok) + "/" + str(len(folded_list) - 1))^0
+
+# ------------------------- what happens next, in the calling code
+""^0
+"a get-or-create that trusts the search:"^0
+0 => duplicates
+[] => store
+for x in folded_list:
+    store + [x] => store
+for t in names:
+    if bsearch(store, t, 0) < 0:
+        store + [t] => store
+        duplicates + 1 => duplicates
+("  records inserted for names already present: " + str(duplicates))^0
+("  store size: " + str(len(names)) + " -> " + str(len(store)))^0
+
+# ------------------------- an all-lowercase list cannot show any of this
+""^0
+["apple", "banana", "cherry", "date", "elder", "fig", "grape"] => plain
+sort_by(plain, 1) => plain_sorted
+0 => plain_miss
+for t in plain:
+    if bsearch(plain_sorted, t, 0) < 0:
+        plain_miss + 1 => plain_miss
+("with no mixed case anywhere, misses: " + str(plain_miss) + "/" + str(len(plain)))^0
+"...which is what a fixture written by hand almost always looks like."^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# The mismatched search must miss at least one present item.
+checked + 1 => checked
+if miss_mismatch > 0:
+    passed + 1 => passed
+
+# The matching search must find every one - the list and the algorithm are
+# both fine, so the defect is the pairing.
+checked + 1 => checked
+if miss_matched == 0:
+    passed + 1 => passed
+
+# The list must be fully ordered under its own comparison and NOT under the
+# search's. That is the precondition, stated as two counts.
+checked + 1 => checked
+if folded_ok == len(folded_list) - 1 and exact_ok < len(folded_list) - 1:
+    passed + 1 => passed
+
+# Every missed item must be findable by a linear scan, so nothing is actually
+# absent - the search is answering a different question.
+checked + 1 => checked
+0 => findable
+0 => missed
+for t in names:
+    if bsearch(folded_list, t, 0) < 0:
+        missed + 1 => missed
+        if linear(folded_list, t) >= 0:
+            findable + 1 => findable
+if findable == missed and missed > 0:
+    passed + 1 => passed
+
+# And an all-lowercase list must show nothing at all, which is why a
+# hand-written fixture never reproduces this.
+checked + 1 => checked
+if plain_miss == 0:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Both orderings are correct, and pairing them loses records." => verdict
+else:
+    "FAILED - a search did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"Sorted is not a property of a list. It is a relation between a list and a" => n1
+n1^0
+"comparison, and a function that takes only the list has been handed half" => n2
+n2^0
+"of its own precondition. The half that is missing usually comes from" => n3
+n3^0
+"somewhere with its own opinion - a database collation, a file system, a" => n4
+n4^0
+"locale - and that opinion is never wrong, only different." => n5
+n5^0

@@ -1,0 +1,219 @@
+# Self-authored for the EML case corpus (no external origin). Sort by name,
+# then sort by department, and the names are no longer in order.
+#
+# "Sort by department, then by name within each department" is very often
+# written as two sorts: sort by name, then sort by department. That idiom is
+# correct if and only if the second sort is STABLE - if it preserves the
+# relative order of records it considers equal. Stability is not part of what
+# "sorted" means, and a sort that is not stable is not wrong; it simply makes
+# no promise about ties, and the whole idiom lives on that promise.
+#
+# The failure has an unpleasant shape: the output IS sorted by department, so
+# the check anybody writes passes. Only the secondary order is gone, and it is
+# gone for some inputs and not others, which is how it survives review and a
+# test suite with three rows of fixture data.
+#
+# The measurement runs the two-pass idiom with a stable and an unstable second
+# pass and counts, for each department, whether its names came out ordered.
+
+def by_name(rows):
+    # Insertion sort on the name field. Stable, and used for pass one in both
+    # arms so the two arms differ in exactly one thing.
+    [] => out
+    for r in rows:
+        out + [r] => out
+    1 => i
+    while i < len(out):
+        out[i] => cur
+        i - 1 => j
+        while j >= 0 and out[j][1] > cur[1]:
+            out[j] => out[j + 1]
+            j - 1 => j
+        cur => out[j + 1]
+        i + 1 => i
+    return out
+
+def by_dept_stable(rows):
+    # Insertion sort moves an element past a predecessor only when it is
+    # strictly greater, so equal keys never cross. That is stability.
+    [] => out
+    for r in rows:
+        out + [r] => out
+    1 => i
+    while i < len(out):
+        out[i] => cur
+        i - 1 => j
+        while j >= 0 and out[j][0] > cur[0]:
+            out[j] => out[j + 1]
+            j - 1 => j
+        cur => out[j + 1]
+        i + 1 => i
+    return out
+
+def by_dept_unstable(rows):
+    # Selection sort. It swaps the minimum into place from wherever it was,
+    # which throws whatever was at that position to the far end of the list.
+    # Perfectly correct as a sort, and it makes no promise about equal keys.
+    [] => out
+    for r in rows:
+        out + [r] => out
+    for i in [0:len(out) - 1]:
+        i => best
+        for j in [i + 1:len(out) - 1]:
+            if out[j][0] < out[best][0]:
+                j => best
+        out[i] => t
+        out[best] => out[i]
+        t => out[best]
+    return out
+
+def depts_in_order(rows):
+    # How many departments have their names in ascending order.
+    {} => seen
+    for r in rows:
+        1 => seen[r[0]]
+    0 => good
+    0 => total
+    for d in ["eng", "ops", "sales"]:
+        if d in seen:
+            total + 1 => total
+            1 => ok
+            "" => prev
+            for r in rows:
+                if r[0] == d:
+                    if len(prev) > 0 and prev > r[1]:
+                        0 => ok
+                    r[1] => prev
+            if ok == 1:
+                good + 1 => good
+    return [good, total]
+
+def sorted_by_dept(rows):
+    for i in [0:len(rows) - 2]:
+        if rows[i][0] > rows[i + 1][0]:
+            return False
+    return True
+
+def render(rows):
+    "" => s
+    for r in rows:
+        if len(s) > 0:
+            s + " " => s
+        s + r[0] + "/" + r[1] => s
+    return s
+
+
+[
+    ["ops", "rhea"], ["eng", "mira"], ["sales", "dana"], ["eng", "aki"],
+    ["ops", "cleo"], ["sales", "bo"], ["eng", "zoe"], ["ops", "ali"],
+    ["sales", "nia"]
+] => staff
+
+by_name(staff) => pass1
+"after pass one, sorted by name:"^0
+("  " + render(pass1))^0
+
+""^0
+by_dept_stable(pass1) => stable_out
+by_dept_unstable(pass1) => unstable_out
+"after pass two, sorted by department:"^0
+("  stable:   " + render(stable_out))^0
+("  unstable: " + render(unstable_out))^0
+
+depts_in_order(stable_out) => st
+depts_in_order(unstable_out) => un
+""^0
+("departments whose names came out ordered:")^0
+("  stable second pass:   " + str(st[0]) + "/" + str(st[1]))^0
+("  unstable second pass: " + str(un[0]) + "/" + str(un[1]))^0
+
+# ------------------------------- the check everybody writes still passes
+""^0
+"is the output sorted by department?"^0
+("  stable:   " + str(sorted_by_dept(stable_out)))^0
+("  unstable: " + str(sorted_by_dept(unstable_out)))^0
+"...both, which is why the defect gets shipped."^0
+
+# ------------------------- both outputs contain the same nine records
+""^0
+0 => same_multiset
+for r in staff:
+    0 => a
+    0 => b
+    for x in stable_out:
+        if x[0] == r[0] and x[1] == r[1]:
+            a + 1 => a
+    for x in unstable_out:
+        if x[0] == r[0] and x[1] == r[1]:
+            b + 1 => b
+    if a == b and a == 1:
+        same_multiset + 1 => same_multiset
+("records present exactly once in both outputs: " + str(same_multiset) + "/" + str(len(staff)))^0
+
+# --------------------------- how often a small fixture would catch it
+""^0
+"the same two passes over the first k records only:"^0
+0 => caught
+0 => sizes
+for k in [2:len(staff)]:
+    sizes + 1 => sizes
+    [] => small
+    for i in [0:k - 1]:
+        small + [staff[i]] => small
+    by_name(small) => p1
+    depts_in_order(by_dept_unstable(p1)) => u
+    if u[0] < u[1]:
+        caught + 1 => caught
+("fixture sizes tried: " + str(sizes) + ", sizes where the defect is visible: " + str(caught))^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# The stable pass must preserve the name order in EVERY department.
+checked + 1 => checked
+if st[0] == st[1]:
+    passed + 1 => passed
+
+# The unstable pass must lose it in at least one.
+checked + 1 => checked
+if un[0] < un[1]:
+    passed + 1 => passed
+
+# Both outputs must be sorted by department. The primary key is correct in
+# both arms - that is what makes the failure invisible to the obvious check.
+checked + 1 => checked
+if sorted_by_dept(stable_out) and sorted_by_dept(unstable_out):
+    passed + 1 => passed
+
+# Both must contain exactly the same records. Nothing was lost or duplicated;
+# only the order within a group changed.
+checked + 1 => checked
+if same_multiset == len(staff):
+    passed + 1 => passed
+
+# And the defect must be invisible at some fixture sizes and visible at
+# others - if every size caught it, the survival story would be wrong.
+checked + 1 => checked
+if caught > 0 and caught < sizes:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Sorted by department in both arms, and only one kept the names in order." => verdict
+else:
+    "FAILED - a sort did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"Stability is a promise about the records a sort considers EQUAL, which is" => n1
+n1^0
+"exactly the set of records the sort was not asked about. That is why it" => n2
+n2^0
+"reads as an implementation detail and why the two-pass idiom depends on" => n3
+n3^0
+"it entirely: the second sort is being asked to preserve an order it was" => n4
+n4^0
+"never told about." => n5
+n5^0

@@ -1,0 +1,173 @@
+# Self-authored for the EML case corpus (no external origin). A test that is
+# right 99% of the time and wrong about most of the people it flags.
+#
+# An alert with 99% sensitivity and 99% specificity sounds like an alert whose
+# firings are 99% real. It is not, and the gap is not small - on a rare
+# condition, most of what it catches is noise. The reason is arithmetic rather
+# than statistical: the false positives are drawn from the LARGE population and
+# the true positives from the small one, so a 1% error rate on the large
+# population can easily outnumber a 99% catch rate on the small one.
+#
+#     accuracy     how often the test is right             - about the test
+#     precision    how often a POSITIVE is right           - about the world
+#
+# Only the second one answers "should I act on this alert", and it depends on a
+# number the test does not know: how common the condition is.
+#
+# The measurement holds the test fixed and sweeps the base rate, reporting
+# precision at each one, plus the base rate at which a positive is more likely
+# right than wrong. Everything is integer counts over a fixed population, so
+# the numbers are exact rather than rounded probabilities.
+
+100000 => POP
+99 => SENS
+99 => SPEC
+
+def outcomes(pop, per_100k, sens, spec):
+    # Returns [sick, well, true_pos, false_pos, true_neg, false_neg].
+    int(pop * per_100k / 100000) => sick
+    pop - sick => well
+    int(sick * sens / 100) => tp
+    sick - tp => fn
+    int(well * spec / 100) => tn
+    well - tn => fp
+    return [sick, well, tp, fp, tn, fn]
+
+def precision_x10(r):
+    r[2] + r[3] => flagged
+    if flagged == 0:
+        return 0
+    return int(r[2] * 1000 / flagged)
+
+def accuracy_x10(r):
+    r[2] + r[4] => right
+    return int(right * 1000 / (r[0] + r[1]))
+
+def show10(v):
+    return str(int(v / 10)) + "." + str(v % 10) + "%"
+
+
+[1, 10, 100, 1000, 5000, 20000, 50000] => RATES
+
+"per 100k   sick    flagged   true pos   false pos   precision   accuracy"^0
+{} => res
+for rate in RATES:
+    outcomes(POP, rate, SENS, SPEC) => r
+    r => res[str(rate)]
+    r[2] + r[3] => flagged
+    ("%-10d %-7d %-9d %-10d %-11d %-11s %s" % (rate, r[0], flagged, r[2], r[3], show10(precision_x10(r)), show10(accuracy_x10(r))))^0
+
+""^0
+("test held constant: sensitivity " + str(SENS) + "%, specificity " + str(SPEC) + "%")^0
+("population: " + str(POP))^0
+
+# ------------------------------------- accuracy barely moves, precision does
+""^0
+"across the whole sweep:"^0
+1000 => acc_lo
+0 => acc_hi
+1000 => prec_lo
+0 => prec_hi
+for rate in RATES:
+    res[str(rate)] => r
+    accuracy_x10(r) => a
+    precision_x10(r) => p
+    if a < acc_lo:
+        a => acc_lo
+    if a > acc_hi:
+        a => acc_hi
+    if p < prec_lo:
+        p => prec_lo
+    if p > prec_hi:
+        p => prec_hi
+("  accuracy ranges from " + show10(acc_lo) + " to " + show10(acc_hi) + "  (spread " + show10(acc_hi - acc_lo) + ")")^0
+("  precision ranges from " + show10(prec_lo) + " to " + show10(prec_hi) + "  (spread " + show10(prec_hi - prec_lo) + ")")^0
+"...the number quoted in the specification is the one that barely moves."^0
+
+# ---------------------------------- where a positive becomes worth believing
+""^0
+0 => breakeven
+for rate in [1:2000]:
+    outcomes(POP, rate, SENS, SPEC) => r
+    if precision_x10(r) >= 500:
+        rate => breakeven
+        break
+("base rate at which a positive is more likely right than wrong: " + str(breakeven) + " per 100k")^0
+("  which is " + show10(int(breakeven * 1000 / 100000)) + " of the population")^0
+
+# --------------------------------- what a better test buys, and what it does not
+""^0
+"holding the base rate at 100 per 100k and improving the test:"^0
+for pair in [[99, 99], [99, 999], [999, 99], [999, 999]]:
+    pair[0] => sn
+    pair[1] => sp
+    # Specificity in tenths of a percent needs a different denominator.
+    int(POP * 100 / 100000) => sick
+    POP - sick => well
+    int(sick * sn / 1000) => tp
+    well - int(well * sp / 1000) => fp
+    0 => pr
+    if tp + fp > 0:
+        int(tp * 1000 / (tp + fp)) => pr
+    ("  sens %-5s spec %-5s -> precision %s" % (show10(sn), show10(sp), show10(pr)))^0
+"...precision responds to specificity and hardly at all to sensitivity,"^0
+"because the false positives come from the large population."^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# On the rarest condition, precision must be under 10% - most positives wrong.
+checked + 1 => checked
+if precision_x10(res["1"]) < 100:
+    passed + 1 => passed
+
+# Accuracy must stay above 98% across the entire sweep, including where
+# precision is under 10%. The two numbers describe the same test.
+checked + 1 => checked
+if acc_lo > 980:
+    passed + 1 => passed
+
+# Precision must vary by far more than accuracy does - the quantity that
+# matters is the one the spec sheet does not report.
+checked + 1 => checked
+if (prec_hi - prec_lo) > (acc_hi - acc_lo) * 10:
+    passed + 1 => passed
+
+# Precision must rise monotonically with the base rate. If it did not, the
+# base rate would not be the thing driving it.
+checked + 1 => checked
+0 => monotone
+0 => steps
+for i in [0:len(RATES) - 2]:
+    steps + 1 => steps
+    if precision_x10(res[str(RATES[i])]) <= precision_x10(res[str(RATES[i + 1])]):
+        monotone + 1 => monotone
+if monotone == steps:
+    passed + 1 => passed
+
+# And the break-even base rate must exist inside the swept range, so the
+# claim is a located number rather than a direction.
+checked + 1 => checked
+if breakeven > 0 and breakeven < 2000:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "99% accurate, and nine out of ten alerts are false." => verdict
+else:
+    "FAILED - the test did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"The published number describes the test in isolation, and a test is never" => n1
+n1^0
+"used in isolation - it is pointed at a population. Precision is a joint" => n2
+n2^0
+"property of the test and the world, so it cannot appear on a spec sheet," => n3
+n3^0
+"and the quantity that can appear there is the one that stays flat while" => n4
+n4^0
+"the useful one collapses." => n5
+n5^0

@@ -1,0 +1,168 @@
+# Self-authored for the EML case corpus (no external origin). A treatment that
+# wins in every group and loses overall.
+#
+# Two treatments, two kinds of case. Treatment A has a better success rate on
+# easy cases AND a better success rate on hard cases. Treatment B has a better
+# success rate overall. Both statements are arithmetic, both are checkable, and
+# they are not in conflict - the totals are answering a different question than
+# the groups are.
+#
+# The mechanism is that the groups are not the same size in each arm. A is
+# mostly given hard cases and B is mostly given easy ones, so A's total is
+# dominated by the hard subgroup's lower rate. The overall figure is a weighted
+# average whose weights come from WHO GOT WHICH TREATMENT, and that is not a
+# property of the treatment.
+#
+# This is why "the numbers speak for themselves" is never true of a ratio. A
+# rate is a ratio of two counts, and combining rates without their counts
+# discards exactly the information that decides the answer.
+#
+# All arithmetic here is integer. Rates are compared by cross-multiplication -
+# a/b > c/d exactly when a*d > c*b for positive denominators - so no rounding
+# can be blamed for any reversal.
+
+def better(a_ok, a_n, b_ok, b_n):
+    # 1 if A's rate beats B's, -1 if B's beats A's, 0 if they are equal.
+    a_ok * b_n => l
+    b_ok * a_n => r
+    if l > r:
+        return 1
+    if l < r:
+        return 0 - 1
+    return 0
+
+def pct(ok, n):
+    # Tenths of a percent, as an integer, so nothing is rounded away silently.
+    return int(ok * 1000 / n)
+
+def show(ok, n):
+    pct(ok, n) => p
+    return str(ok) + "/" + str(n) + " (" + str(int(p / 10)) + "." + str(p % 10) + "%)"
+
+
+# Arm, group, successes, attempts. A is given mostly hard cases.
+{} => trial
+[19, 20] => trial["A/easy"]
+[140, 200] => trial["A/hard"]
+[170, 200] => trial["B/easy"]
+[12, 20] => trial["B/hard"]
+
+"group      treatment A          treatment B          winner"^0
+0 => a_group_wins
+for g in ["easy", "hard"]:
+    trial["A/" + g] => a
+    trial["B/" + g] => b
+    better(a[0], a[1], b[0], b[1]) => w
+    "tie" => nm
+    if w > 0:
+        "A" => nm
+        a_group_wins + 1 => a_group_wins
+    if w < 0:
+        "B" => nm
+    ("%-10s %-20s %-20s %s" % (g, show(a[0], a[1]), show(b[0], b[1]), nm))^0
+
+trial["A/easy"][0] + trial["A/hard"][0] => a_ok
+trial["A/easy"][1] + trial["A/hard"][1] => a_n
+trial["B/easy"][0] + trial["B/hard"][0] => b_ok
+trial["B/easy"][1] + trial["B/hard"][1] => b_n
+better(a_ok, a_n, b_ok, b_n) => overall
+"tie" => overall_nm
+if overall > 0:
+    "A" => overall_nm
+if overall < 0:
+    "B" => overall_nm
+("%-10s %-20s %-20s %s" % ("OVERALL", show(a_ok, a_n), show(b_ok, b_n), overall_nm))^0
+
+""^0
+("groups where A wins: " + str(a_group_wins) + "/2")^0
+("winner on the totals: " + overall_nm)^0
+
+# ---------------------------------------- where the reversal comes from
+""^0
+"how many cases each arm got, by group:"^0
+for arm in ["A", "B"]:
+    trial[arm + "/easy"][1] => e
+    trial[arm + "/hard"][1] => h
+    ("  %s: easy %d, hard %d  (%d%% easy)" % (arm, e, h, int(e * 100 / (e + h))))^0
+"...the arms were not given the same mix, so the totals weight the groups"^0
+"differently. The weights are a fact about assignment, not about treatment."^0
+
+# ------------------------------- what happens with the mix held constant
+""^0
+"the same per-group rates, with 100 easy and 100 hard cases in BOTH arms:"^0
+{} => fair
+for arm in ["A", "B"]:
+    0 => ok
+    for g in ["easy", "hard"]:
+        trial[arm + "/" + g] => r
+        ok + int(r[0] * 100 / r[1]) => ok
+    [ok, 200] => fair[arm]
+    ("  " + arm + ": " + show(ok, 200))^0
+better(fair["A"][0], fair["A"][1], fair["B"][0], fair["B"][1]) => fair_w
+"tie" => fair_nm
+if fair_w > 0:
+    "A" => fair_nm
+if fair_w < 0:
+    "B" => fair_nm
+("  winner with a common mix: " + fair_nm)^0
+
+# ------------------------------------- the aggregate on its own is silent
+""^0
+"what a report showing only the totals says:"^0
+("  A: " + show(a_ok, a_n))^0
+("  B: " + show(b_ok, b_n))^0
+("  ...and nothing in those two lines can be split back into groups.")^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# A must win BOTH subgroups. If it only won one, this is an ordinary mixed
+# result rather than a reversal.
+checked + 1 => checked
+if a_group_wins == 2:
+    passed + 1 => passed
+
+# B must win the totals. Those two checks together are the paradox, stated as
+# two arithmetic facts rather than as a claim about statistics.
+checked + 1 => checked
+if overall < 0:
+    passed + 1 => passed
+
+# Both arms must have the same total number of cases, so nobody can explain
+# the reversal by one arm simply being larger.
+checked + 1 => checked
+if a_n == b_n:
+    passed + 1 => passed
+
+# The arms must have DIFFERENT mixes - that is the actual cause, and if the
+# mixes were equal the reversal would be impossible.
+checked + 1 => checked
+if not (trial["A/easy"][1] == trial["B/easy"][1]):
+    passed + 1 => passed
+
+# And with a common mix the reversal must vanish and A must win, which is what
+# makes the mix the cause rather than a coincidence sitting next to it.
+checked + 1 => checked
+if fair_w > 0:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Both statements are true, and only one of them is about the treatment." => verdict
+else:
+    "FAILED - the rates did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"A rate is a pair of numbers wearing the costume of one number. Adding" => n1
+n1^0
+"rates together is not an operation - the only thing that combines is the" => n2
+n2^0
+"counts, and once the counts are gone the direction of the answer is gone" => n3
+n3^0
+"with them. Which is why a dashboard that stores percentages instead of" => n4
+n4^0
+"numerators and denominators cannot be repaired later." => n5
+n5^0

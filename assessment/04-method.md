@@ -17,7 +17,7 @@ itself the most useful thing this table records.
 
 ---
 
-## The eleven axes, in the order they were built
+## The twelve axes, in the order they were built
 
 | # | axis | result | what it could not see |
 |---|---|---|---|
@@ -32,7 +32,8 @@ itself the most useful thing this table records.
 | 8 | diagnostic reachability (23 codes) | 0 unreachable, 0 spurious | what the compiler decides two things ARE |
 | 9 | crystallization cache keys (35 variants, every pair) | 0 false cache hits | what the compiler RECORDS, as opposed to what it decides |
 | 10 | trace completeness (15 constructs, 12 output shapes) | **2 real defects** | the compiler's SEMANTIC ACCOUNT of a program — purity, importance, loop kind |
-| 11 | CTS faithfulness (17 tests) | 0 — clean first run | cross-program claims: what the CTS says about a corpus, not a file |
+| 11 | CTS faithfulness (17 tests) | 0 — clean first run | WHERE a diagnostic says the problem is |
+| 12 | diagnostic positions (13 triggers × 3 properties) | **1 real defect** | whether the position is the most USEFUL one, as opposed to a real one |
 
 Read the right-hand column downward. Each axis was honest, each went green, and
 each was blind in a direction that could only be named after building the next
@@ -119,10 +120,59 @@ a shape worth naming — every one of them is a file that does not change what a
 program COMPUTES. The forward grammar, the trace, and the semantic account are
 all *descriptions*, and a description that drifts still runs.
 
+**Axis 12 is axis 8's blind spot, and it took four days to name.** Axis 8
+proved every diagnostic code can be triggered; it says nothing about WHERE the
+compiler claims the problem is. A diagnostic that fires correctly and points at
+line 1 of a 200-line file is reachable, counted, green — and useless, because
+the position is the entire value. An editor underlines it, an agent jumps to
+it, a human reads the line above. Nothing else in the repo can see a span: the
+conformance suites compare output, the goldens compare traces, reachability
+compares codes, and a span is none of those.
+
+The defect it found on the first run: **the lex/parse diagnostic carried a
+hardcoded byte offset of 0 while its line and column were correct.** One span,
+two encodings of one position, pointing at different places — the reported line
+said 3 and the offset said the top of the file. `LexError` and `ParseError`
+carry only a line and a column, so the offset was never derivable at the throw
+site and was left at zero; it is now computed where the text is in scope.
+
+None of the three properties has a typed expected value:
+
+- **self-consistency** — deriving line/column from the offset must reproduce
+  the reported pair. Two independent encodings of one fact, so the source text
+  IS the oracle and no reference answer exists to get wrong.
+- **vertical shift invariance** — prepending k blank lines must move every
+  reported line by exactly k and leave the column alone. A hardcoded position
+  fails the moment k > 0.
+- **trailing invariance** — appending blank lines must move nothing, which
+  catches a position measured from the end of the file that shift invariance
+  alone would pass.
+
+The first two caught the same defect independently, which is the useful kind of
+redundancy: neither was written knowing what the other would find.
+
+**The monitor had a fourth hole, and it breaks the pattern the third one
+established.** The transpiler's own entry point — `transpiler-python/src/index.ts`
+— was absent from the map entirely. It is not a description: it runs on every
+compilation, and its emitter, semantic pass, purity, importance and loop
+classifier were all listed while the file that CALLS them was not. So the first
+three holes were the ones with a tidy explanation, and this one says something
+duller and worse: the map was never audited against the file list. It grew one
+entry at a time, as each file happened to come up. **A list maintained by
+accretion has holes wherever nothing happened to draw attention** — and the
+tidy explanation for the first three was itself a way of not noticing that.
+
 There is a fourth thing the clean axes mean, and it is about the person
 rather than the code. As the implementation converged, the error rate moved.
-Across 2026-08-03 to 08-05 the count was six wrong premises, then three, then
-five — every one of them written by hand, every one corrected by a measurement.
+Across 2026-08-03 to 08-06 the count was six wrong premises, then three, then
+five, then five — every one written by hand, every one corrected by a
+measurement. On 08-06 four of the five shared a shape worth separating out from
+the others: the check was looking at **the wrong observable**. A group count
+that was stable while the grouping moved; a rendered sequence compared where a
+set was meant; an adjacent-pair check where all-pairs was meant; a latency
+distribution whose tail was too flat for its own table to show the finding. In
+each the quantity measured was real and the question it answered was not the
+one asked.
 On the day axes 7 and 8 were built, **four separate expectations written by
 hand were wrong and the code was right** — a slice bound, a truncation rule,
 three diagnostic triggers, and a premise about run-length encoding that the

@@ -270,6 +270,25 @@ const SEMANTIC_FILES = [
   ['packages/transpiler-python/src/importance.ts', ['tests/cts-faithfulness.test.ts', 'tests/phase2-functions.test.ts']],
   ['packages/transpiler-python/src/loop-classifier.ts', ['tests/cts-faithfulness.test.ts', 'tests/phase2-functions.test.ts']],
   ['packages/cts-generator/src/index.ts', ['tests/cts-faithfulness.test.ts', 'tests/bug-classifier.test.ts']],
+
+  // FOURTH hole, 2026-08-06, and it breaks the pattern named just above.
+  //
+  // The transpiler's own entry point was absent from this map entirely. It is
+  // not a description - it runs on every single compilation, and its emitter,
+  // semantic pass, purity, importance and loop classifier are all listed while
+  // the file that CALLS them was not. So the previous three holes were the
+  // ones easy to explain, and this one says the map was never audited against
+  // the file list at all; it grew one entry at a time as each file happened to
+  // come up. A list maintained by accretion has holes wherever nothing
+  // happened to draw attention.
+  //
+  // What it was hiding: the lex/parse diagnostic span carried a hardcoded
+  // offset of 0 while its line and column were correct, so the two halves of
+  // one span pointed at different places. Found by axis 12, not by this file.
+  [
+    'packages/transpiler-python/src/index.ts',
+    ['tests/diagnostic-position.test.ts', 'tests/diagnostic-reachability.test.ts'],
+  ],
 ];
 
 const hashOf = (rel) => {
