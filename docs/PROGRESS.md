@@ -95,22 +95,24 @@
   2026-07-31 定下的主線（原話：「之後還是先以案例擴充為主」），節奏是每天三輪、每輪 5 個自撰
   案例，全部走完 `eml check` → `eml trace --run`（對**真 CPython** 驗 `eml:equiv ok:true`）→
   `eml roundtrip` 到 fixpoint → 確定性 `.trace.jsonl` golden → 帶真實輸出的 README，再跑全套
-  測試與 `pnpm monitor`，然後兩個 repo 一起發布、驗 production `build_id`。**截至 2026-08-06：
-  語料庫 270 個程式，測試套件 1827 tests / 57 files。**
+  測試與 `pnpm monitor`，然後兩個 repo 一起發布、驗 production `build_id`。**截至 2026-08-07：
+  語料庫 285 個程式，測試套件 1877 tests / 58 files。**
 
   這條線真正的產出不是案例數，而是**量測軸**——每天挑一條現有 gate 看不見的軸，把期望值用
   程式**算出來**而不是打出來，然後 drill（故意弄壞它守的修正、確認 gate 會失敗、再逐 byte 還原）。
-  目前 12 條：(1) 語法構件、(2) builtin × 引數形狀、(3/3b) 運算子 × 運算元型別含**錯誤訊息**、
+  目前 13 條：(1) 語法構件、(2) builtin × 引數形狀、(3/3b) 運算子 × 運算元型別含**錯誤訊息**、
   (4) 敘述互動、(5) 值模型邊界、(6) 反向轉譯構件配對、(7) slice 邊界、(8) 診斷可達性、
   (9) 結晶化快取鍵、(10) **trace 完整性（2 個真缺陷）**、(11) CTS 忠實性、
-  (12) **診斷位置（1 個真缺陷）**。方法本身寫在 `assessment/04-method.md`，包含每條軸「看不見
+  (12) **診斷位置（1 個真缺陷）**、(13) **跨作用域再綁定（1 個真缺陷，256 支程式用 round-trip fixpoint 判定）**。方法本身寫在 `assessment/04-method.md`，包含每條軸「看不見
   什麼」的欄位——那一欄往下讀，就是這套紀律的形狀。
 
   沿路修掉的真缺陷（都是案例或量測軸**浮現**的，不是去獵來的）：直譯器 float sum 與 CPython
   的分歧（Neumaier）、`%` 格式化分歧、例外物件模型、`pass` 沒有敘述形式、class 層級屬性被靜靜
   丟掉、IndexError 讀寫訊息相同、`eml:output` 少帶 `end` 導致 stdout 無法從 trace 重建、列表
   推導式**執行時完全不留痕跡**、lex/parse 診斷的 byte offset 寫死成 0（line/column 是對的，
-  同一個 span 兩種編碼指到不同地方）。另外 `scripts/semantic-monitor.mjs` 這個語意漂移監控本身
+  同一個 span 兩種編碼指到不同地方）、**在 `if` 內宣告又在函式層再指派的名字，反向繞回來變成
+  augmented assignment（dict 上是 TypeError）——這一個是 2026-08-07 由「案例」而不是量測軸
+  抓到的第一個，起因是正向分析器與反向產生器各持一份「哪些名字已宣告」的模型、從沒被比對過**。另外 `scripts/semantic-monitor.mjs` 這個語意漂移監控本身
   被抓到**四個洞**，每次都是**補測試**而不是 `--accept`。
 
 - **2026-07-19** — 完成**案例庫擴充：11 → 50 個自撰真實案例 + `/cases` 分頁**。Neo 指示先驗證
