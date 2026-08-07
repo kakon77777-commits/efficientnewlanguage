@@ -249,7 +249,16 @@ const SEMANTIC_FILES = [
   ['packages/transpiler-python/src/semantic.ts', ['tests/interp.test.ts', 'tests/statement-interaction.test.ts']],
   [
     'packages/transpiler-eml/src/eml-emitter.ts',
-    ['tests/reverse-regression.test.ts', 'tests/reverse-blocks.test.ts'],
+    // `rebinding-across-scopes` was added 2026-08-07 after this file's model of
+    // "which names are declared" was found to disagree with the forward
+    // analyzer's. The two listed before it both exercise the reverse path one
+    // construct at a time, which is why neither could see it: the disagreement
+    // only shows when ONE NAME is assigned in TWO scopes.
+    [
+      'tests/reverse-regression.test.ts',
+      'tests/reverse-blocks.test.ts',
+      'tests/rebinding-across-scopes.test.ts',
+    ],
   ],
   ['packages/transpiler-eml/src/py-parser.ts', ['tests/reverse-regression.test.ts', 'tests/reverse-blocks.test.ts']],
   ['packages/transpiler-eml/src/py-lexer.ts', ['tests/reverse-regression.test.ts', 'tests/reverse-blocks.test.ts']],

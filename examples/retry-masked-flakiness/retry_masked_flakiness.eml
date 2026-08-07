@@ -1,0 +1,156 @@
+# Self-authored for the EML case corpus (no external origin). A test that fails
+# one run in five, retried three times, reports a 99.2% pass rate.
+#
+# Retrying a failed test in CI is a reasonable operational choice and a
+# catastrophic measurement choice. The observed pass rate after r attempts is
+#
+#     1 - (failure_rate ^ r)
+#
+# so a test failing 20% of the time passes 99.2% of CI runs at three attempts.
+# The dashboard is not lying - that IS how often the pipeline goes green - but
+# the number it reports is a function of the retry policy, and the underlying
+# rate is not recoverable from it unless the retries are counted too.
+#
+# Worse, the transformation is steepest exactly where it matters. A test at 50%
+# looks like 87.5%; a test at 5% looks like 99.99%. So the metric compresses
+# every unhealthy test into the same narrow band just below 100%, which is also
+# where all the healthy tests are.
+#
+# The measurement sweeps true failure rates against attempt counts, computes
+# the observed pass rate exactly in integer per-mille arithmetic, and reports
+# how many distinct true rates become indistinguishable at a reporting
+# precision of one decimal place.
+
+1000 => SCALE
+
+def ipow(base, n):
+    1 => r
+    for k in [1:n]:
+        r * base => r
+    return r
+
+def observed_permille(fail_permille, attempts):
+    # 1 - f^attempts, in per mille, exactly.
+    ipow(fail_permille, attempts) => num
+    ipow(SCALE, attempts) => den
+    return SCALE - int(num * SCALE / den)
+
+def show(pm):
+    return str(int(pm / 10)) + "." + str(pm % 10) + "%"
+
+
+[500, 200, 100, 50, 10] => TRUE_FAIL
+[1, 2, 3, 5] => ATTEMPTS
+
+"true failure rate   1 attempt   2 attempts   3 attempts   5 attempts"^0
+{} => res
+for f in TRUE_FAIL:
+    {} => row
+    "" => cells
+    for a in ATTEMPTS:
+        observed_permille(f, a) => o
+        o => row[str(a)]
+        cells + ("%-12s" % show(o)) => cells
+    row => res[str(f)]
+    ("%-19s %s" % (show(f) + " fail", cells))^0
+
+""^0
+("true failure rates swept: " + str(len(TRUE_FAIL)))^0
+
+# ------------------------------- how many become indistinguishable
+""^0
+"observed pass rates rounded to one decimal place, at 3 attempts:"^0
+{} => distinct1
+{} => distinct3
+for f in TRUE_FAIL:
+    1 => distinct1[show(res[str(f)]["1"])]
+    1 => distinct3[show(res[str(f)]["3"])]
+    ("  true " + show(f) + " fail -> observed " + show(res[str(f)]["3"]))^0
+("distinct observed values at 1 attempt: " + str(len(distinct1)) + "/" + str(len(TRUE_FAIL)))^0
+("distinct observed values at 3 attempts: " + str(len(distinct3)) + "/" + str(len(TRUE_FAIL)))^0
+
+# --------------------------- everything unhealthy lands above 99%
+""^0
+0 => above99
+for f in TRUE_FAIL:
+    if res[str(f)]["3"] >= 990:
+        above99 + 1 => above99
+("true rates that report above 99% at 3 attempts: " + str(above99) + "/" + str(len(TRUE_FAIL)))^0
+("  including a test that genuinely fails " + show(TRUE_FAIL[1]) + " of the time")^0
+
+# ------------------------------ the number that IS recoverable
+""^0
+"the retry count is the missing information, and it is already available:"^0
+0 => recoverable
+for f in TRUE_FAIL:
+    # Expected extra attempts per run = f + f^2 + ... which is monotone in f,
+    # so the retry count identifies the true rate where the pass rate cannot.
+    0 => extra
+    for a in [1:2]:
+        extra + int(ipow(f, a) * SCALE / ipow(SCALE, a)) => extra
+    ("  true " + show(f) + " fail -> " + show(extra) + " extra attempts per run")^0
+    recoverable + 1 => recoverable
+("rates distinguishable by retry count: " + str(recoverable) + "/" + str(len(TRUE_FAIL)))^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# With one attempt the observed rate must be the true rate, so the distortion
+# is entirely the retry policy's.
+checked + 1 => checked
+0 => exact
+for f in TRUE_FAIL:
+    if res[str(f)]["1"] == SCALE - f:
+        exact + 1 => exact
+if exact == len(TRUE_FAIL):
+    passed + 1 => passed
+
+# A 20% failure rate must report above 99% at three attempts.
+checked + 1 => checked
+if res["200"]["3"] >= 990:
+    passed + 1 => passed
+
+# All five true rates must be distinguishable at one attempt.
+checked + 1 => checked
+if len(distinct1) == len(TRUE_FAIL):
+    passed + 1 => passed
+
+# And most of them must land above 99% at three - the compression that puts
+# unhealthy tests in the same band as healthy ones.
+checked + 1 => checked
+if above99 >= 3:
+    passed + 1 => passed
+
+# The observed rate must rise monotonically with attempts for every true rate,
+# so more retries always look better and never worse.
+checked + 1 => checked
+0 => monotone
+0 => steps
+for f in TRUE_FAIL:
+    for i in [0:len(ATTEMPTS) - 2]:
+        steps + 1 => steps
+        if res[str(f)][str(ATTEMPTS[i + 1])] >= res[str(f)][str(ATTEMPTS[i])]:
+            monotone + 1 => monotone
+if monotone == steps:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Three attempts turns one failure in five into a 99.2% pass rate." => verdict
+else:
+    "FAILED - the arithmetic did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"Retrying is an operational decision and the pass rate is a measurement," => n1
+n1^0
+"and the retry silently makes the second a function of the first. What is" => n2
+n2^0
+"lost is not precision but ORDER: after three attempts a test failing half" => n3
+n3^0
+"the time and one failing one time in twenty report numbers a reader would" => n4
+n4^0
+"call the same. The retry count is the part worth putting on the dashboard." => n5
+n5^0

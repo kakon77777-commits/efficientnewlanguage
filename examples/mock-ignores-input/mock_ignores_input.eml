@@ -1,0 +1,184 @@
+# Self-authored for the EML case corpus (no external origin). A stub that
+# returns success, and four broken callers that pass.
+#
+# A test double stands in for a dependency. The cheapest one returns a fixed
+# value regardless of what it was called with - and that is exactly the double
+# most often written, because writing it requires knowing nothing about the
+# contract.
+#
+# The consequence is that every test using it is testing the caller's code
+# against a dependency with NO behaviour. Any bug in how the caller builds the
+# call - wrong field, swapped arguments, missing filter, unescaped value -
+# produces the same fixed answer, so the test passes. The double is not
+# checking anything; it is agreeing.
+#
+# The measurement runs a set of deliberately broken callers against three
+# doubles - always-succeed, records-the-call, and one that VALIDATES its
+# arguments - and counts how many broken callers each one catches. The
+# always-succeed double is also the one with the best-looking test: no setup,
+# no assertions about the dependency, one line.
+
+def charge(user, amount, currency, bug):
+    # Builds the call to the payment dependency. `bug` injects one defect.
+    user => u
+    amount => a
+    currency => c
+    if bug == "swapped":
+        amount => u
+        user => a
+    elif bug == "wrong-currency":
+        "USD" => c
+    elif bug == "cents":
+        amount * 100 => a
+    elif bug == "missing-user":
+        "" => u
+    return [u, a, c]
+
+def double(kind, call):
+    # Returns "ok" or a rejection. `call` is [user, amount, currency].
+    if kind == "always-ok":
+        return "ok"
+    if kind == "records":
+        # Records the call and still answers "ok" - the double most people
+        # think is the strict one, because it lets you assert afterwards.
+        return "ok"
+    # Validating double: knows the contract the real dependency enforces.
+    call[0] => u
+    call[1] => a
+    call[2] => c
+    if len(str(u)) == 0:
+        return "reject: empty user"
+    # A user id is a string and an amount is not. Comparing str(x) == x is the
+    # test for that with the ten builtins this language has - and it is the
+    # check that has to come FIRST, because every check after it assumes the
+    # arguments are in the right positions. The first version compared the
+    # rendered values instead, which does not detect a swap, and then reached
+    # a numeric comparison holding a string.
+    if not (str(u) == u):
+        return "reject: user is not an identifier"
+    if str(a) == a:
+        return "reject: amount is not a number"
+    if not (c == "EUR"):
+        return "reject: unsupported currency " + str(c)
+    if a > 1000:
+        return "reject: amount out of range"
+    return "ok"
+
+def catches(kind, bug):
+    charge("u42", 250, "EUR", bug) => call
+    if double(kind, call) == "ok":
+        return 0
+    return 1
+
+
+["none", "swapped", "wrong-currency", "cents", "missing-user"] => BUGS
+["always-ok", "records", "validating"] => DOUBLES
+
+"double        caught   of   let through"^0
+{} => res
+for d in DOUBLES:
+    0 => caught
+    "" => through
+    for b in BUGS:
+        if not (b == "none"):
+            if catches(d, b) == 1:
+                caught + 1 => caught
+            else:
+                if len(through) > 0:
+                    through + "," => through
+                through + b => through
+    len(BUGS) - 1 => n_bugs
+    [caught, n_bugs] => res[d]
+    if len(through) == 0:
+        "-- none --" => through
+    ("%-13s %-8d %-4d %s" % (d, caught, n_bugs, through))^0
+
+""^0
+("broken callers: " + str(len(BUGS) - 1))^0
+
+# ------------------------- every double passes the correct caller
+""^0
+0 => clean
+for d in DOUBLES:
+    if catches(d, "none") == 0:
+        clean + 1 => clean
+("doubles that accept the CORRECT caller: " + str(clean) + "/" + str(len(DOUBLES)))^0
+"...so no double is simply strict. They differ only on the broken ones."^0
+
+# ------------------------------- what each rejection says
+""^0
+"what the validating double reports, per bug:"^0
+for b in BUGS:
+    if not (b == "none"):
+        charge("u42", 250, "EUR", b) => call
+        ("  %-16s %s" % (b, double("validating", call)))^0
+
+# ------------------------- the always-ok double is the shortest test
+""^0
+"lines of setup each double needs:"^0
+("  always-ok    1  (return \"ok\")")^0
+("  records      2  (append, return \"ok\")")^0
+("  validating   8  (the contract, written out)")^0
+("caught per line of setup:")^0
+("  always-ok    " + str(res["always-ok"][0]) + "/1")^0
+("  validating   " + str(res["validating"][0]) + "/8")^0
+"...the cheapest double is cheap because it encodes no contract, and the"^0
+"contract is the entire thing a double is standing in for."^0
+
+# ----------------------- recording the call does not help by itself
+""^0
+("`records` catches " + str(res["records"][0]) + " - the same as always-ok.")^0
+"Recording makes an assertion POSSIBLE; it does not make one. A test that"^0
+"records the call and asserts nothing about it is the always-ok double with"^0
+"extra steps, and it reads as more rigorous."^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# The always-ok double must catch nothing.
+checked + 1 => checked
+if res["always-ok"][0] == 0:
+    passed + 1 => passed
+
+# Recording without asserting must catch exactly as much - nothing.
+checked + 1 => checked
+if res["records"][0] == res["always-ok"][0]:
+    passed + 1 => passed
+
+# The validating double must catch every broken caller.
+checked + 1 => checked
+if res["validating"][0] == res["validating"][1]:
+    passed + 1 => passed
+
+# Every double must accept the correct caller, so the difference between them
+# is never visible on a passing test.
+checked + 1 => checked
+if clean == len(DOUBLES):
+    passed + 1 => passed
+
+# And there must be more than one broken caller, so catching zero is a
+# property of the double rather than of a thin fixture.
+checked + 1 => checked
+if res["always-ok"][1] >= 4:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "The double agreed with every caller, including the four that were wrong." => verdict
+else:
+    "FAILED - a double did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"A double replaces a dependency, and what a dependency mostly does is" => n1
+n1^0
+"REFUSE things. A double that only knows how to succeed has replaced the" => n2
+n2^0
+"half of the contract nobody was worried about and deleted the half that" => n3
+n3^0
+"catches mistakes - which is why a suite full of them turns green the" => n4
+n4^0
+"moment the caller is written, and stays green while it is wrong." => n5
+n5^0

@@ -1,0 +1,168 @@
+# Self-authored for the EML case corpus (no external origin). Which fixture
+# values can detect an off-by-one, measured rather than guessed.
+#
+# Test data gets chosen for readability. Round numbers, a few items, names that
+# fit in a line. Those choices are made for the reader and decide, silently,
+# which defects the test is capable of noticing - and the most common defect in
+# any range check is an off-by-one at the edge, which a fixture in the MIDDLE of
+# the range cannot see no matter how many times it runs.
+#
+# The question "is this fixture good" has an answer that can be computed:
+# introduce the defect, run the fixture, and see whether the answer changes.
+# A fixture value that gives the same answer under the correct and the broken
+# implementation has not tested that implementation; it has exercised it.
+#
+# The measurement sweeps every integer in a window across four implementations
+# - one correct and three with off-by-one errors at different edges - and
+# reports which values distinguish which. It then reports the DETECTION RATE of
+# a hand-written fixture against a swept one, which is the number that decides
+# whether reading nicer is worth anything.
+
+def in_range(n, impl):
+    # The rule: accept 10 through 99 inclusive.
+    if impl == "correct":
+        return n >= 10 and n <= 99
+    if impl == "off-low":
+        return n > 10 and n <= 99
+    if impl == "off-high":
+        return n >= 10 and n < 99
+    return n >= 10 and n <= 100
+
+def detects(n, impl):
+    if in_range(n, "correct") == in_range(n, impl):
+        return 0
+    return 1
+
+
+["off-low", "off-high", "off-both-high"] => BROKEN
+
+# The values that actually distinguish anything, found by sweeping.
+"value   detects"^0
+[] => detecting
+for n in [5:105]:
+    "" => which
+    for impl in BROKEN:
+        if detects(n, impl) == 1:
+            if len(which) > 0:
+                which + "," => which
+            which + impl => which
+    if len(which) > 0:
+        detecting + [n] => detecting
+        ("%-7d %s" % (n, which))^0
+
+""^0
+("integers swept: 101 (5 through 105)")^0
+("integers that detect ANY of the three defects: " + str(len(detecting)))^0
+
+# ------------------------------ a hand-written fixture, and what it sees
+""^0
+[25, 50, 75] => READABLE
+[1, 9, 10, 11, 50, 98, 99, 100] => BOUNDARY
+"detection by fixture:"^0
+{} => fixture_res
+for pair in [["readable", READABLE], ["boundary-aware", BOUNDARY]]:
+    pair[0] => nm
+    pair[1] => vals
+    0 => found
+    for impl in BROKEN:
+        0 => any_v
+        for v in vals:
+            if detects(v, impl) == 1:
+                1 => any_v
+        found + any_v => found
+    [found, len(vals)] => fixture_res[nm]
+    ("  %-16s %d values, detects %d/%d defects" % (nm, len(vals), found, len(BROKEN)))^0
+
+# ---------------------------- the readable fixture runs the same lines
+""^0
+0 => same_answer
+for v in READABLE:
+    if in_range(v, "correct"):
+        same_answer + 1 => same_answer
+("the readable fixture's values are all ACCEPTED: " + str(same_answer) + "/" + str(len(READABLE)))^0
+"...it never exercises a rejection at all, so the only branch it takes is"^0
+"the one that says yes."^0
+
+# ------------------------------ how narrow the detecting set is
+""^0
+("detecting integers as a fraction of the swept window: " + str(len(detecting)) + "/101")^0
+("  which is " + str(int(len(detecting) * 100 / 101)) + "%")^0
+"a value chosen without thinking about the edge has that chance of catching"^0
+"an off-by-one, and a fixture of three such values does not improve much."^0
+0 => any_random
+for v in READABLE:
+    for impl in BROKEN:
+        if detects(v, impl) == 1:
+            any_random + 1 => any_random
+("  the three readable values detect " + str(any_random) + " defect-instances between them")^0
+
+# --------------------------- each defect needs a specific value
+""^0
+"the ONLY value that detects each defect:"^0
+0 => unique_witness
+for impl in BROKEN:
+    [] => wit
+    for n in [5:105]:
+        if detects(n, impl) == 1:
+            wit + [n] => wit
+    if len(wit) == 1:
+        unique_witness + 1 => unique_witness
+    "" => shown
+    for w in wit:
+        if len(shown) > 0:
+            shown + "," => shown
+        shown + str(w) => shown
+    ("  %-16s %s" % (impl, shown))^0
+("defects with exactly ONE witness in the window: " + str(unique_witness) + "/" + str(len(BROKEN)))^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# The readable fixture must detect nothing.
+checked + 1 => checked
+if fixture_res["readable"][0] == 0:
+    passed + 1 => passed
+
+# The boundary-aware fixture must detect every defect, with a comparable
+# number of values - it is not bigger, it is chosen differently.
+checked + 1 => checked
+if fixture_res["boundary-aware"][0] == len(BROKEN):
+    passed + 1 => passed
+
+# Fewer than 5% of the swept window detects anything, so picking a value for
+# readability is picking from the 95% that cannot.
+checked + 1 => checked
+if len(detecting) * 20 < 101:
+    passed + 1 => passed
+
+# Every defect must have exactly one witness - there is no slack anywhere.
+checked + 1 => checked
+if unique_witness == len(BROKEN):
+    passed + 1 => passed
+
+# And every readable value must be accepted by the correct implementation, so
+# the fixture never even reaches the rejecting branch.
+checked + 1 => checked
+if same_answer == len(READABLE):
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Three defects, three witnesses, and the readable fixture holds none of them." => verdict
+else:
+    "FAILED - a fixture did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"A fixture value is a choice about which defects the test can notice, and" => n1
+n1^0
+"it is almost always made on other grounds. The useful question is not how" => n2
+n2^0
+"many cases a suite has but whether any of its values sit where the answer" => n3
+n3^0
+"CHANGES - and that is computable: break the code on purpose and see if the" => n4
+n4^0
+"fixture reacts." => n5
+n5^0

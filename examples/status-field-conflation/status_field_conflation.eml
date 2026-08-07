@@ -1,0 +1,185 @@
+# Self-authored for the EML case corpus (no external origin). One status
+# column, two independent facts, and the states that cannot be written down.
+#
+# An order has a payment state and a fulfilment state. They move independently:
+# a payment can be refunded after shipping, a shipment can fail after payment,
+# an order can be cancelled before either. Modelled as one enum -
+#
+#     pending  paid  shipped  cancelled  refunded
+#
+# - the column is being asked to hold a PAIR in a single slot, and it cannot.
+# The enum names five points in a nine-point space, so four real situations
+# have no value to write, and the code that meets one of them picks whichever
+# neighbour is least wrong.
+#
+# The give-away is not that some transition is missing. It is that the enum's
+# values are not comparable: `shipped` and `refunded` are not two points on one
+# line, they are answers to different questions, and an order can be both.
+#
+# The measurement enumerates the real state space as a product of the two
+# dimensions, marks which points the enum can name, and reports the ones it
+# cannot - then walks a real order history through both models and shows where
+# the single column has to lie.
+
+["unpaid", "paid", "refunded"] => PAYMENT
+["none", "shipped", "returned"] => FULFILMENT
+["pending", "paid", "shipped", "cancelled", "refunded"] => ENUM
+
+def enum_for(pay, ship):
+    # The value a single-column model would store for a real (payment,
+    # fulfilment) pair. Empty string means: no value expresses this.
+    if pay == "unpaid" and ship == "none":
+        return "pending"
+    if pay == "paid" and ship == "none":
+        return "paid"
+    if pay == "paid" and ship == "shipped":
+        return "shipped"
+    if pay == "refunded" and ship == "none":
+        return "refunded"
+    return ""
+
+def pair_of(status):
+    # Reading the single column back out. Which pair does each value claim?
+    if status == "pending":
+        return ["unpaid", "none"]
+    if status == "paid":
+        return ["paid", "none"]
+    if status == "shipped":
+        return ["paid", "shipped"]
+    if status == "refunded":
+        return ["refunded", "none"]
+    return ["unpaid", "none"]
+
+
+"payment    fulfilment   enum value"^0
+0 => total
+0 => nameable
+[] => orphans
+for pay in PAYMENT:
+    for ship in FULFILMENT:
+        total + 1 => total
+        enum_for(pay, ship) => e
+        if len(e) > 0:
+            nameable + 1 => nameable
+        else:
+            orphans + [pay + "/" + ship] => orphans
+        "-- none --" => shown
+        if len(e) > 0:
+            e => shown
+        ("%-10s %-12s %s" % (pay, ship, shown))^0
+
+""^0
+("real states: " + str(len(PAYMENT)) + " payment x " + str(len(FULFILMENT)) + " fulfilment = " + str(total))^0
+("enum values available: " + str(len(ENUM)))^0
+("real states the enum can name: " + str(nameable) + "/" + str(total))^0
+("real states with no value at all: " + str(len(orphans)))^0
+for o in orphans:
+    ("  " + o)^0
+
+# ------------------------------- one enum value that names nothing real
+""^0
+0 => unreachable
+for e in ENUM:
+    0 => reachable
+    for pay in PAYMENT:
+        for ship in FULFILMENT:
+            if enum_for(pay, ship) == e:
+                reachable + 1 => reachable
+    if reachable == 0:
+        unreachable + 1 => unreachable
+        ("enum value that no real state maps to: " + e)^0
+("enum values with no real state behind them: " + str(unreachable))^0
+"...cancelled is a THIRD dimension - whether the order was called off - and"^0
+"it was folded into the same column because it also felt like a status."^0
+
+# --------------------------------- an order history the column cannot hold
+""^0
+"a real order, event by event:"^0
+[
+    ["order placed", "unpaid", "none"],
+    ["payment captured", "paid", "none"],
+    ["parcel dispatched", "paid", "shipped"],
+    ["customer refunded", "refunded", "shipped"],
+    ["parcel returned", "refunded", "returned"]
+] => history
+0 => lost
+for h in history:
+    enum_for(h[1], h[2]) => e
+    "     <- no value; the column must lie" => note
+    if len(e) > 0:
+        "" => note
+    if len(e) == 0:
+        lost + 1 => lost
+    "-- none --" => shown
+    if len(e) > 0:
+        e => shown
+    ("  %-20s (%s, %s) -> %s%s" % (h[0], h[1], h[2], shown, note))^0
+("steps in this history the single column cannot represent: " + str(lost) + "/" + str(len(history)))^0
+
+# ----------------------------- what the column loses on a round trip
+""^0
+0 => roundtrip_ok
+0 => roundtrip_n
+for pay in PAYMENT:
+    for ship in FULFILMENT:
+        enum_for(pay, ship) => e
+        if len(e) > 0:
+            roundtrip_n + 1 => roundtrip_n
+            pair_of(e) => back
+            if back[0] == pay and back[1] == ship:
+                roundtrip_ok + 1 => roundtrip_ok
+("nameable states that survive a write-then-read: " + str(roundtrip_ok) + "/" + str(roundtrip_n))^0
+"...the states it CAN hold, it holds faithfully. The loss is at the states"^0
+"it cannot hold, which is where no error is raised either."^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# The real state space must be larger than the enum. If it were not, the
+# single column would be adequate and there would be nothing here.
+checked + 1 => checked
+if total > len(ENUM):
+    passed + 1 => passed
+
+# At least one real state must have no enum value.
+checked + 1 => checked
+if len(orphans) > 0:
+    passed + 1 => passed
+
+# And at least one enum value must correspond to no real state - the two
+# failures point in opposite directions and both come from one column.
+checked + 1 => checked
+if unreachable > 0:
+    passed + 1 => passed
+
+# A plausible order history must contain a step the column cannot express.
+checked + 1 => checked
+if lost > 0:
+    passed + 1 => passed
+
+# The states the enum CAN name must round-trip perfectly, so the defect is
+# the missing values and not a sloppy encoding of the present ones.
+checked + 1 => checked
+if roundtrip_ok == roundtrip_n and roundtrip_n > 0:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Refunded after shipping is an ordinary event with no value to store." => verdict
+else:
+    "FAILED - the state model did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"The question to ask an enum is not which values are missing - it is how" => n1
+n1^0
+"many independent facts the column is holding. One slot can hold one, and" => n2
+n2^0
+"each extra fact multiplies the space it would need. That is why the fix is" => n3
+n3^0
+"never another enum value: adding one names a single point in a space that" => n4
+n4^0
+"grew by a factor." => n5
+n5^0

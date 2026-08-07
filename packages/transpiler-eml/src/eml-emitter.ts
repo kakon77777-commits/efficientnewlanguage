@@ -177,17 +177,21 @@ export function emitEmlExpression(expr: Expression): string {
  * they simply share one live `bound` set with their enclosing scope (matching
  * the forward analyzer's own "no branch cloning for loops" choice).
  */
-function emitIfChain(stmt: IfStatement, bound: Set<string>): { text: string; declaredInAllBranches: Set<string> } {
+function emitIfChain(
+  stmt: IfStatement,
+  bound: Set<string>,
+  seen: Set<string>,
+): { text: string; declaredInAllBranches: Set<string> } {
   const lines: string[] = [`if ${emitEmlExpression(stmt.test)}:`];
   const bodyBound = new Set(bound);
-  for (const s of stmt.body) lines.push(indent(emitEmlStatement(s, bodyBound)));
+  for (const s of stmt.body) lines.push(indent(emitEmlStatement(s, bodyBound, seen)));
   const bodyNew = new Set([...bodyBound].filter((n) => !bound.has(n)));
 
   if (stmt.orelse.length === 1 && stmt.orelse[0]!.type === 'If') {
     // elif — recurse (not through emitEmlStatement, so the exhaustiveness
     // metadata survives the recursion); prefixing 'el' turns "if ..." into
     // "elif ..." for free since that's always how the nested render starts.
-    const nested = emitIfChain(stmt.orelse[0] as IfStatement, bound);
+    const nested = emitIfChain(stmt.orelse[0] as IfStatement, bound, seen);
     lines.push('el' + nested.text);
     const declaredInAllBranches = new Set([...bodyNew].filter((n) => nested.declaredInAllBranches.has(n)));
     return { text: lines.join('\n'), declaredInAllBranches };
@@ -195,7 +199,7 @@ function emitIfChain(stmt: IfStatement, bound: Set<string>): { text: string; dec
   if (stmt.orelse.length > 0) {
     const orelseBound = new Set(bound);
     lines.push('else:');
-    for (const s of stmt.orelse) lines.push(indent(emitEmlStatement(s, orelseBound)));
+    for (const s of stmt.orelse) lines.push(indent(emitEmlStatement(s, orelseBound, seen)));
     const orelseNew = new Set([...orelseBound].filter((n) => !bound.has(n)));
     const declaredInAllBranches = new Set([...bodyNew].filter((n) => orelseNew.has(n)));
     return { text: lines.join('\n'), declaredInAllBranches };
@@ -204,7 +208,11 @@ function emitIfChain(stmt: IfStatement, bound: Set<string>): { text: string; dec
   return { text: lines.join('\n'), declaredInAllBranches: new Set() };
 }
 
-export function emitEmlStatement(stmt: Statement, bound: Set<string> = new Set()): string {
+export function emitEmlStatement(
+  stmt: Statement,
+  bound: Set<string> = new Set(),
+  seen: Set<string> = new Set(bound),
+): string {
   switch (stmt.type) {
     case 'Assignment': {
       if (stmt.target.type === 'Subscript' || stmt.target.type === 'Attribute') {
@@ -223,7 +231,22 @@ export function emitEmlStatement(stmt: Statement, bound: Set<string> = new Set()
       // branches — Phase A — make that a common pattern, e.g. Fibonacci's
       // `a, b = b, a + b`-style per-iteration update). The reversed-arrow
       // form is unconditional and works uniformly regardless of value shape.
-      if (bound.has(stmt.target.name)) {
+      // `bound` and `seen` answer two DIFFERENT questions and this line used
+      // one set for both. `bound` is "is this name reliably bound here" — it
+      // is branch-cloned, because a name assigned in one arm of a
+      // non-exhaustive `if` is not reliably bound afterward. `seen` is "could
+      // the forward parser possibly read `^+` as an augment" — and that one
+      // must never be cloned, because the forward analyzer keeps a name bound
+      // once it has been assigned ANYWHERE earlier in the scope.
+      //
+      // Using the cloned set for the second question emitted `t^+{}` after an
+      // `if` that had already assigned `t`, which the forward emitter renders
+      // as `t += {}` — a TypeError on a dict, from a program that round-tripped
+      // without complaint. The same shape had already been fixed twice, once
+      // for `for` targets and once for plain reassignment; each fix patched
+      // the instance. This one closes every cloning site at once, because the
+      // reversed-arrow form is unconditional and correct in all of them.
+      if (bound.has(stmt.target.name) || seen.has(stmt.target.name)) {
         line = `${emitEmlExpression(v)} => ${stmt.target.name}`;
       } else if (isInlineLiteral(v)) {
         line = `${stmt.target.name}^+${emitEmlExpression(v)}`;
@@ -231,6 +254,7 @@ export function emitEmlStatement(stmt: Statement, bound: Set<string> = new Set()
         line = `${emitEmlExpression(v)} => ${stmt.target.name}`;
       }
       bound.add(stmt.target.name);
+      seen.add(stmt.target.name);
       return line;
     }
     case 'AugmentedAssign': {
@@ -286,7 +310,8 @@ export function emitEmlStatement(stmt: Statement, bound: Set<string> = new Set()
       const params = stmt.params.map((p) => p.name).join(', ');
       lines.push(`def ${stmt.name}(${params}):`);
       const fnBound = new Set(stmt.params.map((p) => p.name));
-      for (const s of stmt.body) lines.push(indent(emitEmlStatement(s, fnBound)));
+      const fnSeen = new Set(fnBound);
+      for (const s of stmt.body) lines.push(indent(emitEmlStatement(s, fnBound, fnSeen)));
       return lines.join('\n');
     }
     case 'Return':
@@ -294,13 +319,13 @@ export function emitEmlStatement(stmt: Statement, bound: Set<string> = new Set()
     case 'OverlayAssign':
       throw new EmlEmitError(`Internal error: emitEml received unresolved OverlayAssign for '${stmt.target.name}'.`);
     case 'If': {
-      const { text, declaredInAllBranches } = emitIfChain(stmt, bound);
+      const { text, declaredInAllBranches } = emitIfChain(stmt, bound, seen);
       for (const name of declaredInAllBranches) bound.add(name);
       return text;
     }
     case 'While': {
       const lines: string[] = [`while ${emitEmlExpression(stmt.test)}:`];
-      for (const s of stmt.body) lines.push(indent(emitEmlStatement(s, bound)));
+      for (const s of stmt.body) lines.push(indent(emitEmlStatement(s, bound, seen)));
       return lines.join('\n');
     }
     case 'ForIn': {
@@ -312,8 +337,9 @@ export function emitEmlStatement(stmt: Statement, bound: Set<string> = new Set()
       // Assignment case above already guards on `bound`; it was simply never
       // told about loop variables. Found by examples/comprehension-pipeline.
       bound.add(stmt.target.name);
+      seen.add(stmt.target.name);
       const lines: string[] = [`for ${stmt.target.name} in ${emitEmlExpression(stmt.iterable)}:`];
-      for (const s of stmt.body) lines.push(indent(emitEmlStatement(s, bound)));
+      for (const s of stmt.body) lines.push(indent(emitEmlStatement(s, bound, seen)));
       return lines.join('\n');
     }
     case 'Break':
@@ -337,7 +363,7 @@ export function emitEmlStatement(stmt: Statement, bound: Set<string> = new Set()
       // reasoning already applied to `while`/`for` bodies (Phase A).
       const lines: string[] = ['try:'];
       const tryBound = new Set(bound);
-      for (const s of stmt.body) lines.push(indent(emitEmlStatement(s, tryBound)));
+      for (const s of stmt.body) lines.push(indent(emitEmlStatement(s, tryBound, seen)));
       for (const h of stmt.handlers) {
         const header = h.exceptionType
           ? h.name
@@ -346,11 +372,15 @@ export function emitEmlStatement(stmt: Statement, bound: Set<string> = new Set()
           : 'except:';
         lines.push(header);
         const handlerBound = new Set(bound);
-        for (const s of h.body) lines.push(indent(emitEmlStatement(s, handlerBound)));
+        if (h.name) {
+          handlerBound.add(h.name);
+          seen.add(h.name);
+        }
+        for (const s of h.body) lines.push(indent(emitEmlStatement(s, handlerBound, seen)));
       }
       if (stmt.finallyBody.length > 0) {
         lines.push('finally:');
-        for (const s of stmt.finallyBody) lines.push(indent(emitEmlStatement(s, bound)));
+        for (const s of stmt.finallyBody) lines.push(indent(emitEmlStatement(s, bound, seen)));
       }
       return lines.join('\n');
     }
@@ -365,9 +395,12 @@ export function emitEmlStatement(stmt: Statement, bound: Set<string> = new Set()
       const header = stmt.target
         ? `with ${emitEmlExpression(stmt.contextExpr)} as ${stmt.target.name}:`
         : `with ${emitEmlExpression(stmt.contextExpr)}:`;
-      if (stmt.target) bound.add(stmt.target.name);
+      if (stmt.target) {
+        bound.add(stmt.target.name);
+        seen.add(stmt.target.name);
+      }
       const lines: string[] = [header];
-      for (const s of stmt.body) lines.push(indent(emitEmlStatement(s, bound)));
+      for (const s of stmt.body) lines.push(indent(emitEmlStatement(s, bound, seen)));
       return lines.join('\n');
     }
     case 'ClassDef': {
@@ -380,7 +413,8 @@ export function emitEmlStatement(stmt: Statement, bound: Set<string> = new Set()
       // falls out for free.
       const lines: string[] = [`class ${stmt.name}:`];
       const classBound = new Set<string>();
-      for (const s of stmt.body) lines.push(indent(emitEmlStatement(s, classBound)));
+      const classSeen = new Set<string>();
+      for (const s of stmt.body) lines.push(indent(emitEmlStatement(s, classBound, classSeen)));
       return lines.join('\n');
     }
   }
@@ -388,5 +422,6 @@ export function emitEmlStatement(stmt: Statement, bound: Set<string> = new Set()
 
 export function emitEmlProgram(program: Program): string {
   const bound = new Set<string>();
-  return program.body.map((s) => emitEmlStatement(s, bound)).join('\n') + '\n';
+  const seen = new Set<string>();
+  return program.body.map((s) => emitEmlStatement(s, bound, seen)).join('\n') + '\n';
 }

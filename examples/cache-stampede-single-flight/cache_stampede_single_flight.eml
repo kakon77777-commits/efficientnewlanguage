@@ -1,0 +1,208 @@
+# Self-authored for the EML case corpus (no external origin). The cache expires
+# and a thousand requests recompute the same value.
+#
+# A cached value with a TTL is fine until the instant it expires. At that
+# instant every in-flight request misses, and every one of them starts the same
+# expensive recomputation, because none of them can see the others. The backend
+# receives the full concurrency of the service for one value it already had a
+# moment ago - and the higher the hit rate, the worse it is, because a hot key
+# is exactly the one with the most requests waiting on it.
+#
+# Three mitigations, each with a different shape of cost:
+#
+#     single-flight       one request recomputes, the rest wait for it -
+#                         eliminates duplicate work and serialises on it
+#     early refresh       refresh probabilistically BEFORE expiry, so the
+#                         stampede is spread out and some work is wasted
+#     serve-stale         return the expired value while one refresh runs -
+#                         no waiting at all, and the answer is out of date
+#
+# The measurement replays one arrival pattern across an expiry boundary under
+# all four policies and counts three things separately: recomputations, requests
+# that had to WAIT, and requests served a stale value. No policy is zero on all
+# three, and which one to accept is a product decision rather than a technical
+# one.
+
+def run(policy, arrivals, ttl, compute_time):
+    # Returns [recomputes, waited, stale_served].
+    0 => recomputes
+    0 => waited
+    0 => stale
+    0 - 1 => fresh_until
+    0 - 1 => refresh_done_at
+    0 => refreshing
+    for t in arrivals:
+        if refreshing == 1 and t >= refresh_done_at:
+            0 => refreshing
+            t + ttl => fresh_until
+        if t < fresh_until:
+            # A hit. Early refresh may still start one near the end of the TTL.
+            if policy == "early" and refreshing == 0 and t >= fresh_until - 2:
+                1 => refreshing
+                t + compute_time => refresh_done_at
+                recomputes + 1 => recomputes
+        else:
+            if policy == "naive":
+                # Every miss starts its OWN recompute. The value does not
+                # become fresh until one lands, so every request arriving
+                # during the compute window misses too - which is the
+                # stampede. The first version of this file set freshness
+                # immediately on the first miss, which is single-flight with
+                # zero latency: it gave the naive policy the very behaviour
+                # the case exists to say it lacks, and made it look BETTER
+                # than single-flight.
+                recomputes + 1 => recomputes
+                waited + 1 => waited
+                if refreshing == 0:
+                    1 => refreshing
+                    t + compute_time => refresh_done_at
+            elif policy == "single-flight":
+                if refreshing == 1:
+                    waited + 1 => waited
+                else:
+                    1 => refreshing
+                    t + compute_time => refresh_done_at
+                    recomputes + 1 => recomputes
+                    waited + 1 => waited
+            elif policy == "early":
+                if refreshing == 1:
+                    waited + 1 => waited
+                else:
+                    1 => refreshing
+                    t + compute_time => refresh_done_at
+                    recomputes + 1 => recomputes
+                    waited + 1 => waited
+            else:
+                if refreshing == 0:
+                    1 => refreshing
+                    t + compute_time => refresh_done_at
+                    recomputes + 1 => recomputes
+                stale + 1 => stale
+    return [recomputes, waited, stale]
+
+
+10 => TTL
+4 => COMPUTE
+# Steady arrivals, several per tick, across two expiries.
+[] => arrivals
+for t in [0:25]:
+    for k in [1:4]:
+        arrivals + [t] => arrivals
+
+["naive", "single-flight", "early", "serve-stale"] => POLICIES
+
+"policy          recomputes   requests that waited   served stale"^0
+{} => res
+for p in POLICIES:
+    run(p, arrivals, TTL, COMPUTE) => r
+    r => res[p]
+    ("%-15s %-12d %-22d %d" % (p, r[0], r[1], r[2]))^0
+
+""^0
+("requests: " + str(len(arrivals)) + " over " + str(26) + " ticks, 4 per tick")^0
+("TTL: " + str(TTL) + " ticks, recomputation takes " + str(COMPUTE) + " ticks")^0
+
+# ------------------------------- what the naive policy costs at the boundary
+""^0
+("the naive policy recomputes " + str(res["naive"][0]) + " times for a value that changes " + str(int(26 / TTL) + 1) + " times")^0
+res["naive"][0] => n_naive
+res["single-flight"][0] => n_sf
+("  duplicate recomputations eliminated by single-flight: " + str(n_naive - n_sf))^0
+
+# --------------------------------- nobody escapes all three costs
+""^0
+"policies with zero on all three counters:"^0
+0 => perfect
+for p in POLICIES:
+    res[p] => r
+    if r[0] == 0 and r[1] == 0 and r[2] == 0:
+        perfect + 1 => perfect
+("  " + str(perfect))^0
+"...the three counters are the three things that can be given up, and a"^0
+"cache exists because at least one of them has to be."^0
+
+# ------------------------------- serve-stale is the only one with no waiting
+""^0
+0 => no_wait
+for p in POLICIES:
+    if res[p][1] == 0:
+        no_wait + 1 => no_wait
+        ("policy with zero waiting: " + p + " (serves " + str(res[p][2]) + " stale)")^0
+("policies with zero waiting: " + str(no_wait) + "/" + str(len(POLICIES)))^0
+
+# ---------------------- the arrival rate at which the stampede disappears
+""^0
+# The first version of this section claimed one request per tick shows
+# nothing. It shows plenty: the compute window is four ticks wide, so four
+# requests arrive inside it and all four miss. What hides a stampede is not
+# serial traffic, it is traffic SLOWER THAN THE RECOMPUTE - a gap wider than
+# `compute_time` means the second request finds the value already fresh. That
+# is a relationship between two numbers, not a property of load testing.
+"naive vs single-flight recomputes, by seconds between arrivals:"^0
+0 => converge_gap
+for gap in [1, 2, 4, 5, 8]:
+    [] => sparse
+    for k in [0:12]:
+        sparse + [k * gap] => sparse
+    run("naive", sparse, TTL, COMPUTE) => rn
+    run("single-flight", sparse, TTL, COMPUTE) => rs
+    if converge_gap == 0 and rn[0] == rs[0]:
+        gap => converge_gap
+    ("  gap %-3d naive %-4d single-flight %d" % (gap, rn[0], rs[0]))^0
+("the two agree once the gap reaches: " + str(converge_gap) + " ticks")^0
+("recompute takes: " + str(COMPUTE) + " ticks")^0
+"...so the stampede is present whenever requests arrive faster than the"^0
+"recomputation finishes, which is the definition of a value worth caching."^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# The naive policy must recompute far more than the value actually changes.
+checked + 1 => checked
+if res["naive"][0] > int(26 / TTL) + 1:
+    passed + 1 => passed
+
+# Single-flight must strictly reduce recomputation.
+checked + 1 => checked
+if res["single-flight"][0] < res["naive"][0]:
+    passed + 1 => passed
+
+# Serve-stale must be the only policy where nobody waits, and it must pay for
+# it with stale responses.
+checked + 1 => checked
+if res["serve-stale"][1] == 0 and res["serve-stale"][2] > 0 and no_wait == 1:
+    passed + 1 => passed
+
+# No policy may be zero on all three counters.
+checked + 1 => checked
+if perfect == 0:
+    passed + 1 => passed
+
+# And the two policies must converge once arrivals are spaced wider than the
+# recompute takes - a relationship between two numbers, found by sweeping
+# rather than assumed. The premise this replaced said serial traffic hides the
+# stampede; it does not, and the corrected claim is sharper.
+checked + 1 => checked
+if converge_gap == COMPUTE:
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "The hotter the key, the bigger the stampede when it expires." => verdict
+else:
+    "FAILED - a cache policy did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"A TTL is a synchronisation point that nobody meant to create: it makes" => n1
+n1^0
+"every reader of a key miss at the same instant. The mitigations differ in" => n2
+n2^0
+"which of three things they give up - duplicated work, waiting, or freshness" => n3
+n3^0
+"- and a cache is already the decision to give up freshness, so the third" => n4
+n4^0
+"one is usually the cheapest and the least often chosen." => n5
+n5^0

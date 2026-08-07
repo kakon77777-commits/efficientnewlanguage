@@ -1,0 +1,183 @@
+# Self-authored for the EML case corpus (no external origin). A limit of 100
+# items, and the resource is bytes.
+#
+# Limits are written in whatever unit is easy to count. Requests per minute,
+# rows per page, items per batch, files per upload. The resource being
+# protected is almost never in that unit - it is memory, or bytes on the wire,
+# or seconds of CPU - and the conversion between them is a property of the
+# DATA, which the limit does not see.
+#
+# So a limit of 100 items is a limit of anywhere between 100 bytes and 100
+# megabytes, and which one it is depends on who is calling. The limit is not
+# wrong; it is denominated in a unit that does not measure the thing that runs
+# out.
+#
+# The measurement runs the same three workloads through a count limit, a size
+# limit, and a combined limit, and reports the MAXIMUM bytes admitted under
+# each. The first version reported the SPREAD instead and treated a wide spread
+# as failure - which is the wrong observable: a limit's job is to bound the
+# maximum, not to make the amount constant. The byte limit has a 50x spread and
+# is working perfectly; small workloads simply never reach the cap. What
+# matters is whether any workload gets PAST it.
+
+100 => COUNT_LIMIT
+100000 => BYTE_LIMIT
+
+def admit(items, mode):
+    # Returns [admitted_count, admitted_bytes].
+    0 => n
+    0 => bytes_in
+    for size in items:
+        0 => ok
+        if mode == "count":
+            if n < COUNT_LIMIT:
+                1 => ok
+        elif mode == "bytes":
+            if bytes_in + size <= BYTE_LIMIT:
+                1 => ok
+        else:
+            if n < COUNT_LIMIT and bytes_in + size <= BYTE_LIMIT:
+                1 => ok
+        if ok == 1:
+            n + 1 => n
+            bytes_in + size => bytes_in
+    return [n, bytes_in]
+
+def workload(kind):
+    # `fixture` is the small, well-behaved batch a test is written against:
+    # under BOTH limits at once, so no limit binds and all three modes agree.
+    # The first version used `typical` for that role and it has 200 items, so
+    # the count limit bound at 100 and the modes did not agree - the claim
+    # about fixtures was true of a fixture this file did not contain.
+    200 => n
+    if kind == "fixture":
+        50 => n
+    [] => out
+    for i in [1:n]:
+        10 => size
+        if kind == "typical" or kind == "fixture":
+            100 => size
+        elif kind == "heavy":
+            50000 => size
+        out + [size] => out
+    return out
+
+
+["fixture", "tiny", "typical", "heavy"] => WORKLOADS
+["count", "bytes", "both"] => MODES
+
+"workload   item bytes   count limit: items / bytes   byte limit: items / bytes"^0
+{} => res
+for w in WORKLOADS:
+    workload(w) => items
+    {} => row
+    for m in MODES:
+        admit(items, m) => a
+        a => row[m]
+    row => res[w]
+    ("%-10s %-12d %-28s %s" % (w, items[0], str(row["count"][0]) + " / " + str(row["count"][1]), str(row["bytes"][0]) + " / " + str(row["bytes"][1])))^0
+
+""^0
+("count limit: " + str(COUNT_LIMIT) + " items")^0
+("byte limit: " + str(BYTE_LIMIT) + " bytes")^0
+
+# ------------------------------- what each limit actually bounds
+""^0
+"the MAXIMUM bytes admitted across the three workloads:"^0
+{} => worst
+for m in MODES:
+    0 => hi
+    for w in WORKLOADS:
+        res[w][m][1] => b
+        if b > hi:
+            b => hi
+    hi => worst[m]
+    "" => note
+    if hi > BYTE_LIMIT:
+        (" <- " + str(int(hi / BYTE_LIMIT)) + "x the byte budget") => note
+    ("  %-7s %-10d%s" % (m, hi, note))^0
+"...a limit bounds the maximum or it does not. Only one of these does."^0
+
+# ----------------------------- the count limit is correct on the fixture
+""^0
+"on the small fixture batch, all three modes admit:"^0
+for m in MODES:
+    ("  %-7s %d items, %d bytes" % (m, res["fixture"][m][0], res["fixture"][m][1]))^0
+"...identical, because no limit binds. The unit only starts mattering when"^0
+"the batch is large enough for something to bind, which is the traffic that"^0
+"causes incidents and not the traffic that gets written into a test."^0
+
+# ------------------------------- what the byte limit costs in items
+""^0
+"items admitted under the byte limit, by workload:"^0
+0 => uneven
+for w in WORKLOADS:
+    res[w]["bytes"][0] => n
+    "" => note
+    if n < COUNT_LIMIT:
+        " <- fewer than the count limit would allow" => note
+        uneven + 1 => uneven
+    ("  %-9s %d%s" % (w, n, note))^0
+("workloads where the byte limit binds first: " + str(uneven) + "/" + str(len(WORKLOADS)))^0
+"...which is the cost: a caller sending small items gets fewer than 100 only"^0
+"if it is also sending a lot of them."^0
+
+# ------------------------------------------------------------------ checks
+0 => passed
+0 => checked
+
+# The count limit must let some workload past the byte budget by a wide
+# margin. That is the resource it does not control.
+checked + 1 => checked
+if worst["count"] >= BYTE_LIMIT * 10:
+    passed + 1 => passed
+
+# Both byte-aware limits must bound the maximum exactly. Never exceeding the
+# budget is the whole job; admitting less than it on a small workload is not
+# a failure, which is what the first version of this check got wrong.
+checked + 1 => checked
+if worst["bytes"] <= BYTE_LIMIT and worst["both"] <= BYTE_LIMIT:
+    passed + 1 => passed
+
+# The heavy workload must blow past the byte budget under the count limit -
+# the failure, as a number.
+checked + 1 => checked
+if res["heavy"]["count"][1] > BYTE_LIMIT:
+    passed + 1 => passed
+
+# And it must not under either of the byte-aware limits.
+checked + 1 => checked
+if res["heavy"]["bytes"][1] <= BYTE_LIMIT and res["heavy"]["both"][1] <= BYTE_LIMIT:
+    passed + 1 => passed
+
+# On the small fixture batch all three modes must agree exactly, so nothing
+# about the difference is visible in a test built from ordinary data. And on
+# the TYPICAL batch they must NOT agree - the fixture's silence is a property
+# of its size, not of the data being ordinary.
+checked + 1 => checked
+0 => same
+for m in MODES:
+    if res["fixture"][m][0] == res["fixture"]["count"][0] and res["fixture"][m][1] == res["fixture"]["count"][1]:
+        same + 1 => same
+if same == len(MODES) and not (res["typical"]["count"][0] == res["typical"]["bytes"][0]):
+    passed + 1 => passed
+
+""^0
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "A hundred items is a limit on a number nobody is trying to control." => verdict
+else:
+    "FAILED - a limit did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"Every limit has two units: the one it counts in and the one the resource" => n1
+n1^0
+"runs out in. When they are the same the limit works; when they differ the" => n2
+n2^0
+"conversion between them is supplied by the caller, which means the caller" => n3
+n3^0
+"chooses the real limit. The question to ask is not how big the number is" => n4
+n4^0
+"but whether anything downstream measures the same thing." => n5
+n5^0

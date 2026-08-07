@@ -17,7 +17,7 @@ itself the most useful thing this table records.
 
 ---
 
-## The twelve axes, in the order they were built
+## The thirteen axes, in the order they were built
 
 | # | axis | result | what it could not see |
 |---|---|---|---|
@@ -33,7 +33,8 @@ itself the most useful thing this table records.
 | 9 | crystallization cache keys (35 variants, every pair) | 0 false cache hits | what the compiler RECORDS, as opposed to what it decides |
 | 10 | trace completeness (15 constructs, 12 output shapes) | **2 real defects** | the compiler's SEMANTIC ACCOUNT of a program — purity, importance, loop kind |
 | 11 | CTS faithfulness (17 tests) | 0 — clean first run | WHERE a diagnostic says the problem is |
-| 12 | diagnostic positions (13 triggers × 3 properties) | **1 real defect** | whether the position is the most USEFUL one, as opposed to a real one |
+| 12 | diagnostic positions (13 triggers × 3 properties) | **1 real defect** | whether two components AGREE about a fact they each model |
+| 13 | rebinding across scopes (8 × 8 positions × 4 value shapes) | **1 real defect** | what the two directions do to a program neither was written for |
 
 Read the right-hand column downward. Each axis was honest, each went green, and
 each was blind in a direction that could only be named after building the next
@@ -162,10 +163,38 @@ entry at a time, as each file happened to come up. **A list maintained by
 accretion has holes wherever nothing happened to draw attention** — and the
 tidy explanation for the first three was itself a way of not noticing that.
 
+**Axis 13 is the first to compare two components' MODELS of one fact.** The
+fact is "which names are already declared here". The forward analyzer keeps a
+model of it because `x^+v` is ambiguous — declare when `x` is new, augment when
+it is bound. The reverse emitter keeps one because it must decide whether
+emitting `x^+v` for a Python `x = v` is safe. The two are maintained in
+different packages, by different code, with no shared source, and nothing had
+ever diffed them.
+
+They disagreed. The reverse emitter branch-CLONES its set, so a name assigned
+in one arm of a non-exhaustive `if` is not treated as bound afterwards; the
+forward analyzer keeps it bound. A second `{} => t` after such an `if` therefore
+came back as `t += {}` — a TypeError on a dict, from a program that round-tripped
+with no diagnostic at all. **80 of 256 pairings** fail when the fix is reverted.
+
+The gate's expected side is a FIXPOINT: transpile forward, reverse, transpile
+forward again, and require the two Python renderings to be identical. Nothing is
+typed, so the test does not need rewriting when the emitter's formatting changes
+— and a test that stated the expected Python would not have caught this at all.
+
+Two things about this defect are worth separating. The comment in the reverse
+emitter claimed it mirrored the forward analyzer's rule; it did not, and a
+false claim in a comment is exactly what this corpus keeps finding elsewhere.
+And the same defect SHAPE had already been fixed twice — once for `for` targets,
+once for plain reassignment — with each fix patching the instance. Two sets were
+needed, not one: `bound` answers "is this reliably bound" (branch-cloned,
+correctly) and `seen` answers "could the forward parser read `^+` as an augment"
+(never cloned). One set was being asked two questions.
+
 There is a fourth thing the clean axes mean, and it is about the person
 rather than the code. As the implementation converged, the error rate moved.
-Across 2026-08-03 to 08-06 the count was six wrong premises, then three, then
-five, then five — every one written by hand, every one corrected by a
+Across 2026-08-03 to 08-07 the count was six wrong premises, then three, then
+five, five, and six — every one written by hand, every one corrected by a
 measurement. On 08-06 four of the five shared a shape worth separating out from
 the others: the check was looking at **the wrong observable**. A group count
 that was stable while the grouping moved; a rendered sequence compared where a
