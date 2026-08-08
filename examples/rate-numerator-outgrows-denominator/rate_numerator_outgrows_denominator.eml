@@ -1,0 +1,200 @@
+# Self-authored for the EML case corpus (no external origin). The numerator
+# counts every event and the denominator counts the clean ones, and the ratio
+# of two correct numbers is not a rate.
+#
+# A conversion rate is conversions divided by visitors. The conversions come
+# off the event table, because that is where conversions are. The visitors
+# come off a curated view that excludes bots, internal traffic and known test
+# accounts, because that view was built by the team who got tired of bots in
+# their visitor charts. Both numbers are right, both are documented, and they
+# are answers to questions about different populations.
+#
+# The symptom is a rate above 100%, which is impossible and therefore noticed -
+# once. What happens next is the part worth recording: somebody clamps it. The
+# clamp is a one-line change, it makes the dashboard sane, and it converts a
+# loud impossible number into a quiet wrong one for every segment where the
+# ratio was merely too high rather than absurd.
+#
+# The measurement computes the rate three ways - mismatched, clamped, and with
+# both sides drawn from the same population - and reports how many segments
+# each one gets wrong.
+
+def events_in(seg, kind):
+    0 => n
+    for e in EVENTS:
+        if e[0] == seg:
+            if e[2] == kind:
+                n + 1 => n
+    return n
+
+def clean_events_in(seg, kind):
+    # The curated view: drop bots and internal traffic.
+    0 => n
+    for e in EVENTS:
+        if e[0] == seg:
+            if e[2] == kind:
+                if e[1] == "human":
+                    n + 1 => n
+    return n
+
+def pct(x):
+    # One decimal place, so the table stays a table. There is no round() in
+    # this language's ten builtins; int() truncates toward zero, so the half is
+    # added explicitly and negatives (the empty-denominator sentinel) pass
+    # through untouched.
+    if x < 0:
+        return x
+    return int(x * 10 + 0.5) / 10
+
+def rate_mismatched(seg):
+    events_in(seg, "convert") => num
+    clean_events_in(seg, "visit") => den
+    if den == 0:
+        return 0 - 1
+    return pct(num * 100 / den)
+
+def rate_clamped(seg):
+    rate_mismatched(seg) => r
+    if r > 100:
+        return 100.0
+    return r
+
+def rate_consistent(seg):
+    clean_events_in(seg, "convert") => num
+    clean_events_in(seg, "visit") => den
+    if den == 0:
+        return 0 - 1
+    return pct(num * 100 / den)
+
+# segment, actor kind, event kind
+[["ads", "human", "visit"], ["ads", "human", "visit"], ["ads", "human", "convert"],
+ ["ads", "bot", "visit"], ["ads", "bot", "visit"], ["ads", "bot", "convert"],
+ ["ads", "bot", "convert"],
+ ["organic", "human", "visit"], ["organic", "human", "visit"],
+ ["organic", "human", "visit"], ["organic", "human", "visit"],
+ ["organic", "human", "convert"], ["organic", "bot", "visit"],
+ ["email", "human", "visit"], ["email", "human", "convert"],
+ ["email", "internal", "visit"], ["email", "internal", "convert"],
+ ["email", "internal", "convert"], ["email", "internal", "convert"],
+ ["partner", "human", "visit"], ["partner", "human", "visit"],
+ ["partner", "human", "visit"], ["partner", "human", "convert"],
+ ["social", "human", "visit"], ["social", "human", "visit"],
+ ["social", "human", "visit"], ["social", "human", "visit"],
+ ["social", "human", "visit"], ["social", "human", "convert"],
+ ["social", "bot", "visit"], ["social", "bot", "visit"],
+ ["social", "bot", "convert"]] => EVENTS
+
+["ads", "organic", "email", "partner", "social"] => SEGMENTS
+
+"segment   conv(all)  visits(clean)  mismatched  clamped  consistent"^0
+"--------  ---------  -------------  ----------  -------  ----------"^0
+
+0 => impossible
+0 => wrong_mismatched
+0 => wrong_clamped
+for s in SEGMENTS:
+    events_in(s, "convert") => num
+    clean_events_in(s, "visit") => den
+    rate_mismatched(s) => rm
+    rate_clamped(s) => rc
+    rate_consistent(s) => rt
+    if rm > 100:
+        impossible + 1 => impossible
+    if not (rm == rt):
+        wrong_mismatched + 1 => wrong_mismatched
+    if not (rc == rt):
+        wrong_clamped + 1 => wrong_clamped
+    ((s + "        ")[0:10] + (str(num) + "          ")[0:11] + (str(den) + "              ")[0:15] + (str(rm) + "            ")[0:12] + (str(rc) + "         ")[0:9] + str(rt))^0
+
+""^0
+("segments: " + str(len(SEGMENTS)))^0
+("segments where the mismatched rate is impossible (>100): " + str(impossible))^0
+("segments where the mismatched rate is wrong:             " + str(wrong_mismatched))^0
+("segments where the CLAMPED rate is wrong:                " + str(wrong_clamped))^0
+
+""^0
+"what the clamp actually removed"^0
+("wrong segments made invisible by clamping: " + str(impossible))^0
+("wrong segments still wrong after clamping: " + str(wrong_clamped))^0
+"The clamp fixed the segments that were announcing the bug and left the"^0
+"ones that were not."^0
+
+""^0
+"the size of the error where it is quiet"^0
+for s in SEGMENTS:
+    rate_clamped(s) => rc
+    rate_consistent(s) => rt
+    if not (rc == rt):
+        if rc < 100:
+            ((s + "        ")[0:10] + " reported " + str(rc) + " vs " + str(rt) + ", overstated by " + str(rc - rt))^0
+
+""^0
+0 => checked
+0 => passed
+
+# At least one segment must produce an impossible rate - the loud symptom.
+checked + 1 => checked
+if impossible > 0:
+    passed + 1 => passed
+
+# And at least one must be wrong WITHOUT being impossible - the quiet one,
+# which is the reason the clamp is not a fix.
+checked + 1 => checked
+0 => quiet_wrong
+for s in SEGMENTS:
+    if not (rate_mismatched(s) == rate_consistent(s)):
+        if rate_mismatched(s) <= 100:
+            quiet_wrong + 1 => quiet_wrong
+if quiet_wrong > 0:
+    passed + 1 => passed
+
+# The clamp must strictly reduce the number of VISIBLY wrong segments without
+# reducing the number of wrong ones by as much - that gap is what it bought.
+checked + 1 => checked
+if wrong_clamped > 0:
+    if wrong_clamped < wrong_mismatched:
+        passed + 1 => passed
+
+# The consistent rate must never exceed 100, because it is a real ratio.
+checked + 1 => checked
+0 => consistent_impossible
+for s in SEGMENTS:
+    if rate_consistent(s) > 100:
+        consistent_impossible + 1 => consistent_impossible
+if consistent_impossible == 0:
+    passed + 1 => passed
+
+# Every mismatched rate must be at least the consistent one - the bias has a
+# direction, because the numerator is drawn from the larger population.
+checked + 1 => checked
+0 => understated
+for s in SEGMENTS:
+    if rate_mismatched(s) < rate_consistent(s):
+        understated + 1 => understated
+if understated == 0:
+    passed + 1 => passed
+
+# At least one segment must be unaffected, so the defect is not uniform and
+# a spot check on the right segment finds nothing.
+checked + 1 => checked
+0 => clean_segments
+for s in SEGMENTS:
+    if rate_mismatched(s) == rate_consistent(s):
+        clean_segments + 1 => clean_segments
+if clean_segments > 0:
+    passed + 1 => passed
+
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "The clamp removed the evidence and kept the error." => verdict
+else:
+    "FAILED - the rates did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"A ratio carries an assumption its two operands do not: that they describe"^0
+"the same population. Nothing in a division sign says so, no type system"^0
+"checks it, and both operands can be individually correct and separately"^0
+"owned. The clamp is the natural next move because the number, not the"^0
+"population mismatch, is what got reported - and it silences exactly the"^0
+"segments where the mismatch was large enough to be undeniable."^0

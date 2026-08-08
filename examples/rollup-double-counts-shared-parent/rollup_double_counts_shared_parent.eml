@@ -1,0 +1,205 @@
+# Self-authored for the EML case corpus (no external origin). The rollup walks
+# the tree, and the thing it is walking is not a tree.
+#
+# Cost rollups, headcount rollups, storage rollups: sum a node's own value plus
+# the rollups of its children, recursively. That is correct for a tree, and the
+# structures it gets pointed at are almost never trees. A team reports into two
+# departments after a reorg. A component is used by two products. A folder is
+# linked into two projects. Each of those is a legitimate, deliberate,
+# documented arrangement, and each turns the hierarchy into a DAG.
+#
+# On a DAG the recursive sum counts every shared node once per PATH that
+# reaches it. The total at the root is not "the sum of everything below" but
+# "the sum over all root-to-leaf paths", and those differ by exactly the shared
+# subtrees. The number is stable, reproducible, and matches itself on every
+# re-run, which is why it survives review.
+#
+# The measurement runs the recursive rollup and a set-based rollup that visits
+# each node once, then reports the gap and attributes it to specific nodes -
+# computed by counting how many distinct paths reach each one.
+
+def children_of(node):
+    if node in EDGES:
+        return EDGES[node]
+    return []
+
+def own_cost(node):
+    if node in COST:
+        return COST[node]
+    return 0
+
+def rollup_recursive(node):
+    # The obvious implementation. Correct on a tree.
+    own_cost(node) => total
+    for c in children_of(node):
+        total + rollup_recursive(c) => total
+    return total
+
+def reachable(node):
+    # Every distinct node at or below `node`, each once.
+    [node] => seen
+    [node] => stack
+    while len(stack) > 0:
+        stack[len(stack) - 1] => cur
+        stack[0:len(stack) - 1] => stack
+        for c in children_of(cur):
+            if not (c in seen):
+                seen + [c] => seen
+                stack + [c] => stack
+    return seen
+
+def rollup_set(node):
+    0 => total
+    for n in reachable(node):
+        total + own_cost(n) => total
+    return total
+
+def path_count(root, target):
+    # How many distinct root-to-target paths exist. This is the multiplier the
+    # recursive rollup applies, and it is derived here rather than assumed.
+    if root == target:
+        return 1
+    0 => n
+    for c in children_of(root):
+        n + path_count(c, target) => n
+    return n
+
+{"org": ["eng", "ops"],
+ "eng": ["platform", "shared-tools"],
+ "ops": ["shared-tools", "support"],
+ "platform": ["db-team"],
+ "shared-tools": ["build-team"],
+ "support": [],
+ "db-team": [],
+ "build-team": []} => EDGES
+
+{"org": 0, "eng": 10, "ops": 8, "platform": 20, "shared-tools": 30,
+ "support": 15, "db-team": 25, "build-team": 40} => COST
+
+["org", "eng", "ops", "platform", "shared-tools", "support", "db-team", "build-team"] => NODES
+
+"node           recursive  set-based  gap"^0
+"-------------- ---------  ---------  ---"^0
+0 => nodes_with_gap
+for n in NODES:
+    rollup_recursive(n) => r
+    rollup_set(n) => s
+    r - s => gap
+    if not (gap == 0):
+        nodes_with_gap + 1 => nodes_with_gap
+    ((n + "               ")[0:15] + (str(r) + "          ")[0:11] + (str(s) + "          ")[0:11] + str(gap))^0
+
+""^0
+rollup_recursive("org") => root_r
+rollup_set("org") => root_s
+("root: recursive " + str(root_r) + ", set-based " + str(root_s) + ", overstated by " + str(root_r - root_s))^0
+("nodes whose rollup is wrong: " + str(nodes_with_gap) + " of " + str(len(NODES)))^0
+
+""^0
+"paths from the root to each node"^0
+0 => multi_path_nodes
+0 => attributed
+for n in NODES:
+    path_count("org", n) => p
+    if p > 1:
+        multi_path_nodes + 1 => multi_path_nodes
+        attributed + own_cost(n) * (p - 1) => attributed
+    ((n + "               ")[0:15] + " paths: " + str(p) + "   own cost: " + str(own_cost(n)) + "   counted extra: " + str(own_cost(n) * (p - 1)))^0
+
+""^0
+("nodes reachable by more than one path: " + str(multi_path_nodes))^0
+("overcount predicted from path multiplicity: " + str(attributed))^0
+("overcount measured at the root:             " + str(root_r - root_s))^0
+
+""^0
+"the total is stable, which is why it survives"^0
+("recursive rollup, run again: " + str(rollup_recursive("org")))^0
+("recursive rollup, run again: " + str(rollup_recursive("org")))^0
+"Same answer every time. Reproducibility is not correctness."^0
+
+""^0
+0 => checked
+0 => passed
+
+# The structure must not be a tree - some node must be reachable by more than
+# one path, or there is nothing here.
+checked + 1 => checked
+if multi_path_nodes > 0:
+    passed + 1 => passed
+
+# The root rollup must be overstated.
+checked + 1 => checked
+if root_r > root_s:
+    passed + 1 => passed
+
+# The overcount must equal the sum of own-cost times (paths - 1) over all
+# nodes. Both sides are computed - one by walking, one by counting paths - so
+# this is a cross-check of the explanation and not a restatement of it.
+checked + 1 => checked
+if root_r - root_s == attributed:
+    passed + 1 => passed
+
+# A node whose own subtree contains no sharing must roll up correctly, so the
+# defect is localised to the sharing and not to the recursion.
+#
+# The first version of this check asked `path_count("org", n) == 1` - how many
+# paths reach n from the ROOT - and then required n's own rollup to be right.
+# Those are different questions and the root is the counterexample: there is
+# exactly one path from `org` to `org`, and `org` is the only node whose
+# rollup is wrong. What decides a node's rollup is whether anything BELOW it
+# is reachable two ways, so that is what gets computed.
+checked + 1 => checked
+0 => tree_subtrees
+0 => tree_subtrees_wrong
+for n in NODES:
+    0 => shared_below
+    for m in reachable(n):
+        if path_count(n, m) > 1:
+            shared_below + 1 => shared_below
+    if shared_below == 0:
+        tree_subtrees + 1 => tree_subtrees
+        if not (rollup_recursive(n) == rollup_set(n)):
+            tree_subtrees_wrong + 1 => tree_subtrees_wrong
+if tree_subtrees_wrong == 0:
+    if tree_subtrees >= 5:
+        passed + 1 => passed
+
+# The set-based rollup must be idempotent under repetition and the recursive
+# one must be too - the failure is not flakiness, and a re-run proves nothing.
+checked + 1 => checked
+if rollup_recursive("org") == root_r:
+    if rollup_set("org") == root_s:
+        passed + 1 => passed
+
+# A leaf must roll up to its own cost under both, so neither implementation is
+# simply broken.
+checked + 1 => checked
+if rollup_recursive("support") == own_cost("support"):
+    if rollup_set("support") == own_cost("support"):
+        passed + 1 => passed
+
+# And the shared node must be genuinely shared - reachable from two different
+# parents, both of which legitimately claim it.
+checked + 1 => checked
+0 => parents_of_shared
+for n in NODES:
+    for c in children_of(n):
+        if c == "shared-tools":
+            parents_of_shared + 1 => parents_of_shared
+if parents_of_shared == 2:
+    passed + 1 => passed
+
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Every shared node was counted once per path, and the total never moved." => verdict
+else:
+    "FAILED - the rollups did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"The recursion is correct code for a tree and the diagram on the wall is a"^0
+"tree. What made it a DAG was a reorg, a shared service, a component reused"^0
+"on purpose - decisions taken by people who were not thinking about the"^0
+"rollup and had no reason to. Nothing in the data model forbids the second"^0
+"parent, nothing in the rollup notices it, and the number it produces is"^0
+"the same every single time it is asked."^0

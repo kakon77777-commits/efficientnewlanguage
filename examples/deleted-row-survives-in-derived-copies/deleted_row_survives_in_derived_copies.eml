@@ -1,0 +1,226 @@
+# Self-authored for the EML case corpus (no external origin). The row was
+# deleted from the table it lives in and from none of the places it was copied
+# to.
+#
+# A delete is written against the store that owns the record, and it succeeds.
+# Every derived structure built from that store holds its own copy: a search
+# index holding the title, an autocomplete dictionary holding the terms, a
+# "recently viewed" list holding a snippet, an aggregate holding the count.
+# None of them are the record and all of them contain it.
+#
+# What makes this specifically bad is who the derived copies serve. A search
+# index exists to be queried by people who do not know the id - which is the
+# exact population a deletion is usually meant to protect the record from. The
+# store, which nobody queries without an id, is the one place the delete
+# worked.
+#
+# The measurement deletes a record and then interrogates each surface the way
+# a user would, reporting which ones still return content. It also runs the
+# deletion audit the system has, which asks the store.
+
+def store_get(store, rid):
+    for r in store:
+        if r[0] == rid:
+            return r
+    return []
+
+def delete_from_store(store, rid):
+    [] => out
+    for r in store:
+        if not (r[0] == rid):
+            out + [r] => out
+    return out
+
+def index_search(index, term):
+    # Returns [id, title] pairs. The index carries its own copy of the title,
+    # because rendering a result list by joining back to the store was too
+    # slow and the denormalisation was the fix.
+    [] => hits
+    for e in index:
+        if e[2] == term:
+            hits + [[e[0], e[1]]] => hits
+    return hits
+
+def autocomplete(dictionary, prefix):
+    [] => out
+    for w in dictionary:
+        if w[0:len(prefix)] == prefix:
+            out + [w] => out
+    return out
+
+def recent_for(recent, user):
+    [] => out
+    for r in recent:
+        if r[0] == user:
+            out + [[r[1], r[2]]] => out
+    return out
+
+# id, title, body
+[["d-1", "Quarterly plan", "targets"],
+ ["d-2", "Severance agreement", "confidential"],
+ ["d-3", "Style guide", "fonts"]] => STORE
+
+# id, title copy, indexed term
+[["d-1", "Quarterly plan", "plan"],
+ ["d-2", "Severance agreement", "severance"],
+ ["d-2", "Severance agreement", "agreement"],
+ ["d-3", "Style guide", "guide"]] => INDEX
+
+["plan", "severance", "agreement", "guide"] => DICTIONARY
+
+# user, doc id, snippet copy
+[["ann", "d-2", "Severance agreement"],
+ ["bob", "d-1", "Quarterly plan"]] => RECENT
+
+"d-2" => TARGET
+
+"before the delete"^0
+("  store:        " + str(len(store_get(STORE, TARGET)) > 0))^0
+("  index hits:   " + str(len(index_search(INDEX, "severance"))))^0
+("  autocomplete: " + str(len(autocomplete(DICTIONARY, "sev"))))^0
+("  recent lists: " + str(len(recent_for(RECENT, "ann"))))^0
+
+delete_from_store(STORE, TARGET) => STORE_AFTER
+
+""^0
+"after the delete - each surface, interrogated the way a user reaches it"^0
+"surface        still returns the record  what a user sees"^0
+"-------------  ------------------------  --------------------------"^0
+
+0 => surfaces
+0 => leaking
+0 => leaking_with_content
+
+# store, by id
+surfaces + 1 => surfaces
+if len(store_get(STORE_AFTER, TARGET)) > 0:
+    leaking + 1 => leaking
+    "gone" => shown
+    1 => store_hit
+else:
+    0 => store_hit
+    "-" => shown
+("store          " + (str(store_hit == 1) + "                        ")[0:26] + "(needs the id anyway)")^0
+
+# search index, by term
+surfaces + 1 => surfaces
+index_search(INDEX, "severance") => hits
+if len(hits) > 0:
+    leaking + 1 => leaking
+    leaking_with_content + 1 => leaking_with_content
+    hits[0][1] => shown
+else:
+    "-" => shown
+("search index   " + (str(len(hits) > 0) + "                        ")[0:26] + shown)^0
+
+# autocomplete, by prefix
+surfaces + 1 => surfaces
+autocomplete(DICTIONARY, "sev") => sug
+if len(sug) > 0:
+    leaking + 1 => leaking
+    leaking_with_content + 1 => leaking_with_content
+    sug[0] => shown
+else:
+    "-" => shown
+("autocomplete   " + (str(len(sug) > 0) + "                        ")[0:26] + shown)^0
+
+# recently viewed, by session
+surfaces + 1 => surfaces
+recent_for(RECENT, "ann") => rec
+if len(rec) > 0:
+    leaking + 1 => leaking
+    leaking_with_content + 1 => leaking_with_content
+    rec[0][1] => shown
+else:
+    "-" => shown
+("recent list    " + (str(len(rec) > 0) + "                        ")[0:26] + shown)^0
+
+""^0
+("surfaces checked: " + str(surfaces))^0
+("surfaces still returning the record: " + str(leaking))^0
+("of those, returning readable CONTENT: " + str(leaking_with_content))^0
+
+""^0
+"the deletion audit the system has"^0
+if len(store_get(STORE_AFTER, TARGET)) == 0:
+    "  record absent from the store: PASS" => audit
+else:
+    "  record absent from the store: FAIL" => audit
+audit^0
+"  (this is the check that gets written, because the store is the thing"^0
+"   the delete was issued against)"^0
+
+""^0
+"an audit that asks the surfaces instead"^0
+if leaking == 0:
+    "  record unreachable from every surface: PASS" => audit2
+else:
+    "  record unreachable from every surface: FAIL" => audit2
+audit2^0
+
+""^0
+"the surface that matters most is the one that needs no id"^0
+"  store:        reachable only if you already know d-2"^0
+"  search index: reachable by typing a word from the title"^0
+
+""^0
+0 => checked
+0 => passed
+
+# The delete must have worked where it was aimed.
+checked + 1 => checked
+if len(store_get(STORE_AFTER, TARGET)) == 0:
+    passed + 1 => passed
+
+# And must have missed elsewhere.
+checked + 1 => checked
+if leaking > 0:
+    passed + 1 => passed
+
+# More than one derived surface must still hold it, so this is a class rather
+# than one forgotten index.
+checked + 1 => checked
+if leaking >= 3:
+    passed + 1 => passed
+
+# The leaking surfaces must return readable content, not just an id. An id
+# that resolves to nothing is a broken link; a title is a disclosure.
+checked + 1 => checked
+if leaking_with_content == leaking:
+    passed + 1 => passed
+
+# The audit the system has must PASS while the record is still readable.
+checked + 1 => checked
+if len(store_get(STORE_AFTER, TARGET)) == 0:
+    if leaking > 0:
+        passed + 1 => passed
+
+# Records that were not deleted must still be reachable everywhere, so the
+# derived copies are not simply broken.
+checked + 1 => checked
+if len(store_get(STORE_AFTER, "d-1")) > 0:
+    if len(index_search(INDEX, "plan")) > 0:
+        passed + 1 => passed
+
+# And the search index must expose it WITHOUT the id - the difference between
+# the surface that worked and the surfaces that did not.
+checked + 1 => checked
+index_search(INDEX, "severance") => probe
+if len(probe) > 0:
+    if probe[0][1] == "Severance agreement":
+        passed + 1 => passed
+
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "The delete succeeded against the one surface nobody searches." => verdict
+else:
+    "FAILED - the surfaces did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"Deletion is modelled as an operation on a row and it is a claim about"^0
+"REACHABILITY. Every derived structure is a second answer to 'where is"^0
+"this record', built precisely because the first answer was too slow, and"^0
+"each one was added by someone solving a latency problem rather than"^0
+"designing a lifecycle. The audit asks the owner, and the owner is the"^0
+"only party that complied."^0

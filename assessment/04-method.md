@@ -10,14 +10,21 @@ to Python, or to language implementation.
 > When a coverage metric reaches 100%, do not read it as *done*.
 > Read it as **"this axis is exhausted — now find the one it cannot see."**
 
-Then build a different measurement and run it. It has fired ten times. The
-first four found real divergences on the first run, the next five came back
-clean, and the tenth broke the streak. Both outcomes are results — and the shift from one to the other is
-itself the most useful thing this table records.
+Then build a different measurement and run it.
+
+The table below is the running record, and the counts live only there — a tally
+repeated in prose goes stale the moment another axis lands, which is exactly
+the failure this project keeps finding in other people's dashboards. What the
+table shows, read downward: the first group of axes found real divergences on
+their first run, a long middle stretch came back clean, and the clean stretch
+was broken twice more after everyone had stopped expecting it. Both outcomes
+are results. The shift between them is the most useful thing here — a clean
+axis is not evidence that the work is finished, it is evidence that *that* axis
+is finished.
 
 ---
 
-## The thirteen axes, in the order they were built
+## The fourteen axes, in the order they were built
 
 | # | axis | result | what it could not see |
 |---|---|---|---|
@@ -35,6 +42,7 @@ itself the most useful thing this table records.
 | 11 | CTS faithfulness (17 tests) | 0 — clean first run | WHERE a diagnostic says the problem is |
 | 12 | diagnostic positions (13 triggers × 3 properties) | **1 real defect** | whether two components AGREE about a fact they each model |
 | 13 | rebinding across scopes (8 × 8 positions × 4 value shapes) | **1 real defect** | what the two directions do to a program neither was written for |
+| 14 | evaluation order within an expression (44 operand transcripts vs CPython) | 0 — clean first run; **3 grammar boundaries pinned** | ORDER inside one expression, which every value-shaped axis is blind to by construction |
 
 Read the right-hand column downward. Each axis was honest, each went green, and
 each was blind in a direction that could only be named after building the next

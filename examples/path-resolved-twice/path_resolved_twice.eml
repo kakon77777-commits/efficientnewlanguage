@@ -1,0 +1,226 @@
+# Self-authored for the EML case corpus (no external origin). The permission
+# check and the write each look up the name, and they can get different
+# answers.
+#
+# A handler is given a NAME - a path, a slug, a friendly id - and does two
+# things with it: resolves it to decide whether the caller is allowed, and
+# resolves it again to perform the effect. Written as two statements this
+# looks like one operation on one object. It is two operations, and nothing
+# in the code says they must land on the same object.
+#
+# This is not the ordinary lost-update race. The value does not change under
+# the write; the SUBJECT does. The check ran on a document the caller owned
+# and the write landed on a document they never could have named.
+#
+# The measurement runs each request against every point at which a rename can
+# be interleaved, then - for every write that actually happened - looks up who
+# owned the document that received it. Nothing is asserted about which writes
+# are legitimate; ownership of the written id is read back out of the store.
+
+def resolve(paths, name):
+    # Names are mutable pointers. That is the entire feature.
+    if name in paths:
+        return paths[name]
+    return "none"
+
+def owner_of(owners, doc):
+    if doc in owners:
+        return owners[doc]
+    return "nobody"
+
+def fresh_paths():
+    return {"/reports/q3": "doc-a", "/reports/archive": "doc-b"}
+
+def fresh_owners():
+    return {"doc-a": "ann", "doc-b": "root"}
+
+def rename(paths):
+    # An ordinary admin action: repoint a path at a different document.
+    "doc-b" => paths["/reports/q3"]
+
+def handler_two_resolves(paths, owners, user, name, rename_at):
+    # The natural shape. Resolve to authorise, resolve again to act.
+    if rename_at == "before":
+        rename(paths)
+    resolve(paths, name) => checked
+    if not (owner_of(owners, checked) == user):
+        return ["denied", "none"]
+    if rename_at == "between":
+        rename(paths)
+    resolve(paths, name) => target
+    if rename_at == "after":
+        rename(paths)
+    return ["wrote", target]
+
+def handler_resolve_once(paths, owners, user, name, rename_at):
+    # Resolve once and carry the identity, not the name.
+    if rename_at == "before":
+        rename(paths)
+    resolve(paths, name) => target
+    if not (owner_of(owners, target) == user):
+        return ["denied", "none"]
+    if rename_at == "between":
+        rename(paths)
+    if rename_at == "after":
+        rename(paths)
+    return ["wrote", target]
+
+["before", "between", "after", "never"] => POINTS
+# user, path
+[["ann", "/reports/q3"], ["bob", "/reports/q3"], ["root", "/reports/archive"]] => REQUESTS
+
+"handler        user  rename-at  outcome  wrote-to  owned-by"^0
+"-------------- ----- ---------- -------- --------- --------"^0
+
+0 => runs
+0 => scenarios
+0 => twice_unauthorized
+0 => once_unauthorized
+0 => twice_writes
+0 => once_writes
+
+for req in REQUESTS:
+    req[0] => user
+    req[1] => path
+    for point in POINTS:
+        scenarios + 1 => scenarios
+        for handler in ["two-resolves", "resolve-once"]:
+            fresh_paths() => paths
+            fresh_owners() => owners
+            if handler == "two-resolves":
+                handler_two_resolves(paths, owners, user, path, point) => res
+            else:
+                handler_resolve_once(paths, owners, user, path, point) => res
+            res[0] => outcome
+            res[1] => target
+            runs + 1 => runs
+
+            # The observable: who owns the document that was actually written.
+            # Read back out of the store rather than reasoned about.
+            if outcome == "wrote":
+                owner_of(owners, target) => real_owner
+                if handler == "two-resolves":
+                    twice_writes + 1 => twice_writes
+                else:
+                    once_writes + 1 => once_writes
+                if not (real_owner == user):
+                    if handler == "two-resolves":
+                        twice_unauthorized + 1 => twice_unauthorized
+                    else:
+                        once_unauthorized + 1 => once_unauthorized
+            else:
+                "-" => real_owner
+
+            ((handler + "               ")[0:14] + " " + (user + "     ")[0:5] + " " + (point + "          ")[0:10] + " " + (outcome + "        ")[0:8] + " " + (target + "         ")[0:9] + " " + real_owner)^0
+
+""^0
+("runs: " + str(runs))^0
+("two-resolves: " + str(twice_writes) + " writes, " + str(twice_unauthorized) + " landed on a document the caller does not own")^0
+("resolve-once: " + str(once_writes) + " writes, " + str(once_unauthorized) + " landed on a document the caller does not own")^0
+
+""^0
+"where the two handlers differ"^0
+
+# Which interleavings separate them. If a rename before the check or after the
+# write changed the answer, the case would be about something else - the
+# window is exactly the gap between the two resolves, and that gap is a gap
+# only the two-resolve handler has.
+for point in POINTS:
+    0 => diff
+    for req in REQUESTS:
+        req[0] => user
+        req[1] => path
+        fresh_paths() => p1
+        fresh_owners() => o1
+        handler_two_resolves(p1, o1, user, path, point) => r1
+        fresh_paths() => p2
+        fresh_owners() => o2
+        handler_resolve_once(p2, o2, user, path, point) => r2
+        if not (r1[0] == r2[0]):
+            diff + 1 => diff
+        elif not (r1[1] == r2[1]):
+            diff + 1 => diff
+    (("rename " + point + "            ")[0:20] + " requests where the handlers disagree: " + str(diff))^0
+
+""^0
+0 => checked
+0 => passed
+
+# The two-resolve handler must write to a document the caller does not own -
+# otherwise the interleaving does nothing and there is no case here.
+checked + 1 => checked
+if twice_unauthorized > 0:
+    passed + 1 => passed
+
+# The resolve-once handler must never do that, across every interleaving.
+checked + 1 => checked
+if once_unauthorized == 0:
+    passed + 1 => passed
+
+# A handler that denies everything would also score zero unauthorized writes,
+# and would be safe for the wrong reason - so the safe handler has to be doing
+# the work. Two claims, both computed: it writes in a majority of scenarios,
+# and it writes exactly as OFTEN as the unsafe one.
+#
+# The first version of this check said `once_writes >= 8` and measured 7. That
+# number was typed, not derived: three requests times four interleavings is
+# twelve scenarios, of which bob is refused in all four and ann is refused in
+# the one where the rename lands before the check - so seven writes was the
+# right answer and the threshold was the wrong question. The bound below comes
+# out of `scenarios`, which the sweep counts.
+checked + 1 => checked
+if once_writes * 2 > scenarios:
+    passed + 1 => passed
+
+# The defect does not add or remove writes. It moves one. Both handlers write
+# the same number of times, and only the destinations differ - which is why
+# a count of writes, or of errors, or of denials, sees nothing at all.
+checked + 1 => checked
+if once_writes == twice_writes:
+    passed + 1 => passed
+
+# The two handlers must agree everywhere except the interleaving that lands in
+# their one structural difference. If they differed on "before" or "never" the
+# story would not be about the gap.
+checked + 1 => checked
+0 => outside_window
+for req in REQUESTS:
+    req[0] => user
+    req[1] => path
+    for point in ["before", "after", "never"]:
+        fresh_paths() => p1
+        fresh_owners() => o1
+        handler_two_resolves(p1, o1, user, path, point) => r1
+        fresh_paths() => p2
+        fresh_owners() => o2
+        handler_resolve_once(p2, o2, user, path, point) => r2
+        if not (r1[0] == r2[0]):
+            outside_window + 1 => outside_window
+        elif not (r1[1] == r2[1]):
+            outside_window + 1 => outside_window
+if outside_window == 0:
+    passed + 1 => passed
+
+# And the rename itself must be a legal operation that no permission check
+# would refuse: it repoints a path, it does not touch a document.
+checked + 1 => checked
+fresh_paths() => probe
+fresh_owners() => probe_owners
+rename(probe)
+if resolve(probe, "/reports/q3") == "doc-b":
+    if owner_of(probe_owners, "doc-b") == "root":
+        passed + 1 => passed
+
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "The check and the write agreed on the name and not on the document." => verdict
+else:
+    "FAILED - the handlers did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"An authorisation check answers a question about an OBJECT, and it was"^0
+"handed a NAME. Resolving the name twice turns one decision into two, and"^0
+"the second one is unguarded. The fix is not a lock and not a retry: it is"^0
+"to resolve once and carry the identity, so that the thing checked and the"^0
+"thing written cannot be two different things."^0

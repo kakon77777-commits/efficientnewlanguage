@@ -1,0 +1,194 @@
+# Self-authored for the EML case corpus (no external origin). The rows are
+# filtered and the total is not, so the total is a readout of what was
+# filtered.
+#
+# A listing endpoint does two things: fetch a page of rows and report how many
+# rows there are. The filter that enforces visibility is applied where the
+# rows are rendered, because that is where "which rows can this viewer see"
+# is obviously needed. The count is computed from the query, because that is
+# where counting obviously belongs. Both are correct in isolation.
+#
+# What leaks is not a row. It is the DIFFERENCE between two numbers, and the
+# viewer can compute it without seeing anything they are not allowed to see.
+# A confidential record is invisible and countable, and countable is enough
+# to answer questions about it.
+#
+# The measurement pages through the listing as each viewer, compares what the
+# header claims against what the pages deliver, and then runs the attack the
+# leak enables: narrowing a filter until the reported total changes tells the
+# viewer a property of a record they cannot read.
+
+def visible_to(row, viewer):
+    # row is [id, dept, level, title]. "public" rows are visible to everyone;
+    # restricted rows only to their own department.
+    row[2] => level
+    if level == "public":
+        return 1
+    if viewer == row[1]:
+        return 1
+    return 0
+
+def matching(rows, dept):
+    # The query. Visibility is not its business - and that is the whole point,
+    # because the count is taken here.
+    [] => out
+    for r in rows:
+        if dept == "*":
+            out + [r] => out
+        elif r[1] == dept:
+            out + [r] => out
+    return out
+
+def page_of(rows, viewer, dept, start, size):
+    # The renderer. Visibility IS its business, applied after the slice.
+    matching(rows, dept) => q
+    q[start:start + size] => window
+    [] => out
+    for r in window:
+        if visible_to(r, viewer) == 1:
+            out + [r] => out
+    return out
+
+def reported_total(rows, dept):
+    # The header. Counts the query, not the page.
+    return len(matching(rows, dept))
+
+def truly_visible(rows, viewer, dept):
+    # What the viewer is actually entitled to see. Computed here only so the
+    # measurement has something to compare against; no endpoint computes it.
+    0 => n
+    for r in matching(rows, dept):
+        if visible_to(r, viewer) == 1:
+            n + 1 => n
+    return n
+
+# id, dept, level, title
+[["r1", "eng", "public", "Release notes"],
+ ["r2", "eng", "restricted", "Incident 4471"],
+ ["r3", "hr", "public", "Holiday policy"],
+ ["r4", "hr", "restricted", "Severance plan"],
+ ["r5", "hr", "restricted", "Case 88"],
+ ["r6", "legal", "restricted", "Settlement draft"],
+ ["r7", "eng", "public", "Style guide"]] => ROWS
+
+["eng", "hr", "legal", "sales"] => VIEWERS
+3 => PAGE
+
+"viewer  filter  header-says  rows-delivered  gap"^0
+"------- ------- -----------  --------------  ---"^0
+
+0 => rows_ever_leaked
+0 => listings
+0 => listings_with_a_gap
+for viewer in VIEWERS:
+    for dept in ["*", "hr"]:
+        reported_total(ROWS, dept) => claimed
+        0 => delivered
+        0 => start
+        while start < claimed:
+            page_of(ROWS, viewer, dept, start, PAGE) => pg
+            delivered + len(pg) => delivered
+            start + PAGE => start
+        claimed - delivered => gap
+        listings + 1 => listings
+        if gap > 0:
+            listings_with_a_gap + 1 => listings_with_a_gap
+
+        # No row the viewer may not see is ever rendered. That has to be true,
+        # or the case would be about a much simpler bug.
+        0 => start
+        while start < claimed:
+            for r in page_of(ROWS, viewer, dept, start, PAGE):
+                if visible_to(r, viewer) == 0:
+                    rows_ever_leaked + 1 => rows_ever_leaked
+            start + PAGE => start
+
+        ((viewer + "       ")[0:7] + " " + (dept + "       ")[0:7] + " " + (str(claimed) + "           ")[0:12] + " " + (str(delivered) + "              ")[0:15] + " " + str(gap))^0
+
+""^0
+("listings: " + str(listings) + ", of which the header over-claims: " + str(listings_with_a_gap))^0
+("rows rendered that the viewer may not see: " + str(rows_ever_leaked))^0
+
+""^0
+"what the gap is worth to someone who cannot read a single hidden row"^0
+
+# The attack. The viewer never reads a restricted row; they read the header
+# while narrowing the filter, and the header answers questions about rows
+# they cannot see. Each department is probed by an outsider - someone whose
+# own department is different - and the header still reports the size.
+for probe in ["eng", "hr", "legal", "sales"]:
+    reported_total(ROWS, probe) => claimed
+    truly_visible(ROWS, "sales", probe) => seen_by_outsider
+    ((probe + "      ")[0:6] + " an outsider is shown " + str(seen_by_outsider) + " rows and told the total is " + str(claimed) + " -> restricted rows: " + str(claimed - seen_by_outsider))^0
+
+""^0
+"the same leak, as a yes/no oracle"^0
+
+# Sharper: the outsider learns a property of a specific hidden record by
+# watching whether the total moves. Nothing they receive contains the record.
+0 => oracle_answers
+for r in ROWS:
+    if visible_to(r, "sales") == 0:
+        # Ask "is there a record in this department?" using only the header.
+        reported_total(ROWS, r[1]) => claimed
+        truly_visible(ROWS, "sales", r[1]) => seen
+        if claimed > seen:
+            oracle_answers + 1 => oracle_answers
+("hidden records whose existence the header confirms to an outsider: " + str(oracle_answers))^0
+
+""^0
+0 => checked
+0 => passed
+
+# The header must over-claim somewhere, or there is nothing here.
+checked + 1 => checked
+if listings_with_a_gap > 0:
+    passed + 1 => passed
+
+# And it must be silent about the rows themselves. The leak is arithmetic,
+# not a rendered row - if a row escaped, the case would be describing a
+# different and much more ordinary bug.
+checked + 1 => checked
+if rows_ever_leaked == 0:
+    passed + 1 => passed
+
+# Every hidden record must be confirmable by an outsider through the header
+# alone. Not "some" - the oracle is total, because a count is total.
+checked + 1 => checked
+0 => hidden_from_sales
+for r in ROWS:
+    if visible_to(r, "sales") == 0:
+        hidden_from_sales + 1 => hidden_from_sales
+if oracle_answers == hidden_from_sales:
+    passed + 1 => passed
+
+# There must actually be hidden records, or the previous check passes on an
+# empty set.
+checked + 1 => checked
+if hidden_from_sales >= 3:
+    passed + 1 => passed
+
+# Paging must terminate against the claimed total and still come up short -
+# the loop bound is the header's number, which is exactly why an honest
+# client cannot tell it is missing rows rather than reaching the end.
+checked + 1 => checked
+reported_total(ROWS, "*") => all_claimed
+truly_visible(ROWS, "sales", "*") => all_seen
+if all_claimed > all_seen:
+    if all_seen > 0:
+        passed + 1 => passed
+
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "No hidden row was rendered, and every hidden row was counted." => verdict
+else:
+    "FAILED - the listing did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"Access control was applied to the rows and not to the aggregate, because"^0
+"an aggregate does not look like data. It is: a count is a projection of"^0
+"the same records, and projecting a record you may not read is reading it"^0
+"at lower resolution. The review that catches this asks not 'which rows"^0
+"can this viewer see' but 'which QUESTIONS can this viewer ask', and a"^0
+"total is a question."^0

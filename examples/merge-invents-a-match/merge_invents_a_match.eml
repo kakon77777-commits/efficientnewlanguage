@@ -1,0 +1,290 @@
+# Self-authored for the EML case corpus (no external origin). The merge
+# normalises what it writes and the matcher compares what it reads, so a merge
+# can manufacture the evidence for the next merge.
+#
+# A first draft of this case argued something else and was wrong, and the
+# wrongness is worth keeping. The claim was: a merged record carries the UNION
+# of its inputs' attributes, so it matches more things, so merging is not
+# idempotent. Measured, that produced zero manufactured edges - and it has to,
+# because "matches if they share an attribute" plus "merged carries the union"
+# is exactly transitive closure, and closure is idempotent by construction.
+# Any edge between two merged groups is an edge between two original members.
+#
+# The mechanism that DOES manufacture edges is a different one, and it is
+# everywhere: the merge writes a canonical value. Phone numbers get their
+# punctuation stripped, names get title-cased, addresses get expanded. The
+# matcher, meanwhile, compares stored strings. So the merged record holds a
+# value that neither input held, and that value can equal a third record's -
+# an edge that exists between no two original rows.
+#
+# The measurement runs the job one sweep at a time and, for every merge, asks
+# whether any original member of one side matched any original member of the
+# other. It compares against the same job with normalisation moved to compare
+# time, which is the actual fix.
+
+def digits_only(s):
+    "" => out
+    0 => i
+    while i < len(s):
+        s[i:i + 1] => c
+        if not (c == "-"):
+            if not (c == " "):
+                if not (c == "("):
+                    if not (c == ")"):
+                        out + c => out
+        i + 1 => i
+    return out
+
+def raw_match(a, b):
+    # The matcher, as written: compare the stored strings.
+    if len(a[1]) > 0:
+        if a[1] == b[1]:
+            return 1
+    if len(a[2]) > 0:
+        if a[2] == b[2]:
+            return 1
+    return 0
+
+def normalised_match(a, b):
+    # The fix: normalise at compare time, so the comparison does not depend on
+    # what some earlier write happened to store.
+    if len(a[1]) > 0:
+        if digits_only(a[1]) == digits_only(b[1]):
+            return 1
+    if len(a[2]) > 0:
+        if a[2] == b[2]:
+            return 1
+    return 0
+
+def group_match(g1, g2, mode):
+    for x in g1[1]:
+        for y in g2[1]:
+            if mode == "raw":
+                if raw_match(x, y) == 1:
+                    return 1
+            else:
+                if normalised_match(x, y) == 1:
+                    return 1
+    return 0
+
+def merged_record(g1, g2, mode):
+    # What the merge WRITES. In "raw" mode it canonicalises the phone, which
+    # is the ordinary, defensible, data-quality thing to do.
+    g1[1][0] => a
+    g2[1][0] => b
+    a[1] => phone
+    if len(phone) == 0:
+        b[1] => phone
+    a[2] => mail
+    if len(mail) == 0:
+        b[2] => mail
+    if mode == "raw":
+        return ["merged", digits_only(phone), mail]
+    return ["merged", phone, mail]
+
+def one_sweep(groups, mode):
+    # A single sweep: each group merges with at most one later group.
+    # Returns [groups, merges, manufactured].
+    [] => out
+    [] => used
+    0 => merges
+    0 => manufactured
+    0 => i
+    while i < len(groups):
+        if i in used:
+            i + 1 => i
+        else:
+            groups[i] => g
+            0 => done
+            i + 1 => j
+            while j < len(groups):
+                if done == 0:
+                    if j in used:
+                        j + 1 => j
+                    else:
+                        if group_match(g, groups[j], mode) == 1:
+                            # Did any ORIGINAL member of one side match any
+                            # original member of the other, under the same
+                            # matcher? If not, this edge was written, not found.
+                            0 => original_edge
+                            for x in g[2]:
+                                for y in groups[j][2]:
+                                    if mode == "raw":
+                                        if raw_match(x, y) == 1:
+                                            1 => original_edge
+                                    else:
+                                        if normalised_match(x, y) == 1:
+                                            1 => original_edge
+                            if original_edge == 0:
+                                manufactured + 1 => manufactured
+                            [g[0] + groups[j][0], [merged_record(g, groups[j], mode)], g[2] + groups[j][2]] => g
+                            used + [j] => used
+                            merges + 1 => merges
+                            1 => done
+                        j + 1 => j
+                else:
+                    j + 1 => j
+            out + [g] => out
+            i + 1 => i
+    return [out, merges, manufactured]
+
+def fresh(mode):
+    [] => out
+    for r in ROWS:
+        out + [[r[0], [r], [r]]] => out
+    return out
+
+# label, phone as stored, email as stored. `a` and `b` are the same phone
+# written two ways - which is why nobody matched them. `c` shares an email
+# with `a`. `d` shares nothing.
+[["a", "555-1111", "a@example.com"],
+ ["b", "5551111", "b@example.com"],
+ ["c", "555-2222", "a@example.com"],
+ ["d", "999-0000", "d@example.com"]] => ROWS
+
+"do a and b match, as stored?"^0
+("  raw matcher:        " + str(raw_match(ROWS[0], ROWS[1])))^0
+("  normalising matcher: " + str(normalised_match(ROWS[0], ROWS[1])))^0
+
+""^0
+"sweeping, one sweep at a time"^0
+"mode         sweep  groups  merges  manufactured-edges"^0
+"------------ -----  ------  ------  ------------------"^0
+
+{} => totals
+for mode in ["raw", "normalised"]:
+    fresh(mode) => gs
+    0 => total_merges
+    0 => total_manu
+    0 => first_manu
+    0 => later_manu
+    1 => sweep
+    1 => working
+    while working == 1:
+        one_sweep(gs, mode) => r
+        r[0] => gs
+        total_merges + r[1] => total_merges
+        total_manu + r[2] => total_manu
+        if sweep == 1:
+            first_manu + r[2] => first_manu
+        else:
+            later_manu + r[2] => later_manu
+        ((mode + "            ")[0:13] + (str(sweep) + "      ")[0:7] + (str(len(gs)) + "        ")[0:8] + (str(r[1]) + "        ")[0:8] + str(r[2]))^0
+        if r[1] == 0:
+            0 => working
+        sweep + 1 => sweep
+    [len(gs), total_merges, total_manu, sweep - 1, first_manu, later_manu] => totals[mode]
+
+""^0
+for mode in ["raw", "normalised"]:
+    totals[mode] => t
+    ((mode + "            ")[0:13] + " final groups: " + str(t[0]) + ", merges: " + str(t[1]) + ", manufactured: " + str(t[2]) + ", sweeps to settle: " + str(t[3]))^0
+
+""^0
+"was the second sweep a no-op?"^0
+
+# Idempotence as the thing it actually means: does applying the job again to
+# its own output change anything?
+for mode in ["raw", "normalised"]:
+    fresh(mode) => g1
+    one_sweep(g1, mode) => s1
+    s1[0] => g1
+    one_sweep(g1, mode) => s2
+    ((mode + "            ")[0:13] + " sweep 1 merged " + str(s1[1]) + ", sweep 2 merged " + str(s2[1]))^0
+
+""^0
+"the group that b ends up in"^0
+for mode in ["raw", "normalised"]:
+    fresh(mode) => gs
+    1 => working
+    while working == 1:
+        one_sweep(gs, mode) => r
+        r[0] => gs
+        if r[1] == 0:
+            0 => working
+    for g in gs:
+        if len(g[2]) > 1:
+            ((mode + "            ")[0:13] + " {" + g[0] + "}")^0
+
+""^0
+0 => checked
+0 => passed
+
+# The raw matcher must NOT match a and b as stored - that is the whole
+# starting condition.
+checked + 1 => checked
+if raw_match(ROWS[0], ROWS[1]) == 0:
+    passed + 1 => passed
+
+# The normalising matcher must match them, so the two differ on real data.
+checked + 1 => checked
+if normalised_match(ROWS[0], ROWS[1]) == 1:
+    passed + 1 => passed
+
+# The raw job must manufacture at least one edge: a merge justified by no pair
+# of original records under its own matcher.
+checked + 1 => checked
+if totals["raw"][2] > 0:
+    passed + 1 => passed
+
+# The normalising job must manufacture none. Moving normalisation to compare
+# time is the fix, and this is the measurement that says so.
+checked + 1 => checked
+if totals["normalised"][2] == 0:
+    passed + 1 => passed
+
+# No manufactured edge can occur in the first sweep, and at least one must
+# occur later. In sweep 1 every group is a single original record, so any
+# match it finds is between originals by definition - a manufactured edge is
+# necessarily something a LATER sweep consumes from what an earlier one wrote.
+# That is the precise sense in which re-running is not safe.
+#
+# This check first read `totals["raw"][3] > totals["normalised"][3]` - "the raw
+# job takes more sweeps to settle". Measured, both take 3, because merging
+# three records into one group needs two merges and this sweep allows one
+# merge per group per sweep. The sweep count was a guess about throughput; the
+# claim worth making is about WHEN the manufactured edge can appear, and that
+# one falls out of the structure rather than out of the data.
+checked + 1 => checked
+if totals["raw"][4] == 0:
+    if totals["raw"][5] > 0:
+        passed + 1 => passed
+
+# Both must reach the same final grouping. The defect is not a different
+# answer; it is that one of them reached the answer by writing its own
+# evidence, which is only visible if you ask how it got there.
+checked + 1 => checked
+if totals["raw"][0] == totals["normalised"][0]:
+    passed + 1 => passed
+
+# d must stay alone in both, so the collapse is not total.
+checked + 1 => checked
+0 => d_alone
+for mode in ["raw", "normalised"]:
+    fresh(mode) => gs
+    1 => working
+    while working == 1:
+        one_sweep(gs, mode) => r
+        r[0] => gs
+        if r[1] == 0:
+            0 => working
+    for g in gs:
+        if g[0] == "d":
+            d_alone + 1 => d_alone
+if d_alone == 2:
+    passed + 1 => passed
+
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "One sweep wrote a value no record held, and the next sweep believed it." => verdict
+else:
+    "FAILED - the sweeps did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"Normalise-on-write and compare-on-read are both correct policies and they"^0
+"are not the same policy. Between them sits a record holding a value that"^0
+"no source ever supplied, and the matcher has no way to tell a value that"^0
+"arrived from one that was computed. The fix is not better normalisation."^0
+"It is to normalise where the comparison happens, so that what is compared"^0
+"never depends on what an earlier run chose to store."^0

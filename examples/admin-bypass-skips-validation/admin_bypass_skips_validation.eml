@@ -1,0 +1,225 @@
+# Self-authored for the EML case corpus (no external origin). The branch that
+# means "this caller is allowed to do anything" also means "skip the rest of
+# the function".
+#
+# A save path checks permission, validates the record, and writes. Somebody
+# adds an administrator escape hatch, and the natural place to put it is the
+# top, as an early return: if the caller is an admin, do the write. Written
+# that way it reads as a statement about AUTHORISATION. What it actually
+# encodes is a jump past every line between it and the write, and validation
+# is one of those lines.
+#
+# The bad part is which callers use it. The admin path is the one behind data
+# migrations, support tooling and back-office repair - the callers that write
+# in bulk, write unusual shapes, and are trusted precisely because a human is
+# supervising. So the path with no validation is the path with the most
+# unusual records, and the store's invariants are broken only by the traffic
+# nobody reviews.
+#
+# The measurement pushes the same records through both paths, then reads the
+# store back and checks its invariants against the rows that are actually in
+# it - it does not count rejections.
+
+def validate(rec):
+    # rec is [id, email, amount, currency]. Returns "" when acceptable.
+    if len(rec[0]) == 0:
+        return "empty id"
+    if not (str(rec[1]) == rec[1]):
+        return "email is not text"
+    if len(rec[1]) == 0:
+        return "empty email"
+    if rec[2] < 0:
+        return "negative amount"
+    if not (rec[3] == "USD"):
+        if not (rec[3] == "EUR"):
+            return "unknown currency"
+    return ""
+
+def save_with_bypass(store, role, rec):
+    # The shape that grows in real code: the escape hatch lands at the top,
+    # because that is where an authorisation question belongs.
+    if role == "admin":
+        store + [rec] => store
+        return ["written", ""]
+    if not (role == "editor"):
+        return ["denied", ""]
+    validate(rec) => err
+    if len(err) > 0:
+        return ["rejected", err]
+    store + [rec] => store
+    return ["written", ""]
+
+def save_checked(store, role, rec):
+    # The same policy with the two questions separated: who may write, and
+    # what may be written. Being allowed to do anything is not being allowed
+    # to write anything.
+    if not (role == "admin"):
+        if not (role == "editor"):
+            return ["denied", ""]
+    validate(rec) => err
+    if len(err) > 0:
+        return ["rejected", err]
+    store + [rec] => store
+    return ["written", ""]
+
+def run_path(kind, role, records):
+    # Returns [store, written, rejected, denied]. `=>` aliases, so the store
+    # is rebuilt rather than appended to and handed back explicitly.
+    [] => store
+    0 => written
+    0 => rejected
+    0 => denied
+    for rec in records:
+        if kind == "bypass":
+            save_with_bypass([], role, rec) => res
+        else:
+            save_checked([], role, rec) => res
+        if res[0] == "written":
+            store + [rec] => store
+            written + 1 => written
+        elif res[0] == "rejected":
+            rejected + 1 => rejected
+        else:
+            denied + 1 => denied
+    return [store, written, rejected, denied]
+
+# The migration payload. Four of the seven are the shapes a migration
+# actually produces: a blank id from a null column, a numeric value where a
+# string belongs, a sign flip from a refund, a currency code from an older
+# system.
+[["u1", "a@example.com", 120, "USD"],
+ ["", "b@example.com", 80, "USD"],
+ ["u3", 4471, 60, "USD"],
+ ["u4", "d@example.com", 0 - 25, "USD"],
+ ["u5", "e@example.com", 40, "GBP"],
+ ["u6", "f@example.com", 15, "EUR"],
+ ["u7", "g@example.com", 90, "USD"]] => RECORDS
+
+"path      role    written  rejected  denied"^0
+"--------- ------- -------  --------  ------"^0
+
+{} => results
+for kind in ["bypass", "checked"]:
+    for role in ["admin", "editor", "viewer"]:
+        run_path(kind, role, RECORDS) => r
+        r => results[kind + "/" + role]
+        ((kind + "         ")[0:9] + " " + (role + "       ")[0:7] + " " + (str(r[1]) + "       ")[0:8] + " " + (str(r[2]) + "        ")[0:9] + " " + str(r[3]))^0
+
+""^0
+"the store, read back and checked against its own invariants"^0
+
+# The observable is not the return value of the save. It is the contents of
+# the store afterwards, re-validated. A record that is in there and does not
+# validate is a broken invariant however it got in.
+0 => total_bad
+for kind in ["bypass", "checked"]:
+    for role in ["admin", "editor", "viewer"]:
+        results[kind + "/" + role] => r
+        r[0] => store
+        0 => bad
+        for rec in store:
+            if len(validate(rec)) > 0:
+                bad + 1 => bad
+                total_bad + 1 => total_bad
+        ((kind + "/" + role + "                ")[0:16] + " rows: " + str(len(store)) + ", rows violating validation: " + str(bad))^0
+
+""^0
+("invalid rows admitted anywhere: " + str(total_bad))^0
+
+""^0
+"which records got in, and what was wrong with them"^0
+results["bypass/admin"] => ba
+for rec in ba[0]:
+    validate(rec) => err
+    if len(err) > 0:
+        (("  " + rec[0] + "        ")[0:10] + " " + err)^0
+
+""^0
+"the test that would have caught it, and the role it was written as"^0
+
+# Validation suites are written from the caller's seat, and the caller in a
+# validation test is an ordinary user - that is the role the feature exists
+# for. Run the whole invalid set as an editor and every one is refused, so
+# the suite is green and the assertion it makes is true.
+run_path("bypass", "editor", RECORDS) => as_editor
+run_path("bypass", "admin", RECORDS) => as_admin
+("as editor: " + str(as_editor[2]) + " rejected, " + str(as_editor[1]) + " written")^0
+("as admin:  " + str(as_admin[2]) + " rejected, " + str(as_admin[1]) + " written")^0
+
+""^0
+0 => checked
+0 => passed
+
+# The bypass path must admit invalid rows as an admin.
+checked + 1 => checked
+results["bypass/admin"] => r
+0 => bad_admin
+for rec in r[0]:
+    if len(validate(rec)) > 0:
+        bad_admin + 1 => bad_admin
+if bad_admin > 0:
+    passed + 1 => passed
+
+# It must admit them ONLY as an admin. If the editor path leaked too, the
+# defect would be in validate() and not in the shape of the branch.
+checked + 1 => checked
+results["bypass/editor"] => re_
+0 => bad_editor
+for rec in re_[0]:
+    if len(validate(rec)) > 0:
+        bad_editor + 1 => bad_editor
+if bad_editor == 0:
+    passed + 1 => passed
+
+# The separated version must admit none, under any role.
+checked + 1 => checked
+0 => bad_checked
+for role in ["admin", "editor", "viewer"]:
+    results["checked/" + role] => rc
+    for rec in rc[0]:
+        if len(validate(rec)) > 0:
+            bad_checked + 1 => bad_checked
+if bad_checked == 0:
+    passed + 1 => passed
+
+# The two versions must agree for the editor, so the change is confined to
+# the admin path and a reviewer diffing behaviour as an ordinary user sees
+# nothing at all.
+checked + 1 => checked
+results["bypass/editor"] => a
+results["checked/editor"] => b
+if a[1] == b[1]:
+    if a[2] == b[2]:
+        passed + 1 => passed
+
+# The admin must still write MORE rows than the editor - the bypass is not
+# merely unsafe, it is the reason someone reached for it.
+checked + 1 => checked
+if results["bypass/admin"][1] > results["bypass/editor"][1]:
+    passed + 1 => passed
+
+# And the invalid rows must be several distinct failure kinds, so this is a
+# class of shapes getting through rather than one crafted row.
+checked + 1 => checked
+[] => kinds
+for rec in results["bypass/admin"][0]:
+    validate(rec) => err
+    if len(err) > 0:
+        if not (err in kinds):
+            kinds + [err] => kinds
+if len(kinds) >= 4:
+    passed + 1 => passed
+
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Every invalid record was refused, unless the caller was allowed to do anything." => verdict
+else:
+    "FAILED - the save paths did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"'Allowed to do anything' is a claim about permission. Early-returning on"^0
+"it turns it into a claim about the rest of the function, and the rest of"^0
+"the function is where the record was going to be checked for being a"^0
+"record at all. The two questions were never the same question; they were"^0
+"only adjacent lines."^0

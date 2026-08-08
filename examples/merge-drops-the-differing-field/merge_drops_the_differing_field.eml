@@ -1,0 +1,262 @@
+# Self-authored for the EML case corpus (no external origin). "First non-empty
+# wins" is a rule for filling gaps, and it is used to settle contradictions.
+#
+# Merging two records for the same entity, field by field, taking the first
+# value that is not blank. It is the obvious rule and it is right about the
+# case everybody has in mind: one source knows the phone number and the other
+# does not, so take the one that knows.
+#
+# There is a second case that looks identical to the code and is not the same
+# situation at all: both sources have a value and the values DISAGREE. A gap
+# is missing information. A disagreement is a claim that one of the two
+# systems is wrong, and it is the only part of the merge that carries news.
+# "First non-empty" resolves it by argument position and says nothing.
+#
+# The fields where two systems disagree are not random. They are the fields
+# that CHANGED - the address after a move, the phone after a switch, the
+# status after a suspension - because that is what it takes for two systems to
+# hold different values. So the rule discards precisely the recent facts.
+#
+# The measurement separates gaps from disagreements, then re-runs every merge
+# with the sources swapped and counts how many merged fields change. A field
+# that depends on argument order was decided by argument order.
+
+def blank(v):
+    return len(v) == 0
+
+def merge_first_non_empty(a, b, fields):
+    [] => out
+    0 => i
+    while i < len(fields):
+        if blank(a[i]):
+            out + [b[i]] => out
+        else:
+            out + [a[i]] => out
+        i + 1 => i
+    return out
+
+def merge_flag_conflicts(a, b, fields):
+    # The same rule for gaps, and a refusal for disagreements.
+    [] => out
+    0 => i
+    while i < len(fields):
+        if blank(a[i]):
+            out + [b[i]] => out
+        elif blank(b[i]):
+            out + [a[i]] => out
+        elif a[i] == b[i]:
+            out + [a[i]] => out
+        else:
+            out + ["CONFLICT"] => out
+        i + 1 => i
+    return out
+
+def classify(a, b, i):
+    if blank(a[i]):
+        if blank(b[i]):
+            return "both-blank"
+        return "gap"
+    if blank(b[i]):
+        return "gap"
+    if a[i] == b[i]:
+        return "agree"
+    return "disagree"
+
+["name", "email", "phone", "address", "status"] => FIELDS
+
+# Pairs of records for the same entity, from two systems. crm first, billing
+# second. The disagreements are the ordinary ones: someone moved, someone
+# changed carrier, someone was suspended in one system and not the other.
+[[["Jing Wu", "jw@example.com", "5551234", "12 Oak St", "active"],
+  ["Jing Wu", "jw@example.com", "5559999", "48 Pine Ave", "active"]],
+ [["Ana Diaz", "", "5552222", "9 Elm Rd", "active"],
+  ["Ana Diaz", "ana@example.com", "5552222", "9 Elm Rd", "suspended"]],
+ [["Sam Roy", "sam@example.com", "", "", "active"],
+  ["Sam Roy", "sam@example.com", "5553333", "77 Cedar Ln", "active"]],
+ [["Lee Park", "lee@example.com", "5554444", "3 Birch Way", "closed"],
+  ["Lee Park", "lp@example.com", "5554444", "3 Birch Way", "active"]]] => PAIRS
+
+"pair  field     crm            billing        class"^0
+"----- --------- -------------- -------------- --------"^0
+
+0 => gaps
+0 => disagreements
+0 => agreements
+0 => cells
+0 => p
+while p < len(PAIRS):
+    PAIRS[p][0] => a
+    PAIRS[p][1] => b
+    0 => i
+    while i < len(FIELDS):
+        classify(a, b, i) => cls
+        cells + 1 => cells
+        if cls == "gap":
+            gaps + 1 => gaps
+        elif cls == "disagree":
+            disagreements + 1 => disagreements
+        elif cls == "agree":
+            agreements + 1 => agreements
+        if cls == "disagree":
+            (("  " + str(p) + "     ")[0:6] + (FIELDS[i] + "          ")[0:10] + (a[i] + "               ")[0:15] + (b[i] + "               ")[0:15] + cls)^0
+        i + 1 => i
+    p + 1 => p
+
+""^0
+("cells compared: " + str(cells))^0
+("  agree: " + str(agreements) + "   gap: " + str(gaps) + "   disagree: " + str(disagreements))^0
+
+""^0
+"what changes when the two sources are swapped"^0
+
+# The test that separates a fill from a decision: run the merge both ways.
+# A field whose merged value depends on which source was passed first was not
+# merged, it was picked.
+0 => order_dependent
+0 => merged_cells
+0 => p
+while p < len(PAIRS):
+    PAIRS[p][0] => a
+    PAIRS[p][1] => b
+    merge_first_non_empty(a, b, FIELDS) => ab
+    merge_first_non_empty(b, a, FIELDS) => ba
+    0 => i
+    while i < len(FIELDS):
+        merged_cells + 1 => merged_cells
+        if not (ab[i] == ba[i]):
+            order_dependent + 1 => order_dependent
+            (("  pair " + str(p) + " " + FIELDS[i] + "            ")[0:20] + " crm-first: " + (ab[i] + "               ")[0:15] + " billing-first: " + ba[i])^0
+        i + 1 => i
+    p + 1 => p
+
+("merged cells: " + str(merged_cells) + ", of which order-dependent: " + str(order_dependent))^0
+
+""^0
+"the conflict-flagging merge, on the same data"^0
+0 => flagged
+0 => p
+while p < len(PAIRS):
+    PAIRS[p][0] => a
+    PAIRS[p][1] => b
+    merge_flag_conflicts(a, b, FIELDS) => m
+    0 => i
+    while i < len(FIELDS):
+        if m[i] == "CONFLICT":
+            flagged + 1 => flagged
+        i + 1 => i
+    p + 1 => p
+("fields raised for review: " + str(flagged))^0
+
+# And it must agree with the silent merge everywhere there was no conflict -
+# otherwise it is a different policy rather than the same policy with the
+# decisions surfaced.
+0 => divergent_outside_conflicts
+0 => p
+while p < len(PAIRS):
+    PAIRS[p][0] => a
+    PAIRS[p][1] => b
+    merge_first_non_empty(a, b, FIELDS) => silent
+    merge_flag_conflicts(a, b, FIELDS) => loud
+    0 => i
+    while i < len(FIELDS):
+        if not (loud[i] == "CONFLICT"):
+            if not (loud[i] == silent[i]):
+                divergent_outside_conflicts + 1 => divergent_outside_conflicts
+        i + 1 => i
+    p + 1 => p
+("cells where the two merges differ outside a conflict: " + str(divergent_outside_conflicts))^0
+
+""^0
+"which fields the disagreements land in"^0
+0 => i
+while i < len(FIELDS):
+    0 => n
+    0 => p
+    while p < len(PAIRS):
+        if classify(PAIRS[p][0], PAIRS[p][1], i) == "disagree":
+            n + 1 => n
+        p + 1 => p
+    ((FIELDS[i] + "          ")[0:10] + " disagreements: " + str(n))^0
+    i + 1 => i
+
+""^0
+0 => checked
+0 => passed
+
+# There must be both gaps and disagreements in the data, or the case cannot
+# show that one rule is being asked to handle two situations.
+checked + 1 => checked
+if gaps > 0:
+    if disagreements > 0:
+        passed + 1 => passed
+
+# The silent merge must be order-dependent, and exactly as often as there are
+# disagreements - that equality is the whole claim, and it is computed on both
+# sides rather than asserted.
+checked + 1 => checked
+if order_dependent == disagreements:
+    passed + 1 => passed
+
+# Gaps must NOT be order-dependent. Filling a gap is genuinely commutative,
+# which is why the rule looks safe when it is tested on gaps.
+checked + 1 => checked
+0 => gap_cells_order_dependent
+0 => p
+while p < len(PAIRS):
+    PAIRS[p][0] => a
+    PAIRS[p][1] => b
+    merge_first_non_empty(a, b, FIELDS) => ab
+    merge_first_non_empty(b, a, FIELDS) => ba
+    0 => i
+    while i < len(FIELDS):
+        if classify(a, b, i) == "gap":
+            if not (ab[i] == ba[i]):
+                gap_cells_order_dependent + 1 => gap_cells_order_dependent
+        i + 1 => i
+    p + 1 => p
+if gap_cells_order_dependent == 0:
+    passed + 1 => passed
+
+# The flagging merge must raise exactly the disagreements - no more, no less.
+checked + 1 => checked
+if flagged == disagreements:
+    passed + 1 => passed
+
+# And be identical to the silent merge everywhere else, so the only change is
+# that the decisions became visible.
+checked + 1 => checked
+if divergent_outside_conflicts == 0:
+    passed + 1 => passed
+
+# The disagreements must be spread over more than one field, so this is not
+# one bad column.
+checked + 1 => checked
+0 => fields_with_disagreement
+0 => i
+while i < len(FIELDS):
+    0 => n
+    0 => p
+    while p < len(PAIRS):
+        if classify(PAIRS[p][0], PAIRS[p][1], i) == "disagree":
+            n + 1 => n
+        p + 1 => p
+    if n > 0:
+        fields_with_disagreement + 1 => fields_with_disagreement
+    i + 1 => i
+if fields_with_disagreement >= 3:
+    passed + 1 => passed
+
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Every contradiction was resolved by argument position and reported as a merge." => verdict
+else:
+    "FAILED - the merges did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"A gap and a contradiction are the same shape in the code and opposite"^0
+"situations in the world. One is information the other system had; the"^0
+"other is information that one of the two systems is out of date, which is"^0
+"the only thing in the whole merge worth a human's attention. The rule"^0
+"that handles both handles neither - it just stops the field from being"^0
+"blank."^0

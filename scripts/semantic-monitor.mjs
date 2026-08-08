@@ -236,6 +236,13 @@ const SEMANTIC_FILES = [
       // is exactly the kind this monitor exists to stop, and it happened:
       // `eml:output` was dropping `end` and comprehensions emitted nothing.
       'tests/trace-completeness.test.ts',
+      // Added 2026-08-08. Every test above compares what a program COMPUTES.
+      // None of them can see the order the interpreter evaluates operands in,
+      // because for pure operands every order produces the same value - which
+      // is why a reordering here would have moved no test at all. Flipping the
+      // two lines of the `Binary` case diverges 12 of 44 transcripts against
+      // real CPython; before this entry existed, it diverged nothing.
+      'tests/evaluation-order.test.ts',
     ],
   ],
   ['packages/transpiler-python/src/emitter.ts', ['tests/interp.test.ts', 'tests/statement-interaction.test.ts']],

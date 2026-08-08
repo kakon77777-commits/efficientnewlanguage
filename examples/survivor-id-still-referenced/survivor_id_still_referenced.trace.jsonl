@@ -1,0 +1,398 @@
+{"stream":"eml","proto":"eml-trace-v1","seq":1,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:start","mono":1,"file":"survivor_id_still_referenced.eml","statements":61}
+{"stream":"eml","proto":"eml-trace-v1","seq":2,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":2,"fn":"customers_after","params":["mode"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":3,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":3,"fn":"resolve","params":["customers","cid"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":4,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":4,"fn":"report_join","params":["customers","orders"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":5,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":5,"fn":"report_orders_only","params":["orders"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":6,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":6,"fn":"dangling","params":["customers","orders"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":7,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":7,"fn":"attributed_to","params":["customers","orders","cid"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":8,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":8,"name":"LOSER","value":"'c-102'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":9,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":9,"name":"SURVIVOR","value":"'c-101'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":10,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":10,"name":"CUSTOMERS","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":11,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":11,"name":"ORDERS","value":"[['c-101', 120], ['c-102', 80], ['c-102', 45], ['c-200', 300], ['c-101', 60]]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":12,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":12,"fn":"customers_after","args":["'none'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":13,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":13,"name":"out","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":14,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":14,"name":"out","value":"[['c-101', 'Jing Wu', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":15,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":15,"name":"out","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":16,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":16,"name":"out","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":17,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":17,"fn":"customers_after","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":18,"fn":"report_join","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","[['c-101', 120], ['c-102', 80], ['c-102', 45], ['c-200', 300], ['c-101', 60]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":19,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":19,"name":"total","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":20,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":20,"name":"rows","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":21,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":21,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":22,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":22,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":23,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":23,"name":"cid","value":"'c-101'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":24,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":24,"name":"total","value":"120","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":25,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":25,"name":"rows","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":26,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":26,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":27,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":27,"fn":"resolve","value":"'c-102'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":28,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":28,"name":"cid","value":"'c-102'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":29,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":29,"name":"total","value":"200","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":30,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":30,"name":"rows","value":"2","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":31,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":31,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":32,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":32,"fn":"resolve","value":"'c-102'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":33,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":33,"name":"cid","value":"'c-102'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":34,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":34,"name":"total","value":"245","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":35,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":35,"name":"rows","value":"3","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":36,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":36,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-200'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":37,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":37,"fn":"resolve","value":"'c-200'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":38,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":38,"name":"cid","value":"'c-200'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":39,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":39,"name":"total","value":"545","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":40,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":40,"name":"rows","value":"4","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":41,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":41,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":42,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":42,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":43,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":43,"name":"cid","value":"'c-101'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":44,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":44,"name":"total","value":"605","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":45,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":45,"name":"rows","value":"5","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":46,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":46,"fn":"report_join","value":"[605, 5]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":47,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":47,"name":"before_join","value":"[605, 5]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":48,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":48,"fn":"report_orders_only","args":["[['c-101', 120], ['c-102', 80], ['c-102', 45], ['c-200', 300], ['c-101', 60]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":49,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":49,"name":"total","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":50,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":50,"name":"total","value":"120","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":51,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":51,"name":"total","value":"200","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":52,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":52,"name":"total","value":"245","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":53,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":53,"name":"total","value":"545","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":54,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":54,"name":"total","value":"605","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":55,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":55,"fn":"report_orders_only","value":"[605, 5]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":56,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":56,"name":"before_flat","value":"[605, 5]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":57,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":57,"text":"                      revenue(join)  rows(join)  revenue(flat)  orders  dangling","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":58,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":58,"text":"--------------------- -------------  ----------  -------------  ------  --------","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":59,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":59,"fn":"customers_after","args":["'none'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":60,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":60,"name":"out","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":61,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":61,"name":"out","value":"[['c-101', 'Jing Wu', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":62,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":62,"name":"out","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":63,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":63,"name":"out","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":64,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":64,"fn":"customers_after","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":65,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":65,"fn":"dangling","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","[['c-101', 120], ['c-102', 80], ['c-102', 45], ['c-200', 300], ['c-101', 60]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":66,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":66,"name":"n","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":67,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":67,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":68,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":68,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":69,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":69,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":70,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":70,"fn":"resolve","value":"'c-102'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":71,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":71,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":72,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":72,"fn":"resolve","value":"'c-102'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":73,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":73,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-200'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":74,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":74,"fn":"resolve","value":"'c-200'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":75,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":75,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":76,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":76,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":77,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":77,"fn":"dangling","value":"0"}
+{"stream":"eml","proto":"eml-trace-v1","seq":78,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":78,"text":"before merge          605           5           605            5       0","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":79,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":79,"name":"after","value":"{}","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":80,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":80,"fn":"customers_after","args":["'delete'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":81,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":81,"name":"out","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":82,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":82,"name":"out","value":"[['c-101', 'Jing Wu', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":83,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":83,"name":"out","value":"[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":84,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":84,"fn":"customers_after","value":"[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":85,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":85,"name":"cs","value":"[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":86,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":86,"fn":"report_join","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","[['c-101', 120], ['c-102', 80], ['c-102', 45], ['c-200', 300], ['c-101', 60]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":87,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":87,"name":"total","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":88,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":88,"name":"rows","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":89,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":89,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":90,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":90,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":91,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":91,"name":"cid","value":"'c-101'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":92,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":92,"name":"total","value":"120","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":93,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":93,"name":"rows","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":94,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":94,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":95,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":95,"fn":"resolve","value":"''"}
+{"stream":"eml","proto":"eml-trace-v1","seq":96,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":96,"name":"cid","value":"''","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":97,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":97,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":98,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":98,"fn":"resolve","value":"''"}
+{"stream":"eml","proto":"eml-trace-v1","seq":99,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":99,"name":"cid","value":"''","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":100,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":100,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-200'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":101,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":101,"fn":"resolve","value":"'c-200'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":102,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":102,"name":"cid","value":"'c-200'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":103,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":103,"name":"total","value":"420","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":104,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":104,"name":"rows","value":"2","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":105,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":105,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":106,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":106,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":107,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":107,"name":"cid","value":"'c-101'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":108,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":108,"name":"total","value":"480","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":109,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":109,"name":"rows","value":"3","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":110,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":110,"fn":"report_join","value":"[480, 3]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":111,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":111,"name":"j","value":"[480, 3]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":112,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":112,"fn":"report_orders_only","args":["[['c-101', 120], ['c-102', 80], ['c-102', 45], ['c-200', 300], ['c-101', 60]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":113,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":113,"name":"total","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":114,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":114,"name":"total","value":"120","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":115,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":115,"name":"total","value":"200","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":116,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":116,"name":"total","value":"245","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":117,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":117,"name":"total","value":"545","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":118,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":118,"name":"total","value":"605","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":119,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":119,"fn":"report_orders_only","value":"[605, 5]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":120,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":120,"name":"f","value":"[605, 5]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":121,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":121,"fn":"dangling","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","[['c-101', 120], ['c-102', 80], ['c-102', 45], ['c-200', 300], ['c-101', 60]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":122,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":122,"name":"n","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":123,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":123,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":124,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":124,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":125,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":125,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":126,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":126,"fn":"resolve","value":"''"}
+{"stream":"eml","proto":"eml-trace-v1","seq":127,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":127,"name":"n","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":128,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":128,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":129,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":129,"fn":"resolve","value":"''"}
+{"stream":"eml","proto":"eml-trace-v1","seq":130,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":130,"name":"n","value":"2","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":131,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":131,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-200'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":132,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":132,"fn":"resolve","value":"'c-200'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":133,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":133,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":134,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":134,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":135,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":135,"fn":"dangling","value":"2"}
+{"stream":"eml","proto":"eml-trace-v1","seq":136,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":136,"name":"d","value":"2","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":137,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":137,"name":"after[…]","value":"[480, 3, 605, 5, 2]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":138,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":138,"text":"merge by delete       480           3           605            5       2","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":139,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":139,"fn":"customers_after","args":["'alias'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":140,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":140,"name":"out","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":141,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":141,"name":"out","value":"[['c-101', 'Jing Wu', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":142,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":142,"name":"out","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":143,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":143,"name":"out","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":144,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":144,"fn":"customers_after","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":145,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":145,"name":"cs","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":146,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":146,"fn":"report_join","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","[['c-101', 120], ['c-102', 80], ['c-102', 45], ['c-200', 300], ['c-101', 60]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":147,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":147,"name":"total","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":148,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":148,"name":"rows","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":149,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":149,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":150,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":150,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":151,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":151,"name":"cid","value":"'c-101'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":152,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":152,"name":"total","value":"120","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":153,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":153,"name":"rows","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":154,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":154,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":155,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":155,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":156,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":156,"name":"cid","value":"'c-101'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":157,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":157,"name":"total","value":"200","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":158,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":158,"name":"rows","value":"2","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":159,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":159,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":160,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":160,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":161,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":161,"name":"cid","value":"'c-101'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":162,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":162,"name":"total","value":"245","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":163,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":163,"name":"rows","value":"3","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":164,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":164,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","'c-200'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":165,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":165,"fn":"resolve","value":"'c-200'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":166,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":166,"name":"cid","value":"'c-200'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":167,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":167,"name":"total","value":"545","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":168,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":168,"name":"rows","value":"4","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":169,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":169,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":170,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":170,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":171,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":171,"name":"cid","value":"'c-101'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":172,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":172,"name":"total","value":"605","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":173,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":173,"name":"rows","value":"5","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":174,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":174,"fn":"report_join","value":"[605, 5]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":175,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":175,"name":"j","value":"[605, 5]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":176,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":176,"fn":"report_orders_only","args":["[['c-101', 120], ['c-102', 80], ['c-102', 45], ['c-200', 300], ['c-101', 60]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":177,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":177,"name":"total","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":178,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":178,"name":"total","value":"120","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":179,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":179,"name":"total","value":"200","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":180,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":180,"name":"total","value":"245","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":181,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":181,"name":"total","value":"545","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":182,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":182,"name":"total","value":"605","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":183,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":183,"fn":"report_orders_only","value":"[605, 5]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":184,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":184,"name":"f","value":"[605, 5]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":185,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":185,"fn":"dangling","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","[['c-101', 120], ['c-102', 80], ['c-102', 45], ['c-200', 300], ['c-101', 60]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":186,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":186,"name":"n","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":187,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":187,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":188,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":188,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":189,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":189,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":190,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":190,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":191,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":191,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":192,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":192,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":193,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":193,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","'c-200'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":194,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":194,"fn":"resolve","value":"'c-200'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":195,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":195,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":196,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":196,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":197,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":197,"fn":"dangling","value":"0"}
+{"stream":"eml","proto":"eml-trace-v1","seq":198,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":198,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":199,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":199,"name":"after[…]","value":"[605, 5, 605, 5, 0]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":200,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":200,"text":"merge by alias        605           5           605            5       0","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":201,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":201,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":202,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":202,"text":"what the survivor is credited with","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":203,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":203,"fn":"customers_after","args":["'none'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":204,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":204,"name":"out","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":205,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":205,"name":"out","value":"[['c-101', 'Jing Wu', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":206,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":206,"name":"out","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":207,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":207,"name":"out","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":208,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":208,"fn":"customers_after","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":209,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":209,"name":"cs","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":210,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":210,"fn":"attributed_to","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","[['c-101', 120], ['c-102', 80], ['c-102', 45], ['c-200', 300], ['c-101', 60]]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":211,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":211,"name":"total","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":212,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":212,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":213,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":213,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":214,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":214,"name":"total","value":"120","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":215,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":215,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":216,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":216,"fn":"resolve","value":"'c-102'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":217,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":217,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":218,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":218,"fn":"resolve","value":"'c-102'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":219,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":219,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-200'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":220,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":220,"fn":"resolve","value":"'c-200'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":221,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":221,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":222,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":222,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":223,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":223,"name":"total","value":"180","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":224,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":224,"fn":"attributed_to","value":"180"}
+{"stream":"eml","proto":"eml-trace-v1","seq":225,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":225,"text":"none     c-101 is attributed 180","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":226,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":226,"fn":"customers_after","args":["'delete'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":227,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":227,"name":"out","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":228,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":228,"name":"out","value":"[['c-101', 'Jing Wu', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":229,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":229,"name":"out","value":"[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":230,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":230,"fn":"customers_after","value":"[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":231,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":231,"name":"cs","value":"[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":232,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":232,"fn":"attributed_to","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","[['c-101', 120], ['c-102', 80], ['c-102', 45], ['c-200', 300], ['c-101', 60]]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":233,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":233,"name":"total","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":234,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":234,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":235,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":235,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":236,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":236,"name":"total","value":"120","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":237,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":237,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":238,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":238,"fn":"resolve","value":"''"}
+{"stream":"eml","proto":"eml-trace-v1","seq":239,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":239,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":240,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":240,"fn":"resolve","value":"''"}
+{"stream":"eml","proto":"eml-trace-v1","seq":241,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":241,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-200'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":242,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":242,"fn":"resolve","value":"'c-200'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":243,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":243,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":244,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":244,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":245,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":245,"name":"total","value":"180","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":246,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":246,"fn":"attributed_to","value":"180"}
+{"stream":"eml","proto":"eml-trace-v1","seq":247,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":247,"text":"delete   c-101 is attributed 180","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":248,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":248,"fn":"customers_after","args":["'alias'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":249,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":249,"name":"out","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":250,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":250,"name":"out","value":"[['c-101', 'Jing Wu', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":251,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":251,"name":"out","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":252,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":252,"name":"out","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":253,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":253,"fn":"customers_after","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":254,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":254,"name":"cs","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":255,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":255,"fn":"attributed_to","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","[['c-101', 120], ['c-102', 80], ['c-102', 45], ['c-200', 300], ['c-101', 60]]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":256,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":256,"name":"total","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":257,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":257,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":258,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":258,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":259,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":259,"name":"total","value":"120","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":260,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":260,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":261,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":261,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":262,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":262,"name":"total","value":"200","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":263,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":263,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":264,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":264,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":265,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":265,"name":"total","value":"245","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":266,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":266,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","'c-200'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":267,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":267,"fn":"resolve","value":"'c-200'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":268,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":268,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":269,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":269,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":270,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":270,"name":"total","value":"305","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":271,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":271,"fn":"attributed_to","value":"305"}
+{"stream":"eml","proto":"eml-trace-v1","seq":272,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":272,"text":"alias    c-101 is attributed 305","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":273,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":273,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":274,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":274,"text":"the two reports, disagreeing","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":275,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":275,"name":"a","value":"[480, 3, 605, 5, 2]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":276,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":276,"name":"gap","value":"-125","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":277,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":277,"text":"delete   join says 480, flat says 605, difference 125","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":278,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":278,"name":"a","value":"[605, 5, 605, 5, 0]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":279,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":279,"name":"gap","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":280,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":280,"text":"alias    join says 605, flat says 605, difference 0","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":281,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":281,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":282,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":282,"text":"neither report is wrong about its own question","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":283,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":283,"text":"  the join reports revenue for customers that exist","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":284,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":284,"text":"  the flat report reports revenue for orders that exist","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":285,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":285,"text":"  after a hard delete those are different sets, and no query knows it","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":286,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":286,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":287,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":287,"name":"checked","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":288,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":288,"name":"passed","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":289,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":289,"name":"checked","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":290,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":290,"name":"passed","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":291,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":291,"name":"checked","value":"2","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":292,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":292,"name":"passed","value":"2","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":293,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":293,"name":"checked","value":"3","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":294,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":294,"name":"passed","value":"3","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":295,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":295,"name":"checked","value":"4","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":296,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":296,"name":"passed","value":"4","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":297,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":297,"name":"checked","value":"5","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":298,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":298,"name":"passed","value":"5","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":299,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":299,"name":"checked","value":"6","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":300,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":300,"fn":"customers_after","args":["'alias'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":301,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":301,"name":"out","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":302,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":302,"name":"out","value":"[['c-101', 'Jing Wu', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":303,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":303,"name":"out","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":304,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":304,"name":"out","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":305,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":305,"fn":"customers_after","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":306,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":306,"name":"cs_alias","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":307,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":307,"fn":"customers_after","args":["'none'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":308,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":308,"name":"out","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":309,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":309,"name":"out","value":"[['c-101', 'Jing Wu', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":310,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":310,"name":"out","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":311,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":311,"name":"out","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":312,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":312,"fn":"customers_after","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":313,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":313,"name":"cs_none","value":"[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":314,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":314,"fn":"attributed_to","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","[['c-101', 120], ['c-102', 80], ['c-102', 45], ['c-200', 300], ['c-101', 60]]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":315,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":315,"name":"total","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":316,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":316,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":317,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":317,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":318,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":318,"name":"total","value":"120","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":319,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":319,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":320,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":320,"fn":"resolve","value":"'c-102'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":321,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":321,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":322,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":322,"fn":"resolve","value":"'c-102'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":323,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":323,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-200'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":324,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":324,"fn":"resolve","value":"'c-200'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":325,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":325,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":326,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":326,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":327,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":327,"name":"total","value":"180","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":328,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":328,"fn":"attributed_to","value":"180"}
+{"stream":"eml","proto":"eml-trace-v1","seq":329,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":329,"fn":"attributed_to","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","[['c-101', 120], ['c-102', 80], ['c-102', 45], ['c-200', 300], ['c-101', 60]]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":330,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":330,"name":"total","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":331,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":331,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":332,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":332,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":333,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":333,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":334,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":334,"fn":"resolve","value":"'c-102'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":335,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":335,"name":"total","value":"80","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":336,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":336,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":337,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":337,"fn":"resolve","value":"'c-102'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":338,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":338,"name":"total","value":"125","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":339,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":339,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-200'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":340,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":340,"fn":"resolve","value":"'c-200'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":341,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":341,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":342,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":342,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":343,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":343,"fn":"attributed_to","value":"125"}
+{"stream":"eml","proto":"eml-trace-v1","seq":344,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":344,"name":"expected_total","value":"305","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":345,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":345,"fn":"attributed_to","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","[['c-101', 120], ['c-102', 80], ['c-102', 45], ['c-200', 300], ['c-101', 60]]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":346,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":346,"name":"total","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":347,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":347,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":348,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":348,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":349,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":349,"name":"total","value":"120","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":350,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":350,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":351,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":351,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":352,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":352,"name":"total","value":"200","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":353,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":353,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":354,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":354,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":355,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":355,"name":"total","value":"245","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":356,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":356,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","'c-200'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":357,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":357,"fn":"resolve","value":"'c-200'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":358,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":358,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-102', 'Jing Wu', 'c-101'], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":359,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":359,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":360,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":360,"name":"total","value":"305","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":361,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":361,"fn":"attributed_to","value":"305"}
+{"stream":"eml","proto":"eml-trace-v1","seq":362,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":362,"name":"passed","value":"6","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":363,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":363,"name":"checked","value":"7","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":364,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":364,"fn":"customers_after","args":["'delete'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":365,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":365,"name":"out","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":366,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":366,"name":"out","value":"[['c-101', 'Jing Wu', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":367,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":367,"name":"out","value":"[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":368,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":368,"fn":"customers_after","value":"[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":369,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":369,"name":"cs_del","value":"[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":370,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":370,"fn":"attributed_to","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","[['c-101', 120], ['c-102', 80], ['c-102', 45], ['c-200', 300], ['c-101', 60]]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":371,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":371,"name":"total","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":372,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":372,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":373,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":373,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":374,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":374,"name":"total","value":"120","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":375,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":375,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":376,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":376,"fn":"resolve","value":"''"}
+{"stream":"eml","proto":"eml-trace-v1","seq":377,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":377,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-102'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":378,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":378,"fn":"resolve","value":"''"}
+{"stream":"eml","proto":"eml-trace-v1","seq":379,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":379,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-200'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":380,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":380,"fn":"resolve","value":"'c-200'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":381,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":381,"fn":"resolve","args":["[['c-101', 'Jing Wu', ''], ['c-200', 'Ana Diaz', '']]","'c-101'"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":382,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":382,"fn":"resolve","value":"'c-101'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":383,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":383,"name":"total","value":"180","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":384,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":384,"fn":"attributed_to","value":"180"}
+{"stream":"eml","proto":"eml-trace-v1","seq":385,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":385,"name":"passed","value":"7","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":386,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":386,"name":"checked","value":"8","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":387,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":387,"name":"passed","value":"8","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":388,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":388,"text":"checks passed: 8/8","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":389,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":389,"name":"verdict","value":"'The rows vanished from one report, stayed in the other, and raised nothing.'","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":390,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":390,"text":"The rows vanished from one report, stayed in the other, and raised nothing.","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":391,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":391,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":392,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":392,"text":"An id is not owned by the table it is defined in; it is owned by every","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":393,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":393,"text":"table that stores it. Deleting a row is a local edit with a non-local","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":394,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":394,"text":"meaning, and the only reason it looks local is that foreign keys point","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":395,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":395,"text":"INWARD - the customer table cannot see who is pointing at it. A merge","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":396,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":396,"text":"that leaves a redirect behind costs one column and makes the operation","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":397,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":397,"text":"survivable by everything downstream that was never consulted.","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":398,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:done","mono":398,"ok":true,"outputs":29,"anomalies":0}
