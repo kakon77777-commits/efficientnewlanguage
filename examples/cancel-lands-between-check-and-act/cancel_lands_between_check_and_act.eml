@@ -1,0 +1,175 @@
+# Self-authored for the EML case corpus (no external origin). The worker checks
+# whether it was cancelled and then does the thing, and the cancel can arrive
+# in between.
+#
+# `if cancelled: return` followed by the action is the shape every cooperative
+# cancellation takes. It is correct for every cancel that arrives before the
+# check and every cancel that arrives after the action. The ticks between the
+# two are a window in which a cancel is accepted, acknowledged, recorded - and
+# has no effect.
+#
+# The window is not a race in the concurrency sense; it needs no threads. It is
+# simply the distance between the moment the decision is made and the moment
+# the decision is acted on, and every line of setup added between them makes it
+# wider. Logging, metrics, a validation pass, fetching the row to write: all of
+# them get inserted after the check, because the check is at the top where
+# guard clauses go.
+#
+# The measurement sweeps the cancel's arrival across every tick of the
+# operation and counts how many arrival times produce an effect anyway, under
+# three placements of the check.
+
+def run(cancel_at, placement):
+    # The operation's timeline. Returns [effect_written, cancel_honoured].
+    # Ticks: 1 check-early, 2 log, 3 validate, 4 fetch, 5 check-late, 6 write.
+    0 => cancelled
+    0 => effect
+    0 => honoured
+    1 => tick
+    while tick <= 6:
+        if tick == cancel_at:
+            1 => cancelled
+        if tick == 1:
+            if placement == "early":
+                if cancelled == 1:
+                    1 => honoured
+                    return [effect, honoured]
+        if tick == 5:
+            if placement == "late":
+                if cancelled == 1:
+                    1 => honoured
+                    return [effect, honoured]
+        if tick == 6:
+            if placement == "atomic":
+                if cancelled == 1:
+                    1 => honoured
+                    return [effect, honoured]
+            1 => effect
+        tick + 1 => tick
+    return [effect, honoured]
+
+["early", "late", "atomic"] => PLACEMENTS
+[1, 2, 3, 4, 5, 6, 7] => ARRIVALS
+
+"placement  arrival tick that still writes the effect        honoured  ineffective"^0
+"---------  ---------------------------------------------  --------  -----------"^0
+
+{} => results
+for p in PLACEMENTS:
+    "" => leaked
+    0 => honoured_n
+    0 => ineffective
+    for a in ARRIVALS:
+        run(a, p) => r
+        if r[1] == 1:
+            honoured_n + 1 => honoured_n
+        if r[0] == 1:
+            if a <= 6:
+                leaked + str(a) + " " => leaked
+                ineffective + 1 => ineffective
+    [honoured_n, ineffective] => results[p]
+    ((p + "           ")[0:11] + (leaked + "                                             ")[0:47] + (str(honoured_n) + "          ")[0:10] + str(ineffective))^0
+
+""^0
+("cancel arrival ticks swept: " + str(len(ARRIVALS)) + " (the operation runs for 6)")^0
+"a cancel at tick 7 arrives after the operation finished and is not counted"^0
+"as ineffective - there was nothing left to stop."^0
+
+""^0
+"the window, per placement"^0
+for p in PLACEMENTS:
+    results[p] => r
+    ("check placed " + (p + "        ")[0:8] + " -> ineffective window: " + str(r[1]) + " of the 6 ticks the operation runs")^0
+
+""^0
+"where the check sits, and how wide that makes the window"^0
+{"early": 1, "late": 5, "atomic": 6} => CHECK_TICK
+6 => WRITE_TICK
+for p in PLACEMENTS:
+    CHECK_TICK[p] => c
+    ((p + "           ")[0:11] + " check at tick " + str(c) + ", write at tick " + str(WRITE_TICK) + " -> arrivals in (" + str(c) + ", " + str(WRITE_TICK) + "] miss: " + str(WRITE_TICK - c))^0
+
+""^0
+"which number separates the three, and which one does not"^0
+for p in PLACEMENTS:
+    results[p] => r
+    ("check placed " + (p + "        ")[0:8] + " -> accepted: " + str(len(ARRIVALS)) + ", honoured: " + str(r[0]) + ", accepted-but-ineffective: " + str(r[1]))^0
+"Every placement ACCEPTS all 7 cancels, so a counter of cancellation"^0
+"requests is identical for all three. The number that separates them is"^0
+"`honoured`, and computing it requires the operation to record both that it"^0
+"was cancelled AND that it did not write - two facts on two different code"^0
+"paths, where the early return logs 'cancelled' and the write path logs"^0
+"'completed', and both read as a normal outcome."^0
+
+""^0
+0 => checked
+0 => passed
+
+# The early check must have a real ineffective window.
+checked + 1 => checked
+if results["early"][1] > 0:
+    passed + 1 => passed
+
+# Moving the check later must shrink it.
+checked + 1 => checked
+if results["late"][1] < results["early"][1]:
+    passed + 1 => passed
+
+# The atomic placement must close it entirely.
+checked + 1 => checked
+if results["atomic"][1] == 0:
+    passed + 1 => passed
+
+# Every placement must honour a cancel that arrives before the operation
+# starts doing anything - none of them is simply broken.
+checked + 1 => checked
+0 => early_arrivals_missed
+for p in PLACEMENTS:
+    run(1, p) => r
+    if r[0] == 1:
+        early_arrivals_missed + 1 => early_arrivals_missed
+if early_arrivals_missed == 0:
+    passed + 1 => passed
+
+# A cancel arriving after the operation completed must write the effect under
+# every placement - the work was already done, and refusing to record that
+# would be a different bug.
+checked + 1 => checked
+0 => late_arrival_ok
+for p in PLACEMENTS:
+    run(7, p) => r
+    if r[0] == 1:
+        late_arrival_ok + 1 => late_arrival_ok
+if late_arrival_ok == len(PLACEMENTS):
+    passed + 1 => passed
+
+# The window must equal write_tick - check_tick, for every placement.
+#
+# This check first read `results["early"][1] == 4` and measured 5. Four is the
+# number of STEPS between the check and the write (log, validate, fetch,
+# write); five is the number of ARRIVAL TICKS that miss, because a cancel
+# landing on the write tick itself is also too late. Two different quantities,
+# one typed number. The relationship below is computed on both sides and holds
+# for all three placements, which is what makes it worth stating: every line
+# inserted after the check widens the window by exactly one.
+checked + 1 => checked
+0 => window_mismatches
+for p in PLACEMENTS:
+    if not (results[p][1] == WRITE_TICK - CHECK_TICK[p]):
+        window_mismatches + 1 => window_mismatches
+if window_mismatches == 0:
+    passed + 1 => passed
+
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "The cancel was accepted, recorded, and landed inside a five-tick window where it does nothing." => verdict
+else:
+    "FAILED - the placements did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"A guard clause belongs at the top of a function - that is what makes it a"^0
+"guard clause, and it is why the check ends up as far from the action as the"^0
+"function is long. Every line added between them is added by someone solving"^0
+"a different problem, and none of them can see that they widened a window."^0
+"The count of cancellations honoured goes up either way."^0

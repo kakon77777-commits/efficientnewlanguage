@@ -1,0 +1,206 @@
+# Self-authored for the EML case corpus (no external origin). Two attribution
+# systems, each internally consistent, each claiming the same conversions, and
+# the sum of their reports exceeds what happened.
+#
+# Every platform attributes the conversions IT can see, against the population
+# IT can see. That is the only honest thing it can do - it has no access to the
+# rest. Its report reconciles perfectly: attributed equals observed.
+#
+# The failure is at the seam. Somebody builds a summary by adding the platforms'
+# numbers together, because each one is a count of conversions and counts add.
+# They do not, when the same conversion appears in more than one of them, and
+# nothing in either report says which conversions those are - each platform's
+# denominator is its own visibility, and visibility overlaps.
+#
+# The measurement runs both platforms over the same ground truth, reports each
+# one's internal reconciliation, then compares the naive sum against reality
+# and attributes the excess to the specific conversions that were claimed
+# twice.
+
+def sees(platform, conv):
+    # conv is [id, [touch channels]]. A platform sees a conversion if it owns
+    # one of the touchpoints.
+    for ch in conv[1]:
+        for owned in OWNS[platform]:
+            if ch == owned:
+                return 1
+    return 0
+
+def claimed(platform):
+    [] => out
+    for c in CONVERSIONS:
+        if sees(platform, c) == 1:
+            out + [c[0]] => out
+    return out
+
+def claim_count(ids, target):
+    0 => n
+    for i in ids:
+        if i == target:
+            n + 1 => n
+    return n
+
+{"adnet": ["search", "display"], "analytics": ["email", "social", "search"]} => OWNS
+["adnet", "analytics"] => PLATFORMS
+
+# id, touchpoints
+[["c1", ["social", "search"]],
+ ["c2", ["email"]],
+ ["c3", ["display"]],
+ ["c4", ["social", "email", "search"]],
+ ["c5", ["search"]],
+ ["c6", ["social"]],
+ ["c7", ["display", "search"]],
+ ["c8", ["email", "display"]],
+ # Neither platform owns "direct" or "organic". These are the conversions
+ # every report is silent about - and they are not exotic, they are the
+ # single largest bucket in most real datasets.
+ ["c9", ["direct"]],
+ ["c10", ["direct", "organic"]]] => CONVERSIONS
+
+("conversions that actually happened: " + str(len(CONVERSIONS)))^0
+""^0
+"platform    owns                     claims  its own reconciliation"^0
+"----------  -----------------------  ------  ---------------------"^0
+
+{} => claims
+0 => naive_sum
+for p in PLATFORMS:
+    claimed(p) => ids
+    ids => claims[p]
+    naive_sum + len(ids) => naive_sum
+    "" => owned
+    for o in OWNS[p]:
+        owned + o + " " => owned
+    # Each platform checks that everything it attributed is something it saw.
+    0 => internally_ok
+    0 => visible
+    for c in CONVERSIONS:
+        if sees(p, c) == 1:
+            visible + 1 => visible
+    if len(ids) == visible:
+        1 => internally_ok
+    if internally_ok == 1:
+        "attributed == observed" => note
+    else:
+        "MISMATCH" => note
+    ((p + "            ")[0:12] + (owned + "                         ")[0:25] + (str(len(ids)) + "        ")[0:8] + note)^0
+
+""^0
+("sum of the two platforms' claims: " + str(naive_sum))^0
+("conversions that actually happened: " + str(len(CONVERSIONS)))^0
+("excess: " + str(naive_sum - len(CONVERSIONS)))^0
+
+""^0
+"which conversions were claimed twice"^0
+[] => all_claims
+for p in PLATFORMS:
+    for i in claims[p]:
+        all_claims + [i] => all_claims
+0 => doubled
+0 => unclaimed
+for c in CONVERSIONS:
+    claim_count(all_claims, c[0]) => n
+    if n > 1:
+        doubled + 1 => doubled
+        "" => touches
+        for ch in c[1]:
+            touches + ch + " " => touches
+        ("  " + c[0] + " claimed " + str(n) + " times   touches: " + touches)^0
+    if n == 0:
+        unclaimed + 1 => unclaimed
+("conversions claimed by more than one platform: " + str(doubled))^0
+("conversions claimed by nobody: " + str(unclaimed))^0
+
+""^0
+"the excess is exactly the double claims"^0
+0 => excess_from_doubles
+for c in CONVERSIONS:
+    claim_count(all_claims, c[0]) => n
+    if n > 1:
+        excess_from_doubles + n - 1 => excess_from_doubles
+("naive sum minus reality: " + str(naive_sum - len(CONVERSIONS)))^0
+("sum of (claims - 1) over multiply-claimed conversions: " + str(excess_from_doubles))^0
+("...minus the conversions nobody claimed: " + str(excess_from_doubles - unclaimed))^0
+
+""^0
+"each platform's share of what it can see"^0
+for p in PLATFORMS:
+    0 => visible
+    for c in CONVERSIONS:
+        if sees(p, c) == 1:
+            visible + 1 => visible
+    int(visible * 1000 / len(CONVERSIONS)) / 10 => pct_of_all
+    ((p + "            ")[0:12] + " sees " + str(visible) + " of " + str(len(CONVERSIONS)) + " (" + str(pct_of_all) + "% of reality), and reports 100% of what it sees")^0
+
+""^0
+0 => checked
+0 => passed
+
+# Both platforms must reconcile internally - neither is lying.
+checked + 1 => checked
+0 => both_ok
+for p in PLATFORMS:
+    0 => visible
+    for c in CONVERSIONS:
+        if sees(p, c) == 1:
+            visible + 1 => visible
+    if len(claims[p]) == visible:
+        both_ok + 1 => both_ok
+if both_ok == len(PLATFORMS):
+    passed + 1 => passed
+
+# The naive sum must exceed reality.
+checked + 1 => checked
+if naive_sum > len(CONVERSIONS):
+    passed + 1 => passed
+
+# The excess must be exactly accounted for by the double claims, net of the
+# conversions nobody saw. Both sides computed.
+checked + 1 => checked
+if naive_sum - len(CONVERSIONS) == excess_from_doubles - unclaimed:
+    passed + 1 => passed
+
+# Some conversions must be claimed twice and some by nobody - a real seam has
+# both, and only the first kind is visible in any report.
+checked + 1 => checked
+if doubled > 0:
+    if unclaimed > 0:
+        passed + 1 => passed
+
+# Neither platform may see everything, or one of them would be the truth.
+checked + 1 => checked
+0 => omniscient
+for p in PLATFORMS:
+    if len(claims[p]) == len(CONVERSIONS):
+        omniscient + 1 => omniscient
+if omniscient == 0:
+    passed + 1 => passed
+
+# And no platform may claim something it cannot see - the failure is at the
+# seam, not inside either system.
+checked + 1 => checked
+0 => overclaims
+for p in PLATFORMS:
+    for i in claims[p]:
+        for c in CONVERSIONS:
+            if c[0] == i:
+                if sees(p, c) == 0:
+                    overclaims + 1 => overclaims
+if overclaims == 0:
+    passed + 1 => passed
+
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Both reports were honest and their sum was not." => verdict
+else:
+    "FAILED - the platforms did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"Each platform's denominator is its own visibility, and the word it uses is"^0
+"'conversions'. The two reports are correct, internally consistent, and"^0
+"about different populations - which is invisible in a number. Adding them"^0
+"is the obvious thing to do with two counts, and it is the one operation"^0
+"neither system's reconciliation covers, because reconciliation stops at"^0
+"the system boundary and so does everyone who owns one."^0

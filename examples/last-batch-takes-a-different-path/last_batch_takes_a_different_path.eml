@@ -1,0 +1,201 @@
+# Self-authored for the EML case corpus (no external origin). The full batches
+# leave through the loop and the remainder leaves through the shutdown path,
+# and the two paths are not the same code.
+#
+# The main loop flushes when the buffer fills. Whatever is left when the input
+# ends has to leave some other way, so a finalize/close/drain function is
+# written - later, by whoever noticed records going missing on shutdown. It
+# does the flush. It does not necessarily do everything ELSE the main path
+# accumulated over the following year: a checksum, a sequence stamp, a
+# validation pass, a metric increment.
+#
+# The number of records that take the second path is `n mod batch`, which is
+# ZERO whenever the input divides evenly - and fixtures are written with round
+# numbers. So the path that gets the least review is also the path the tests
+# are least likely to enter.
+#
+# The measurement runs every input length against a fixed batch size, checks an
+# invariant on the records that came out, and reports exactly which ones fail
+# and how that count relates to n mod batch.
+
+def stamped(rec, seq):
+    # The main path stamps a sequence number onto every record. rec is a list
+    # [id, seq]; seq 0 means unstamped.
+    return [rec[0], seq]
+
+def run(records, batch, finalize_stamps):
+    # Returns [out, main_path_count, tail_path_count].
+    [] => out
+    [] => buffer
+    0 => seq
+    0 => via_main
+    0 => via_tail
+    for r in records:
+        buffer + [r] => buffer
+        if len(buffer) == batch:
+            for b in buffer:
+                seq + 1 => seq
+                out + [stamped(b, seq)] => out
+                via_main + 1 => via_main
+            [] => buffer
+    # the drain path
+    if len(buffer) > 0:
+        for b in buffer:
+            via_tail + 1 => via_tail
+            if finalize_stamps == 1:
+                seq + 1 => seq
+                out + [stamped(b, seq)] => out
+            else:
+                out + [b] => out
+        [] => buffer
+    return [out, via_main, via_tail]
+
+def unstamped(out):
+    0 => n
+    for r in out:
+        if r[1] == 0:
+            n + 1 => n
+    return n
+
+def make(n):
+    [] => out
+    0 => i
+    while i < n:
+        out + [["r" + str(i + 1), 0]] => out
+        i + 1 => i
+    return out
+
+4 => BATCH
+
+"n    n mod b  via loop  via drain  unstamped (buggy drain)  unstamped (fixed)"^0
+"---  -------  --------  ---------  -----------------------  -----------------"^0
+
+0 => lengths
+0 => buggy_bad
+0 => fixed_bad
+{} => rows
+0 => n
+while n <= 12:
+    make(n) => recs
+    run(recs, BATCH, 0) => bad
+    run(recs, BATCH, 1) => good
+    unstamped(bad[0]) => u_bad
+    unstamped(good[0]) => u_good
+    lengths + 1 => lengths
+    if u_bad > 0:
+        buggy_bad + 1 => buggy_bad
+    if u_good > 0:
+        fixed_bad + 1 => fixed_bad
+    [n % BATCH, u_bad, u_good, bad[1], bad[2]] => rows[str(n)]
+    ((str(n) + "     ")[0:5] + (str(n % BATCH) + "         ")[0:9] + (str(bad[1]) + "          ")[0:10] + (str(bad[2]) + "           ")[0:11] + (str(u_bad) + "                         ")[0:25] + str(u_good))^0
+    n + 1 => n
+
+""^0
+("batch size: " + str(BATCH) + ", input lengths tried: " + str(lengths))^0
+("lengths where the drain path loses the stamp: " + str(buggy_bad))^0
+("lengths where the fixed drain loses it:        " + str(fixed_bad))^0
+
+""^0
+"the unstamped count IS n mod batch"^0
+
+# Not a coincidence and not an assertion - both sides are computed and
+# compared for every length.
+0 => mismatches
+0 => n
+while n <= 12:
+    rows[str(n)] => row
+    if not (row[1] == row[0]):
+        mismatches + 1 => mismatches
+    n + 1 => n
+("lengths where unstamped != n mod batch: " + str(mismatches))^0
+
+""^0
+"which input lengths a fixture would use"^0
+0 => n
+while n <= 12:
+    rows[str(n)] => row
+    if row[0] == 0:
+        (("n = " + str(n))[0:8] + "  divides evenly -> drain path never runs -> defect invisible")^0
+    n + 1 => n
+
+""^0
+"every record still comes out, and the count is right"^0
+0 => n
+0 => lost
+while n <= 12:
+    make(n) => recs
+    run(recs, BATCH, 0) => bad
+    if not (len(bad[0]) == n):
+        lost + 1 => lost
+    n + 1 => n
+("input lengths where a record went missing: " + str(lost))^0
+"So no count, no length check and no 'did everything arrive' test can see it."^0
+
+""^0
+0 => checked
+0 => passed
+
+# The buggy drain must lose the stamp for some lengths.
+checked + 1 => checked
+if buggy_bad > 0:
+    passed + 1 => passed
+
+# And never for a length that divides evenly - the configuration a fixture
+# reaches for.
+checked + 1 => checked
+0 => even_bad
+0 => n
+while n <= 12:
+    rows[str(n)] => row
+    if row[0] == 0:
+        if row[1] > 0:
+            even_bad + 1 => even_bad
+    n + 1 => n
+if even_bad == 0:
+    passed + 1 => passed
+
+# The fixed drain must be clean at every length.
+checked + 1 => checked
+if fixed_bad == 0:
+    passed + 1 => passed
+
+# The number of affected records must equal n mod batch at every length - the
+# mechanism, computed on both sides.
+checked + 1 => checked
+if mismatches == 0:
+    passed + 1 => passed
+
+# No record may be lost, at any length, under either drain. The defect is
+# invisible to every count.
+checked + 1 => checked
+if lost == 0:
+    passed + 1 => passed
+
+# And the two paths must both be exercised somewhere, or the case is about a
+# path nothing reaches.
+checked + 1 => checked
+0 => both
+0 => n
+while n <= 12:
+    rows[str(n)] => row
+    if row[3] > 0:
+        if row[4] > 0:
+            both + 1 => both
+    n + 1 => n
+if both > 0:
+    passed + 1 => passed
+
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "The remainder left by a different door, and the remainder is zero in every fixture." => verdict
+else:
+    "FAILED - the drain did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"A buffered loop has two exits and only one of them is in the loop. The"^0
+"second is written later, under time pressure, to fix a symptom - records"^0
+"lost on shutdown - and it fixes exactly that symptom. Everything the main"^0
+"path accumulates afterwards has to be remembered twice by whoever adds it,"^0
+"and the reminder that it exists is `n mod batch`, which is zero on every"^0
+"round number anybody chooses for a test."^0

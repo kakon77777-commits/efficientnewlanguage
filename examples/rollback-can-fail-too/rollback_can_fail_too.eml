@@ -1,0 +1,208 @@
+# Self-authored for the EML case corpus (no external origin). Cancelling
+# halfway means undoing what was already done, and the undo has its own failure
+# modes, and it is the least exercised code in the system.
+#
+# An operation with several steps is cancelled after step k. The steps already
+# taken have to be reversed. Each reversal is a real operation against a real
+# system, and can fail exactly like the forward step can - the row is locked,
+# the remote is down, the compensating charge is refused.
+#
+# When it does, the operation ends in a state that is neither where it started
+# nor where it was going: some steps applied, some reversed, and no code path
+# whose job is to describe that. The forward path has a name for every state it
+# passes through. The half-unwound one does not.
+#
+# The undo path also has the least coverage of anything in the system, for a
+# structural reason: it only runs when something is cancelled, and the tests
+# that exist were written to check that the operation works.
+#
+# The measurement sweeps every cancellation point against every undo that can
+# fail, and classifies the resulting state as start, complete, or stuck.
+
+def forward(steps_done, k):
+    # Apply steps 1..k. Returns the list of applied step names.
+    [] => out
+    1 => i
+    while i <= k:
+        out + [STEPS[i - 1]] => out
+        i + 1 => i
+    return out
+
+def unwind(applied, failing):
+    # Reverse the applied steps, latest first. `failing` names the undo that
+    # refuses; everything before it reverses, and nothing after it is
+    # attempted, because the unwinder stops at its first error - which is what
+    # an unwinder that reports errors does.
+    [] => still_applied
+    0 => i
+    while i < len(applied):
+        still_applied + [applied[i]] => still_applied
+        i + 1 => i
+    len(still_applied) => n
+    while n > 0:
+        still_applied[n - 1] => top
+        if top == failing:
+            return [still_applied, 1]
+        still_applied[0:n - 1] => still_applied
+        n - 1 => n
+    return [still_applied, 0]
+
+def classify(remaining, applied_at_cancel):
+    # Three end states, and the reference for "the cancel did nothing" is how
+    # many steps had been APPLIED when it was cancelled - not how many steps
+    # the operation has.
+    #
+    # The first version compared against the total step count, which conflated
+    # "the cancel achieved nothing" with "the operation ran to completion".
+    # Those are different: cancelling after step 1 and failing to reverse step
+    # 1 leaves one step applied out of four - the operation did not complete,
+    # and the cancellation did not happen either.
+    if len(remaining) == 0:
+        return "start"
+    if len(remaining) == applied_at_cancel:
+        return "no-op"
+    return "STUCK"
+
+["reserve", "charge", "ship", "notify"] => STEPS
+
+"cancel after  undo that fails  steps still applied           end state"^0
+"------------  ---------------  ----------------------------  ---------"^0
+
+0 => combos
+0 => stuck
+0 => clean
+{} => outcomes
+1 => k
+while k <= len(STEPS):
+    for failing in ["none", "reserve", "charge", "ship", "notify"]:
+        forward([], k) => applied
+        unwind(applied, failing) => res
+        res[0] => remaining
+        classify(remaining, k) => state
+        combos + 1 => combos
+        if state == "STUCK":
+            stuck + 1 => stuck
+        else:
+            clean + 1 => clean
+        state => outcomes[str(k) + "/" + failing]
+        "" => shown
+        for x in remaining:
+            shown + x + " " => shown
+        if len(shown) == 0:
+            "-" => shown
+        ((str(k) + "             ")[0:14] + (failing + "                 ")[0:17] + (shown + "                              ")[0:30] + state)^0
+    k + 1 => k
+
+""^0
+("combinations swept: " + str(combos) + ", ending stuck: " + str(stuck) + ", ending in a nameable state: " + str(clean))^0
+0 => noop
+1 => k2
+while k2 <= len(STEPS):
+    for failing in ["none", "reserve", "charge", "ship", "notify"]:
+        if outcomes[str(k2) + "/" + failing] == "no-op":
+            noop + 1 => noop
+    k2 + 1 => k2
+("...of the nameable ones, cancellations that achieved nothing at all: " + str(noop))^0
+
+""^0
+"when nothing fails, every cancellation is clean"^0
+0 => none_stuck
+1 => k
+while k <= len(STEPS):
+    if outcomes[str(k) + "/none"] == "STUCK":
+        none_stuck + 1 => none_stuck
+    k + 1 => k
+("cancellation points that end stuck when no undo fails: " + str(none_stuck) + " of " + str(len(STEPS)))^0
+"That is the only scenario the tests cover, because writing a test for a"^0
+"failing undo means first believing the undo can fail."^0
+
+""^0
+"which undo failures matter, and which are free"^0
+for failing in ["reserve", "charge", "ship", "notify"]:
+    0 => n_stuck
+    1 => k
+    while k <= len(STEPS):
+        if outcomes[str(k) + "/" + failing] == "STUCK":
+            n_stuck + 1 => n_stuck
+        k + 1 => k
+    ((failing + "        ")[0:9] + " refusing to reverse leaves " + str(n_stuck) + " of the " + str(len(STEPS)) + " cancellation points stuck")^0
+
+""^0
+"the asymmetry"^0
+"forward: 4 steps, each with a name, each with a state after it"^0
+"unwind:  the same 4 steps in reverse, and the states between them have"^0
+"         no name, no status value, and no query that finds them"^0
+
+""^0
+0 => checked
+0 => passed
+
+# Some combination must end stuck.
+checked + 1 => checked
+if stuck > 0:
+    passed + 1 => passed
+
+# With no undo failing, every cancellation point must end at "start" - the
+# unwinder is correct, which is why nobody suspects it.
+checked + 1 => checked
+if none_stuck == 0:
+    passed + 1 => passed
+
+# Cancelling after step 1 with the first undo failing must leave the state
+# exactly as it was - a cancellation that achieved nothing.
+checked + 1 => checked
+if outcomes["1/reserve"] == "no-op":
+    passed + 1 => passed
+
+# The earliest undo failing must be the worst: it strands every cancellation
+# point that reached it.
+checked + 1 => checked
+0 => reserve_stuck
+0 => notify_stuck
+1 => k
+while k <= len(STEPS):
+    if outcomes[str(k) + "/reserve"] == "STUCK":
+        reserve_stuck + 1 => reserve_stuck
+    if outcomes[str(k) + "/notify"] == "STUCK":
+        notify_stuck + 1 => notify_stuck
+    k + 1 => k
+if reserve_stuck > notify_stuck:
+    passed + 1 => passed
+
+# An undo that fails for a step never taken must be harmless - the sweep
+# includes those, and they must not be counted as damage.
+checked + 1 => checked
+if outcomes["1/notify"] == "start":
+    passed + 1 => passed
+
+# And every stuck state must be strictly between the two nameable ones.
+checked + 1 => checked
+0 => bad_classification
+1 => k
+while k <= len(STEPS):
+    for failing in ["none", "reserve", "charge", "ship", "notify"]:
+        forward([], k) => applied
+        unwind(applied, failing) => res
+        if outcomes[str(k) + "/" + failing] == "STUCK":
+            if len(res[0]) == 0:
+                bad_classification + 1 => bad_classification
+            if len(res[0]) == k:
+                bad_classification + 1 => bad_classification
+    k + 1 => k
+if bad_classification == 0:
+    passed + 1 => passed
+
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "The unwinder works, and every state it can stop in is one the system cannot name." => verdict
+else:
+    "FAILED - the unwinding did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"Rollback is written as the mirror of the forward path and it is not a"^0
+"mirror: the forward path may stop anywhere and every stopping point has a"^0
+"name, because those names are what the feature is made of. The reverse"^0
+"path's stopping points were never enumerated, so a failure partway leaves"^0
+"the system in a condition with no status value, no dashboard row, and no"^0
+"query that would find it."^0

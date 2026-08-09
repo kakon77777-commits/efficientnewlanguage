@@ -1,0 +1,227 @@
+# Self-authored for the EML case corpus (no external origin). The batch size is
+# a performance knob and it is also the width of the window every operation is
+# allowed to look at.
+#
+# A pipeline reads records in batches because reading one at a time is slow.
+# Inside the loop the batch is sorted, or deduplicated, or scanned for the
+# largest item - operations written against "the records", by someone holding a
+# variable that contains records. The variable contains SOME of the records.
+#
+# Nothing in the code says the batch is a partial view. It is a list, it is
+# full, and every operation on it succeeds. What changes is which pairs of
+# records are ever compared to each other: two records in different batches are
+# never in the same list, so no within-batch operation can relate them.
+#
+# The measurement runs the same pipeline at several batch sizes and compares
+# each result against the batch-free answer, then reports the property that
+# makes this hard to notice: at batch size >= the input length the pipeline is
+# correct, and that is the size every test fixture accidentally uses.
+
+def sort_ints(xs):
+    # Insertion sort - the language has no sorted().
+    [] => out
+    for x in xs:
+        [] => nxt
+        0 => placed
+        for y in out:
+            if placed == 0:
+                if x < y:
+                    nxt + [x] => nxt
+                    1 => placed
+            nxt + [y] => nxt
+        if placed == 0:
+            nxt + [x] => nxt
+        nxt => out
+    return out
+
+def dedup(xs):
+    [] => out
+    for x in xs:
+        0 => seen
+        for y in out:
+            if y == x:
+                1 => seen
+        if seen == 0:
+            out + [x] => out
+    return out
+
+def batches(xs, size):
+    [] => out
+    0 => i
+    while i < len(xs):
+        out + [xs[i:i + size]] => out
+        i + size => i
+    return out
+
+def pipeline(xs, size, op):
+    # Read a batch, apply the operation to it, append. The shape of every
+    # streaming job ever written.
+    [] => out
+    for b in batches(xs, size):
+        if op == "sort":
+            out + sort_ints(b) => out
+        else:
+            out + dedup(b) => out
+    return out
+
+def whole(xs, op):
+    if op == "sort":
+        return sort_ints(xs)
+    return dedup(xs)
+
+def is_sorted(xs):
+    0 => i
+    while i + 1 < len(xs):
+        if xs[i + 1] < xs[i]:
+            return 0
+        i + 1 => i
+    return 1
+
+def same(a, b):
+    if not (len(a) == len(b)):
+        return 0
+    0 => i
+    while i < len(a):
+        if not (a[i] == b[i]):
+            return 0
+        i + 1 => i
+    return 1
+
+[7, 3, 9, 1, 3, 8, 2, 9, 5, 4, 1, 6] => RECORDS
+[1, 2, 3, 4, 6, 12, 20] => SIZES
+
+("input: " + str(len(RECORDS)) + " records")^0
+""^0
+"op    batch  output                              matches the batch-free answer"^0
+"----  -----  ----------------------------------  ----------------------------"^0
+
+0 => runs
+0 => wrong
+{} => results
+for op in ["sort", "dedup"]:
+    whole(RECORDS, op) => truth
+    for size in SIZES:
+        pipeline(RECORDS, size, op) => got
+        runs + 1 => runs
+        same(got, truth) => ok
+        if ok == 0:
+            wrong + 1 => wrong
+        [ok, len(got)] => results[op + "/" + str(size)]
+        "" => shown
+        for v in got:
+            shown + str(v) + " " => shown
+        ((op + "      ")[0:6] + (str(size) + "      ")[0:7] + (shown + "                                    ")[0:36] + str(ok == 1))^0
+
+""^0
+("runs: " + str(runs) + ", disagreeing with the batch-free answer: " + str(wrong))^0
+
+""^0
+"the size at which each operation becomes correct"^0
+for op in ["sort", "dedup"]:
+    0 => first_ok
+    for size in SIZES:
+        if results[op + "/" + str(size)][0] == 1:
+            if first_ok == 0:
+                size => first_ok
+    ((op + "      ")[0:6] + " first correct at batch size " + str(first_ok) + " (input length is " + str(len(RECORDS)) + ")")^0
+
+""^0
+"what a within-batch operation cannot see"^0
+
+# The mechanism, counted rather than described: how many PAIRS of records ever
+# land in the same batch. Two records in different batches are never compared,
+# whatever the operation is.
+for size in SIZES:
+    0 => pairs_together
+    for b in batches(RECORDS, size):
+        len(b) => n
+        pairs_together + n * (n - 1) / 2 => pairs_together
+    len(RECORDS) => m
+    m * (m - 1) / 2 => all_pairs
+    ((str(size) + "     ")[0:6] + " pairs in the same batch: " + str(int(pairs_together)) + " of " + str(int(all_pairs)))^0
+
+""^0
+"the sorted output is not sorted, and every batch is"^0
+for size in [3, 4]:
+    pipeline(RECORDS, size, "sort") => got
+    0 => sorted_batches
+    0 => total_batches
+    for b in batches(RECORDS, size):
+        total_batches + 1 => total_batches
+        if is_sorted(sort_ints(b)) == 1:
+            sorted_batches + 1 => sorted_batches
+    ("batch " + str(size) + ": " + str(sorted_batches) + "/" + str(total_batches) + " batches internally sorted, whole output sorted: " + str(is_sorted(got) == 1))^0
+
+""^0
+0 => checked
+0 => passed
+
+# Small batches must give the wrong answer for both operations.
+checked + 1 => checked
+if results["sort/3"][0] == 0:
+    if results["dedup/3"][0] == 0:
+        passed + 1 => passed
+
+# A batch at least as large as the input must give the right one - this is the
+# configuration every fixture accidentally uses, and it is why the defect
+# survives a test suite.
+checked + 1 => checked
+if results["sort/20"][0] == 1:
+    if results["dedup/20"][0] == 1:
+        passed + 1 => passed
+
+# Every batch must be internally correct. The operation is not buggy; its
+# input is partial.
+checked + 1 => checked
+0 => bad_batches
+for b in batches(RECORDS, 3):
+    if is_sorted(sort_ints(b)) == 0:
+        bad_batches + 1 => bad_batches
+if bad_batches == 0:
+    passed + 1 => passed
+
+# Dedup must lose duplicates that straddle a boundary, and the count must be
+# derivable: the batched output is longer than the true one.
+checked + 1 => checked
+whole(RECORDS, "dedup") => truth_d
+if results["dedup/3"][1] > len(truth_d):
+    passed + 1 => passed
+
+# Pair coverage must be strictly increasing in batch size and reach the total
+# only when a batch holds everything - the mechanism, measured.
+checked + 1 => checked
+0 => monotone_breaks
+0 => i
+while i + 1 < len(SIZES):
+    0 => a
+    for b in batches(RECORDS, SIZES[i]):
+        a + len(b) * (len(b) - 1) / 2 => a
+    0 => c
+    for b in batches(RECORDS, SIZES[i + 1]):
+        c + len(b) * (len(b) - 1) / 2 => c
+    if c < a:
+        monotone_breaks + 1 => monotone_breaks
+    i + 1 => i
+if monotone_breaks == 0:
+    passed + 1 => passed
+
+# And the batch-free answer must itself be right, or the comparison is between
+# two wrong things.
+checked + 1 => checked
+if is_sorted(whole(RECORDS, "sort")) == 1:
+    if len(whole(RECORDS, "dedup")) == len(dedup(RECORDS)):
+        passed + 1 => passed
+
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Every batch was handled correctly and the answer was wrong." => verdict
+else:
+    "FAILED - the pipeline did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"Batch size is introduced as a performance parameter and it silently becomes"^0
+"the width of every comparison the job is able to make. The operations inside"^0
+"the loop are correct on the list they are given; nothing in a list says it is"^0
+"a fragment. The fixture that would catch it has to be LONGER than the batch,"^0
+"and fixtures are small on purpose."^0

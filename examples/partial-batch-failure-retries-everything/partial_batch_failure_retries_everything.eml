@@ -1,0 +1,210 @@
+# Self-authored for the EML case corpus (no external origin). The batch is the
+# unit of sending and it was quietly made the unit of failure and the unit of
+# retry, and those are three different questions.
+#
+# A writer sends records in batches. The endpoint accepts each record
+# individually and reports per-record results, because that is what a sane
+# endpoint does. The caller looks at the response, sees that the CALL failed,
+# and retries - the whole batch, because the batch is what it has a handle on.
+#
+# The records that already succeeded are sent again. Whether that is harmless
+# depends entirely on whether the endpoint is idempotent, and the batching code
+# is nowhere near the code that decides that. So the batch size, chosen for
+# throughput, becomes the blast radius of every retry.
+#
+# The measurement runs the same records through three writers - retry the
+# batch, retry the failures, and retry the batch against an idempotent
+# endpoint - and counts what the store actually contains afterwards, plus how
+# many records were delivered more than once.
+
+def fails(rec, attempt):
+    # rec is [id, kind]. "flaky" fails on its first attempt only; "poison"
+    # always fails. Everything else succeeds.
+    if rec[1] == "poison":
+        return 1
+    if rec[1] == "flaky":
+        if attempt == 1:
+            return 1
+    return 0
+
+def send(store, deliveries, rec, attempt, idempotent):
+    # Returns [store, deliveries, ok]. The endpoint records every delivery it
+    # accepted, so double-writes are visible afterwards rather than assumed.
+    if fails(rec, attempt) == 1:
+        return [store, deliveries, 0]
+    deliveries + [rec[0]] => deliveries
+    if idempotent == 1:
+        0 => present
+        for x in store:
+            if x == rec[0]:
+                1 => present
+        if present == 0:
+            store + [rec[0]] => store
+    else:
+        store + [rec[0]] => store
+    return [store, deliveries, 1]
+
+def write_batch(records, mode, idempotent, max_attempts):
+    # mode "whole": on any failure, retry the entire batch.
+    # mode "failed": retry only the records that failed.
+    [] => store
+    [] => deliveries
+    [] => pending
+    for r in records:
+        pending + [r] => pending
+    1 => attempt
+    0 => calls
+    while attempt <= max_attempts:
+        if len(pending) > 0:
+            calls + 1 => calls
+            [] => failed
+            if mode == "whole":
+                # The whole batch goes again, including what already landed.
+                [] => to_send
+                for r in records:
+                    to_send + [r] => to_send
+            else:
+                [] => to_send
+                for r in pending:
+                    to_send + [r] => to_send
+            for r in to_send:
+                send(store, deliveries, r, attempt, idempotent) => res
+                res[0] => store
+                res[1] => deliveries
+                if res[2] == 0:
+                    failed + [r] => failed
+            failed => pending
+        attempt + 1 => attempt
+    return [store, deliveries, len(pending), calls]
+
+def duplicates(deliveries):
+    0 => n
+    [] => seen
+    for d in deliveries:
+        0 => hit
+        for s in seen:
+            if s == d:
+                1 => hit
+        if hit == 1:
+            n + 1 => n
+        else:
+            seen + [d] => seen
+    return n
+
+# id, kind
+[["r1", "ok"], ["r2", "ok"], ["r3", "flaky"], ["r4", "ok"], ["r5", "poison"], ["r6", "ok"]] => RECORDS
+
+"writer                       stored  deliveries  duplicates  stuck  calls"^0
+"---------------------------  ------  ----------  ----------  -----  -----"^0
+
+{} => runs
+for spec in [["retry whole batch", "whole", 0],
+             ["retry failed only", "failed", 0],
+             ["retry whole, idempotent", "whole", 1]]:
+    write_batch(RECORDS, spec[1], spec[2], 3) => r
+    r => runs[spec[0]]
+    duplicates(r[1]) => dup
+    ((spec[0] + "                             ")[0:29] + (str(len(r[0])) + "        ")[0:8] + (str(len(r[1])) + "            ")[0:12] + (str(dup) + "            ")[0:12] + (str(r[2]) + "       ")[0:7] + str(r[3]))^0
+
+""^0
+("records: " + str(len(RECORDS)) + ", of which one is permanently bad")^0
+
+""^0
+"what the store holds, per writer"^0
+for name in ["retry whole batch", "retry failed only", "retry whole, idempotent"]:
+    runs[name] => r
+    "" => shown
+    for x in r[0]:
+        shown + x + " " => shown
+    ((name + "                             ")[0:29] + shown)^0
+
+""^0
+"the one poison record decides how many times everything else is written"^0
+
+# The mechanism: the batch keeps retrying because ONE record can never
+# succeed, and every retry re-sends the records that already did. Vary the
+# batch's contents and read the duplicate count back out.
+for n_ok in [1, 3, 5]:
+    [] => probe
+    0 => i
+    while i < n_ok:
+        probe + [["p" + str(i), "ok"]] => probe
+        i + 1 => i
+    probe + [["bad", "poison"]] => probe
+    write_batch(probe, "whole", 0, 3) => r
+    (str(n_ok) + " good + 1 poison -> duplicate deliveries: " + str(duplicates(r[1])))^0
+
+""^0
+0 => checked
+0 => passed
+
+# Retrying the whole batch must produce duplicate deliveries.
+checked + 1 => checked
+if duplicates(runs["retry whole batch"][1]) > 0:
+    passed + 1 => passed
+
+# Retrying only the failures must produce none.
+checked + 1 => checked
+if duplicates(runs["retry failed only"][1]) == 0:
+    passed + 1 => passed
+
+# Both must deliver every deliverable record - the safe writer is not safe by
+# doing less.
+checked + 1 => checked
+0 => deliverable
+for r in RECORDS:
+    if not (r[1] == "poison"):
+        deliverable + 1 => deliverable
+if len(runs["retry failed only"][0]) == deliverable:
+    if len(runs["retry whole batch"][0]) >= deliverable:
+        passed + 1 => passed
+
+# The poison record must remain stuck under every writer, so the difference is
+# not about eventually succeeding.
+checked + 1 => checked
+0 => all_stuck
+for name in ["retry whole batch", "retry failed only", "retry whole, idempotent"]:
+    if runs[name][2] > 0:
+        all_stuck + 1 => all_stuck
+if all_stuck == 3:
+    passed + 1 => passed
+
+# An idempotent endpoint must still RECEIVE the duplicates - idempotence hides
+# the damage in the store, it does not stop the traffic.
+checked + 1 => checked
+if duplicates(runs["retry whole, idempotent"][1]) > 0:
+    if len(runs["retry whole, idempotent"][0]) == deliverable:
+        passed + 1 => passed
+
+# And the duplicate count must grow with the number of innocent records in the
+# batch - the blast radius is the batch size, measured rather than asserted.
+checked + 1 => checked
+0 => grew
+0 => prev
+for n_ok in [1, 3, 5]:
+    [] => probe
+    0 => i
+    while i < n_ok:
+        probe + [["p" + str(i), "ok"]] => probe
+        i + 1 => i
+    probe + [["bad", "poison"]] => probe
+    duplicates(write_batch(probe, "whole", 0, 3)[1]) => d
+    if d > prev:
+        grew + 1 => grew
+    d => prev
+if grew == 3:
+    passed + 1 => passed
+
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "One record that can never succeed rewrote every record that already had." => verdict
+else:
+    "FAILED - the writers did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"The endpoint reports per record and the caller retries per batch, so the"^0
+"unit of failure and the unit of recovery disagree by exactly the batch"^0
+"size. Idempotence is the usual answer and it only fixes the store - the"^0
+"duplicate calls still leave, still cost, still rate-limit, and are still"^0
+"counted by whatever is downstream of the endpoint rather than inside it."^0

@@ -243,6 +243,16 @@ const SEMANTIC_FILES = [
       // two lines of the `Binary` case diverges 12 of 44 transcripts against
       // real CPython; before this entry existed, it diverged nothing.
       'tests/evaluation-order.test.ts',
+      // Added 2026-08-09. `=>` binds a name to a VALUE, and for a mutable value
+      // that means two names denote one object. Every test above compares what
+      // a single expression PRINTS, and object identity is precisely what does
+      // not show up in one expression's value - so an implementation that
+      // copied on binding would compute the right answer everywhere they look.
+      // Making `assign()` copy lists diverges 4 of 31 answers here; before this
+      // entry existed it diverged nothing. Note it fired on 4 and not on the
+      // parameter-passing cases: parameter binding is a different code path,
+      // and the two can be wrong independently.
+      'tests/aliasing-visibility.test.ts',
     ],
   ],
   ['packages/transpiler-python/src/emitter.ts', ['tests/interp.test.ts', 'tests/statement-interaction.test.ts']],
@@ -381,9 +391,35 @@ if (baseline?.hashes) {
     // new conformance file — the strongest possible response to a semantics
     // change — did not satisfy the check, while editing one line of an old
     // test did. Found by the monitor alerting on exactly that situation.
-    const testsTouched = tests.some((t) => hashes[t] !== null && baseline.hashes[t] !== hashes[t]);
-    if (testsTouched) {
+    //
+    // 2026-08-09: that fix left a hole, and the hole had been open for three
+    // rounds. "Brand new" was read off the baseline, so a test file stayed
+    // brand new for as long as the baseline went unaccepted — and the excuse it
+    // grants is not about the file that changed, it is about a test added some
+    // rounds ago. MEASURED: with the baseline at 9f3824f, an edit to
+    // `assign()` in the interpreter that makes list binding COPY instead of
+    // ALIAS — a change that moves 4 of 31 answers in aliasing-visibility —
+    // produced "reviewed / no drift" with no test touched at all.
+    //
+    // So the two conditions are separated. An EDITED test is evidence about
+    // this change. A test the baseline has never seen is evidence that the
+    // BASELINE IS STALE, and it still excuses the change (the earlier fix's
+    // reasoning holds) but says so out loud, so the excuse expires at the next
+    // accept instead of standing forever.
+    const seenInBaseline = (t) => baseline.hashes[t] !== undefined;
+    const edited = tests.some((t) => hashes[t] !== null && seenInBaseline(t) && baseline.hashes[t] !== hashes[t]);
+    const unseen = tests.filter((t) => hashes[t] !== null && !seenInBaseline(t));
+    if (edited) {
       notes.push(`${file} changed, and so did its conformance test — reviewed`);
+    } else if (unseen.length > 0) {
+      notes.push(`${file} changed; excused by test(s) the baseline has never seen — see the STALE BASELINE alert`);
+      alerts.push(
+        `STALE BASELINE    ${file} changed, and the only thing excusing it is ${unseen.join(', ')},\n` +
+          `                  which the baseline has no record of. Until the baseline is accepted, EVERY\n` +
+          `                  future change to this file is excused by that same absence — the drift check\n` +
+          `                  for it cannot fail. Run: pnpm monitor:accept -- --why "..."`,
+      );
+      record('monitor:alert', { kind: 'stale-baseline', file, unseen });
     } else {
       alerts.push(
         `SEMANTICS CHANGED ${file} changed but none of its conformance tests did\n` +

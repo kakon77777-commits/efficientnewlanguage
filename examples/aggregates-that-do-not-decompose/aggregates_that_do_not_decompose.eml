@@ -1,0 +1,266 @@
+# Self-authored for the EML case corpus (no external origin). Some aggregates
+# survive being computed per batch and recombined, and some do not, and the
+# code treats all of them the same way.
+#
+# Map-reduce, streaming windows, per-shard rollups, "compute it on each worker
+# and merge" - all the same move: aggregate a partition, then aggregate the
+# partial results. It is exactly right for sum, count, max and min, because
+# those are associative over partitions. It is silently wrong for median,
+# distinct-count and mode, and there is nothing in the shape of the call that
+# distinguishes the two groups.
+#
+# What makes it stick is that the wrong ones are not obviously wrong. A median
+# of medians is a plausible number in the right range, monotone in the data,
+# stable across runs. It is simply not the median.
+#
+# The measurement computes each aggregate both ways at several partition sizes
+# and reports which ones agree at every size. Nothing declares in advance which
+# aggregates decompose; that is read off the results.
+
+def sort_ints(xs):
+    [] => out
+    for x in xs:
+        [] => nxt
+        0 => placed
+        for y in out:
+            if placed == 0:
+                if x < y:
+                    nxt + [x] => nxt
+                    1 => placed
+            nxt + [y] => nxt
+        if placed == 0:
+            nxt + [x] => nxt
+        nxt => out
+    return out
+
+def batches(xs, size):
+    [] => out
+    0 => i
+    while i < len(xs):
+        out + [xs[i:i + size]] => out
+        i + size => i
+    return out
+
+def agg(xs, kind):
+    if len(xs) == 0:
+        return 0
+    if kind == "sum":
+        return sum(xs)
+    if kind == "count":
+        return len(xs)
+    if kind == "max":
+        return max(xs)
+    if kind == "min":
+        return min(xs)
+    if kind == "median":
+        sort_ints(xs) => s
+        int(len(s) / 2) => mid
+        return s[mid]
+    if kind == "distinct":
+        [] => seen
+        for x in xs:
+            0 => hit
+            for y in seen:
+                if y == x:
+                    1 => hit
+            if hit == 0:
+                seen + [x] => seen
+        return len(seen)
+    # mode: the most frequent value, ties resolved by the smaller value
+    sort_ints(xs) => s
+    s[0] => best
+    0 => best_n
+    for v in s:
+        0 => n
+        for w in s:
+            if w == v:
+                n + 1 => n
+        if n > best_n:
+            n => best_n
+            v => best
+    return best
+
+def combine(parts, kind):
+    # How partial results are merged. Each of these is what a reasonable
+    # engineer writes for that aggregate.
+    if kind == "sum":
+        return sum(parts)
+    if kind == "count":
+        return sum(parts)
+    if kind == "max":
+        return max(parts)
+    if kind == "min":
+        return min(parts)
+    if kind == "median":
+        return agg(parts, "median")
+    if kind == "distinct":
+        return sum(parts)
+    return agg(parts, "mode")
+
+def partitioned(xs, size, kind):
+    [] => parts
+    for b in batches(xs, size):
+        parts + [agg(b, kind)] => parts
+    return combine(parts, kind)
+
+[7, 3, 9, 1, 3, 8, 2, 9, 5, 4, 1, 6, 3, 7, 2, 8] => DATA
+[2, 4, 8, 16] => SIZES
+["sum", "count", "max", "min", "median", "distinct", "mode"] => KINDS
+
+("data: " + str(len(DATA)) + " values")^0
+""^0
+"aggregate  whole   part(2)  part(4)  part(8)  agrees at every size"^0
+"---------  -----   -------  -------  -------  --------------------"^0
+
+{} => verdicts
+for kind in KINDS:
+    agg(DATA, kind) => truth
+    1 => always
+    "" => row
+    for size in SIZES:
+        if size < len(DATA):
+            partitioned(DATA, size, kind) => got
+            row + (str(got) + "         ")[0:9] => row
+            if not (got == truth):
+                0 => always
+    always => verdicts[kind]
+    ((kind + "           ")[0:11] + (str(truth) + "       ")[0:8] + row + str(always == 1))^0
+
+""^0
+0 => decomposes
+0 => breaks
+for kind in KINDS:
+    if verdicts[kind] == 1:
+        decomposes + 1 => decomposes
+    else:
+        breaks + 1 => breaks
+("aggregates that survive partitioning: " + str(decomposes))^0
+("aggregates that do not:               " + str(breaks))^0
+
+""^0
+"which ones, and by how much"^0
+for kind in KINDS:
+    if verdicts[kind] == 0:
+        agg(DATA, kind) => truth
+        partitioned(DATA, 4, kind) => got
+        ((kind + "           ")[0:11] + " true " + str(truth) + ", partitioned(4) " + str(got) + ", off by " + str(abs(got - truth)))^0
+
+""^0
+"the broken ones are still plausible - each against its OWN yardstick"^0
+
+# The first version of this section checked every broken aggregate against
+# [min(DATA), max(DATA)] and reported distinct-count as OUTSIDE the range. That
+# was a category error of mine: a median and a mode are VALUES drawn from the
+# data, so the data's range is their yardstick; a COUNT is not a value from the
+# data, and its yardstick is [1, len]. Measured against the right bound, the
+# wrong distinct-count (16) is exactly "every row was unique" - the single most
+# ordinary thing a distinct-count could say.
+#
+# So the sharper claim is the one that survived: all three broken aggregates
+# return numbers that pass a sanity check, and a sanity check is the only thing
+# anybody runs.
+min(DATA) => lo
+max(DATA) => hi
+def bound_lo(kind):
+    if kind == "distinct":
+        return 1
+    return lo
+
+def bound_hi(kind):
+    if kind == "distinct":
+        return len(DATA)
+    return hi
+
+for kind in KINDS:
+    if verdicts[kind] == 0:
+        partitioned(DATA, 4, kind) => got
+        if got >= bound_lo(kind):
+            if got <= bound_hi(kind):
+                "plausible" => note
+            else:
+                "IMPLAUSIBLE" => note
+        else:
+            "IMPLAUSIBLE" => note
+        ((kind + "           ")[0:11] + " partitioned(4) = " + str(got) + ", yardstick [" + str(bound_lo(kind)) + ".." + str(bound_hi(kind)) + "] -> " + note)^0
+
+""^0
+"and they agree when there is only one partition"^0
+for kind in KINDS:
+    agg(DATA, kind) => truth
+    partitioned(DATA, len(DATA), kind) => got
+    if not (got == truth):
+        ((kind + " DISAGREES even with a single partition")[0:60])^0
+"(no line above = every aggregate is correct when the partition holds everything)"^0
+
+""^0
+0 => checked
+0 => passed
+
+# Some aggregates must decompose and some must not, or the case has no
+# contrast.
+checked + 1 => checked
+if decomposes > 0:
+    if breaks > 0:
+        passed + 1 => passed
+
+# sum, count, max, min must be in the surviving group. These are the ones the
+# pattern was designed for.
+checked + 1 => checked
+0 => core_ok
+for kind in ["sum", "count", "max", "min"]:
+    if verdicts[kind] == 1:
+        core_ok + 1 => core_ok
+if core_ok == 4:
+    passed + 1 => passed
+
+# median and distinct must be in the broken group.
+checked + 1 => checked
+if verdicts["median"] == 0:
+    if verdicts["distinct"] == 0:
+        passed + 1 => passed
+
+# Every aggregate must be correct at a single partition, so the defect is
+# partitioning and not the aggregate.
+checked + 1 => checked
+0 => single_wrong
+for kind in KINDS:
+    if not (partitioned(DATA, len(DATA), kind) == agg(DATA, kind)):
+        single_wrong + 1 => single_wrong
+if single_wrong == 0:
+    passed + 1 => passed
+
+# Every broken result must be plausible against the yardstick appropriate to
+# ITS aggregate - values against the data range, counts against [1, len]. That
+# is what makes them survive review, and it is the whole reason this class is
+# expensive.
+checked + 1 => checked
+0 => implausible
+for kind in KINDS:
+    if verdicts[kind] == 0:
+        partitioned(DATA, 4, kind) => got
+        if got < bound_lo(kind):
+            implausible + 1 => implausible
+        if got > bound_hi(kind):
+            implausible + 1 => implausible
+if implausible == 0:
+    passed + 1 => passed
+
+# distinct must be OVERcounted, since each partition counts its own copies -
+# a direction, not just a difference.
+checked + 1 => checked
+if partitioned(DATA, 4, "distinct") > agg(DATA, "distinct"):
+    passed + 1 => passed
+
+("checks passed: " + str(passed) + "/" + str(checked))^0
+if passed == checked:
+    "Four aggregates survived partitioning, three did not, and the call sites are identical." => verdict
+else:
+    "FAILED - the aggregates did not behave as the checks describe." => verdict
+verdict^0
+
+""^0
+"'Compute it per shard and merge' is a statement about ASSOCIATIVITY, and it"^0
+"is written as a statement about performance. Sum and max carry the property;"^0
+"median and distinct-count do not, and no type, no signature and no review"^0
+"checklist marks the difference. The answer that comes back is in range, is"^0
+"stable, and moves the right way when the data does."^0

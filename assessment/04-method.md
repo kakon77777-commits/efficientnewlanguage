@@ -24,7 +24,7 @@ is finished.
 
 ---
 
-## The fourteen axes, in the order they were built
+## The fifteen axes, in the order they were built
 
 | # | axis | result | what it could not see |
 |---|---|---|---|
@@ -42,7 +42,8 @@ is finished.
 | 11 | CTS faithfulness (17 tests) | 0 — clean first run | WHERE a diagnostic says the problem is |
 | 12 | diagnostic positions (13 triggers × 3 properties) | **1 real defect** | whether two components AGREE about a fact they each model |
 | 13 | rebinding across scopes (8 × 8 positions × 4 value shapes) | **1 real defect** | what the two directions do to a program neither was written for |
-| 14 | evaluation order within an expression (44 operand transcripts vs CPython) | 0 — clean first run; **3 grammar boundaries pinned** | ORDER inside one expression, which every value-shaped axis is blind to by construction |
+| 14 | evaluation order within an expression (44 operand transcripts vs CPython) | 0 — clean first run; **3 grammar boundaries pinned** | whether two names denote the SAME object |
+| 15 | aliasing and mutation visibility (31 copy-or-alias behaviours vs CPython) | 0 — clean first run | *(the next axis has not been named yet)* |
 
 Read the right-hand column downward. Each axis was honest, each went green, and
 each was blind in a direction that could only be named after building the next
@@ -265,6 +266,30 @@ Three drills, three failures, three clean restores.
 The corollary is uncomfortable and important: a differential harness runs
 against real state, and drilling one against *live* uncommitted work has
 destroyed uncommitted work before. Drill against a copy.
+
+**And drilling once is not enough, because falsifiability expires.** The
+semantic-drift monitor was drilled when it was built and it failed correctly.
+On 2026-08-09 it was drilled again and it did not: an edit to the interpreter's
+`assign()` making list binding COPY instead of ALIAS — a change that moves 4 of
+31 answers in the aliasing sweep — was reported as *reviewed, no drift*, with
+no test touched at all.
+
+Nothing about the monitor's rule had changed. What had changed was the world
+around it. The rule excuses a source change when one of its conformance tests
+"moved", and it counted a test the baseline had never seen as moved — a
+deliberate earlier fix, because writing a whole new conformance file is the
+strongest possible response to a semantics change. But "never seen" is read off
+the baseline, so a test stays new for as long as the baseline goes unaccepted.
+Three conformance files had been added to the mapping since the last accept,
+and their absence was excusing *every* subsequent change to two source files,
+indefinitely.
+
+The gate was not wrong when it was written and no commit broke it. It decayed,
+because the evidence it accepted was evidence about a different change. The two
+conditions are now separated: an EDITED test is evidence about this change; a
+test the baseline has never seen raises a `STALE BASELINE` alert that names the
+files whose drift check cannot currently fail. Re-drilled after the fix: same
+edit, `SEMANTICS CHANGED`.
 
 ---
 
