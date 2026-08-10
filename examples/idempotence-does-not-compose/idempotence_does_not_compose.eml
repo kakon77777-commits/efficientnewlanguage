@@ -1,0 +1,159 @@
+# Self-authored for the EML case corpus (no external origin). Three cleanup
+# routines, each measured idempotent on every input, and the pairs built from
+# them are not all idempotent.
+#
+# `idempotence-witness` in this corpus checks `f(f(x)) == f(x)` for individual
+# routines, which is the property every retry depends on. This file asks the
+# next question, and the answer is not the comforting one: idempotence is a
+# property of a FUNCTION, and composing two functions that have it does not
+# give you a function that has it.
+#
+# That matters because production does not retry a step, it retries a pipeline.
+# A queue redelivers the message. A job runner reruns the task. Whatever ran
+# before runs again from the top, and the thing being replayed is the
+# composition - which nobody tested for the property, because each part was
+# tested and each part passed.
+#
+# Nothing here declares which pairs survive. Every routine's idempotence and
+# every pair's idempotence is measured by applying it twice and comparing.
+# The structural reason the survivors survive is measured too, by asking
+# whether the second routine's output is already a fixed point of the first.
+
+def collapse_adjacent(xs):
+    [] => out
+    for x in xs:
+        if len(out) == 0:
+            out + [x] => out
+        else:
+            if out[len(out) - 1] == x:
+                pass
+            else:
+                out + [x] => out
+    return out
+
+def drop_zeros(xs):
+    [] => out
+    for x in xs:
+        if x == 0:
+            pass
+        else:
+            out + [x] => out
+    return out
+
+def cap_at_five(xs):
+    [] => out
+    for x in xs:
+        if x > 5:
+            out + [5] => out
+        else:
+            out + [x] => out
+    return out
+
+def apply_one(name, xs):
+    if name == "collapse":
+        return collapse_adjacent(xs)
+    if name == "dropzero":
+        return drop_zeros(xs)
+    return cap_at_five(xs)
+
+def apply_pair(first, second, xs):
+    return apply_one(second, apply_one(first, xs))
+
+def same(a, b):
+    if len(a) != len(b):
+        return 0
+    for i in [0:len(a) - 1]:
+        if a[i] != b[i]:
+            return 0
+    return 1
+
+["collapse", "dropzero", "cap"] => names
+[[1, 0, 1], [6, 6, 7], [0, 0, 3], [2, 2, 2], [7, 0, 7, 0], [1, 2, 3], [], [5, 6, 5], [0, 9, 9, 0]] => inputs
+
+# ---- each routine on its own ----
+
+"each routine applied twice, over every input" ^0
+for n in names:
+    0 => bad
+    for xs in inputs:
+        apply_one(n, xs) => once
+        apply_one(n, once) => twice
+        if same(once, twice) == 0:
+            bad + 1 => bad
+    "  " + n + ": inputs where f(f(x)) != f(x) = " + str(bad) ^0
+"" ^0
+
+# ---- every ordered pair ----
+
+"ordered pairs, applied twice, over every input" ^0
+[] => broken_pairs
+for p in names:
+    for q in names:
+        if p == q:
+            pass
+        else:
+            0 => bad
+            [] => witness
+            for xs in inputs:
+                apply_pair(p, q, xs) => once
+                apply_pair(p, q, once) => twice
+                if same(once, twice) == 0:
+                    bad + 1 => bad
+                    if len(witness) == 0:
+                        [xs, once, twice] => witness
+            if bad == 0:
+                "  first " + p + " then " + q + ": idempotent" ^0
+            else:
+                "  first " + p + " then " + q + ": NOT idempotent on " + str(bad) + " of " + str(len(inputs)) ^0
+                broken_pairs + [[p, q, witness]] => broken_pairs
+"" ^0
+
+"pairs built from idempotent parts that lost the property: " + str(len(broken_pairs)) ^0
+"" ^0
+
+# ---- the witnesses ----
+
+for b in broken_pairs:
+    b[2] => w
+    "witness for first " + b[0] + " then " + b[1] ^0
+    "  x        = " + repr(w[0]) ^0
+    "  h(x)     = " + repr(w[1]) ^0
+    "  h(h(x))  = " + repr(w[2]) ^0
+"" ^0
+
+# ---- why the survivors survive, measured rather than asserted ----
+
+"is the second routine's output already a fixed point of the first?" ^0
+0 => pairs_seen
+0 => agreed
+for p in names:
+    for q in names:
+        if p == q:
+            pass
+        else:
+            0 => escapes
+            0 => nonidem
+            for xs in inputs:
+                apply_pair(p, q, xs) => h
+                apply_one(p, h) => reapplied
+                if same(h, reapplied) == 0:
+                    escapes + 1 => escapes
+                apply_pair(p, q, h) => twice
+                if same(h, twice) == 0:
+                    nonidem + 1 => nonidem
+            pairs_seen + 1 => pairs_seen
+            if escapes == 0:
+                if nonidem == 0:
+                    agreed + 1 => agreed
+            else:
+                if nonidem > 0:
+                    agreed + 1 => agreed
+            "  first " + p + " then " + q + ": outputs that " + p + " would still change = " + str(escapes) ^0
+"" ^0
+
+"pairs where 'first routine has work left' and 'pair is not idempotent'" ^0
+"agree: " + str(agreed) + " of " + str(pairs_seen) ^0
+"" ^0
+"That is an agreement measured on this input set, not a proof. It is the" ^0
+"mechanism worth carrying: a pair keeps the property only while the second" ^0
+"routine never hands back something the first one still has work to do on." ^0

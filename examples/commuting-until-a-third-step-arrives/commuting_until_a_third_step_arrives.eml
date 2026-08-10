@@ -1,0 +1,121 @@
+# Self-authored for the EML case corpus (no external origin). Two steps that
+# commute, measured on every input, and stop commuting the moment a third step
+# is placed between them.
+#
+# "These two are independent, the order does not matter" is a real conclusion
+# people reach honestly, by trying both orders and getting the same answer. It
+# is true of the pair. It is not a property the pair keeps.
+#
+# Commutativity is a statement about two functions applied ADJACENTLY. Nothing
+# in it survives interposition, and interposition is what a pipeline does for a
+# living: someone adds a step, puts it "in the middle where it belongs", and
+# the two neighbours that were interchangeable yesterday are now ordered - with
+# no diff on either of them, and no test that names the pair.
+#
+# Nothing here declares which orders agree. The pair's commutativity and its
+# loss are both read off exhaustive runs over the same inputs.
+
+def cap_at_100(x):
+    if x > 100:
+        return 100
+    return x
+
+def floor_at_0(x):
+    if x < 0:
+        return 0
+    return x
+
+def double(x):
+    return x * 2
+
+def step(name, x):
+    if name == "cap":
+        return cap_at_100(x)
+    if name == "floor":
+        return floor_at_0(x)
+    return double(x)
+
+def run_seq(seq, x):
+    x => v
+    for s in seq:
+        step(s, v) => v
+    return v
+
+[0 - 30, 0 - 1, 0, 7, 60, 99, 100, 140, 400] => inputs
+
+# ---- the pair, adjacent ----
+
+"the pair, applied adjacently, over every input" ^0
+0 => pair_diffs
+[] => pair_witness
+for x in inputs:
+    run_seq(["cap", "floor"], x) => ab
+    run_seq(["floor", "cap"], x) => ba
+    if ab != ba:
+        pair_diffs + 1 => pair_diffs
+        if len(pair_witness) == 0:
+            [x, ab, ba] => pair_witness
+"  inputs where cap;floor != floor;cap : " + str(pair_diffs) + " of " + str(len(inputs)) ^0
+if pair_diffs == 0:
+    "  the two steps commute" ^0
+else:
+    "  the two steps do NOT commute" ^0
+"" ^0
+
+# ---- a third step, placed between them ----
+
+"the same pair with double() interposed" ^0
+0 => interposed_diffs
+[] => witness
+for x in inputs:
+    run_seq(["cap", "double", "floor"], x) => acb
+    run_seq(["floor", "double", "cap"], x) => bca
+    if acb != bca:
+        interposed_diffs + 1 => interposed_diffs
+        if len(witness) == 0:
+            [x, acb, bca] => witness
+"  inputs where cap;double;floor != floor;double;cap : " + str(interposed_diffs) + " of " + str(len(inputs)) ^0
+"" ^0
+
+if len(witness) > 0:
+    "witness" ^0
+    "  x                    = " + str(witness[0]) ^0
+    "  cap; double; floor   = " + str(witness[1]) ^0
+    "  floor; double; cap   = " + str(witness[2]) ^0
+    "" ^0
+
+# ---- every arrangement of the three ----
+
+[["cap", "floor", "double"], ["cap", "double", "floor"], ["floor", "cap", "double"], ["floor", "double", "cap"], ["double", "cap", "floor"], ["double", "floor", "cap"]] => orders
+
+"every arrangement of the three steps, per input" ^0
+0 => inputs_that_split
+for x in inputs:
+    [] => answers
+    for o in orders:
+        run_seq(o, x) => v
+        if v in answers:
+            pass
+        else:
+            answers + [v] => answers
+    if len(answers) > 1:
+        inputs_that_split + 1 => inputs_that_split
+        "  x = " + str(x) + " -> distinct answers " + repr(answers) ^0
+"" ^0
+"inputs where arrangement changes the answer: " + str(inputs_that_split) + " of " + str(len(inputs)) ^0
+"" ^0
+
+# ---- the pair is still adjacent in two of the six ----
+
+"the two arrangements where cap and floor are still ADJACENT" ^0
+0 => adjacent_diffs
+for x in inputs:
+    run_seq(["cap", "floor", "double"], x) => a
+    run_seq(["floor", "cap", "double"], x) => b
+    if a != b:
+        adjacent_diffs + 1 => adjacent_diffs
+"  inputs where cap;floor;double != floor;cap;double : " + str(adjacent_diffs) ^0
+"" ^0
+"Adjacent, the pair still commutes. Separated by one step, it does not." ^0
+"The property belonged to the pair, not to either function, and a pipeline" ^0
+"is free to stop the pair being a pair." ^0

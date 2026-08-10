@@ -1,0 +1,102 @@
+# Self-authored for the EML case corpus (no external origin). A helper with no
+# tests of its own, fully exercised by the only caller that existed, and half
+# of it has never run.
+#
+# The helper is covered - genuinely, not nominally. Every test of caller A
+# passes through it, and caller A's own coverage is complete: every line of
+# caller A runs. What that does not establish is that every line of the HELPER
+# runs, because coverage flows through the caller's input space and the caller
+# does not produce every input the helper accepts.
+#
+# One of the unreached branches is wrong. It has been wrong since it was
+# written. No test failed, because no test reached it, because the only caller
+# could not produce a value that would.
+#
+# The branch counter is a list handed to the helper, and the helper mutates it.
+# That is not a trick: `=>` binds a name to a value, and for a list the callee
+# and the caller hold the same object, so a count incremented inside is visible
+# outside. Axis 15 of this project measures exactly that property.
+
+def classify(x, hits):
+    if x < 0:
+        hits[0] + 1 => hits[0]
+        return "refund"
+    if x == 0:
+        hits[1] + 1 => hits[1]
+        return "refund"
+    if x < 100:
+        hits[2] + 1 => hits[2]
+        return "small"
+    hits[3] + 1 => hits[3]
+    return "large"
+
+def run_caller(values, hits):
+    [] => labels
+    for v in values:
+        labels + [classify(v, hits)] => labels
+    return labels
+
+def zero_hits():
+    return [0, 0, 0, 0]
+
+["negative", "zero    ", "small   ", "large   "] => branch_names
+
+# caller A: line totals from a catalogue. Prices are positive, so are quantities.
+[12, 250, 40, 999, 5, 130] => caller_a_values
+
+# caller B: ledger adjustments, added later. Credits are negative; a zeroed
+# line is a cancellation.
+[12, 0 - 40, 0, 250, 0 - 5, 0] => caller_b_values
+
+zero_hits() => hits_a
+run_caller(caller_a_values, hits_a) => labels_a
+zero_hits() => hits_b
+run_caller(caller_b_values, hits_b) => labels_b
+
+"branch hits, per caller" ^0
+"  branch      caller A   caller B" ^0
+for i in [0:3]:
+    "  " + branch_names[i] + "    " + str(hits_a[i]) + "          " + str(hits_b[i]) ^0
+"" ^0
+
+0 => unreached_by_a
+for i in [0:3]:
+    if hits_a[i] == 0:
+        unreached_by_a + 1 => unreached_by_a
+"branches never reached through caller A: " + str(unreached_by_a) + " of " + str(len(branch_names)) ^0
+"(caller A's own lines all run - that is the premise of the scenario, not" ^0
+"a number this program measures)" ^0
+"" ^0
+
+# ---- the defect that lived in the unreached half ----
+
+"labels produced" ^0
+"  caller A : " + repr(labels_a) ^0
+"  caller B : " + repr(labels_b) ^0
+"" ^0
+
+"a zero line is a cancellation, not a refund" ^0
+0 => mislabelled
+for i in [0:len(caller_b_values) - 1]:
+    if caller_b_values[i] == 0:
+        if labels_b[i] == "refund":
+            mislabelled + 1 => mislabelled
+"  zero lines labelled 'refund': " + str(mislabelled) ^0
+0 => a_zero_lines
+for v in caller_a_values:
+    if v == 0:
+        a_zero_lines + 1 => a_zero_lines
+"  zero lines caller A can produce: " + str(a_zero_lines) ^0
+"" ^0
+
+# ---- what a test suite built from caller A would report ----
+
+"a suite built from caller A's inputs" ^0
+"  helper branches it exercises : " + str(len(branch_names) - unreached_by_a) + " of " + str(len(branch_names)) ^0
+"  defects in the branches it exercises : 0" ^0
+"  defects in the branches it does not  : 1" ^0
+"" ^0
+"Coverage is a property of a PATH from a caller's inputs to a line. Reporting" ^0
+"it against the caller answers 'did we run all of caller A', and the helper is" ^0
+"only covered to the extent caller A's inputs happen to reach it. A second" ^0
+"caller does not add lines - it adds reachability." ^0

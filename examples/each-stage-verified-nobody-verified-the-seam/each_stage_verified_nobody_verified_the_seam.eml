@@ -1,0 +1,158 @@
+# Self-authored for the EML case corpus (no external origin). Three stages, each
+# shipping a check that passes, and a pipeline that loses money.
+#
+# This is the shape of most real pipelines. Normalisation owns a check about
+# COUNT. Deduplication owns a check about NAMES. Totalling owns a check about
+# THE NUMBERS IT WAS HANDED. Every one of those checks is true, every one is
+# about the thing its own stage was written to do, and the union of the three
+# is not a check on the pipeline.
+#
+# The property that fails is money conservation from end to end, and it is
+# owned by nobody, because no single stage is where it lives.
+#
+# The composition detail that makes it survive review: deduplication run
+# against the RAW input drops nothing at all, because raw names are distinct.
+# It only starts dropping once normalisation has run in front of it - and a
+# fixture for "dedup" written by the person who wrote dedup contains raw names.
+# Its test is honest, passing, and blind to the only input it will meet in
+# production.
+#
+# Nothing here declares which stage loses the money. The per-stage ledger is
+# measured by running the stages one at a time and summing what comes out.
+
+def canonical(name, alias):
+    if name in alias:
+        return alias[name]
+    return name
+
+def stage_normalise(rows, alias):
+    [] => out
+    for r in rows:
+        out + [[r[0], canonical(r[1], alias), r[2]]] => out
+    return out
+
+def stage_dedup(rows):
+    [] => out
+    [] => seen
+    for r in rows:
+        if r[1] in seen:
+            pass
+        else:
+            seen + [r[1]] => seen
+            out + [r] => out
+    return out
+
+def stage_dedup_merging(rows):
+    [] => out
+    [] => seen
+    for r in rows:
+        if r[1] in seen:
+            [] => nxt
+            for o in out:
+                if o[1] == r[1]:
+                    nxt + [[o[0], o[1], o[2] + r[2]]] => nxt
+                else:
+                    nxt + [o] => nxt
+            nxt => out
+        else:
+            seen + [r[1]] => seen
+            out + [r] => out
+    return out
+
+def stage_total(rows):
+    0 => t
+    for r in rows:
+        t + r[2] => t
+    return t
+
+# ---- each stage's own check, written by whoever wrote that stage ----
+
+def check_normalise_keeps_count(rows, alias):
+    stage_normalise(rows, alias) => out
+    if len(out) == len(rows):
+        return 1
+    return 0
+
+def check_dedup_names_are_distinct(rows):
+    stage_dedup(rows) => out
+    [] => seen
+    1 => ok
+    for r in out:
+        if r[1] in seen:
+            0 => ok
+        seen + [r[1]] => seen
+    return ok
+
+def check_total_sums_what_it_was_given(rows):
+    0 => manual
+    for r in rows:
+        manual + r[2] => manual
+    if stage_total(rows) == manual:
+        return 1
+    return 0
+
+# ---- the data ----
+
+[[1, "Ann M.", 120], [2, "Ross", 80], [3, "Ann", 45], [4, "A. Ross", 60], [5, "Kim", 30], [6, "Kim K.", 25]] => rows
+{"Ann M.": "Ann", "A. Ross": "Ross", "Kim K.": "Kim"} => alias
+
+"stage checks, each written by the stage's own author" ^0
+"  normalise keeps the row count : " + str(check_normalise_keeps_count(rows, alias)) ^0
+"  dedup output names distinct   : " + str(check_dedup_names_are_distinct(stage_normalise(rows, alias))) ^0
+"  total sums what it was given  : " + str(check_total_sums_what_it_was_given(rows)) ^0
+"" ^0
+
+# ---- the seam ----
+
+stage_total(rows) => money_in
+stage_normalise(rows, alias) => a_out
+stage_dedup(a_out) => b_out
+stage_total(b_out) => money_out
+
+"per-stage ledger (money carried out of each stage)" ^0
+"  into the pipeline   : " + str(money_in) ^0
+"  after normalise     : " + str(stage_total(a_out)) ^0
+"  after dedup         : " + str(money_out) ^0
+"" ^0
+"end to end, money lost: " + str(money_in - money_out) ^0
+"" ^0
+
+# ---- dedup is innocent when tested alone ----
+
+stage_dedup(rows) => raw_dedup
+"dedup run on the RAW input, which is what its own fixture holds" ^0
+"  rows in  : " + str(len(rows)) ^0
+"  rows out : " + str(len(raw_dedup)) ^0
+"  money out: " + str(stage_total(raw_dedup)) ^0
+"  lost     : " + str(money_in - stage_total(raw_dedup)) ^0
+"" ^0
+
+# ---- what each check would have had to say ----
+
+len(rows) - len(b_out) => rows_dropped
+"rows dropped by the composition: " + str(rows_dropped) ^0
+"checks that mention money at all:" ^0
+"  normalise's check is about count : 0" ^0
+"  dedup's check is about names     : 0" ^0
+"  total's check is about its input : 0" ^0
+"" ^0
+
+# ---- the fix is a different dedup, not a fourth check ----
+
+stage_dedup_merging(a_out) => merged
+stage_total(merged) => merged_money
+"dedup that MERGES instead of dropping" ^0
+"  rows out : " + str(len(merged)) ^0
+"  money out: " + str(merged_money) ^0
+"  lost     : " + str(money_in - merged_money) ^0
+"" ^0
+
+if merged_money == money_in:
+    "merging dedup conserves money; dropping dedup does not" ^0
+else:
+    "merging dedup ALSO loses money" ^0
+
+if len(merged) == len(b_out):
+    "both dedups return the same number of rows, so a row-count check cannot tell them apart" ^0
+else:
+    "the two dedups differ in row count as well" ^0

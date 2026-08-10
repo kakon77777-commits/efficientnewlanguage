@@ -1,0 +1,250 @@
+{"stream":"eml","proto":"eml-trace-v1","seq":1,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:start","mono":1,"file":"each_stage_verified_nobody_verified_the_seam.eml","statements":49}
+{"stream":"eml","proto":"eml-trace-v1","seq":2,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":2,"fn":"canonical","params":["name","alias"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":3,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":3,"fn":"stage_normalise","params":["rows","alias"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":4,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":4,"fn":"stage_dedup","params":["rows"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":5,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":5,"fn":"stage_dedup_merging","params":["rows"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":6,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":6,"fn":"stage_total","params":["rows"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":7,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":7,"fn":"check_normalise_keeps_count","params":["rows","alias"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":8,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":8,"fn":"check_dedup_names_are_distinct","params":["rows"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":9,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":9,"fn":"check_total_sums_what_it_was_given","params":["rows"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":10,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":10,"name":"rows","value":"[[1, 'Ann M.', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'A. Ross', 60], [5, 'Kim', 30], [6, 'Kim K.', 25]]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":11,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":11,"name":"alias","value":"{'Ann M.': 'Ann', 'A. Ross': 'Ross', 'Kim K.': 'Kim'}","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":12,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":12,"text":"stage checks, each written by the stage's own author","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":13,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":13,"fn":"check_normalise_keeps_count","args":["[[1, 'Ann M.', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'A. Ross', 60], [5, 'Kim', 30], [6, 'Kim K.', 25]]","{'Ann M.': 'Ann', 'A. Ross': 'Ross', 'Kim K.': 'Kim'}"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":14,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":14,"fn":"stage_normalise","args":["[[1, 'Ann M.', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'A. Ross', 60], [5, 'Kim', 30], [6, 'Kim K.', 25]]","{'Ann M.': 'Ann', 'A. Ross': 'Ross', 'Kim K.': 'Kim'}"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":15,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":15,"name":"out","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":16,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":16,"fn":"canonical","args":["'Ann M.'","{'Ann M.': 'Ann', 'A. Ross': 'Ross', 'Kim K.': 'Kim'}"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":17,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":17,"fn":"canonical","value":"'Ann'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":18,"name":"out","value":"[[1, 'Ann', 120]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":19,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":19,"fn":"canonical","args":["'Ross'","{'Ann M.': 'Ann', 'A. Ross': 'Ross', 'Kim K.': 'Kim'}"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":20,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":20,"fn":"canonical","value":"'Ross'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":21,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":21,"name":"out","value":"[[1, 'Ann', 120], [2, 'Ross', 80]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":22,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":22,"fn":"canonical","args":["'Ann'","{'Ann M.': 'Ann', 'A. Ross': 'Ross', 'Kim K.': 'Kim'}"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":23,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":23,"fn":"canonical","value":"'Ann'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":24,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":24,"name":"out","value":"[[1, 'Ann', 120], [2, 'Ross', 80], [3, 'Ann', 45]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":25,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":25,"fn":"canonical","args":["'A. Ross'","{'Ann M.': 'Ann', 'A. Ross': 'Ross', 'Kim K.': 'Kim'}"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":26,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":26,"fn":"canonical","value":"'Ross'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":27,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":27,"name":"out","value":"[[1, 'Ann', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'Ross', 60]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":28,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":28,"fn":"canonical","args":["'Kim'","{'Ann M.': 'Ann', 'A. Ross': 'Ross', 'Kim K.': 'Kim'}"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":29,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":29,"fn":"canonical","value":"'Kim'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":30,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":30,"name":"out","value":"[[1, 'Ann', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'Ross', 60], [5, 'Kim', 30]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":31,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":31,"fn":"canonical","args":["'Kim K.'","{'Ann M.': 'Ann', 'A. Ross': 'Ross', 'Kim K.': 'Kim'}"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":32,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":32,"fn":"canonical","value":"'Kim'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":33,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":33,"name":"out","value":"[[1, 'Ann', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'Ross', 60], [5, 'Kim', 30], [6, 'Kim', 25]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":34,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":34,"fn":"stage_normalise","value":"[[1, 'Ann', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'Ross', 60], [5, 'Kim', 30], [6, 'Kim', 25]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":35,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":35,"name":"out","value":"[[1, 'Ann', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'Ross', 60], [5, 'Kim', 30], [6, 'Kim', 25]]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":36,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":36,"fn":"check_normalise_keeps_count","value":"1"}
+{"stream":"eml","proto":"eml-trace-v1","seq":37,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":37,"text":"  normalise keeps the row count : 1","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":38,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":38,"fn":"stage_normalise","args":["[[1, 'Ann M.', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'A. Ross', 60], [5, 'Kim', 30], [6, 'Kim K.', 25]]","{'Ann M.': 'Ann', 'A. Ross': 'Ross', 'Kim K.': 'Kim'}"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":39,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":39,"name":"out","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":40,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":40,"fn":"canonical","args":["'Ann M.'","{'Ann M.': 'Ann', 'A. Ross': 'Ross', 'Kim K.': 'Kim'}"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":41,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":41,"fn":"canonical","value":"'Ann'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":42,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":42,"name":"out","value":"[[1, 'Ann', 120]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":43,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":43,"fn":"canonical","args":["'Ross'","{'Ann M.': 'Ann', 'A. Ross': 'Ross', 'Kim K.': 'Kim'}"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":44,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":44,"fn":"canonical","value":"'Ross'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":45,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":45,"name":"out","value":"[[1, 'Ann', 120], [2, 'Ross', 80]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":46,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":46,"fn":"canonical","args":["'Ann'","{'Ann M.': 'Ann', 'A. Ross': 'Ross', 'Kim K.': 'Kim'}"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":47,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":47,"fn":"canonical","value":"'Ann'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":48,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":48,"name":"out","value":"[[1, 'Ann', 120], [2, 'Ross', 80], [3, 'Ann', 45]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":49,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":49,"fn":"canonical","args":["'A. Ross'","{'Ann M.': 'Ann', 'A. Ross': 'Ross', 'Kim K.': 'Kim'}"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":50,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":50,"fn":"canonical","value":"'Ross'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":51,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":51,"name":"out","value":"[[1, 'Ann', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'Ross', 60]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":52,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":52,"fn":"canonical","args":["'Kim'","{'Ann M.': 'Ann', 'A. Ross': 'Ross', 'Kim K.': 'Kim'}"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":53,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":53,"fn":"canonical","value":"'Kim'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":54,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":54,"name":"out","value":"[[1, 'Ann', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'Ross', 60], [5, 'Kim', 30]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":55,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":55,"fn":"canonical","args":["'Kim K.'","{'Ann M.': 'Ann', 'A. Ross': 'Ross', 'Kim K.': 'Kim'}"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":56,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":56,"fn":"canonical","value":"'Kim'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":57,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":57,"name":"out","value":"[[1, 'Ann', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'Ross', 60], [5, 'Kim', 30], [6, 'Kim', 25]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":58,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":58,"fn":"stage_normalise","value":"[[1, 'Ann', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'Ross', 60], [5, 'Kim', 30], [6, 'Kim', 25]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":59,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":59,"fn":"check_dedup_names_are_distinct","args":["[[1, 'Ann', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'Ross', 60], [5, 'Kim', 30], [6, 'Kim', 25]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":60,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":60,"fn":"stage_dedup","args":["[[1, 'Ann', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'Ross', 60], [5, 'Kim', 30], [6, 'Kim', 25]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":61,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":61,"name":"out","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":62,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":62,"name":"seen","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":63,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":63,"name":"seen","value":"['Ann']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":64,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":64,"name":"out","value":"[[1, 'Ann', 120]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":65,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":65,"name":"seen","value":"['Ann', 'Ross']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":66,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":66,"name":"out","value":"[[1, 'Ann', 120], [2, 'Ross', 80]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":67,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":67,"name":"seen","value":"['Ann', 'Ross', 'Kim']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":68,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":68,"name":"out","value":"[[1, 'Ann', 120], [2, 'Ross', 80], [5, 'Kim', 30]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":69,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":69,"fn":"stage_dedup","value":"[[1, 'Ann', 120], [2, 'Ross', 80], [5, 'Kim', 30]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":70,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":70,"name":"out","value":"[[1, 'Ann', 120], [2, 'Ross', 80], [5, 'Kim', 30]]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":71,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":71,"name":"seen","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":72,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":72,"name":"ok","value":"1","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":73,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":73,"name":"seen","value":"['Ann']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":74,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":74,"name":"seen","value":"['Ann', 'Ross']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":75,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":75,"name":"seen","value":"['Ann', 'Ross', 'Kim']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":76,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":76,"fn":"check_dedup_names_are_distinct","value":"1"}
+{"stream":"eml","proto":"eml-trace-v1","seq":77,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":77,"text":"  dedup output names distinct   : 1","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":78,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":78,"fn":"check_total_sums_what_it_was_given","args":["[[1, 'Ann M.', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'A. Ross', 60], [5, 'Kim', 30], [6, 'Kim K.', 25]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":79,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":79,"name":"manual","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":80,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":80,"name":"manual","value":"120","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":81,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":81,"name":"manual","value":"200","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":82,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":82,"name":"manual","value":"245","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":83,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":83,"name":"manual","value":"305","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":84,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":84,"name":"manual","value":"335","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":85,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":85,"name":"manual","value":"360","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":86,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":86,"fn":"stage_total","args":["[[1, 'Ann M.', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'A. Ross', 60], [5, 'Kim', 30], [6, 'Kim K.', 25]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":87,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":87,"name":"t","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":88,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":88,"name":"t","value":"120","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":89,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":89,"name":"t","value":"200","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":90,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":90,"name":"t","value":"245","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":91,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":91,"name":"t","value":"305","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":92,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":92,"name":"t","value":"335","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":93,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":93,"name":"t","value":"360","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":94,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":94,"fn":"stage_total","value":"360"}
+{"stream":"eml","proto":"eml-trace-v1","seq":95,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":95,"fn":"check_total_sums_what_it_was_given","value":"1"}
+{"stream":"eml","proto":"eml-trace-v1","seq":96,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":96,"text":"  total sums what it was given  : 1","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":97,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":97,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":98,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":98,"fn":"stage_total","args":["[[1, 'Ann M.', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'A. Ross', 60], [5, 'Kim', 30], [6, 'Kim K.', 25]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":99,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":99,"name":"t","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":100,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":100,"name":"t","value":"120","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":101,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":101,"name":"t","value":"200","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":102,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":102,"name":"t","value":"245","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":103,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":103,"name":"t","value":"305","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":104,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":104,"name":"t","value":"335","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":105,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":105,"name":"t","value":"360","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":106,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":106,"fn":"stage_total","value":"360"}
+{"stream":"eml","proto":"eml-trace-v1","seq":107,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":107,"name":"money_in","value":"360","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":108,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":108,"fn":"stage_normalise","args":["[[1, 'Ann M.', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'A. Ross', 60], [5, 'Kim', 30], [6, 'Kim K.', 25]]","{'Ann M.': 'Ann', 'A. Ross': 'Ross', 'Kim K.': 'Kim'}"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":109,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":109,"name":"out","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":110,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":110,"fn":"canonical","args":["'Ann M.'","{'Ann M.': 'Ann', 'A. Ross': 'Ross', 'Kim K.': 'Kim'}"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":111,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":111,"fn":"canonical","value":"'Ann'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":112,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":112,"name":"out","value":"[[1, 'Ann', 120]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":113,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":113,"fn":"canonical","args":["'Ross'","{'Ann M.': 'Ann', 'A. Ross': 'Ross', 'Kim K.': 'Kim'}"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":114,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":114,"fn":"canonical","value":"'Ross'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":115,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":115,"name":"out","value":"[[1, 'Ann', 120], [2, 'Ross', 80]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":116,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":116,"fn":"canonical","args":["'Ann'","{'Ann M.': 'Ann', 'A. Ross': 'Ross', 'Kim K.': 'Kim'}"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":117,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":117,"fn":"canonical","value":"'Ann'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":118,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":118,"name":"out","value":"[[1, 'Ann', 120], [2, 'Ross', 80], [3, 'Ann', 45]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":119,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":119,"fn":"canonical","args":["'A. Ross'","{'Ann M.': 'Ann', 'A. Ross': 'Ross', 'Kim K.': 'Kim'}"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":120,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":120,"fn":"canonical","value":"'Ross'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":121,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":121,"name":"out","value":"[[1, 'Ann', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'Ross', 60]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":122,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":122,"fn":"canonical","args":["'Kim'","{'Ann M.': 'Ann', 'A. Ross': 'Ross', 'Kim K.': 'Kim'}"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":123,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":123,"fn":"canonical","value":"'Kim'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":124,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":124,"name":"out","value":"[[1, 'Ann', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'Ross', 60], [5, 'Kim', 30]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":125,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":125,"fn":"canonical","args":["'Kim K.'","{'Ann M.': 'Ann', 'A. Ross': 'Ross', 'Kim K.': 'Kim'}"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":126,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":126,"fn":"canonical","value":"'Kim'"}
+{"stream":"eml","proto":"eml-trace-v1","seq":127,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":127,"name":"out","value":"[[1, 'Ann', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'Ross', 60], [5, 'Kim', 30], [6, 'Kim', 25]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":128,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":128,"fn":"stage_normalise","value":"[[1, 'Ann', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'Ross', 60], [5, 'Kim', 30], [6, 'Kim', 25]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":129,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":129,"name":"a_out","value":"[[1, 'Ann', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'Ross', 60], [5, 'Kim', 30], [6, 'Kim', 25]]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":130,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":130,"fn":"stage_dedup","args":["[[1, 'Ann', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'Ross', 60], [5, 'Kim', 30], [6, 'Kim', 25]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":131,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":131,"name":"out","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":132,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":132,"name":"seen","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":133,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":133,"name":"seen","value":"['Ann']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":134,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":134,"name":"out","value":"[[1, 'Ann', 120]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":135,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":135,"name":"seen","value":"['Ann', 'Ross']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":136,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":136,"name":"out","value":"[[1, 'Ann', 120], [2, 'Ross', 80]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":137,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":137,"name":"seen","value":"['Ann', 'Ross', 'Kim']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":138,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":138,"name":"out","value":"[[1, 'Ann', 120], [2, 'Ross', 80], [5, 'Kim', 30]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":139,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":139,"fn":"stage_dedup","value":"[[1, 'Ann', 120], [2, 'Ross', 80], [5, 'Kim', 30]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":140,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":140,"name":"b_out","value":"[[1, 'Ann', 120], [2, 'Ross', 80], [5, 'Kim', 30]]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":141,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":141,"fn":"stage_total","args":["[[1, 'Ann', 120], [2, 'Ross', 80], [5, 'Kim', 30]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":142,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":142,"name":"t","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":143,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":143,"name":"t","value":"120","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":144,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":144,"name":"t","value":"200","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":145,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":145,"name":"t","value":"230","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":146,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":146,"fn":"stage_total","value":"230"}
+{"stream":"eml","proto":"eml-trace-v1","seq":147,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":147,"name":"money_out","value":"230","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":148,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":148,"text":"per-stage ledger (money carried out of each stage)","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":149,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":149,"text":"  into the pipeline   : 360","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":150,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":150,"fn":"stage_total","args":["[[1, 'Ann', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'Ross', 60], [5, 'Kim', 30], [6, 'Kim', 25]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":151,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":151,"name":"t","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":152,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":152,"name":"t","value":"120","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":153,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":153,"name":"t","value":"200","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":154,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":154,"name":"t","value":"245","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":155,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":155,"name":"t","value":"305","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":156,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":156,"name":"t","value":"335","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":157,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":157,"name":"t","value":"360","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":158,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":158,"fn":"stage_total","value":"360"}
+{"stream":"eml","proto":"eml-trace-v1","seq":159,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":159,"text":"  after normalise     : 360","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":160,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":160,"text":"  after dedup         : 230","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":161,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":161,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":162,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":162,"text":"end to end, money lost: 130","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":163,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":163,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":164,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":164,"fn":"stage_dedup","args":["[[1, 'Ann M.', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'A. Ross', 60], [5, 'Kim', 30], [6, 'Kim K.', 25]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":165,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":165,"name":"out","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":166,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":166,"name":"seen","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":167,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":167,"name":"seen","value":"['Ann M.']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":168,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":168,"name":"out","value":"[[1, 'Ann M.', 120]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":169,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":169,"name":"seen","value":"['Ann M.', 'Ross']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":170,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":170,"name":"out","value":"[[1, 'Ann M.', 120], [2, 'Ross', 80]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":171,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":171,"name":"seen","value":"['Ann M.', 'Ross', 'Ann']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":172,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":172,"name":"out","value":"[[1, 'Ann M.', 120], [2, 'Ross', 80], [3, 'Ann', 45]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":173,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":173,"name":"seen","value":"['Ann M.', 'Ross', 'Ann', 'A. Ross']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":174,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":174,"name":"out","value":"[[1, 'Ann M.', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'A. Ross', 60]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":175,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":175,"name":"seen","value":"['Ann M.', 'Ross', 'Ann', 'A. Ross', 'Kim']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":176,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":176,"name":"out","value":"[[1, 'Ann M.', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'A. Ross', 60], [5, 'Kim', 30]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":177,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":177,"name":"seen","value":"['Ann M.', 'Ross', 'Ann', 'A. Ross', 'Kim', 'Kim K.']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":178,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":178,"name":"out","value":"[[1, 'Ann M.', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'A. Ross', 60], [5, 'Kim', 30], [6, 'Kim K.', 25]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":179,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":179,"fn":"stage_dedup","value":"[[1, 'Ann M.', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'A. Ross', 60], [5, 'Kim', 30], [6, 'Kim K.', 25]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":180,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":180,"name":"raw_dedup","value":"[[1, 'Ann M.', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'A. Ross', 60], [5, 'Kim', 30], [6, 'Kim K.', 25]]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":181,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":181,"text":"dedup run on the RAW input, which is what its own fixture holds","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":182,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":182,"text":"  rows in  : 6","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":183,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":183,"text":"  rows out : 6","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":184,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":184,"fn":"stage_total","args":["[[1, 'Ann M.', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'A. Ross', 60], [5, 'Kim', 30], [6, 'Kim K.', 25]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":185,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":185,"name":"t","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":186,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":186,"name":"t","value":"120","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":187,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":187,"name":"t","value":"200","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":188,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":188,"name":"t","value":"245","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":189,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":189,"name":"t","value":"305","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":190,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":190,"name":"t","value":"335","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":191,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":191,"name":"t","value":"360","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":192,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":192,"fn":"stage_total","value":"360"}
+{"stream":"eml","proto":"eml-trace-v1","seq":193,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":193,"text":"  money out: 360","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":194,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":194,"fn":"stage_total","args":["[[1, 'Ann M.', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'A. Ross', 60], [5, 'Kim', 30], [6, 'Kim K.', 25]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":195,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":195,"name":"t","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":196,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":196,"name":"t","value":"120","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":197,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":197,"name":"t","value":"200","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":198,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":198,"name":"t","value":"245","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":199,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":199,"name":"t","value":"305","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":200,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":200,"name":"t","value":"335","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":201,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":201,"name":"t","value":"360","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":202,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":202,"fn":"stage_total","value":"360"}
+{"stream":"eml","proto":"eml-trace-v1","seq":203,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":203,"text":"  lost     : 0","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":204,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":204,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":205,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":205,"name":"rows_dropped","value":"3","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":206,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":206,"text":"rows dropped by the composition: 3","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":207,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":207,"text":"checks that mention money at all:","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":208,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":208,"text":"  normalise's check is about count : 0","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":209,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":209,"text":"  dedup's check is about names     : 0","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":210,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":210,"text":"  total's check is about its input : 0","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":211,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":211,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":212,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":212,"fn":"stage_dedup_merging","args":["[[1, 'Ann', 120], [2, 'Ross', 80], [3, 'Ann', 45], [4, 'Ross', 60], [5, 'Kim', 30], [6, 'Kim', 25]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":213,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":213,"name":"out","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":214,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":214,"name":"seen","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":215,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":215,"name":"seen","value":"['Ann']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":216,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":216,"name":"out","value":"[[1, 'Ann', 120]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":217,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":217,"name":"seen","value":"['Ann', 'Ross']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":218,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":218,"name":"out","value":"[[1, 'Ann', 120], [2, 'Ross', 80]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":219,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":219,"name":"nxt","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":220,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":220,"name":"nxt","value":"[[1, 'Ann', 165]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":221,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":221,"name":"nxt","value":"[[1, 'Ann', 165], [2, 'Ross', 80]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":222,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":222,"name":"out","value":"[[1, 'Ann', 165], [2, 'Ross', 80]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":223,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":223,"name":"nxt","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":224,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":224,"name":"nxt","value":"[[1, 'Ann', 165]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":225,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":225,"name":"nxt","value":"[[1, 'Ann', 165], [2, 'Ross', 140]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":226,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":226,"name":"out","value":"[[1, 'Ann', 165], [2, 'Ross', 140]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":227,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":227,"name":"seen","value":"['Ann', 'Ross', 'Kim']","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":228,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":228,"name":"out","value":"[[1, 'Ann', 165], [2, 'Ross', 140], [5, 'Kim', 30]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":229,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":229,"name":"nxt","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":230,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":230,"name":"nxt","value":"[[1, 'Ann', 165]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":231,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":231,"name":"nxt","value":"[[1, 'Ann', 165], [2, 'Ross', 140]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":232,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":232,"name":"nxt","value":"[[1, 'Ann', 165], [2, 'Ross', 140], [5, 'Kim', 55]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":233,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":233,"name":"out","value":"[[1, 'Ann', 165], [2, 'Ross', 140], [5, 'Kim', 55]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":234,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":234,"fn":"stage_dedup_merging","value":"[[1, 'Ann', 165], [2, 'Ross', 140], [5, 'Kim', 55]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":235,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":235,"name":"merged","value":"[[1, 'Ann', 165], [2, 'Ross', 140], [5, 'Kim', 55]]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":236,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":236,"fn":"stage_total","args":["[[1, 'Ann', 165], [2, 'Ross', 140], [5, 'Kim', 55]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":237,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":237,"name":"t","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":238,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":238,"name":"t","value":"165","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":239,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":239,"name":"t","value":"305","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":240,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":240,"name":"t","value":"360","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":241,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":241,"fn":"stage_total","value":"360"}
+{"stream":"eml","proto":"eml-trace-v1","seq":242,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":242,"name":"merged_money","value":"360","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":243,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":243,"text":"dedup that MERGES instead of dropping","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":244,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":244,"text":"  rows out : 3","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":245,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":245,"text":"  money out: 360","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":246,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":246,"text":"  lost     : 0","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":247,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":247,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":248,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":248,"text":"merging dedup conserves money; dropping dedup does not","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":249,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":249,"text":"both dedups return the same number of rows, so a row-count check cannot tell them apart","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":250,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:done","mono":250,"ok":true,"outputs":31,"anomalies":0}

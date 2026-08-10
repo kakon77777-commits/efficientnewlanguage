@@ -1,0 +1,144 @@
+# Self-authored for the EML case corpus (no external origin). Two functions
+# with documented safe ranges, and a composition whose safe range is neither
+# their union nor their intersection.
+#
+# `scale` is documented safe for inputs 0 to 50 - outside that it overflows the
+# fixed-point budget the system uses. `shift` is documented safe for 40 to 100.
+# Both documents are accurate. Neither says anything about the composition,
+# because a safe range is a statement about ONE function's inputs, and the
+# composition's inputs are the first function's while its risk lives in the
+# second's.
+#
+# Neither obvious guess is the answer, and - measured rather than assumed -
+# they are not wrong in the same way. The union admits inputs that are not safe.
+# The intersection admits none, but rejects most of the ones that are: it is
+# sound and badly incomplete, which costs throughput instead of correctness and
+# so is never investigated. The real safe set is whichever inputs make the
+# first function's OUTPUT land where the second is safe - a set nobody wrote
+# down, in units nobody stated.
+#
+# The measurement sweeps every integer input, evaluates the composition, and
+# reads the safe set off the results. Then it compares that set against the
+# intersection and the union. The two guesses fail differently: one admits
+# unsafe inputs, the other rejects safe ones, and only measuring separates them.
+
+def scale(x):
+    return x * 2
+
+def shift(y):
+    return y - 30
+
+def scale_is_safe(x):
+    if x < 0:
+        return 0
+    if x > 50:
+        return 0
+    return 1
+
+def shift_is_safe(y):
+    if y < 40:
+        return 0
+    if y > 100:
+        return 0
+    return 1
+
+def composition_is_safe(x):
+    if scale_is_safe(x) == 0:
+        return 0
+    if shift_is_safe(scale(x)) == 0:
+        return 0
+    return 1
+
+def bounds(pred_name):
+    0 - 1 => lo
+    0 - 1 => hi
+    for x in [0:100]:
+        1 => ok
+        if pred_name == "scale":
+            scale_is_safe(x) => ok
+        if pred_name == "shift":
+            shift_is_safe(x) => ok
+        if pred_name == "both":
+            composition_is_safe(x) => ok
+        if ok == 1:
+            if lo < 0:
+                x => lo
+            x => hi
+    return [lo, hi]
+
+def count_safe(pred_name):
+    0 => n
+    for x in [0:100]:
+        1 => ok
+        if pred_name == "scale":
+            scale_is_safe(x) => ok
+        if pred_name == "shift":
+            shift_is_safe(x) => ok
+        if pred_name == "both":
+            composition_is_safe(x) => ok
+        if ok == 1:
+            n + 1 => n
+    return n
+
+"sweeping every integer input from 0 to 100" ^0
+bounds("scale") => sb
+bounds("shift") => hb
+bounds("both") => cb
+"  scale safe on inputs       : " + str(sb[0]) + " .. " + str(sb[1]) + "   (" + str(count_safe("scale")) + " values)" ^0
+"  shift safe on ITS inputs   : " + str(hb[0]) + " .. " + str(hb[1]) + "  (" + str(count_safe("shift")) + " values)" ^0
+"  composition safe on inputs : " + str(cb[0]) + " .. " + str(cb[1]) + "   (" + str(count_safe("both")) + " values)" ^0
+"" ^0
+
+# ---- the two natural guesses, and the two different ways they fail ----
+
+"guess 1: the safe set is the intersection of the two documented ranges" ^0
+0 => inter_lo
+0 => inter_hi
+max([sb[0], hb[0]]) => inter_lo
+min([sb[1], hb[1]]) => inter_hi
+"  intersection : " + str(inter_lo) + " .. " + str(inter_hi) ^0
+0 => wrong_in_inter
+for x in [0:100]:
+    if x >= inter_lo:
+        if x <= inter_hi:
+            if composition_is_safe(x) == 0:
+                wrong_in_inter + 1 => wrong_in_inter
+"  inputs inside the intersection that are NOT safe: " + str(wrong_in_inter) ^0
+0 => missed_by_inter
+for x in [0:100]:
+    if composition_is_safe(x) == 1:
+        if x < inter_lo:
+            missed_by_inter + 1 => missed_by_inter
+        else:
+            if x > inter_hi:
+                missed_by_inter + 1 => missed_by_inter
+"  safe inputs the intersection MISSES            : " + str(missed_by_inter) + " of " + str(count_safe("both")) ^0
+"  so the intersection is sound but not complete - a different kind of" ^0
+"  wrong from the union, and the one that quietly shrinks throughput" ^0
+"" ^0
+
+"guess 2: the safe set is the union of the two documented ranges" ^0
+min([sb[0], hb[0]]) => uni_lo
+max([sb[1], hb[1]]) => uni_hi
+"  union : " + str(uni_lo) + " .. " + str(uni_hi) ^0
+0 => wrong_in_uni
+for x in [0:100]:
+    if x >= uni_lo:
+        if x <= uni_hi:
+            if composition_is_safe(x) == 0:
+                wrong_in_uni + 1 => wrong_in_uni
+"  inputs inside the union that are NOT safe: " + str(wrong_in_uni) ^0
+"" ^0
+
+# ---- where the real boundary is, and why it is not in either document ----
+
+"the composition's own boundary" ^0
+"  smallest safe input : " + str(cb[0]) + "  -> scale gives " + str(scale(cb[0])) + ", shift gives " + str(shift(scale(cb[0]))) ^0
+"  largest safe input  : " + str(cb[1]) + "  -> scale gives " + str(scale(cb[1])) + ", shift gives " + str(shift(scale(cb[1]))) ^0
+"" ^0
+"  one below : " + str(cb[0] - 1) + " -> scale gives " + str(scale(cb[0] - 1)) + ", which shift is not safe on" ^0
+"  one above : " + str(cb[1] + 1) + " -> scale gives " + str(scale(cb[1] + 1)) + ", which scale is not safe on" ^0
+"" ^0
+"The lower bound is set by the SECOND function and the upper bound by the" ^0
+"FIRST, and both are stated in units of their own input. Neither document is" ^0
+"wrong and neither is enough." ^0

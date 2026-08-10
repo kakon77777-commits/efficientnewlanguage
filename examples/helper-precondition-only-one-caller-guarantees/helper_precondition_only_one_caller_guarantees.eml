@@ -1,0 +1,99 @@
+# Self-authored for the EML case corpus (no external origin). A helper that is
+# correct for every input its first caller can produce, reused by a second
+# caller that can produce more.
+#
+# The helper computes the share of the largest element: max(xs) / sum(xs). It
+# was written for basket counts, where every element is a non-negative count
+# and the answer is always a share between 0 and 1. That bound is real, and it
+# is a consequence of the CALLER, not of the helper. Nothing in the helper
+# checks it, because from inside the helper there was never anything to check.
+#
+# The second caller passes adjustment ledgers, where entries can be negative.
+# The same arithmetic now returns shares above 1, below 0, and - when the
+# entries cancel - a division by a sum that is not the total of anything.
+#
+# The measurement runs the helper over both callers' input sets and counts how
+# many answers land outside the range the helper's name implies. Nothing
+# declares which caller is safe; that is read off the run.
+
+def share_of_largest(xs):
+    max(xs) => m
+    sum(xs) => t
+    if t == 0:
+        return 0.0
+    return float(m) / float(t)
+
+def in_unit_range(v):
+    if v < 0.0:
+        return 0
+    if v > 1.0:
+        return 0
+    return 1
+
+def survey(label, sets):
+    0 => outside
+    [] => worst
+    for xs in sets:
+        share_of_largest(xs) => s
+        if in_unit_range(s) == 0:
+            outside + 1 => outside
+            if len(worst) == 0:
+                [xs, s] => worst
+    "  " + label + ": answers outside 0..1 = " + str(outside) + " of " + str(len(sets)) ^0
+    return worst
+
+# caller A: basket counts. Every entry is a count, so every entry is >= 0.
+[[3, 1, 1], [10, 2, 8], [1, 1, 1], [7, 0, 0], [0, 0, 5], [2, 9, 4]] => baskets
+
+# caller B: adjustment ledgers. Same shape, same helper, entries may be negative.
+[[3, 0 - 1, 1], [10, 0 - 12, 8], [5, 0 - 5, 3], [0 - 4, 2, 2], [6, 0 - 2, 0 - 3], [1, 1, 0 - 2]] => ledgers
+
+"the same helper, over each caller's inputs" ^0
+survey("basket counts   ", baskets) => a_worst
+survey("adjustment rows ", ledgers) => b_worst
+"" ^0
+
+if len(b_worst) > 0:
+    "witness from the second caller" ^0
+    "  xs     = " + repr(b_worst[0]) ^0
+    "  max    = " + str(max(b_worst[0])) ^0
+    "  sum    = " + str(sum(b_worst[0])) ^0
+    "  share  = " + str(b_worst[1]) ^0
+    "" ^0
+
+# ---- the precondition, stated and then measured on both sides ----
+
+"the precondition the helper never states: every entry >= 0" ^0
+0 => a_violating
+for xs in baskets:
+    if min(xs) < 0:
+        a_violating + 1 => a_violating
+0 => b_violating
+for xs in ledgers:
+    if min(xs) < 0:
+        b_violating + 1 => b_violating
+"  basket inputs violating it     : " + str(a_violating) + " of " + str(len(baskets)) ^0
+"  adjustment inputs violating it : " + str(b_violating) + " of " + str(len(ledgers)) ^0
+"" ^0
+
+# ---- the helper's own tests would all have been drawn from caller A ----
+
+"the helper's fixtures, drawn from the only caller that existed when it was written" ^0
+0 => fixture_outside
+for xs in baskets:
+    if in_unit_range(share_of_largest(xs)) == 0:
+        fixture_outside + 1 => fixture_outside
+"  fixtures producing an out-of-range answer: " + str(fixture_outside) ^0
+"  a test suite built from those inputs cannot fail on this" ^0
+"" ^0
+
+# ---- the sum is not a total ----
+
+"where a share above 1 comes from" ^0
+for xs in ledgers:
+    if in_unit_range(share_of_largest(xs)) == 0:
+        "  " + repr(xs) + "  max " + str(max(xs)) + " over sum " + str(sum(xs)) + " -> " + str(share_of_largest(xs)) ^0
+"" ^0
+"When entries can cancel, the denominator stops being 'the total these parts" ^0
+"add up to'. The helper's arithmetic is unchanged and still correct as" ^0
+"arithmetic. What changed is that its result no longer denotes a share." ^0

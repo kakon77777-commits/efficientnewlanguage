@@ -1,0 +1,119 @@
+# Self-authored for the EML case corpus (no external origin). Two validators in
+# series. The second one is wrong, and has been since it was written, and the
+# first one is why nobody found out.
+#
+# Both check the same rule: a line must have a positive quantity. The first
+# uses `quantity <= 0`. The second uses `quantity < 0`, so it lets a zero
+# through. In the pipeline that never matters, because nothing with quantity
+# zero survives the first check to reach the second. The second validator's
+# reject branch has never run against real data.
+#
+# That is not an argument for deleting it. It is an argument for noticing that
+# its correctness has never been observed. The day the first check moves, is
+# replaced by a schema, or stops running for one code path, the second becomes
+# load-bearing for the first time - and it is wrong.
+#
+# The measurement runs the same orders through the pipeline with and without
+# the upstream guard, and counts what each validator actually rejects.
+
+def validate_upstream(order):
+    if order[1] <= 0:
+        return 0
+    return 1
+
+def validate_downstream(order):
+    if order[1] < 0:
+        return 0
+    return 1
+
+def truly_valid(order):
+    if order[1] <= 0:
+        return 0
+    return 1
+
+[["a", 3], ["b", 0], ["c", 5], ["d", 0 - 2], ["e", 0], ["f", 1]] => orders
+
+# ---- both validators in series, the way the system is wired ----
+
+0 => up_rejects
+0 => down_rejects
+0 => accepted
+0 => bad_accepted
+for o in orders:
+    if validate_upstream(o) == 0:
+        up_rejects + 1 => up_rejects
+    else:
+        if validate_downstream(o) == 0:
+            down_rejects + 1 => down_rejects
+        else:
+            accepted + 1 => accepted
+            if truly_valid(o) == 0:
+                bad_accepted + 1 => bad_accepted
+
+"with the upstream guard in place" ^0
+"  upstream rejected   : " + str(up_rejects) ^0
+"  downstream rejected : " + str(down_rejects) ^0
+"  accepted            : " + str(accepted) ^0
+"  invalid accepted    : " + str(bad_accepted) ^0
+"" ^0
+
+# ---- the same orders, upstream removed ----
+
+0 => d_rejects
+0 => d_accepted
+0 => d_bad
+for o in orders:
+    if validate_downstream(o) == 0:
+        d_rejects + 1 => d_rejects
+    else:
+        d_accepted + 1 => d_accepted
+        if truly_valid(o) == 0:
+            d_bad + 1 => d_bad
+
+"with the upstream guard removed" ^0
+"  downstream rejected : " + str(d_rejects) ^0
+"  accepted            : " + str(d_accepted) ^0
+"  invalid accepted    : " + str(d_bad) ^0
+"" ^0
+
+# ---- which of the downstream validator's outcomes are reachable at all ----
+
+"downstream validator, outcomes reachable through the pipeline" ^0
+0 => reject_reachable
+0 => accept_reachable
+for o in orders:
+    if validate_upstream(o) == 1:
+        if validate_downstream(o) == 0:
+            reject_reachable + 1 => reject_reachable
+        else:
+            accept_reachable + 1 => accept_reachable
+"  reject branch reached : " + str(reject_reachable) + " times" ^0
+"  accept branch reached : " + str(accept_reachable) + " times" ^0
+"" ^0
+
+"downstream validator, outcomes reachable when called directly" ^0
+0 => dr
+0 => da
+for o in orders:
+    if validate_downstream(o) == 0:
+        dr + 1 => dr
+    else:
+        da + 1 => da
+"  reject branch reached : " + str(dr) + " times" ^0
+"  accept branch reached : " + str(da) + " times" ^0
+"" ^0
+
+# ---- the disagreement between the two validators, on this data ----
+
+"orders the two validators disagree about" ^0
+0 => disagreements
+for o in orders:
+    if validate_upstream(o) != validate_downstream(o):
+        disagreements + 1 => disagreements
+        "  " + o[0] + " qty " + str(o[1]) + ": upstream " + str(validate_upstream(o)) + " downstream " + str(validate_downstream(o)) ^0
+"  total: " + str(disagreements) ^0
+"" ^0
+"Every one of those disagreements is invisible while the upstream guard runs" ^0
+"first, because the upstream guard removes exactly the orders they disagree" ^0
+"about. Composition did not hide a bug behind a bug - it made the second" ^0
+"check's answer unobservable, which is a different and quieter thing." ^0

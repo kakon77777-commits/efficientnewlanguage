@@ -1,0 +1,108 @@
+# Self-authored for the EML case corpus (no external origin). A lookup that
+# returns -1 for "not found", handed to a caller that indexes with it.
+#
+# The sentinel is a fine convention and the first caller uses it correctly: it
+# checks the result before using it. The second caller does what looks like the
+# same thing in one fewer line - `xs[find_index(xs, t)]` - and in Python that
+# is not an error. Index -1 is the last element. The miss becomes a hit on
+# whatever happens to be at the end of the list.
+#
+# What makes it durable is the shape of the wrong answer. It is a real element
+# of the real list, of the right type, in range, and it passes every downstream
+# check that asks "is this a valid record". There is nothing to notice.
+#
+# And the fixture most likely to be written - look up something that IS in the
+# list - cannot fail. So can the fixture that looks up the LAST item, for a
+# different reason: a miss and a hit on the final element return the same
+# thing. The measurement counts both.
+
+def find_index(xs, target):
+    for i in [0:len(xs) - 1]:
+        if xs[i] == target:
+            return i
+    return 0 - 1
+
+def guarded_lookup(xs, target):
+    find_index(xs, target) => i
+    if i < 0:
+        return "NOT-FOUND"
+    return xs[i]
+
+def unguarded_lookup(xs, target):
+    return xs[find_index(xs, target)]
+
+["alpha", "beta", "gamma", "delta"] => table
+["alpha", "gamma", "epsilon", "zeta", "delta", "beta"] => queries
+
+"the same table, the same queries, two call styles" ^0
+"  table   : " + repr(table) ^0
+0 => misses
+0 => silent_wrong
+0 => accidentally_right
+for q in queries:
+    guarded_lookup(table, q) => g
+    unguarded_lookup(table, q) => u
+    find_index(table, q) => idx
+    if idx < 0:
+        misses + 1 => misses
+        if u == table[len(table) - 1]:
+            silent_wrong + 1 => silent_wrong
+    "  " + q + " -> guarded " + g + " | unguarded " + u ^0
+"" ^0
+
+"queries that miss                          : " + str(misses) + " of " + str(len(queries)) ^0
+"misses that came back as the LAST element  : " + str(silent_wrong) ^0
+"" ^0
+
+# ---- every wrong answer is a legitimate row ----
+
+"is the wrong answer detectable downstream?" ^0
+0 => not_in_table
+for q in queries:
+    unguarded_lookup(table, q) => u
+    if u in table:
+        pass
+    else:
+        not_in_table + 1 => not_in_table
+"  unguarded results that are NOT a member of the table: " + str(not_in_table) ^0
+"  a validity check on the result cannot separate a hit from a miss" ^0
+"" ^0
+
+# ---- the two fixtures that cannot fail ----
+
+"fixtures that cannot distinguish the two call styles" ^0
+0 => same_answer
+[] => indistinguishable
+for q in queries:
+    if guarded_lookup(table, q) == unguarded_lookup(table, q):
+        same_answer + 1 => same_answer
+        indistinguishable + [q] => indistinguishable
+"  queries where guarded and unguarded agree: " + str(same_answer) + " of " + str(len(queries)) ^0
+"  " + repr(indistinguishable) ^0
+"" ^0
+
+"  all four agree because the item is present:" ^0
+for q in indistinguishable:
+    "    " + q + " (present at index " + str(find_index(table, q)) + ")" ^0
+"" ^0
+
+# ---- the collision: different questions, one answer ----
+
+table[len(table) - 1] => last
+"queries whose unguarded answer is the last element, '" + last + "'" ^0
+[] => present_here
+[] => missing_here
+for q in queries:
+    if unguarded_lookup(table, q) == last:
+        if find_index(table, q) < 0:
+            missing_here + [q] => missing_here
+        else:
+            present_here + [q] => present_here
+"  present : " + repr(present_here) ^0
+"  missing : " + repr(missing_here) ^0
+"  distinct queries collapsing to one answer: " + str(len(present_here) + len(missing_here)) ^0
+"" ^0
+"A fixture built from items that are present can never fail - all four of" ^0
+"them agree above. And asserting that the LAST item looks up correctly is" ^0
+"the one assertion a miss also satisfies, so it carries no information about" ^0
+"misses at all." ^0

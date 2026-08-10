@@ -1,0 +1,94 @@
+# Self-authored for the EML case corpus (no external origin). A helper that
+# returns a cleaned copy, and a second caller that assumed it cleaned in place.
+#
+# The helper's signature does not say which it is. Its tests do not either -
+# they check the RETURN VALUE, which is correct and which passes whether or not
+# the argument was also modified. The only place the distinction is recorded is
+# the call site, and the two call sites disagree.
+#
+# Caller A wrote `clean(rows) => rows` and gets clean data. Caller B wrote
+# `clean(rows)` on a line of its own, the way you call something that works in
+# place, and gets its original data - with no error, no warning, and a helper
+# that ran and did its job.
+#
+# `=>` binds a name to a value, so both callers hold a real list either way.
+# Nothing about the binding tells them whether the list they hold is the one
+# the helper worked on. That question is not answerable from the call site,
+# which is why it gets answered by habit.
+#
+# The measurement runs both call styles over the same input and reports what
+# each caller ends up holding, plus whether the helper's own tests could have
+# distinguished them.
+
+def clean(rows):
+    [] => out
+    for r in rows:
+        if r < 0:
+            out + [0] => out
+        else:
+            out + [r] => out
+    return out
+
+def clean_in_place(rows):
+    for i in [0:len(rows) - 1]:
+        if rows[i] < 0:
+            0 => rows[i]
+    return rows
+
+def negatives_left(rows):
+    0 => n
+    for r in rows:
+        if r < 0:
+            n + 1 => n
+    return n
+
+[4, 0 - 2, 7, 0 - 9, 1] => source
+
+# caller A: uses the return value
+[4, 0 - 2, 7, 0 - 9, 1] => a_rows
+clean(a_rows) => a_rows
+
+# caller B: calls it the way you call something that works in place
+[4, 0 - 2, 7, 0 - 9, 1] => b_rows
+clean(b_rows)
+
+"the same helper, two call styles, same input" ^0
+"  source                       : " + repr(source) ^0
+"  caller A (uses return value) : " + repr(a_rows) + "  negatives left " + str(negatives_left(a_rows)) ^0
+"  caller B (assumed in place)  : " + repr(b_rows) + "  negatives left " + str(negatives_left(b_rows)) ^0
+"" ^0
+
+# ---- the helper's own tests ----
+
+"the helper's own fixtures, which check the return value" ^0
+[[[0 - 1], [0]], [[3], [3]], [[0 - 5, 2], [0, 2]], [[], []]] => fixtures
+0 => failing
+for f in fixtures:
+    clean(f[0]) => got
+    if repr(got) != repr(f[1]):
+        failing + 1 => failing
+"  fixtures failing: " + str(failing) + " of " + str(len(fixtures)) ^0
+"" ^0
+
+"could those fixtures have caught caller B's mistake?" ^0
+0 => fixtures_that_notice
+for f in fixtures:
+    [] => arg
+    for v in f[0]:
+        arg + [v] => arg
+    clean(arg)
+    if repr(arg) != repr(f[0]):
+        fixtures_that_notice + 1 => fixtures_that_notice
+"  fixtures whose ARGUMENT changed after the call: " + str(fixtures_that_notice) + " of " + str(len(fixtures)) ^0
+"  a return-value test cannot see the difference, because there is none to see" ^0
+"" ^0
+
+# ---- the in-place version, for contrast ----
+
+[4, 0 - 2, 7, 0 - 9, 1] => c_rows
+clean_in_place(c_rows)
+"an in-place helper called the same way caller B called the copying one" ^0
+"  after clean_in_place(c_rows) : " + repr(c_rows) + "  negatives left " + str(negatives_left(c_rows)) ^0
+"" ^0
+"Both helpers pass a return-value test. Both are called with one line. Only" ^0
+"one of them leaves the caller's data clean, and the call site is identical." ^0

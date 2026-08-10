@@ -1,0 +1,177 @@
+# Self-authored for the EML case corpus (no external origin). Three stages,
+# one named invariant each. Every stage keeps the one it named. By the end of
+# the pipeline, one invariant out of four is still standing - and it is one
+# that no stage ever claimed.
+#
+# This is not the same failure as a stage being wrong. Each stage is right,
+# and right about the thing it was asked to be right about. Fill-in owns "row
+# count unchanged". Zero-dropping owns "total unchanged" - and it genuinely
+# does not change a total, because the rows it removes contribute nothing.
+# Key-merging owns "keys unique". Three true statements.
+#
+# What nobody owns is the conjunction. The stage checks are chosen by whoever
+# wrote each stage, from inside that stage, and the property they happen not to
+# mention is exactly the one the next stage is free to break.
+#
+# The measurement is a grid: every invariant evaluated at every stage boundary,
+# so which stage breaks which is read off the run rather than declared. The
+# end-to-end row is the one that matters and it is the row nobody's check
+# corresponds to.
+#
+# A wrong premise, kept. The first version folded "the key sequence is
+# identical" and "relative order is preserved" into one column, which reports a
+# REMOVED ROW as a REORDERING - a length change tripping a check about order.
+# Split apart, the grid says something the conflated version could not: three
+# invariants die and relative order survives all three stages. The survivor is
+# the one nobody wrote a check for, which is the opposite of the moral you would
+# guess.
+
+def fill_missing(rows):
+    [] => out
+    for r in rows:
+        if r[1] == 0 - 1:
+            out + [[r[0], 10]] => out
+        else:
+            out + [r] => out
+    return out
+
+def drop_zero_rows(rows):
+    [] => out
+    for r in rows:
+        if r[1] == 0:
+            pass
+        else:
+            out + [r] => out
+    return out
+
+def merge_duplicate_keys(rows):
+    [] => out
+    for r in rows:
+        0 => found
+        [] => nxt
+        for o in out:
+            if o[0] == r[0]:
+                nxt + [[o[0], o[1] + r[1]]] => nxt
+                1 => found
+            else:
+                nxt + [o] => nxt
+        if found == 0:
+            nxt + [r] => nxt
+        nxt => out
+    return out
+
+def total(rows):
+    0 => t
+    for r in rows:
+        t + r[1] => t
+    return t
+
+def keys_of(rows):
+    [] => ks
+    for r in rows:
+        ks + [r[0]] => ks
+    return ks
+
+def keys_unique(rows):
+    [] => seen
+    1 => ok
+    for r in rows:
+        if r[0] in seen:
+            0 => ok
+        seen + [r[0]] => seen
+    return ok
+
+def key_seq_same(before, after):
+    keys_of(before) => a
+    keys_of(after) => b
+    if len(a) != len(b):
+        return 0
+    for i in [0:len(a) - 1]:
+        if a[i] != b[i]:
+            return 0
+    return 1
+
+# Relative order is a DIFFERENT invariant from an identical key sequence, and
+# folding them into one column would report a removed row as a reordering.
+def rel_order_kept(before, after):
+    keys_of(before) => a
+    keys_of(after) => b
+    0 => i
+    for k in b:
+        0 => found
+        while i < len(a):
+            if a[i] == k:
+                1 => found
+                i + 1 => i
+                break
+            i + 1 => i
+        if found == 0:
+            return 0
+    return 1
+
+def yn(v):
+    if v == 1:
+        return "yes"
+    return "no "
+
+def verdict(before, after):
+    if before == after:
+        return "kept"
+    return "BROKE (" + str(before) + " -> " + str(after) + ")"
+
+[["ann", 5], ["bo", 0 - 1], ["cy", 0], ["ann", 7], ["dee", 3], ["bo", 0]] => rows
+
+# ---- each stage's own check ----
+
+fill_missing(rows) => s1
+drop_zero_rows(s1) => s2
+merge_duplicate_keys(s2) => s3
+
+"each stage's own check, the one its author wrote" ^0
+"  fill_missing  says row count unchanged : " + yn(len(s1) == len(rows)) ^0
+"  drop_zeros    says total unchanged     : " + yn(total(s2) == total(s1)) ^0
+"  merge_keys    says keys unique         : " + yn(keys_unique(s3)) ^0
+"" ^0
+
+# ---- the grid: every invariant at every boundary ----
+
+"grid: each invariant measured against the ORIGINAL input at each boundary" ^0
+"  boundary        count  total  key-seq  rel-order" ^0
+"  after fill    :  " + yn(len(s1) == len(rows)) + "    " + yn(total(s1) == total(rows)) + "    " + yn(key_seq_same(rows, s1)) + "      " + yn(rel_order_kept(rows, s1)) ^0
+"  after drop    :  " + yn(len(s2) == len(rows)) + "    " + yn(total(s2) == total(rows)) + "    " + yn(key_seq_same(rows, s2)) + "      " + yn(rel_order_kept(rows, s2)) ^0
+"  after merge   :  " + yn(len(s3) == len(rows)) + "    " + yn(total(s3) == total(rows)) + "    " + yn(key_seq_same(rows, s3)) + "      " + yn(rel_order_kept(rows, s3)) ^0
+"" ^0
+
+0 => surviving
+if len(s3) == len(rows):
+    surviving + 1 => surviving
+if total(s3) == total(rows):
+    surviving + 1 => surviving
+if key_seq_same(rows, s3) == 1:
+    surviving + 1 => surviving
+if rel_order_kept(rows, s3) == 1:
+    surviving + 1 => surviving
+
+"invariants that survive end to end: " + str(surviving) + " of 4" ^0
+"stage checks that passed:            3 of 3" ^0
+"" ^0
+
+# ---- the numbers, so the reader can see it is not a rounding story ----
+
+"rows  in " + str(len(rows)) + " -> out " + str(len(s3)) ^0
+"total in " + str(total(rows)) + " -> out " + str(total(s3)) ^0
+"keys  in " + repr(keys_of(rows)) ^0
+"keys  out " + repr(keys_of(s3)) ^0
+"" ^0
+
+# ---- which stage broke which, measured ----
+
+"each stage against an invariant it never named" ^0
+"  fill  vs total     : " + verdict(total(rows), total(s1)) ^0
+"  drop  vs row count : " + verdict(len(s1), len(s2)) ^0
+"  merge vs row count : " + verdict(len(s2), len(s3)) ^0
+"" ^0
+"Every stage kept the invariant it named and broke one it never mentioned." ^0
+"That is the mechanism: a stage check is written from inside the stage, and" ^0
+"the property it happens not to mention is the one the next stage is free to" ^0
+"break." ^0
