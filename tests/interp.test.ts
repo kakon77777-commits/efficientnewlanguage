@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { spawnSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { transpileEmlToPython } from '@eml/transpiler-python';
@@ -37,14 +38,80 @@ function resolvePython(): string | null {
 }
 const PYTHON = resolvePython();
 
-function pythonStdout(py: string): string {
+type PyResult = { ok: boolean; out: string; err: string };
+
+/**
+ * ONE program, ITS OWN process. The reference the batch is measured against.
+ *
+ * Python's text-mode stdout uses '\r\n' on Windows; the interpreter emits the
+ * logical '\n'. Normalize so the gate compares program semantics, not console
+ * line-ending conventions.
+ */
+function pythonStdoutDirect(py: string): string {
   const r = spawnSync(PYTHON!, ['-c', py], { encoding: 'utf8' });
   if (r.error) throw r.error;
   expect(r.status, `python exited non-zero:\n${r.stderr}`).toBe(0);
-  // Python's text-mode stdout uses '\r\n' on Windows; the interpreter emits the
-  // logical '\n'. Normalize so the gate compares program semantics, not console
-  // line-ending conventions.
   return r.stdout.replace(/\r\n/g, '\n');
+}
+
+/**
+ * MANY programs, one process, a fresh globals dict each.
+ *
+ * Why this exists: the gate used to spawn one `python -c` per program. At 330
+ * examples that is ~390 processes and ~56s of SYNCHRONOUS blocking inside a
+ * single vitest worker, which starves the reporter's RPC and makes the run exit
+ * non-zero with `Timeout calling "onTaskUpdate"` while every test passes. The
+ * cost is linear in the corpus and the corpus is going to 1000.
+ *
+ * This changes how the most load-bearing gate in the project executes - programs
+ * that had a process each now share one - so equivalence is MEASURED, not
+ * assumed: see 'batched python == per-process python' below.
+ *
+ * `newline=""` on the results file is load-bearing. Without it Windows rewrites
+ * the line endings and every multi-line program appears to diverge.
+ */
+function batchPython(programs: string[]): PyResult[] {
+  if (programs.length === 0) return [];
+  const dir = mkdtempSync(join(tmpdir(), 'eml-interp-'));
+  try {
+    const srcFile = join(dir, 'programs.json');
+    const outFile = join(dir, 'results.json');
+    const esc = (p: string) => p.replace(/\\/g, '\\\\');
+    writeFileSync(srcFile, JSON.stringify(programs), 'utf8');
+    const runner = [
+      'import io, json, sys, traceback',
+      `programs = json.loads(io.open(r"${esc(srcFile)}", encoding="utf-8").read())`,
+      'results = []',
+      'real = sys.stdout',
+      'for src in programs:',
+      '    buf = io.StringIO()',
+      '    sys.stdout = buf',
+      '    try:',
+      '        exec(compile(src, "case.py", "exec"), {"__name__": "__main__"})',
+      '        results.append({"ok": True, "out": buf.getvalue(), "err": ""})',
+      '    except BaseException:',
+      '        results.append({"ok": False, "out": buf.getvalue(), "err": traceback.format_exc()})',
+      '    finally:',
+      '        sys.stdout = real',
+      `io.open(r"${esc(outFile)}", "w", encoding="utf-8", newline="").write(json.dumps(results))`,
+    ].join('\n');
+    const runFile = join(dir, 'run.py');
+    writeFileSync(runFile, runner, 'utf8');
+    const r = spawnSync(PYTHON!, [runFile], { encoding: 'utf8' });
+    if (r.status !== 0) throw new Error(`python batch harness failed: ${r.stderr}`);
+    return JSON.parse(readFileSync(outFile, 'utf8')) as PyResult[];
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+const PY_CACHE = new Map<string, PyResult>();
+
+function pythonStdout(py: string): string {
+  const hit = PY_CACHE.get(py);
+  if (!hit) return pythonStdoutDirect(py);
+  expect(hit.ok, `python exited non-zero:\n${hit.err}`).toBe(true);
+  return hit.out.replace(/\r\n/g, '\n');
 }
 
 /** Recursively collect every .eml under examples/. */
@@ -135,7 +202,31 @@ const CASES: Array<[string, string]> = [
   ],
 ];
 
+/** Every program this gate will ask CPython about, collected once. */
+const GATE_PROGRAMS: string[] = (() => {
+  const out: string[] = [];
+  for (const [, src] of CASES) {
+    const t = transpileEmlToPython(src);
+    if (t.ok) out.push(t.python);
+  }
+  for (const file of allExamples(examplesDir)) {
+    const rel = file.slice(examplesDir.length + 1).replace(/\\/g, '/');
+    if (UNSUPPORTED_EXAMPLES.has(rel)) continue;
+    const t = transpileEmlToPython(readFileSync(file, 'utf8'));
+    if (t.ok) out.push(t.python);
+  }
+  return out;
+})();
+
 describe.skipIf(!PYTHON)('interpreter ≡ python (execution-truth gate)', () => {
+  beforeAll(() => {
+    const results = batchPython(GATE_PROGRAMS);
+    expect(results.length, 'batch returned a different number of results than programs').toBe(
+      GATE_PROGRAMS.length,
+    );
+    GATE_PROGRAMS.forEach((py, i) => PY_CACHE.set(py, results[i]!));
+  });
+
   for (const [name, src] of CASES) {
     it(`case: ${name}`, () => {
       const { python, ok } = transpileEmlToPython(src);
@@ -166,6 +257,55 @@ describe.skipIf(!PYTHON)('interpreter ≡ python (execution-truth gate)', () => 
       expect(r.output).toBe(pythonStdout(python));
     });
   }
+});
+
+/**
+ * The batch runner is a change to HOW the execution-truth gate executes, so its
+ * equivalence to one-process-per-program is measured here rather than assumed.
+ *
+ * It is not equivalent in general, and this file says so with a witness: a batch
+ * shares process-global state, so a program that sets one is visible to the next.
+ * What makes the batch sound for THIS gate is that EML-P cannot express such a
+ * program - checked below against the actual emitted Python rather than argued
+ * from the language spec.
+ */
+describe.skipIf(!PYTHON)('batched python == per-process python', () => {
+  it('a sample of real gate programs agrees with its own process', () => {
+    const stride = Math.max(1, Math.floor(GATE_PROGRAMS.length / 12));
+    const sample: number[] = [];
+    for (let i = 0; i < GATE_PROGRAMS.length; i += stride) sample.push(i);
+    expect(sample.length, 'sample collapsed to nothing').toBeGreaterThan(5);
+
+    const batched = batchPython(sample.map((i) => GATE_PROGRAMS[i]!));
+    const mismatches: string[] = [];
+    sample.forEach((idx, k) => {
+      const direct = pythonStdoutDirect(GATE_PROGRAMS[idx]!);
+      const b = batched[k]!;
+      if (!b.ok) mismatches.push(`program ${idx}: batch raised\n${b.err}`);
+      else if (b.out.replace(/\r\n/g, '\n') !== direct) {
+        mismatches.push(
+          `program ${idx}:\n    direct=${JSON.stringify(direct)}\n    batch =${JSON.stringify(b.out)}`,
+        );
+      }
+    });
+    expect(mismatches, `${mismatches.length} of ${sample.length} sampled programs diverge`).toEqual([]);
+  });
+
+  it('the batch DOES leak process-global state - and EML-P cannot reach it', () => {
+    // The witness. Separate processes give the default limit twice; one process
+    // carries the first program's change into the second.
+    const setter = 'import sys\nsys.setrecursionlimit(3210)\nprint("set")';
+    const reader = 'import sys\nprint(sys.getrecursionlimit())';
+    const [, shared] = batchPython([setter, reader]);
+    const isolated = pythonStdoutDirect(reader);
+    expect(shared!.out.trim(), 'expected the batch to carry the setter into the reader').toBe('3210');
+    expect(isolated.trim(), 'a fresh process should not see it').not.toBe('3210');
+
+    // So the batch is only sound while no gate program can do that. Measured
+    // against the emitted Python, not asserted from the language definition.
+    const offenders = GATE_PROGRAMS.filter((py) => /\bsys\s*\.\s*set|setrecursionlimit|os\s*\.\s*environ/.test(py));
+    expect(offenders.length, `${offenders.length} emitted programs touch process-global state`).toBe(0);
+  });
 });
 
 describe('interpreter defers unsupported constructs (no fabricated output)', () => {
