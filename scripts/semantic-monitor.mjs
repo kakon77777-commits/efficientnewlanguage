@@ -255,7 +255,20 @@ const SEMANTIC_FILES = [
       'tests/aliasing-visibility.test.ts',
     ],
   ],
-  ['packages/transpiler-python/src/emitter.ts', ['tests/interp.test.ts', 'tests/statement-interaction.test.ts']],
+  [
+    'packages/transpiler-python/src/emitter.ts',
+    [
+      'tests/interp.test.ts',
+      'tests/statement-interaction.test.ts',
+      // Added 2026-08-11. The mutation operators in this axis are written
+      // against the SHAPE of the emitted Python, so a change to what the
+      // emitter produces silently changes what the operators mean - an operator
+      // whose pattern no longer occurs reports "applicable 0" and looks like
+      // good news. It is mapped here rather than to the interpreter because the
+      // emitter is what it reads.
+      'tests/gate-sensitivity.test.ts',
+    ],
+  ],
   // The FORWARD grammar was missing from this list entirely until 2026-08-01,
   // which is a hole the same shape as the bug found that day: a `pass`
   // statement was added to the lexer and parser, and nothing here would have

@@ -24,7 +24,7 @@ is finished.
 
 ---
 
-## The fifteen axes, in the order they were built
+## The sixteen axes, in the order they were built
 
 | # | axis | result | what it could not see |
 |---|---|---|---|
@@ -43,7 +43,8 @@ is finished.
 | 12 | diagnostic positions (13 triggers × 3 properties) | **1 real defect** | whether two components AGREE about a fact they each model |
 | 13 | rebinding across scopes (8 × 8 positions × 4 value shapes) | **1 real defect** | what the two directions do to a program neither was written for |
 | 14 | evaluation order within an expression (44 operand transcripts vs CPython) | 0 — clean first run; **3 grammar boundaries pinned** | whether two names denote the SAME object |
-| 15 | aliasing and mutation visibility (31 copy-or-alias behaviours vs CPython) | 0 — clean first run | *(the next axis has not been named yet)* |
+| 15 | aliasing and mutation visibility (31 copy-or-alias behaviours vs CPython) | 0 — clean first run | whether the gate that checks everything else can SEE a given defect at all |
+| 16 | what the execution-truth gate can see (8 mutation operators over the emitted Python, run against real CPython) | **1 invisible class named**: list aliasing, 12 programs applicable, **0 detected**; `str`→`repr` detected by only 5 of 40 | *(the next axis has not been named yet)* |
 
 Read the right-hand column downward. Each axis was honest, each went green, and
 each was blind in a direction that could only be named after building the next
