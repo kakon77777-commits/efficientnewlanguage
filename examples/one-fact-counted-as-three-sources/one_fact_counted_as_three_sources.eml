@@ -1,0 +1,130 @@
+# Self-authored for the EML case corpus (no external origin). Three systems
+# agree, and there is one observation.
+#
+# The value was measured once and written into the master record. Two other
+# services copied it, at different times, for different reasons, and both now
+# serve it as their own field. A reviewer querying all three gets three
+# agreeing answers and reports high confidence.
+#
+# Nobody lied and nothing was duplicated by mistake. Copying a value into the
+# system that needs it is correct engineering. The defect is in the COUNTING:
+# an agreement rate is only evidence when the things agreeing were able to
+# disagree.
+#
+# The program traces each answer back to where it came from and counts distinct
+# ORIGINS rather than distinct systems. Nothing is declared - provenance is
+# followed link by link.
+
+def origin_of(sources, name):
+    name => cur
+    0 => hops
+    for _step in sources:
+        0 => moved
+        for s in sources:
+            if s[0] == cur:
+                if s[2] != "":
+                    s[2] => cur
+                    hops + 1 => hops
+                    1 => moved
+        if moved == 0:
+            return [cur, hops]
+    return [cur, hops]
+
+# [system, value, copied_from]
+[["master", 4200, ""], ["billing", 4200, "master"], ["reporting", 4200, "billing"], ["audit", 4190, ""], ["support", 4200, "reporting"]] => sources
+
+4190 => truth
+
+# ---- what a reviewer sees ----
+
+"systems queried" ^0
+for s in sources:
+    "  " + s[0] + " reports " + str(s[1]) ^0
+"" ^0
+
+0 => agree_4200
+0 => agree_other
+for s in sources:
+    if s[1] == 4200:
+        agree_4200 + 1 => agree_4200
+    else:
+        agree_other + 1 => agree_other
+"  systems reporting 4200 : " + str(agree_4200) ^0
+"  systems reporting else : " + str(agree_other) ^0
+"" ^0
+
+# ---- where each answer actually comes from ----
+
+"provenance" ^0
+[] => origins
+for s in sources:
+    origin_of(sources, s[0]) => o
+    "  " + s[0] + " -> " + o[0] + "  (" + str(o[1]) + " hops)" ^0
+    if not (o[0] in origins):
+        origins + [o[0]] => origins
+"  distinct origins across " + str(len(sources)) + " systems : " + str(len(origins)) ^0
+"" ^0
+
+# ---- the same count, done properly ----
+
+0 => origin_4200
+0 => origin_other
+for o in origins:
+    for s in sources:
+        if s[0] == o:
+            if s[1] == 4200:
+                origin_4200 + 1 => origin_4200
+            else:
+                origin_other + 1 => origin_other
+"one vote per origin" ^0
+"  origins reporting 4200 : " + str(origin_4200) ^0
+"  origins reporting else : " + str(origin_other) ^0
+"" ^0
+
+# ---- which of them is right ----
+
+0 => correct_systems
+for s in sources:
+    if s[1] == truth:
+        correct_systems + 1 => correct_systems
+"  systems that match the true value : " + str(correct_systems) + " of " + str(len(sources)) ^0
+"" ^0
+
+# ---- correcting the master ----
+#
+# The copies do not update themselves. Fixing the origin leaves every derived
+# system reporting the old value, and the agreement rate is UNCHANGED.
+
+[] => after
+for s in sources:
+    if s[0] == "master":
+        after + [[s[0], truth, s[2]]] => after
+    else:
+        after + [[s[0], s[1], s[2]]] => after
+
+0 => after_agree
+0 => after_correct
+for s in after:
+    if s[1] == 4200:
+        after_agree + 1 => after_agree
+    if s[1] == truth:
+        after_correct + 1 => after_correct
+"after correcting the master record" ^0
+"  systems still reporting 4200 : " + str(after_agree) ^0
+"  systems matching the truth   : " + str(after_correct) ^0
+"" ^0
+
+# ---- the one system that could ever have disagreed ----
+
+"systems with no upstream, which are the only ones that can carry news" ^0
+0 => independent
+for s in sources:
+    if s[2] == "":
+        independent + 1 => independent
+        "  " + s[0] + " reports " + str(s[1]) ^0
+"  total: " + str(independent) + " of " + str(len(sources)) ^0
+"" ^0
+
+"An agreement rate is evidence only when the things agreeing were able to" ^0
+"disagree. Four of these five could not, and the one that could is the one" ^0
+"the reviewer treated as the outlier." ^0

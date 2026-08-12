@@ -1,0 +1,181 @@
+# Self-authored for the EML case corpus (no external origin). A nightly job
+# described as recomputing the estimate from scratch, which starts from
+# yesterday's answer.
+#
+# Seeding an iterative solver from the previous result is a real optimisation:
+# it converges in two passes instead of twenty, and on well-behaved data it
+# lands in the same place. The seed is not a shortcut in the answer, only in
+# the arithmetic - as long as the iteration actually converges to something
+# determined by the data.
+#
+# This case was written expecting the seeded chain to be worse, and the
+# measurement says otherwise: over eight runs the warm chain's total error is
+# 52 against the cold chain's 432. That result is kept, and the framing is the
+# one the numbers support rather than the one that was assumed.
+#
+# What the seed actually costs is not accuracy on average. It is WHERE the
+# error sits. The cold chain is wrong by a similar amount every day. The warm
+# chain is nearly exact on quiet days and carries almost all of its error into
+# the runs immediately after the target moves - so the error is concentrated at
+# exactly the moments a reader would most want the number to be right, and it
+# is invisible in any average taken over the week.
+#
+# Nothing is declared - both chains run over the same daily data, with the same
+# pass cap so the seed is the only difference, and a cold start with a generous
+# cap computes what the data actually says.
+
+def refine(estimate, target, passes):
+    estimate => e
+    for _p in [1:passes]:
+        e + int((target - e) / 2) => e
+    return e
+
+[100, 100, 260, 260, 260, 260, 260, 260] => daily_target
+2 => cap
+40 => generous
+
+# ---- the warm chain: each run seeds from the last ----
+
+"warm chain, seeded from the previous run, " + str(cap) + " passes" ^0
+100 => warm
+[] => warm_log
+0 => day
+for t in daily_target:
+    refine(warm, t, cap) => warm
+    warm_log + [warm] => warm_log
+    "  day " + str(day) + " : target " + str(t) + " -> reported " + str(warm) ^0
+    day + 1 => day
+"" ^0
+
+# ---- the cold chain: each run starts from nothing, same cap ----
+
+"cold chain, restarted each run, same " + str(cap) + " passes" ^0
+[] => cold_log
+0 => day2
+for t in daily_target:
+    refine(0, t, cap) => c
+    cold_log + [c] => cold_log
+    "  day " + str(day2) + " : target " + str(t) + " -> reported " + str(c) ^0
+    day2 + 1 => day2
+"" ^0
+
+# ---- what the data actually says ----
+
+"converged, " + str(generous) + " passes, cold" ^0
+[] => truth_log
+0 => day3
+for t in daily_target:
+    refine(0, t, generous) => v
+    truth_log + [v] => truth_log
+    "  day " + str(day3) + " : " + str(v) ^0
+    day3 + 1 => day3
+"" ^0
+
+# ---- error against what the data says ----
+
+0 => warm_err
+0 => cold_err
+0 => warm_worst
+0 => cold_worst
+0 => i
+for t in truth_log:
+    abs(warm_log[i] - t) => we
+    abs(cold_log[i] - t) => ce
+    warm_err + we => warm_err
+    cold_err + ce => cold_err
+    if we > warm_worst:
+        we => warm_worst
+    if ce > cold_worst:
+        ce => cold_worst
+    i + 1 => i
+"total error against the converged value" ^0
+"  warm chain : " + str(warm_err) + ", worst " + str(warm_worst) ^0
+"  cold chain : " + str(cold_err) + ", worst " + str(cold_worst) ^0
+"" ^0
+
+# ---- stability, which is what gets reported as confidence ----
+
+0 => warm_moves
+0 => cold_moves
+0 => truth_moves
+0 => j
+for v in warm_log:
+    if j > 0:
+        if warm_log[j] != warm_log[j - 1]:
+            warm_moves + 1 => warm_moves
+        if cold_log[j] != cold_log[j - 1]:
+            cold_moves + 1 => cold_moves
+        if truth_log[j] != truth_log[j - 1]:
+            truth_moves + 1 => truth_moves
+    j + 1 => j
+"day-to-day movement over " + str(len(daily_target)) + " runs" ^0
+"  warm chain moved  : " + str(warm_moves) + " times" ^0
+"  cold chain moved  : " + str(cold_moves) + " times" ^0
+"  the data moved    : " + str(truth_moves) + " times" ^0
+if warm_moves > truth_moves:
+    "  the warm chain moved MORE than the data did" ^0
+if warm_moves < truth_moves:
+    "  the warm chain moved LESS than the data did, which reads as stability" ^0
+"" ^0
+
+# ---- the day the target changed ----
+
+"the run after the target changed" ^0
+0 => k
+for t in daily_target:
+    if k > 0:
+        if daily_target[k] != daily_target[k - 1]:
+            "  day " + str(k) + " : target " + str(daily_target[k - 1]) + " -> " + str(t) ^0
+            "    warm reported " + str(warm_log[k]) + ", cold reported " + str(cold_log[k]) + ", converged " + str(truth_log[k]) ^0
+    k + 1 => k
+"" ^0
+
+"  warm value now         : " + str(warm_log[len(warm_log) - 1]) ^0
+"  converged value        : " + str(truth_log[len(truth_log) - 1]) ^0
+"" ^0
+
+# ---- where each chain's error actually sits ----
+#
+# A day is "quiet" if the target is the same as the day before. Split the two
+# chains' error across quiet days and change days.
+
+0 => warm_quiet
+0 => warm_change
+0 => cold_quiet
+0 => cold_change
+0 => quiet_days
+0 => change_days
+0 => m
+for t in truth_log:
+    abs(warm_log[m] - t) => we
+    abs(cold_log[m] - t) => ce
+    0 => is_change
+    if m > 0:
+        if daily_target[m] != daily_target[m - 1]:
+            1 => is_change
+    if m == 0:
+        1 => is_change
+    if is_change == 1:
+        change_days + 1 => change_days
+        warm_change + we => warm_change
+        cold_change + ce => cold_change
+    else:
+        quiet_days + 1 => quiet_days
+        warm_quiet + we => warm_quiet
+        cold_quiet + ce => cold_quiet
+    m + 1 => m
+
+"where the error sits" ^0
+"  days where the target moved : " + str(change_days) ^0
+"  quiet days                  : " + str(quiet_days) ^0
+"  warm chain : " + str(warm_change) + " on change days, " + str(warm_quiet) + " on quiet days" ^0
+"  cold chain : " + str(cold_change) + " on change days, " + str(cold_quiet) + " on quiet days" ^0
+if warm_quiet < cold_quiet:
+    "  the seeded chain is the better one on a quiet day" ^0
+"" ^0
+
+"Feeding the last answer forward was the right call here and the numbers say" ^0
+"so - less total error, and less on a quiet day. What it also did was move" ^0
+"what remains: most of the seeded chain's error lands in the runs right after" ^0
+"something changed, which is when anyone is actually reading the number, and" ^0
+"a weekly average is the one summary that cannot show it." ^0

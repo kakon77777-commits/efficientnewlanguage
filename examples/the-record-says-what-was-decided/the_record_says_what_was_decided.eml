@@ -1,0 +1,165 @@
+# Self-authored for the EML case corpus (no external origin). An audit log that
+# records conclusions, and what a reviewer can do with it.
+#
+# The log is complete, well-formatted and never loses an entry. Every decision
+# is in it, with the rule that was applied. What it does not contain is the
+# values the rule was applied TO, because those were on the request and the
+# request is gone.
+#
+# So the log answers "what did we decide" perfectly and "was that right" not at
+# all. The two look like the same question until somebody asks the second one.
+#
+# Re-derivability is COMPUTED, not asserted: a rule declares which fields it
+# reads, and a record supports re-derivation when it carries all of them. That
+# is why the numbers below can come out any way at all.
+
+def fields_read(rule):
+    if rule == "cap":
+        return ["amount"]
+    if rule == "tier":
+        return ["tier"]
+    return ["amount", "tier"]
+
+def field(record, name):
+    for kv in record:
+        if kv[0] == name:
+            return kv[1]
+    return 0 - 1
+
+def has_field(record, name):
+    for kv in record:
+        if kv[0] == name:
+            return 1
+    return 0
+
+def rederivable(record, rule):
+    for f in fields_read(rule):
+        if has_field(record, f) == 0:
+            return 0
+    return 1
+
+def apply_rule(rule, amount, tier):
+    if rule == "cap":
+        if amount > 500:
+            return "refer"
+        return "approve"
+    if tier == 2:
+        return "approve"
+    return "refer"
+
+def correct_rule(rule, amount, tier):
+    if rule == "cap":
+        if amount >= 500:
+            return "refer"
+        return "approve"
+    if tier == 2:
+        return "approve"
+    return "refer"
+
+# tier 2 is gold, tier 1 is basic. Full records, as they existed at the time.
+[[["id", 1], ["amount", 300], ["tier", 2]], [["id", 2], ["amount", 900], ["tier", 1]], [["id", 3], ["amount", 700], ["tier", 2]], [["id", 4], ["amount", 200], ["tier", 1]], [["id", 5], ["amount", 500], ["tier", 1]], [["id", 6], ["amount", 480], ["tier", 2]]] => events
+["cap", "cap", "tier", "tier", "cap", "tier"] => rules
+
+# the decision log keeps the id and the outcome, and drops the inputs
+[] => decision_log
+0 => i
+for e in events:
+    apply_rule(rules[i], field(e, "amount"), field(e, "tier")) => outcome
+    decision_log + [[["id", field(e, "id")], ["outcome", outcome]]] => decision_log
+    i + 1 => i
+
+"decisions recorded : " + str(len(decision_log)) ^0
+"" ^0
+"the decision log" ^0
+0 => j
+for d in decision_log:
+    "  request " + str(field(d, "id")) + " rule " + rules[j] + " -> " + field(d, "outcome") ^0
+    j + 1 => j
+"" ^0
+
+# ---- what each record supports ----
+
+0 => log_ok
+0 => ev_ok
+0 => k
+for d in decision_log:
+    log_ok + rederivable(d, rules[k]) => log_ok
+    ev_ok + rederivable(events[k], rules[k]) => ev_ok
+    k + 1 => k
+"decisions a reviewer can re-derive" ^0
+"  from the decision log : " + str(log_ok) + " of " + str(len(decision_log)) ^0
+"  from the raw events   : " + str(ev_ok) + " of " + str(len(events)) ^0
+"" ^0
+
+"fields each rule reads, and whether the log carries them" ^0
+for r in ["cap", "tier"]:
+    for f in fields_read(r):
+        0 => present
+        for d in decision_log:
+            present + has_field(d, f) => present
+        "  " + r + " reads " + f + " : present in " + str(present) + " of " + str(len(decision_log)) + " log entries" ^0
+"" ^0
+
+# ---- the rule is wrong, and only one record can show it ----
+#
+# `cap` refers above 500 where the policy says at 500 and above. Request 5 sits
+# exactly on the boundary.
+
+"decisions that disagree with the policy, searched from the raw events" ^0
+0 => wrong
+0 => m
+for e in events:
+    apply_rule(rules[m], field(e, "amount"), field(e, "tier")) => got
+    correct_rule(rules[m], field(e, "amount"), field(e, "tier")) => want
+    if got != want:
+        wrong + 1 => wrong
+        "  request " + str(field(e, "id")) + " amount " + str(field(e, "amount")) + " : logged " + got + ", policy says " + want ^0
+    m + 1 => m
+"  total: " + str(wrong) ^0
+"" ^0
+
+"the same search, from the decision log" ^0
+0 => checkable
+0 => found_in_log
+0 => n
+for d in decision_log:
+    if rederivable(d, rules[n]) == 1:
+        checkable + 1 => checkable
+        if field(d, "outcome") != correct_rule(rules[n], field(d, "amount"), field(d, "tier")):
+            found_in_log + 1 => found_in_log
+    n + 1 => n
+"  entries that could even be checked : " + str(checkable) + " of " + str(len(decision_log)) ^0
+"  defects found                      : " + str(found_in_log) ^0
+"" ^0
+
+# ---- what the log IS good for ----
+
+0 => has_outcome
+0 => has_id
+for d in decision_log:
+    has_outcome + has_field(d, "outcome") => has_outcome
+    has_id + has_field(d, "id") => has_id
+"questions the decision log answers" ^0
+"  which request      : " + str(has_id) + " of " + str(len(decision_log)) ^0
+"  what was decided   : " + str(has_outcome) + " of " + str(len(decision_log)) ^0
+"  whether it was right : " + str(checkable) + " of " + str(len(decision_log)) ^0
+"" ^0
+
+# ---- the margin, which is where a rule is actually decided ----
+
+"how close each capped decision was to changing" ^0
+0 => p
+0 => on_the_line
+for e in events:
+    if rules[p] == "cap":
+        field(e, "amount") - 500 => margin
+        "  request " + str(field(e, "id")) + " amount " + str(field(e, "amount")) + " : margin " + str(margin) ^0
+        if margin == 0:
+            on_the_line + 1 => on_the_line
+    p + 1 => p
+"  decisions sitting exactly on the boundary : " + str(on_the_line) ^0
+"  margins recoverable from the decision log : 0 of " + str(len(decision_log)) ^0
+"" ^0
+
+"A record of conclusions is a record of what a past version of the system" ^0
+"believed. Only a record of observations can disagree with it." ^0
