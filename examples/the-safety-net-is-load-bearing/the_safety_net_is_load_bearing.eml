@@ -1,0 +1,152 @@
+# Self-authored for the EML case corpus (no external origin). A filter that
+# drops records it should keep, and a reconciliation pass that puts them back.
+#
+# The reconciliation pass was added months later, by someone who noticed
+# records going missing and wrote a net rather than finding the hole. It works.
+# The output is correct. Both facts are true at once, and the second one is why
+# nobody went back for the first.
+#
+# The pass is also the slowest thing in the pipeline and it is described in the
+# code as a safety net, which is a word that invites deletion. The question
+# this program answers is not whether the net catches anything. It is what
+# fraction of the correct output arrives through the net rather than through
+# the path that is supposed to produce it.
+#
+# The two predicates are two implementations of one rule. Nothing declares
+# which is right - the program runs both against the same records and reports
+# where they disagree.
+
+def keep_filter(r):
+    if r[1] > 0:
+        if r[2] == "active":
+            return 1
+    return 0
+
+def should_be_visible(r):
+    if r[1] >= 0:
+        if r[2] == "active":
+            return 1
+    return 0
+
+def in_output(out, name):
+    0 => found
+    for o in out:
+        if o[0] == name:
+            1 => found
+    return found
+
+def main_path(records):
+    [] => out
+    for r in records:
+        if keep_filter(r) == 1:
+            out + [r] => out
+    return out
+
+def reconcile(out, records):
+    [] => added
+    for r in records:
+        if should_be_visible(r) == 1:
+            if in_output(out, r[0]) == 0:
+                added + [r] => added
+    return added
+
+[["ana", 12, "active"], ["bo", 0, "active"], ["cy", 5, "closed"], ["di", 0, "active"], ["ed", 7, "active"], ["fi", 0, "closed"], ["gu", 3, "active"], ["ha", 0, "active"], ["il", 9, "closed"]] => records
+
+# ---- what the truth is ----
+
+[] => truth
+for r in records:
+    if should_be_visible(r) == 1:
+        truth + [r] => truth
+
+# ---- the pipeline as shipped ----
+
+main_path(records) => produced
+reconcile(produced, records) => recovered
+[] => final
+for r in produced:
+    final + [r] => final
+for r in recovered:
+    final + [r] => final
+
+"the pipeline as shipped" ^0
+"  records that should be visible : " + str(len(truth)) ^0
+"  produced by the main path      : " + str(len(produced)) ^0
+"  added by the reconciler        : " + str(len(recovered)) ^0
+"  final output                   : " + str(len(final)) ^0
+0 => missing
+for t in truth:
+    if in_output(final, t[0]) == 0:
+        missing + 1 => missing
+0 => extra
+for f in final:
+    if should_be_visible(f) == 0:
+        extra + 1 => extra
+"  missing from the final output  : " + str(missing) ^0
+"  present but should not be      : " + str(extra) ^0
+"" ^0
+
+# ---- how much of the correct answer the net is carrying ----
+
+"share of the correct output that arrives through the net" ^0
+"  through the main path : " + str(len(produced)) + " of " + str(len(truth)) ^0
+"  through the net       : " + str(len(recovered)) + " of " + str(len(truth)) ^0
+if len(recovered) > 0:
+    "  the net is not a safety margin, it is part of the answer" ^0
+"" ^0
+
+# ---- deleting the net ----
+
+"main path alone, the net removed" ^0
+0 => m2
+for t in truth:
+    if in_output(produced, t[0]) == 0:
+        m2 + 1 => m2
+        "  lost: " + t[0] + " balance " + str(t[1]) ^0
+"  records lost : " + str(m2) ^0
+"" ^0
+
+# ---- keeping the net and removing the filter ----
+
+reconcile([], records) => net_only
+"the net alone, the filter removed" ^0
+0 => e2
+for r in net_only:
+    if should_be_visible(r) == 0:
+        e2 + 1 => e2
+0 => m3
+for t in truth:
+    if in_output(net_only, t[0]) == 0:
+        m3 + 1 => m3
+"  records produced : " + str(len(net_only)) ^0
+"  missing          : " + str(m3) ^0
+"  wrongly present  : " + str(e2) ^0
+"" ^0
+
+# ---- the disagreement, which is the actual defect ----
+
+"records the two predicates disagree about" ^0
+0 => disagree
+for r in records:
+    if keep_filter(r) != should_be_visible(r):
+        disagree + 1 => disagree
+        "  " + r[0] + " balance " + str(r[1]) + " " + r[2] + ": filter " + str(keep_filter(r)) + ", rule " + str(should_be_visible(r)) ^0
+"  total: " + str(disagree) ^0
+"" ^0
+
+# ---- what the net costs ----
+
+"comparisons the reconciler performs" ^0
+0 => comparisons
+for r in records:
+    if should_be_visible(r) == 1:
+        for o in produced:
+            comparisons + 1 => comparisons
+"  on " + str(len(records)) + " records : " + str(comparisons) ^0
+"  it grows with the product of the inputs, which is why someone will" ^0
+"  eventually propose removing it as an optimisation" ^0
+"" ^0
+
+"A net that catches nothing can be deleted safely. A net that is carrying" ^0
+"part of the answer cannot, and the two look identical from the outside -" ^0
+"both of them sit downstream of a green pipeline." ^0

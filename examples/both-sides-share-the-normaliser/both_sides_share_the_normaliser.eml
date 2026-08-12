@@ -1,0 +1,131 @@
+# Self-authored for the EML case corpus (no external origin). A test that
+# normalises the expected value with the same function the code under test
+# uses, and what that costs.
+#
+# Sharing the normaliser is not laziness. It is the obvious way to write the
+# test: the comparison should not fail over trailing spaces, so both sides get
+# cleaned first. The cost is precise and small - the suite goes blind to
+# exactly the defects that live INSIDE the shared function, and to nothing
+# else.
+#
+# So the interesting number is not "the shared version is worse". It is how
+# much worse, and where. The program runs the same behaviours under two test
+# styles against a correct implementation and against one whose normaliser
+# drops a character class, and reports which style notices which.
+#
+# The independent expectations are written as literal target strings, which is
+# the one place in this program where a value is stated rather than computed -
+# that is the point of the case. Everything about agreement and detection is
+# computed.
+
+def normalise(s, broken):
+    "" => out
+    for ch in s:
+        if ch == " ":
+            pass
+        else:
+            if broken == 1:
+                if ch == "-":
+                    pass
+                else:
+                    out + ch => out
+            else:
+                out + ch => out
+    return out
+
+def canonical_id(raw, broken):
+    return normalise(raw, broken)
+
+def stored_form(raw, broken):
+    return canonical_id(raw, broken)
+
+[["AB-12", "AB-12"], ["ab 34", "ab34"], [" 7-7 ", "7-7"], ["X - 9", "X-9"], ["-01-", "-01-"], ["  ", ""]] => cases
+
+# ---- style A: the expected value is normalised by the same function ----
+
+def shared_style(broken, cases):
+    0 => passed
+    for c in cases:
+        stored_form(c[0], broken) => actual
+        normalise(c[1], broken) => expected
+        if actual == expected:
+            passed + 1 => passed
+    return passed
+
+# ---- style B: the expected value is written out and compared as it stands ----
+
+def independent_style(broken, cases):
+    0 => passed
+    for c in cases:
+        stored_form(c[0], broken) => actual
+        if actual == c[1]:
+            passed + 1 => passed
+    return passed
+
+"behaviours checked: " + str(len(cases)) ^0
+"" ^0
+
+"against the correct implementation" ^0
+"  shared-normaliser style : " + str(shared_style(0, cases)) + " pass" ^0
+"  independent style       : " + str(independent_style(0, cases)) + " pass" ^0
+"" ^0
+
+"against an implementation whose normaliser also drops hyphens" ^0
+shared_style(1, cases) => s_broken
+independent_style(1, cases) => i_broken
+"  shared-normaliser style : " + str(s_broken) + " pass" ^0
+"  independent style       : " + str(i_broken) + " pass" ^0
+"" ^0
+
+"failures raised by each style when the shared function is broken" ^0
+"  shared-normaliser style : " + str(len(cases) - s_broken) ^0
+"  independent style       : " + str(len(cases) - i_broken) ^0
+"" ^0
+
+# ---- which behaviours each style can see the defect in ----
+
+"per behaviour, with the broken normaliser" ^0
+0 => affected
+0 => shared_saw
+for c in cases:
+    stored_form(c[0], 1) => actual
+    normalise(c[1], 1) => shared_expected
+    if actual != c[1]:
+        affected + 1 => affected
+        if actual != shared_expected:
+            shared_saw + 1 => shared_saw
+            "  " + c[0] + " -> " + actual + " (want " + c[1] + ")  : both styles fail" ^0
+        else:
+            "  " + c[0] + " -> " + actual + " (want " + c[1] + ")  : only the independent style fails" ^0
+"  behaviours the defect actually changes : " + str(affected) ^0
+"  of those, the shared style catches     : " + str(shared_saw) ^0
+"" ^0
+
+# ---- the defect is not everywhere, which is why this is survivable ----
+#
+# A defect in the shared normaliser is invisible. A defect anywhere ELSE is
+# still caught by both styles, because only one side of the comparison passes
+# through it.
+
+def stored_form_offset(raw, broken):
+    canonical_id(raw, broken) => s
+    return s + "!"
+
+"a defect OUTSIDE the shared function, same two styles" ^0
+0 => s_pass
+0 => i_pass
+for c in cases:
+    stored_form_offset(c[0], 0) => actual
+    if actual == normalise(c[1], 0):
+        s_pass + 1 => s_pass
+    if actual == c[1]:
+        i_pass + 1 => i_pass
+"  shared-normaliser style : " + str(s_pass) + " pass of " + str(len(cases)) ^0
+"  independent style       : " + str(i_pass) + " pass of " + str(len(cases)) ^0
+if s_pass == i_pass:
+    "  the two styles agree here, so the blindness is local to the shared code" ^0
+"" ^0
+
+"Sharing a helper between the code and its expectation does not weaken a" ^0
+"suite in general. It weakens it in exactly one place, and that place is not" ^0
+"visible from either file - it is visible only from the import list." ^0

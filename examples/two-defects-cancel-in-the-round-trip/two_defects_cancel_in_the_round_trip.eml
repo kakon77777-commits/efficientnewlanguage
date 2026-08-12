@@ -1,0 +1,185 @@
+# Self-authored for the EML case corpus (no external origin). An encoder and a
+# decoder that are both wrong, and a round-trip test that has never failed.
+#
+# The wire protocol says a code is a count of 4-unit steps. Our encoder divides
+# by 5 and our decoder multiplies by 5. Neither follows the protocol. Encode
+# then decode returns exactly what went in, so the round-trip test - the only
+# test either function has - passes, and has passed since the day both were
+# written.
+#
+# The interesting part is not that it passes. It is the shape of the repair.
+# There are four states: fix neither, fix the encoder, fix the decoder, fix
+# both. TWO of them round-trip cleanly and TWO do not, and the two that do are
+# "both wrong" and "both right". A partial rollout - the normal way a fix
+# reaches production - lands in one of the failing states, so fixing half of
+# this looks exactly like breaking it.
+#
+# Nothing below declares which states pass. Every error is computed by running
+# the pair and comparing against the input.
+
+def encode_ours(raw):
+    return int(raw / 5)
+
+def decode_ours(code):
+    return code * 5
+
+def encode_spec(raw):
+    return int(raw / 4)
+
+def decode_spec(code):
+    return code * 4
+
+def encode_with(which, raw):
+    if which == "spec":
+        return encode_spec(raw)
+    return encode_ours(raw)
+
+def decode_with(which, code):
+    if which == "spec":
+        return decode_spec(code)
+    return decode_ours(code)
+
+def distinct_count(xs):
+    [] => seen
+    0 => n
+    for x in xs:
+        if not (x in seen):
+            seen + [x] => seen
+            n + 1 => n
+    return n
+
+def round_trip_error(enc, dec, samples):
+    0 => total
+    for raw in samples:
+        encode_with(enc, raw) => c
+        decode_with(dec, c) => back
+        total + abs(back - raw) => total
+    return total
+
+# Values the round-trip test uses. They are multiples of 20, which is a
+# multiple of BOTH step sizes - a detail nobody chose on purpose.
+[0, 20, 40, 60, 80, 100, 120] => aligned
+
+# Values that arrive in production.
+[0, 7, 13, 20, 33, 41, 58, 62, 77, 99, 104, 120] => mixed
+
+["ours", "spec"] => choices
+
+# ---- the four repair states, on the test's own fixture ----
+
+"round-trip error on the test fixture (multiples of 20)" ^0
+for enc in choices:
+    for dec in choices:
+        round_trip_error(enc, dec, aligned) => e
+        "  encoder " + enc + " + decoder " + dec + " : " + str(e) ^0
+"" ^0
+
+# ---- the same four states, on production values ----
+
+"round-trip error on production values" ^0
+for enc in choices:
+    for dec in choices:
+        round_trip_error(enc, dec, mixed) => e
+        "  encoder " + enc + " + decoder " + dec + " : " + str(e) ^0
+"" ^0
+
+# ---- how many states the fixture can tell apart ----
+
+[] => fixture_results
+[] => production_results
+for enc in choices:
+    for dec in choices:
+        fixture_results + [round_trip_error(enc, dec, aligned)] => fixture_results
+        production_results + [round_trip_error(enc, dec, mixed)] => production_results
+
+"distinct outcomes the round-trip test can produce" ^0
+"  on its own fixture   : " + str(distinct_count(fixture_results)) + " of " + str(len(fixture_results)) + " states" ^0
+"  on production values : " + str(distinct_count(production_results)) + " of " + str(len(production_results)) + " states" ^0
+"" ^0
+
+0 => clean_on_fixture
+for e in fixture_results:
+    if e == 0:
+        clean_on_fixture + 1 => clean_on_fixture
+"  states that round-trip cleanly on the fixture: " + str(clean_on_fixture) ^0
+"  (the all-wrong state and the all-right state are two of them)" ^0
+"" ^0
+
+# On production values the encoding is lossy in EVERY state - dividing by a
+# step size throws away the remainder, and that is the encoding working as
+# designed, not a defect. So the honest question is not "which state is zero"
+# but whether the matched states and the mismatched ones even overlap.
+
+[] => matched_errors
+[] => mismatched_errors
+for enc in choices:
+    for dec in choices:
+        round_trip_error(enc, dec, mixed) => e
+        if enc == dec:
+            matched_errors + [e] => matched_errors
+        else:
+            mismatched_errors + [e] => mismatched_errors
+
+"matched pairs against mismatched pairs, on production values" ^0
+"  worst error when encoder and decoder agree    : " + str(max(matched_errors)) ^0
+"  best error when they disagree                 : " + str(min(mismatched_errors)) ^0
+if max(matched_errors) < min(mismatched_errors):
+    "  the two groups do not overlap, so agreeing matters more than being right" ^0
+else:
+    "  the two groups overlap" ^0
+"" ^0
+
+# ---- what leaves the machine ----
+
+"the code on the wire, ours against the protocol" ^0
+0 => same_code
+0 => diff_code
+[] => first_diff
+for raw in mixed:
+    encode_ours(raw) => a
+    encode_spec(raw) => b
+    if a == b:
+        same_code + 1 => same_code
+    else:
+        diff_code + 1 => diff_code
+        if len(first_diff) == 0:
+            [raw, a, b] => first_diff
+"  values where our code matches the protocol : " + str(same_code) ^0
+"  values where it does not                   : " + str(diff_code) ^0
+if len(first_diff) > 0:
+    "  first disagreement: raw " + str(first_diff[0]) + " -> we send " + str(first_diff[1]) + ", protocol says " + str(first_diff[2]) ^0
+"" ^0
+
+# ---- anyone who follows the protocol ----
+
+"a conforming partner decoding what we send" ^0
+0 => partner_wrong
+0 => partner_worst
+for raw in mixed:
+    decode_spec(encode_ours(raw)) => got
+    abs(got - raw) => err
+    if err > 0:
+        partner_wrong + 1 => partner_wrong
+    if err > partner_worst:
+        err => partner_worst
+"  values they read wrongly : " + str(partner_wrong) + " of " + str(len(mixed)) ^0
+"  worst error              : " + str(partner_worst) ^0
+"" ^0
+
+"us decoding what a conforming partner sends" ^0
+0 => we_wrong
+0 => we_worst
+for raw in mixed:
+    decode_ours(encode_spec(raw)) => got
+    abs(got - raw) => err
+    if err > 0:
+        we_wrong + 1 => we_wrong
+    if err > we_worst:
+        err => we_worst
+"  values we read wrongly : " + str(we_wrong) + " of " + str(len(mixed)) ^0
+"  worst error            : " + str(we_worst) ^0
+"" ^0
+
+"Both halves are wrong and the pair is exact, so the test that covers them" ^0
+"both cannot see either. The failure is not in the round trip. It is at every" ^0
+"edge where one half meets something that is not the other half." ^0

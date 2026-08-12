@@ -1,0 +1,142 @@
+# Self-authored for the EML case corpus (no external origin). A reconciliation
+# that failed by three, and a tolerance of five.
+#
+# Setting the tolerance was not a cover-up. The difference was small, the
+# release was due, and a check that fails on a rounding-sized amount every few
+# days is a check nobody reads. Every step of that reasoning is sound and the
+# conclusion is still wrong, for two reasons the program measures.
+#
+# First: a tolerance does not admit only the discrepancy that motivated it. It
+# admits everything smaller, including discrepancies with entirely different
+# causes, and those causes are not rounding.
+#
+# Second: the discrepancy that motivated it is SYSTEMATIC - one ledger drops
+# fees - so it scales with volume. A tolerance sized to today's volume is
+# already too small for next year's, and the same argument will be made again
+# with a bigger number.
+#
+# Nothing is declared. The discrepancy is computed by running both ledgers, and
+# its decomposition is computed by running the fee-only cause on its own.
+
+def ledger_complete(day, scale):
+    0 => total
+    for t in day:
+        for _c in [1:scale]:
+            total + t[0] + t[1] => total
+    return total
+
+def ledger_missing_fees(day, scale):
+    0 => total
+    for t in day:
+        for _c in [1:scale]:
+            total + t[0] => total
+    return total
+
+def one_off_error(day):
+    # a single transaction posted at the wrong amount. Marker 1 is posted too
+    # HIGH, which pushes the second ledger toward the first and shrinks the
+    # observed gap. Marker 2 is posted too LOW and widens it. Both are the same
+    # size of mistake; only one of them is visible as a bigger number.
+    0 => e
+    for t in day:
+        if t[2] == 1:
+            e + 4 => e
+        if t[2] == 2:
+            e - 2 => e
+    return e
+
+def discrepancy(day, scale):
+    ledger_complete(day, scale) => a
+    ledger_missing_fees(day, scale) + one_off_error(day) => b
+    if a > b:
+        return a - b
+    return b - a
+
+def fee_only_discrepancy(day, scale):
+    ledger_complete(day, scale) => a
+    ledger_missing_fees(day, scale) => b
+    if a > b:
+        return a - b
+    return b - a
+
+[[[50, 1, 0], [30, 1, 0], [20, 1, 0]], [[60, 1, 0], [40, 1, 0], [10, 1, 1]], [[70, 1, 0], [25, 1, 0], [15, 1, 2]], [[80, 1, 0], [35, 1, 0], [45, 1, 1]], [[90, 1, 0], [55, 1, 0], [5, 1, 0]], [[65, 1, 0], [20, 1, 0], [35, 1, 2]]] => days
+["mon", "tue", "wed", "thu", "fri", "sat"] => labels
+
+# ---- the day that started it ----
+
+"daily discrepancy at today's volume" ^0
+0 => di
+for d in days:
+    discrepancy(d, 1) => total_gap
+    fee_only_discrepancy(d, 1) => fee_gap
+    "  " + labels[di] + " : gap " + str(total_gap) + "  (fees alone would give " + str(fee_gap) + ")" ^0
+    di + 1 => di
+"" ^0
+
+# ---- the tolerance sweep ----
+
+"days that pass, by tolerance" ^0
+for tol in [0, 1, 2, 3, 4, 5, 10]:
+    0 => passing
+    for d in days:
+        if discrepancy(d, 1) <= tol:
+            passing + 1 => passing
+    "  tolerance " + str(tol) + " : " + str(passing) + " of " + str(len(days)) + " pass" ^0
+"" ^0
+
+# ---- what the tolerance admits besides the thing it was chosen for ----
+
+"days whose gap has a cause OTHER than the missing fees" ^0
+0 => other_cause
+0 => hidden_at_5
+0 => shrank_the_gap
+for di in [0:5]:
+    days[di] => d
+    discrepancy(d, 1) => total_gap
+    fee_only_discrepancy(d, 1) => fee_gap
+    if total_gap != fee_gap:
+        other_cause + 1 => other_cause
+        if total_gap < fee_gap:
+            shrank_the_gap + 1 => shrank_the_gap
+        if total_gap <= 5:
+            hidden_at_5 + 1 => hidden_at_5
+            "  " + labels[di] + " : gap " + str(total_gap) + ", fees explain " + str(fee_gap) + " - hidden at tolerance 5" ^0
+        else:
+            "  " + labels[di] + " : gap " + str(total_gap) + ", fees explain " + str(fee_gap) + " - still visible" ^0
+"  days with a second cause : " + str(other_cause) ^0
+"  of those, hidden at tolerance 5 : " + str(hidden_at_5) ^0
+"  of those, where the second cause made the gap SMALLER : " + str(shrank_the_gap) ^0
+if shrank_the_gap > 0:
+    "  a day with two defects can report the cleanest number on the board" ^0
+"" ^0
+
+# ---- the systematic cause scales ----
+
+"the same tolerance of 5, as volume grows" ^0
+for scale in [1, 2, 3, 4]:
+    0 => failing
+    0 => worst
+    for d in days:
+        discrepancy(d, scale) => g
+        if g > 5:
+            failing + 1 => failing
+        if g > worst:
+            g => worst
+    "  volume x" + str(scale) + " : " + str(failing) + " of " + str(len(days)) + " days exceed the tolerance, worst gap " + str(worst) ^0
+"" ^0
+
+# ---- the tolerance that would be needed at each volume ----
+
+"smallest tolerance that would silence every day, by volume" ^0
+for scale in [1, 2, 3, 4]:
+    0 => needed
+    for d in days:
+        discrepancy(d, scale) => g
+        if g > needed:
+            g => needed
+    "  volume x" + str(scale) + " : " + str(needed) ^0
+"" ^0
+
+"A tolerance is a claim that differences below it do not matter. The" ^0
+"difference that prompted this one was not too small to matter - it was" ^0
+"too small to investigate, and those are different sentences." ^0

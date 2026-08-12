@@ -1,0 +1,125 @@
+# Self-authored for the EML case corpus (no external origin). A sliding window
+# whose start is one late and whose end is one late, and a test suite that
+# checks the window's length.
+#
+# Either off-by-one alone changes the length, so the length check finds it.
+# Both together restore the length exactly, and the check goes quiet. The
+# suite can catch half of this defect and not the whole of it - which is the
+# mirror image of a fix that must be applied whole or not at all.
+#
+# There is a second dependency here, on the DATA rather than the code: a
+# shifted window over constant values has the same sum as an unshifted one, so
+# a suite whose fixture happens to be flat cannot see the contents move either.
+# The program runs both fixtures and reports which states each one can tell
+# apart. Nothing is declared - every window is built and compared.
+
+def window(xs, i, k, shift_start, shift_end):
+    i + shift_start => lo
+    i + k - 1 + shift_end => hi
+    [] => out
+    for j in [lo:hi]:
+        out + [xs[j]] => out
+    return out
+
+def same_list(a, b):
+    if len(a) != len(b):
+        return 0
+    0 => idx
+    1 => ok
+    for x in a:
+        if x != b[idx]:
+            0 => ok
+        idx + 1 => idx
+    return ok
+
+[3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8] => varied
+
+[] => flat
+for _step in [1:12]:
+    flat + [7] => flat
+
+4 => k
+[[0, 0], [1, 0], [0, 1], [1, 1]] => states
+["correct", "start late", "end late", "both late"] => labels
+
+# ---- what a length-only check sees ----
+
+"windows whose length is not " + str(k) ^0
+0 => si
+[] => length_ok
+for s in states:
+    0 => bad_len
+    for i in [0:7]:
+        window(varied, i, k, s[0], s[1]) => w
+        if len(w) != k:
+            bad_len + 1 => bad_len
+    "  " + labels[si] + " : " + str(bad_len) + " of 8" ^0
+    if bad_len == 0:
+        length_ok + [si] => length_ok
+    si + 1 => si
+"  states a length check accepts: " + str(len(length_ok)) + " of " + str(len(states)) ^0
+"" ^0
+
+# ---- what those same states actually produce ----
+
+"windows whose CONTENTS differ from the correct window (varied data)" ^0
+0 => si
+[] => content_ok
+for s in states:
+    0 => bad
+    for i in [0:7]:
+        window(varied, i, k, 0, 0) => truth
+        window(varied, i, k, s[0], s[1]) => got
+        if same_list(truth, got) == 0:
+            bad + 1 => bad
+    "  " + labels[si] + " : " + str(bad) + " of 8" ^0
+    if bad == 0:
+        content_ok + [si] => content_ok
+    si + 1 => si
+"  states that are actually correct: " + str(len(content_ok)) + " of " + str(len(states)) ^0
+"" ^0
+
+# ---- a state the length check accepts and the contents reject ----
+
+"states accepted by the length check but wrong in contents" ^0
+0 => hidden
+for si in length_ok:
+    if not (si in content_ok):
+        hidden + 1 => hidden
+        "  " + labels[si] ^0
+"  total: " + str(hidden) ^0
+"" ^0
+
+[] => witness
+for i in [0:7]:
+    window(varied, i, k, 0, 0) => truth
+    window(varied, i, k, 1, 1) => got
+    if same_list(truth, got) == 0:
+        if len(witness) == 0:
+            [i, repr(truth), repr(got), str(sum(truth)), str(sum(got))] => witness
+if len(witness) > 0:
+    "first window where both-late differs" ^0
+    "  at index  : " + str(witness[0]) ^0
+    "  correct   : " + witness[1] + "  sum " + witness[3] ^0
+    "  both late : " + witness[2] + "  sum " + witness[4] ^0
+    "" ^0
+
+# ---- the same four states over a flat fixture ----
+
+"windows whose SUM differs from the correct window" ^0
+0 => si
+for s in states:
+    0 => bad_v
+    0 => bad_f
+    for i in [0:7]:
+        if sum(window(varied, i, k, s[0], s[1])) != sum(window(varied, i, k, 0, 0)):
+            bad_v + 1 => bad_v
+        if sum(window(flat, i, k, s[0], s[1])) != sum(window(flat, i, k, 0, 0)):
+            bad_f + 1 => bad_f
+    "  " + labels[si] + " : varied " + str(bad_v) + " of 8, flat " + str(bad_f) + " of 8" ^0
+    si + 1 => si
+"" ^0
+
+"A defect that must be present twice to hide is not rarer than one that hides" ^0
+"alone. It is more common, because the second one is usually written by the" ^0
+"same hand, on the same day, from the same misreading." ^0

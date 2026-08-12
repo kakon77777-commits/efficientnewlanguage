@@ -1,0 +1,142 @@
+# Self-authored for the EML case corpus (no external origin). Two services
+# disagree about an order's status, and the tie-breaker calls one of them.
+#
+# The resolver does not know it is doing this. It calls the status endpoint,
+# which is the documented source of truth, and the status endpoint is served by
+# service A. From the resolver's side that is a neutral third source; from the
+# outside it is asking one party to adjudicate its own dispute.
+#
+# The metric this produces is the part that keeps the design alive: A wins
+# every dispute, which reads as A being the more reliable service, which is the
+# reason given for continuing to treat A as authoritative.
+#
+# The event log is the actual independent record. The program grades all three
+# against it. Nothing is declared - each order's true status is derived by
+# replaying its events.
+
+def replay(events):
+    "new" => status
+    for e in events:
+        if e == "pay":
+            "paid" => status
+        if e == "ship":
+            "shipped" => status
+        if e == "cancel":
+            "cancelled" => status
+    return status
+
+def service_a(order):
+    # A misses cancellations that arrive after shipping
+    "new" => status
+    for e in order[1]:
+        if e == "pay":
+            "paid" => status
+        if e == "ship":
+            "shipped" => status
+        if e == "cancel":
+            if status != "shipped":
+                "cancelled" => status
+    return status
+
+def service_b(order):
+    # B misses payments that arrive in the same batch as a shipment
+    "new" => status
+    0 => shipped_seen
+    for e in order[1]:
+        if e == "ship":
+            1 => shipped_seen
+        if e == "pay":
+            if shipped_seen == 0:
+                "paid" => status
+        if e == "ship":
+            "shipped" => status
+        if e == "cancel":
+            "cancelled" => status
+    return status
+
+# the shipped resolver: calls the status endpoint, which A serves
+def resolve_via_endpoint(order):
+    return service_a(order)
+
+# a resolver that replays the event log
+def resolve_via_log(order):
+    return replay(order[1])
+
+[["o1", ["pay", "ship"]], ["o2", ["pay", "ship", "cancel"]], ["o3", ["ship", "pay"]], ["o4", ["pay", "cancel"]], ["o5", ["ship", "pay", "cancel"]], ["o6", ["pay"]], ["o7", ["ship", "cancel"]], ["o8", ["pay", "ship", "cancel"]]] => orders
+
+# ---- the disputes ----
+
+"order  A          B          truth" ^0
+0 => disputes
+for o in orders:
+    service_a(o) => a
+    service_b(o) => b
+    replay(o[1]) => t
+    if a != b:
+        disputes + 1 => disputes
+        "  " + o[0] + " : " + a + "  " + b + "  " + t + "   <- dispute" ^0
+    else:
+        "  " + o[0] + " : " + a + "  " + b + "  " + t ^0
+"  disputes : " + str(disputes) + " of " + str(len(orders)) ^0
+"" ^0
+
+# ---- who wins, and who was right ----
+
+0 => a_wins
+0 => b_wins
+0 => endpoint_right
+0 => log_right
+for o in orders:
+    service_a(o) => a
+    service_b(o) => b
+    replay(o[1]) => t
+    if a != b:
+        resolve_via_endpoint(o) => decided
+        if decided == a:
+            a_wins + 1 => a_wins
+        if decided == b:
+            b_wins + 1 => b_wins
+        if decided == t:
+            endpoint_right + 1 => endpoint_right
+        if resolve_via_log(o) == t:
+            log_right + 1 => log_right
+"resolution of the " + str(disputes) + " disputes" ^0
+"  A's answer chosen : " + str(a_wins) ^0
+"  B's answer chosen : " + str(b_wins) ^0
+"  the choice was correct : " + str(endpoint_right) + " of " + str(disputes) ^0
+"  replaying the log is correct : " + str(log_right) + " of " + str(disputes) ^0
+"" ^0
+
+# ---- the metric that defends the design ----
+
+"each service's accuracy, measured against the event log" ^0
+0 => a_right
+0 => b_right
+for o in orders:
+    if service_a(o) == replay(o[1]):
+        a_right + 1 => a_right
+    if service_b(o) == replay(o[1]):
+        b_right + 1 => b_right
+"  A correct : " + str(a_right) + " of " + str(len(orders)) ^0
+"  B correct : " + str(b_right) + " of " + str(len(orders)) ^0
+"" ^0
+"the same two services, ranked by the dispute record instead" ^0
+"  A won " + str(a_wins) + " disputes, B won " + str(b_wins) ^0
+if b_wins == 0:
+    "  a perfect record, produced by the arbiter rather than by A" ^0
+"" ^0
+
+# ---- what each service is actually wrong about ----
+
+"orders each service gets wrong" ^0
+for o in orders:
+    replay(o[1]) => t
+    if service_a(o) != t:
+        "  A : " + o[0] + " says " + service_a(o) + ", log says " + t ^0
+    if service_b(o) != t:
+        "  B : " + o[0] + " says " + service_b(o) + ", log says " + t ^0
+"" ^0
+
+"An arbiter is defined by what it is independent OF. The resolver here is" ^0
+"independent of B, and its record shows it: every dispute resolved, none of" ^0
+"them by looking at anything neither party already said." ^0

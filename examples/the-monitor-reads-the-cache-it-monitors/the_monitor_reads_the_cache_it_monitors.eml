@@ -1,0 +1,132 @@
+# Self-authored for the EML case corpus (no external origin). A freshness
+# check that goes through the same cache the request path goes through.
+#
+# The check is written the way every other consumer is written: call the data
+# access layer, look at what comes back. That is the correct way to build a
+# client and the wrong way to build a monitor, because the data access layer is
+# the thing under suspicion. Asked whether the cache is stale, it compares the
+# cache against itself.
+#
+# The program runs a timeline where the source of truth changes faster than the
+# cache refreshes, and grades three monitors against what was actually served.
+# It also counts FALSE alarms, because a monitor that fires every tick would
+# score perfectly on detection and be worth nothing - detection alone is not a
+# measurement.
+
+def source_value(tick):
+    return int(tick / 2) + 10
+
+def cache_value(tick, refresh_every):
+    int(tick / refresh_every) * refresh_every => last_refresh
+    return source_value(last_refresh)
+
+# what the user gets
+def served(tick, refresh_every):
+    return cache_value(tick, refresh_every)
+
+# the monitor as written: goes through the data access layer for both sides
+def monitor_via_cache(tick, refresh_every):
+    cache_value(tick, refresh_every) => observed
+    cache_value(tick, refresh_every) => reference
+    if observed != reference:
+        return 1
+    return 0
+
+# the monitor that bypasses the cache for its reference
+def monitor_direct(tick, refresh_every):
+    cache_value(tick, refresh_every) => observed
+    source_value(tick) => reference
+    if observed != reference:
+        return 1
+    return 0
+
+# a monitor that always alarms, as a floor for what "detection" is worth
+def monitor_paranoid(tick, refresh_every):
+    return 1
+
+3 => refresh_every
+[0:11] => ticks_placeholder
+
+# ---- the timeline ----
+
+"tick  source  served  stale" ^0
+0 => stale_ticks
+for t in [0:11]:
+    source_value(t) => s
+    served(t, refresh_every) => v
+    0 => is_stale
+    if s != v:
+        1 => is_stale
+        stale_ticks + 1 => stale_ticks
+    "  " + str(t) + "     " + str(s) + "      " + str(v) + "      " + str(is_stale) ^0
+"  ticks where the served value was stale: " + str(stale_ticks) + " of 12" ^0
+"" ^0
+
+# ---- each monitor, graded against what was served ----
+
+0 => c_hit
+0 => c_false
+0 => d_hit
+0 => d_false
+0 => p_hit
+0 => p_false
+for t in [0:11]:
+    0 => truth
+    if source_value(t) != served(t, refresh_every):
+        1 => truth
+    if monitor_via_cache(t, refresh_every) == 1:
+        if truth == 1:
+            c_hit + 1 => c_hit
+        else:
+            c_false + 1 => c_false
+    if monitor_direct(t, refresh_every) == 1:
+        if truth == 1:
+            d_hit + 1 => d_hit
+        else:
+            d_false + 1 => d_false
+    if monitor_paranoid(t, refresh_every) == 1:
+        if truth == 1:
+            p_hit + 1 => p_hit
+        else:
+            p_false + 1 => p_false
+
+"monitor                     caught  false alarms" ^0
+"  reads through the cache : " + str(c_hit) + " of " + str(stale_ticks) + "     " + str(c_false) ^0
+"  reads the source        : " + str(d_hit) + " of " + str(stale_ticks) + "     " + str(d_false) ^0
+"  alarms every tick       : " + str(p_hit) + " of " + str(stale_ticks) + "     " + str(p_false) ^0
+"" ^0
+
+if c_hit == 0:
+    if c_false == 0:
+        "The cache-reading monitor never fires. It has one outcome, so it is" ^0
+        "not measuring anything - it is reporting that a value equals itself." ^0
+        "" ^0
+
+# ---- the paranoid monitor is why detection alone is not a score ----
+
+if p_hit == stale_ticks:
+    "The always-alarming monitor catches every stale tick, which is why" ^0
+    "detection is only half a measurement. Its " + str(p_false) + " false alarms are the" ^0
+    "other half, and the direct monitor raises " + str(d_false) + "." ^0
+    "" ^0
+
+# ---- the cache-reading monitor does not improve when things get worse ----
+
+"the same three monitors as the refresh interval is stretched" ^0
+for r in [1, 2, 3, 4, 6]:
+    0 => truth_n
+    0 => cn
+    0 => dn
+    for t in [0:11]:
+        if source_value(t) != served(t, r):
+            truth_n + 1 => truth_n
+            if monitor_via_cache(t, r) == 1:
+                cn + 1 => cn
+            if monitor_direct(t, r) == 1:
+                dn + 1 => dn
+    "  refresh every " + str(r) + " : stale " + str(truth_n) + ", cache-monitor caught " + str(cn) + ", direct caught " + str(dn) ^0
+"" ^0
+
+"A monitor is not a consumer. Every other component should reach the data" ^0
+"the same way the users do; this one is the single component that must not," ^0
+"and it is the one most likely to be written by copying a consumer." ^0

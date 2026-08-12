@@ -1,0 +1,151 @@
+# Self-authored for the EML case corpus (no external origin). A snapshot test,
+# and the command that updates the snapshot.
+#
+# The golden file was produced by the renderer, back when the renderer was
+# right. That is the normal and correct way to create one. What decides whether
+# the test can ever fail is what happens NEXT: if a failing snapshot is
+# resolved by regenerating it, the golden stops being an independent record of
+# the intended output and becomes a copy of whatever the code does now.
+#
+# The program applies a set of changes to the renderer and asks each one twice:
+# does it differ from the FROZEN golden, and does it differ from a golden
+# regenerated from the changed code.
+#
+# One of the changes is semantically null - it computes the same total by
+# walking the list from the other end. It is here as a control. A harness that
+# reports the null change as a difference is not detecting changes, it is
+# manufacturing them, and its other numbers would mean nothing.
+
+def render(items, variant):
+    len(items) => n
+    0 => total
+    for x in items:
+        total + x => total
+    if variant == 1:
+        0 => t2
+        len(items) - 1 => idx
+        for _s in items:
+            t2 + items[idx] => t2
+            idx - 1 => idx
+        t2 => total
+    if variant == 2:
+        total - 1 => total
+    if variant == 4:
+        n + 1 => n
+    max(items) => biggest
+    "n=" + str(n) => part_n
+    "total=" + str(total) => part_t
+    "max=" + str(biggest) => part_m
+    if variant == 3:
+        return part_n + " " + part_t
+    if variant == 5:
+        return part_n + "," + part_t + "," + part_m
+    return part_n + " " + part_t + " " + part_m
+
+[4, 1, 7, 3] => items
+[0, 1, 2, 3, 4, 5] => variants
+["unchanged", "same total, other direction", "total off by one", "max field dropped", "count off by one", "separator changed"] => names
+
+# The golden as it was committed: produced by the renderer on the day the
+# renderer was correct.
+render(items, 0) => frozen
+
+"the committed golden: " + frozen ^0
+"" ^0
+
+# ---- the control ----
+
+"control: a change that must NOT be detected" ^0
+0 => vi
+for v in variants:
+    if v == 1:
+        render(items, v) => out
+        "  " + names[vi] + " -> " + out ^0
+        if out == frozen:
+            "  detected against the frozen golden: no  (correct)" ^0
+        else:
+            "  detected against the frozen golden: YES  (the harness is inventing differences)" ^0
+    vi + 1 => vi
+"" ^0
+
+# ---- every change, against a golden that does not move ----
+
+"against the FROZEN golden" ^0
+0 => vi
+0 => frozen_detected
+for v in variants:
+    render(items, v) => out
+    if out != frozen:
+        frozen_detected + 1 => frozen_detected
+        "  " + names[vi] + " : detected" ^0
+    else:
+        "  " + names[vi] + " : not detected" ^0
+    vi + 1 => vi
+"  detected: " + str(frozen_detected) + " of " + str(len(variants)) ^0
+"" ^0
+
+# ---- every change, against a golden regenerated from the changed code ----
+
+"against a REGENERATED golden" ^0
+0 => vi
+0 => regen_detected
+for v in variants:
+    render(items, v) => out
+    render(items, v) => regenerated
+    if out != regenerated:
+        regen_detected + 1 => regen_detected
+    vi + 1 => vi
+"  detected: " + str(regen_detected) + " of " + str(len(variants)) ^0
+if regen_detected == 0:
+    "  the comparison is between a value and itself, so it has one outcome" ^0
+"" ^0
+
+# ---- how many of these changes are real ----
+
+0 => real_changes
+0 => null_changes
+for v in variants:
+    render(items, v) => out
+    if v == 0:
+        pass
+    else:
+        if out == frozen:
+            null_changes + 1 => null_changes
+        else:
+            real_changes + 1 => real_changes
+"changes applied, excluding the unchanged renderer" ^0
+"  changes that alter the output      : " + str(real_changes) ^0
+"  changes that do not alter it       : " + str(null_changes) ^0
+"  the frozen golden found            : " + str(frozen_detected) ^0
+"  the regenerated golden found       : " + str(regen_detected) ^0
+"" ^0
+
+# ---- a golden that is regenerated on failure ----
+#
+# Nobody regenerates deliberately wrong output. The policy is "regenerate when
+# the diff looks fine", so the question is which diffs look fine. A separator
+# change and a dropped field look different. An off-by-one in a number does not.
+
+"changes whose diff is a single character" ^0
+0 => subtle
+0 => vi
+for v in variants:
+    render(items, v) => out
+    if out != frozen:
+        if len(out) == len(frozen):
+            0 => diffs
+            0 => ci
+            for ch in frozen:
+                if ch != out[ci]:
+                    diffs + 1 => diffs
+                ci + 1 => ci
+            if diffs == 1:
+                subtle + 1 => subtle
+                "  " + names[vi] + " : " + frozen + "  ->  " + out ^0
+    vi + 1 => vi
+"  total: " + str(subtle) ^0
+"" ^0
+
+"A frozen golden is a record of what the output was SUPPOSED to be, written" ^0
+"by someone who knew. A regenerated one is a record of what the code does." ^0
+"They are the same file, and only the second one can never disagree." ^0

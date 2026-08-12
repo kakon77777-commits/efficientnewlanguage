@@ -1,0 +1,148 @@
+# Self-authored for the EML case corpus (no external origin). A cache key that
+# drops a field, and a flush policy so aggressive that the key never gets to be
+# wrong out loud.
+#
+# The key is the user id. The rendered page depends on the user AND the locale.
+# Two requests from one user in two locales share a cache entry, so the second
+# one can be served the first one's page. That is a defect and it has been
+# there since the key was written.
+#
+# It has never produced a wrong answer, because the cache is flushed every
+# request. Which also means the cache has never produced a HIT, so it has never
+# done the one job it exists for. The day someone relaxes the flush interval -
+# a pure performance change, touching nothing about keys - the defect starts
+# answering.
+#
+# The program sweeps the flush interval, and runs the same sweep against a
+# correct key so the policy and the defect can be told apart. Nothing is
+# declared: every served page is compared against a freshly rendered one.
+
+def render(user, locale):
+    return user + "@" + locale
+
+def key_broken(user, locale):
+    return user
+
+def key_correct(user, locale):
+    return user + "|" + locale
+
+def simulate(requests, flush_every, broken):
+    {} => cache
+    0 => since_flush
+    0 => wrong
+    0 => hits
+    for r in requests:
+        r[0] => user
+        r[1] => locale
+        if broken == 1:
+            key_broken(user, locale) => k
+        else:
+            key_correct(user, locale) => k
+        if k in cache:
+            hits + 1 => hits
+            cache[k] => served
+        else:
+            render(user, locale) => served
+            served => cache[k]
+        if served != render(user, locale):
+            wrong + 1 => wrong
+        since_flush + 1 => since_flush
+        if since_flush >= flush_every:
+            {} => cache
+            0 => since_flush
+    return [wrong, hits]
+
+[["ana", "en"], ["ana", "fr"], ["bo", "en"], ["ana", "en"], ["bo", "de"], ["cy", "en"], ["ana", "fr"], ["bo", "en"], ["cy", "jp"], ["ana", "en"], ["bo", "de"], ["cy", "en"]] => requests
+
+[1, 2, 3, 4, 6, 12] => policies
+
+# ---- the shipped system, as the flush interval is relaxed ----
+
+"broken key: wrong answers served, and cache hits, by flush interval" ^0
+for f in policies:
+    simulate(requests, f, 1) => r
+    "  flush every " + str(f) + " : wrong " + str(r[0]) + ", hits " + str(r[1]) ^0
+"" ^0
+
+# ---- the same sweep with a key that keeps the locale ----
+
+"correct key: the same sweep" ^0
+for f in policies:
+    simulate(requests, f, 0) => r
+    "  flush every " + str(f) + " : wrong " + str(r[0]) + ", hits " + str(r[1]) ^0
+"" ^0
+
+# ---- what the shipped policy buys ----
+
+simulate(requests, 1, 1) => shipped
+"the shipped policy, flush every 1" ^0
+"  wrong answers : " + str(shipped[0]) ^0
+"  cache hits    : " + str(shipped[1]) ^0
+if shipped[1] == 0:
+    "  the cache has never returned anything it stored" ^0
+"" ^0
+
+# ---- the first policy at which the defect speaks ----
+
+[] => first_wrong
+0 => policies_clean
+for f in policies:
+    simulate(requests, f, 1) => r
+    if r[0] == 0:
+        policies_clean + 1 => policies_clean
+    else:
+        if len(first_wrong) == 0:
+            [f, r[0], r[1]] => first_wrong
+"flush intervals under which the broken key is silent: " + str(policies_clean) + " of " + str(len(policies)) ^0
+if len(first_wrong) > 0:
+    "  first interval that serves a wrong page: " + str(first_wrong[0]) ^0
+    "  wrong answers there                    : " + str(first_wrong[1]) ^0
+    "  cache hits there                       : " + str(first_wrong[2]) ^0
+"" ^0
+
+# ---- the metric that would defend the broken key ----
+#
+# A cache is justified by its hit rate. A key that collides produces EXTRA
+# hits, because two different requests land on one entry. So the number
+# anybody would quote to keep this key is inflated by the defect itself.
+
+"cache hits, broken key minus correct key" ^0
+0 => policies_where_broken_wins
+0 => extra_equals_wrong
+for f in policies:
+    simulate(requests, f, 1) => b
+    simulate(requests, f, 0) => c
+    b[1] - c[1] => extra
+    "  flush every " + str(f) + " : " + str(b[1]) + " vs " + str(c[1]) + ", extra " + str(extra) + ", wrong " + str(b[0]) ^0
+    if extra > 0:
+        policies_where_broken_wins + 1 => policies_where_broken_wins
+    if extra == b[0]:
+        extra_equals_wrong + 1 => extra_equals_wrong
+"  intervals where the broken key looks like the better cache: " + str(policies_where_broken_wins) + " of " + str(len(policies)) ^0
+"  intervals where every extra hit is exactly a wrong answer  : " + str(extra_equals_wrong) + " of " + str(len(policies)) ^0
+"" ^0
+
+# ---- the defect itself does not depend on the policy ----
+
+"request pairs the broken key cannot tell apart" ^0
+0 => pairs
+0 => collide
+0 => i
+for a in requests:
+    0 => j
+    for b in requests:
+        if j > i:
+            pairs + 1 => pairs
+            if key_broken(a[0], a[1]) == key_broken(b[0], b[1]):
+                if render(a[0], a[1]) != render(b[0], b[1]):
+                    collide + 1 => collide
+        j + 1 => j
+    i + 1 => i
+"  pairs compared            : " + str(pairs) ^0
+"  same key, different page  : " + str(collide) ^0
+"" ^0
+
+"The collisions are the same number at every flush interval. Only whether" ^0
+"anyone is still holding the entry changes. The performance change did not" ^0
+"introduce the defect - it withdrew the thing that was hiding it, and that" ^0
+"thing was the cache not working." ^0

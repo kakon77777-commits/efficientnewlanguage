@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, mkdtempSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { transpileEmlToCpp } from '@eml/transpiler-cpp';
 
@@ -117,11 +117,37 @@ function findToolchain(): Toolchain | null {
 const normOut = (s: string): string => s.replace(/\r\n/g, '\n').trim();
 
 /**
+ * Run a command WITHOUT blocking this worker's event loop.
+ *
+ * spawnSync holds the loop for the whole call, and vitest's reporter talks to
+ * the worker over an RPC with its own timeout — so any synchronous subprocess
+ * that outruns that window makes the run fail with
+ * `[vitest-worker]: Timeout calling "onTaskUpdate"`, which is not a test
+ * failure and does not name the file responsible. The MSVC session below takes
+ * ~100s, which is well past it.
+ *
+ * The rule this encodes: a test may spawn anything, but anything that can run
+ * for tens of seconds must be awaited, not spawned synchronously. The short
+ * probes above (`--version`, vswhere) stay synchronous because they cannot.
+ */
+function runAsync(cmd: string, args: string[]): Promise<{ stdout: string; status: number }> {
+  return new Promise((resolve) => {
+    const child = spawn(cmd, args);
+    let stdout = '';
+    child.stdout.on('data', (d: Buffer) => {
+      stdout += d.toString('utf8');
+    });
+    child.on('error', () => resolve({ stdout, status: 1 }));
+    child.on('close', (code) => resolve({ stdout, status: code ?? 1 }));
+  });
+}
+
+/**
  * Compile + run every demo and return base -> normalized stdout. MSVC's vcvars
  * setup is slow (~10s), so all demos share ONE developer session rather than
  * paying it per demo.
  */
-function buildAndRunAll(tc: Toolchain, bases: string[], dir: string): Record<string, string> {
+async function buildAndRunAll(tc: Toolchain, bases: string[], dir: string): Promise<Record<string, string>> {
   const out: Record<string, string> = {};
   if (tc.kind === 'posix') {
     for (const base of bases) {
@@ -140,7 +166,7 @@ function buildAndRunAll(tc: Toolchain, bases: string[], dir: string): Record<str
     lines.push(`cl /nologo /std:c++20 /EHsc "${src}" /Fe:"${exe}" /Fo:"${obj}" >nul 2>&1 && echo @@${base}@@&& "${exe}"`);
   }
   writeFileSync(bat, lines.join('\r\n'));
-  const text = normOut(spawnSync('cmd', ['/c', bat], { encoding: 'utf8' }).stdout ?? '') + '\n';
+  const text = normOut((await runAsync('cmd', ['/c', bat])).stdout) + '\n';
   for (const base of bases) {
     const m = new RegExp(`@@${base}@@\\n([\\s\\S]*?)(?=@@|$)`).exec(text);
     out[base] = (m?.[1] ?? '(no output — compile failed?)').trim();
@@ -156,14 +182,29 @@ const expectedStdout: Record<string, string> = {
 };
 
 describe.skipIf(!toolchain)(`Phase 4 — C++ compiles + runs (via ${toolchain?.kind ?? 'no compiler'})`, () => {
-  it('all demos compile with a real C++20 compiler and print the expected output', () => {
+  it('all demos compile with a real C++20 compiler and print the expected output', async () => {
     const bases = demos.map((f) => f.replace(/\.eml$/, '')).filter((b) => b in expectedStdout);
     const dir = mkdtempSync(join(tmpdir(), 'eml-cpp-'));
     try {
       for (const base of bases) {
         writeFileSync(join(dir, `${base}.cpp`), transpileEmlToCpp(readFileSync(join(demoDir, `${base}.eml`), 'utf8')).cpp);
       }
-      const outputs = buildAndRunAll(toolchain!, bases, dir);
+      // Witness that the build did not block this worker's event loop. Under
+      // the previous spawnSync version this counter was structurally pinned at
+      // 0 for the whole ~100s build, which is what starved vitest's reporter
+      // RPC. Asserting it is non-zero makes the fix a measured property rather
+      // than a remembered one: revert runAsync to spawnSync and this fails.
+      let ticks = 0;
+      const heartbeat = setInterval(() => {
+        ticks += 1;
+      }, 100);
+      let outputs: Record<string, string>;
+      try {
+        outputs = await buildAndRunAll(toolchain!, bases, dir);
+      } finally {
+        clearInterval(heartbeat);
+      }
+      expect(ticks, 'the event loop was blocked for the whole build').toBeGreaterThan(0);
       for (const base of bases) expect(outputs[base], `${base}: ${outputs[base]}`).toBe(expectedStdout[base]);
     } finally {
       rmSync(dir, { recursive: true, force: true });
