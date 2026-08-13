@@ -1,0 +1,202 @@
+# Self-authored for the EML case corpus (no external origin). Finding is
+# cheaper than fixing, so the backlog grows, and the order it is worked in
+# stops being a preference.
+#
+# While the queue is short, "work in the order received" is fair and costs
+# nothing. Once arrivals outrun departures the queue never empties, and the
+# order stops deciding when things are fixed - it decides which things are
+# fixed at all, and for how long each unfixed one keeps costing.
+#
+# The two policies below clear the SAME number of findings per period. Nothing
+# about capacity differs. Only the order.
+#
+# Nothing is declared. The queue is simulated period by period and the cost is
+# accumulated as harm multiplied by the periods a finding spent unfixed.
+
+# [id, arrival period, harm per period]
+[["f1", 1, 1], ["f2", 1, 9], ["f3", 2, 2], ["f4", 2, 8], ["f5", 3, 1], ["f6", 3, 7], ["f7", 4, 3], ["f8", 4, 6], ["f9", 5, 1], ["f10", 5, 10]] => findings
+
+1 => fix_capacity
+6 => horizon
+
+def arrived_by(period):
+    [] => q
+    for f in findings:
+        if f[1] <= period:
+            q + [f] => q
+    return q
+
+def pick_fifo(open_ids):
+    # earliest arrival first; findings is already in arrival order
+    [] => picked
+    for f in findings:
+        if len(picked) < fix_capacity:
+            if f[0] in open_ids:
+                picked + [f[0]] => picked
+    return picked
+
+def pick_by_harm(open_ids):
+    [] => picked
+    [] => taken
+    for _slot in [1:fix_capacity]:
+        0 => best_harm
+        "" => best_id
+        for f in findings:
+            if f[0] in open_ids:
+                if not (f[0] in taken):
+                    if f[2] > best_harm:
+                        f[2] => best_harm
+                        f[0] => best_id
+        if best_id != "":
+            taken + [best_id] => taken
+            picked + [best_id] => picked
+    return picked
+
+def simulate(policy):
+    [] => open_ids
+    0 => total_cost
+    0 => fixed_count
+    for p in [1:horizon]:
+        # arrivals
+        for f in findings:
+            if f[1] == p:
+                open_ids + [f[0]] => open_ids
+        # cost accrues on everything still open at the start of the period
+        for f in findings:
+            if f[0] in open_ids:
+                total_cost + f[2] => total_cost
+        # capacity
+        [] => picked
+        if policy == "fifo":
+            pick_fifo(open_ids) => picked
+        else:
+            pick_by_harm(open_ids) => picked
+        [] => still_open
+        for o in open_ids:
+            if not (o in picked):
+                still_open + [o] => still_open
+        fixed_count + len(picked) => fixed_count
+        still_open => open_ids
+    return [total_cost, fixed_count, len(open_ids)]
+
+# ---- arrivals against capacity ----
+
+"findings arriving : " + str(len(findings)) + " over " + str(horizon) + " periods" ^0
+"fix capacity      : " + str(fix_capacity) + " per period, " + str(fix_capacity * horizon) + " total" ^0
+if len(findings) > fix_capacity * horizon:
+    "  arrivals exceed capacity - the queue cannot empty" ^0
+else:
+    "  capacity is sufficient over the horizon" ^0
+"" ^0
+
+# ---- the two policies ----
+
+simulate("fifo") => a
+simulate("harm") => b
+"in the order received" ^0
+"  cost accrued  : " + str(a[0]) ^0
+"  findings fixed : " + str(a[1]) ^0
+"  still open     : " + str(a[2]) ^0
+"" ^0
+"worst first" ^0
+"  cost accrued  : " + str(b[0]) ^0
+"  findings fixed : " + str(b[1]) ^0
+"  still open     : " + str(b[2]) ^0
+"" ^0
+"same capacity, same arrivals" ^0
+if a[1] == b[1]:
+    "  both policies fixed the same number : " + str(a[1]) ^0
+"  cost difference : " + str(a[0] - b[0]) ^0
+"" ^0
+
+# ---- which findings are left open under each ----
+
+def open_at_end(policy):
+    [] => open_ids
+    for p in [1:horizon]:
+        for f in findings:
+            if f[1] == p:
+                open_ids + [f[0]] => open_ids
+        [] => picked
+        if policy == "fifo":
+            pick_fifo(open_ids) => picked
+        else:
+            pick_by_harm(open_ids) => picked
+        [] => still
+        for o in open_ids:
+            if not (o in picked):
+                still + [o] => still
+        still => open_ids
+    return open_ids
+
+open_at_end("fifo") => left_fifo
+open_at_end("harm") => left_harm
+"left open at the horizon" ^0
+"  in the order received : " + repr(left_fifo) ^0
+"  worst first           : " + repr(left_harm) ^0
+"" ^0
+
+0 => harm_left_fifo
+0 => harm_left_harm
+for f in findings:
+    if f[0] in left_fifo:
+        harm_left_fifo + f[2] => harm_left_fifo
+    if f[0] in left_harm:
+        harm_left_harm + f[2] => harm_left_harm
+"  harm per period still accruing, order received : " + str(harm_left_fifo) ^0
+"  harm per period still accruing, worst first    : " + str(harm_left_harm) ^0
+"" ^0
+
+# ---- when the order does not matter ----
+#
+# Run the same two policies with capacity large enough to clear every arrival.
+
+def simulate_with(policy, cap):
+    [] => open_ids
+    0 => total_cost
+    for p in [1:horizon]:
+        for f in findings:
+            if f[1] == p:
+                open_ids + [f[0]] => open_ids
+        for f in findings:
+            if f[0] in open_ids:
+                total_cost + f[2] => total_cost
+        [] => picked
+        0 => n
+        if policy == "fifo":
+            for f in findings:
+                if n < cap:
+                    if f[0] in open_ids:
+                        picked + [f[0]] => picked
+                        n + 1 => n
+        else:
+            [] => taken
+            for _s in [1:cap]:
+                0 => bh
+                "" => bi
+                for f in findings:
+                    if f[0] in open_ids:
+                        if not (f[0] in taken):
+                            if f[2] > bh:
+                                f[2] => bh
+                                f[0] => bi
+                if bi != "":
+                    taken + [bi] => taken
+                    picked + [bi] => picked
+        [] => still
+        for o in open_ids:
+            if not (o in picked):
+                still + [o] => still
+        still => open_ids
+    return total_cost
+
+"the same two policies at capacity 10 per period" ^0
+"  in the order received : " + str(simulate_with("fifo", 10)) ^0
+"  worst first           : " + str(simulate_with("harm", 10)) ^0
+if simulate_with("fifo", 10) == simulate_with("harm", 10):
+    "  identical - with spare capacity the order is a preference" ^0
+"" ^0
+
+"A queue policy is free while the queue drains. The moment finding outruns" ^0
+"fixing it becomes the thing that decides what the system is like to use, and" ^0
+"nobody chose it for that job." ^0

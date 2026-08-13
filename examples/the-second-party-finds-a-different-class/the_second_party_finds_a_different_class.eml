@@ -1,0 +1,149 @@
+# Self-authored for the EML case corpus (no external origin). A second checker
+# is added, and the useful question is not how many more they find.
+#
+# The builder searches from the inside: they know which code is subtle, which
+# invariant is load-bearing, which shortcut they took on a Friday. That search
+# is strong exactly where the code is complicated and blind where the code is
+# simple and wrong in a way that only shows from outside.
+#
+# The outside checker searches from behaviour. That search is strong where the
+# system renders something and blind where a defect never reaches an output.
+#
+# Both are competent. The number worth measuring is not |B| but |B minus A| -
+# and, more usefully, |neither|.
+#
+# Nothing is declared. Each searcher is a rule over defect properties, and
+# every set is computed by running both searchers over the same population.
+
+# [id, observable from outside, needs internal knowledge, in the builder's area]
+[["d1", 1, 0, 1], ["d2", 1, 0, 0], ["d3", 0, 1, 1], ["d4", 0, 1, 0], ["d5", 1, 1, 1], ["d6", 1, 1, 0], ["d7", 0, 0, 1], ["d8", 0, 0, 0], ["d9", 1, 0, 1], ["d10", 0, 1, 0]] => defects
+
+def builder_finds(d):
+    # the builder finds what needs internal knowledge, and what is observable
+    # inside the part they own
+    if d[2] == 1:
+        return 1
+    if d[1] == 1:
+        if d[3] == 1:
+            return 1
+    return 0
+
+def checker_finds(d):
+    # the outside checker finds what the system renders
+    if d[1] == 1:
+        return 1
+    return 0
+
+def found_by(rule_id):
+    [] => s
+    for d in defects:
+        0 => hit
+        if rule_id == 1:
+            builder_finds(d) => hit
+        else:
+            checker_finds(d) => hit
+        if hit == 1:
+            s + [d[0]] => s
+    return s
+
+found_by(1) => by_builder
+found_by(2) => by_checker
+
+def in_list(x, xs):
+    for y in xs:
+        if y == x:
+            return 1
+    return 0
+
+# ---- the two searches ----
+
+"defects in the population : " + str(len(defects)) ^0
+"  found by the builder : " + str(len(by_builder)) + "  " + repr(by_builder) ^0
+"  found by the checker : " + str(len(by_checker)) + "  " + repr(by_checker) ^0
+"" ^0
+
+# ---- overlap ----
+
+[] => both
+[] => builder_only
+[] => checker_only
+[] => neither
+for d in defects:
+    builder_finds(d) => b
+    checker_finds(d) => c
+    if b == 1:
+        if c == 1:
+            both + [d[0]] => both
+        else:
+            builder_only + [d[0]] => builder_only
+    else:
+        if c == 1:
+            checker_only + [d[0]] => checker_only
+        else:
+            neither + [d[0]] => neither
+
+"  found by both       : " + str(len(both)) + "  " + repr(both) ^0
+"  builder only        : " + str(len(builder_only)) + "  " + repr(builder_only) ^0
+"  checker only        : " + str(len(checker_only)) + "  " + repr(checker_only) ^0
+"  found by NEITHER    : " + str(len(neither)) + "  " + repr(neither) ^0
+"" ^0
+
+len(both) + len(builder_only) + len(checker_only) => union
+"union of the two searches : " + str(union) + " of " + str(len(defects)) ^0
+"" ^0
+
+# ---- what adding the checker actually bought ----
+
+"adding the second checker" ^0
+"  defects the builder already had : " + str(len(by_builder)) ^0
+"  new defects the checker adds    : " + str(len(checker_only)) ^0
+if len(by_checker) <= len(by_builder):
+    "  the checker found FEWER in total than the builder" ^0
+else:
+    "  the checker found more in total than the builder" ^0
+"  and they still overlap on : " + str(len(both)) ^0
+"" ^0
+
+# ---- a second checker of the same kind ----
+#
+# Two outside checkers search the same way. Whatever the second one adds is
+# measured, not assumed.
+
+def checker2_finds(d):
+    return checker_finds(d)
+
+0 => second_checker_new
+for d in defects:
+    if checker2_finds(d) == 1:
+        if checker_finds(d) == 0:
+            second_checker_new + 1 => second_checker_new
+"a second checker searching the same way adds : " + str(second_checker_new) ^0
+"a checker searching the other way added      : " + str(len(checker_only)) ^0
+"" ^0
+
+# ---- what would reach the ones neither found ----
+#
+# The unfound set has a property. Compute it rather than guess it.
+
+"the defects neither party found" ^0
+0 => unfound_observable
+0 => unfound_internal
+for d in defects:
+    if builder_finds(d) == 0:
+        if checker_finds(d) == 0:
+            if d[1] == 1:
+                unfound_observable + 1 => unfound_observable
+            if d[2] == 1:
+                unfound_internal + 1 => unfound_internal
+"  of the " + str(len(neither)) + " unfound, observable from outside : " + str(unfound_observable) ^0
+"  of the " + str(len(neither)) + " unfound, needing internal knowledge : " + str(unfound_internal) ^0
+if unfound_observable == 0:
+    if unfound_internal == 0:
+        "  they are neither observable nor internally obvious - which is why" ^0
+        "  neither search reaches them, and why a third searcher of either" ^0
+        "  existing kind would not either" ^0
+"" ^0
+
+"Adding a checker does not raise the ceiling by their headcount. It raises it" ^0
+"by the part of their search that does not overlap, and that part is decided" ^0
+"by where they stand, not by how hard they look." ^0

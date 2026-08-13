@@ -1,0 +1,125 @@
+# Self-authored for the EML case corpus (no external origin). A guard test that
+# was correct when written, has never been touched, and can no longer fail.
+#
+# The test checks that the discount cap is enforced. When it was written its
+# fixture order was above the cap, so removing the cap made the test go red -
+# it was a real guard. Later somebody refreshed the fixtures to smaller, more
+# typical amounts. Nothing about the test changed. Nothing about the cap
+# changed. The test still passes.
+#
+# It now passes whether or not the cap exists, which means it has stopped being
+# a statement about the cap and become a statement about arithmetic.
+#
+# The only way to find this is to break the thing the test guards and check
+# that it goes red. That is not something a passing suite tells you, because a
+# guard that cannot fail and a guard with nothing to catch look identical from
+# the outside.
+#
+# Nothing is declared. Each test is drilled - the code it guards is broken and
+# the test re-run - and its ability to fail is measured.
+
+def apply_discount(amount, pct, cap_enforced):
+    int(amount * pct / 100) => raw
+    if cap_enforced == 1:
+        if raw > 50:
+            return 50
+    return raw
+
+# [name, amount, pct, expected]
+[["small order", 100, 10, 10], ["medium order", 300, 15, 45], ["round number", 200, 20, 40]] => fixtures_now
+[["small order", 100, 10, 10], ["large order", 900, 30, 50], ["round number", 200, 20, 40]] => fixtures_then
+
+def run(fixtures, cap_enforced):
+    0 => passed
+    for f in fixtures:
+        if apply_discount(f[1], f[2], cap_enforced) == f[3]:
+            passed + 1 => passed
+    return passed
+
+def drill(fixtures):
+    # a test can fail if it passes with the cap and fails without it
+    0 => alive
+    for f in fixtures:
+        0 => with_cap
+        0 => without_cap
+        if apply_discount(f[1], f[2], 1) == f[3]:
+            1 => with_cap
+        if apply_discount(f[1], f[2], 0) == f[3]:
+            1 => without_cap
+        if with_cap == 1:
+            if without_cap == 0:
+                alive + 1 => alive
+    return alive
+
+# ---- both suites, both states ----
+
+"the suite as it was when the guard was written" ^0
+"  with the cap enforced : " + str(run(fixtures_then, 1)) + " of " + str(len(fixtures_then)) + " pass" ^0
+"  with the cap removed  : " + str(run(fixtures_then, 0)) + " of " + str(len(fixtures_then)) + " pass" ^0
+"  tests that can still fail if the cap is removed : " + str(drill(fixtures_then)) ^0
+"" ^0
+
+"the same suite after the fixtures were refreshed" ^0
+"  with the cap enforced : " + str(run(fixtures_now, 1)) + " of " + str(len(fixtures_now)) + " pass" ^0
+"  with the cap removed  : " + str(run(fixtures_now, 0)) + " of " + str(len(fixtures_now)) + " pass" ^0
+"  tests that can still fail if the cap is removed : " + str(drill(fixtures_now)) ^0
+"" ^0
+
+# ---- what changed and what did not ----
+
+"what changed between the two suites" ^0
+0 => same_names
+0 => same_expected
+0 => changed_amount
+0 => i
+for f in fixtures_now:
+    if f[0] == fixtures_then[i][0]:
+        same_names + 1 => same_names
+    if f[3] == fixtures_then[i][3]:
+        same_expected + 1 => same_expected
+    if f[1] != fixtures_then[i][1]:
+        changed_amount + 1 => changed_amount
+    i + 1 => i
+"  test names unchanged  : " + str(same_names) + " of " + str(len(fixtures_now)) ^0
+"  assertions unchanged  : " + str(same_expected) + " of " + str(len(fixtures_now)) ^0
+"  fixture amounts changed : " + str(changed_amount) ^0
+"  (premise, not measured here: no test code was edited - only fixture data)" ^0
+"" ^0
+
+# ---- the cap itself is untouched and still wrong to remove ----
+
+[100, 300, 200, 900, 1000, 400] => real_orders
+"orders on which removing the cap changes the answer" ^0
+0 => affected
+for a in real_orders:
+    if apply_discount(a, 30, 1) != apply_discount(a, 30, 0):
+        affected + 1 => affected
+        "  amount " + str(a) + " : capped " + str(apply_discount(a, 30, 1)) + ", uncapped " + str(apply_discount(a, 30, 0)) ^0
+"  affected : " + str(affected) + " of " + str(len(real_orders)) ^0
+"" ^0
+
+# ---- the two suites are indistinguishable from a green run ----
+
+"what a green run reports, in each suite" ^0
+if run(fixtures_then, 1) == len(fixtures_then):
+    "  original fixtures : all pass" ^0
+if run(fixtures_now, 1) == len(fixtures_now):
+    "  refreshed fixtures : all pass" ^0
+"  guards alive, original  : " + str(drill(fixtures_then)) ^0
+"  guards alive, refreshed : " + str(drill(fixtures_now)) ^0
+if drill(fixtures_now) == 0:
+    "  the refreshed suite is green and guards nothing" ^0
+"" ^0
+
+# ---- a fixture that restores the guard ----
+
+[["small order", 100, 10, 10], ["large order", 900, 30, 50], ["round number", 200, 20, 40], ["at the cap", 500, 30, 50]] => fixtures_repaired
+"after adding one fixture above the cap" ^0
+"  with the cap enforced : " + str(run(fixtures_repaired, 1)) + " of " + str(len(fixtures_repaired)) ^0
+"  with the cap removed  : " + str(run(fixtures_repaired, 0)) + " of " + str(len(fixtures_repaired)) ^0
+"  guards alive          : " + str(drill(fixtures_repaired)) ^0
+"" ^0
+
+"A guard that cannot fail and a guard with nothing to catch produce the same" ^0
+"green. Telling them apart costs one deliberate break, and nothing in a" ^0
+"passing run will ever prompt you to spend it." ^0

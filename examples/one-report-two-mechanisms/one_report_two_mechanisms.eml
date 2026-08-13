@@ -1,0 +1,190 @@
+# Self-authored for the EML case corpus (no external origin). One defect report
+# listing three wrong outputs, and two different causes underneath them.
+#
+# The report is honest and well evidenced: three inputs, three actual outputs,
+# three correct outputs. What it does not say - because the reporter could not
+# see it from outside - is that two of the three come from one mechanism and
+# the third from another.
+#
+# That omission does not change the defect. It changes the FIX. A report shaped
+# as "these three outputs are wrong" invites three corrections; a report shaped
+# as "these two mechanisms are wrong" invites two. The difference does not show
+# up on the reported inputs at all. It shows up on the fourth one.
+#
+# Nothing is declared. Every mode runs over the same inputs, the correct value
+# is computed independently, and each remaining failure is attributed to a
+# mechanism by running that mechanism alone.
+
+def truth(v):
+    if v < 0:
+        return "-" + str(0 - v)
+    return str(v)
+
+# mechanism 1: the sign is dropped
+# mechanism 2: anything past 99 is clamped
+def render(v, m1, m2):
+    v => x
+    if m1 == 1:
+        if x < 0:
+            0 - x => x
+    if m2 == 1:
+        if x > 99:
+            99 => x
+    if x < 0:
+        return "-" + str(0 - x)
+    return str(x)
+
+# the shipped renderer has both
+def shipped(v):
+    return render(v, 1, 1)
+
+# fitting to the report: special-case exactly the reported inputs
+def patched(v, fitted):
+    for f in fitted:
+        if v == f:
+            return truth(v)
+    return shipped(v)
+
+[0 - 4, 150, 0 - 7] => reported
+[0 - 9, 0 - 4, 0, 3, 42, 99, 100, 150, 260, 0 - 7, 0 - 1, 77] => inputs
+
+# ---- the report, as filed ----
+
+"the report: three wrong outputs" ^0
+for r in reported:
+    "  input " + str(r) + " : actual " + shipped(r) + ", correct " + truth(r) ^0
+"" ^0
+
+# ---- what is actually wrong, over the whole input set ----
+
+0 => broken_wrong
+for v in inputs:
+    if shipped(v) != truth(v):
+        broken_wrong + 1 => broken_wrong
+"inputs rendered wrongly by the shipped code : " + str(broken_wrong) + " of " + str(len(inputs)) ^0
+"inputs named in the report                  : " + str(len(reported)) ^0
+"" ^0
+
+# ---- fix A: correct the three reported outputs ----
+
+0 => patched_wrong
+[] => still_wrong
+for v in inputs:
+    if patched(v, reported) != truth(v):
+        patched_wrong + 1 => patched_wrong
+        still_wrong + [v] => still_wrong
+"after correcting exactly what the report named" ^0
+"  reported inputs now correct : " + str(len(reported)) + " of " + str(len(reported)) ^0
+"  inputs still wrong          : " + str(patched_wrong) ^0
+for v in still_wrong:
+    "    " + str(v) + " : " + patched(v, reported) + " (correct " + truth(v) + ")" ^0
+"" ^0
+
+# ---- fix B: correct the two mechanisms ----
+
+0 => fixed_wrong
+for v in inputs:
+    if render(v, 0, 0) != truth(v):
+        fixed_wrong + 1 => fixed_wrong
+"after correcting the two mechanisms" ^0
+"  inputs still wrong : " + str(fixed_wrong) ^0
+"" ^0
+
+# ---- which mechanism each reported input came from ----
+#
+# Run each mechanism alone and see which one alters that input. The reporter
+# could not do this from outside; it needs the inside.
+
+"attribution of the reported inputs" ^0
+0 => from_m1
+0 => from_m2
+for r in reported:
+    0 => a
+    0 => b
+    if render(r, 1, 0) != truth(r):
+        1 => a
+        from_m1 + 1 => from_m1
+    if render(r, 0, 1) != truth(r):
+        1 => b
+        from_m2 + 1 => from_m2
+    if a == 1:
+        if b == 1:
+            "  " + str(r) + " : both mechanisms" ^0
+        else:
+            "  " + str(r) + " : mechanism 1 (sign)" ^0
+    else:
+        if b == 1:
+            "  " + str(r) + " : mechanism 2 (clamp)" ^0
+        else:
+            "  " + str(r) + " : neither - not actually a defect" ^0
+"  from mechanism 1 : " + str(from_m1) ^0
+"  from mechanism 2 : " + str(from_m2) ^0
+0 => mechanisms_in_report
+if from_m1 > 0:
+    mechanisms_in_report + 1 => mechanisms_in_report
+if from_m2 > 0:
+    mechanisms_in_report + 1 => mechanisms_in_report
+"  distinct mechanisms behind a " + str(len(reported)) + "-item report : " + str(mechanisms_in_report) ^0
+"" ^0
+
+# How many mechanisms are actually defective: switch each off alone and see
+# whether the number of wrong outputs falls.
+0 => defective
+0 => base_wrong
+for v in inputs:
+    if render(v, 1, 1) != truth(v):
+        base_wrong + 1 => base_wrong
+0 => off1
+for v in inputs:
+    if render(v, 0, 1) != truth(v):
+        off1 + 1 => off1
+0 => off2
+for v in inputs:
+    if render(v, 1, 0) != truth(v):
+        off2 + 1 => off2
+if off1 < base_wrong:
+    defective + 1 => defective
+if off2 < base_wrong:
+    defective + 1 => defective
+"mechanisms that are actually defective : " + str(defective) ^0
+"  wrong outputs with both on   : " + str(base_wrong) ^0
+"  with mechanism 1 switched off : " + str(off1) ^0
+"  with mechanism 2 switched off : " + str(off2) ^0
+"" ^0
+
+# ---- how the two fixes scale as more reports arrive ----
+#
+# Patching needs one correction per wrong input. Fixing mechanisms needs one
+# per mechanism, and the count does not grow with the input set.
+
+"corrections needed to reach zero wrong outputs" ^0
+[] => growing
+0 => patches
+for v in inputs:
+    if shipped(v) != truth(v):
+        growing + [v] => growing
+        patches + 1 => patches
+"  by patching each reported output : " + str(patches) ^0
+"  by correcting each mechanism     : " + str(defective) ^0
+"" ^0
+
+0 => check_patch
+for v in inputs:
+    if patched(v, growing) != truth(v):
+        check_patch + 1 => check_patch
+"  after " + str(patches) + " patches, inputs still wrong : " + str(check_patch) ^0
+"  after " + str(defective) + " mechanism fixes, inputs still wrong : " + str(fixed_wrong) ^0
+"" ^0
+
+# ---- the input the report never mentioned ----
+
+"a value outside both the report and the tested set" ^0
+0 - 250 => novel
+"  shipped        : " + shipped(novel) + "  (correct " + truth(novel) + ")" ^0
+"  after patching : " + patched(novel, growing) ^0
+"  after fixing   : " + render(novel, 0, 0) ^0
+"" ^0
+
+"A report describes outputs because outputs are what an outsider can see." ^0
+"The shape of the fix is decided by whoever reads it, and reading it as a" ^0
+"list of outputs is the reading that never terminates." ^0

@@ -1,0 +1,162 @@
+# Self-authored for the EML case corpus (no external origin). A finding filed
+# against the line where the wrong value came out, not the line that made it
+# wrong.
+#
+# An outside reporter locates a defect by following the value backwards until
+# it stops being visible. That lands on the last place the value was handled,
+# which is a surfacing site. Whether it is also the cause depends on something
+# the reporter cannot see: how many other surfacing sites read the same source.
+#
+# Fixing at the surfacing site works - the reported symptom goes away, the
+# reported test passes. It works exactly once per site, and the number of sites
+# is not in the report.
+#
+# Nothing is declared. Both fixes are applied to the same pipeline and every
+# consumer is measured.
+
+def normalise(name, fixed_at_source):
+    "" => out
+    for ch in name:
+        if ch == " ":
+            pass
+        else:
+            out + ch => out
+    if fixed_at_source == 1:
+        return out
+    # the cause: the trailing marker is not removed
+    return out + "#"
+
+def label_report(name, fixed_at_source, fixed_here):
+    normalise(name, fixed_at_source) => n
+    if fixed_here == 1:
+        "" => t
+        for ch in n:
+            if ch == "#":
+                pass
+            else:
+                t + ch => t
+        return t
+    return n
+
+def label_invoice(name, fixed_at_source):
+    return normalise(name, fixed_at_source)
+
+def label_export(name, fixed_at_source):
+    return normalise(name, fixed_at_source)
+
+def label_search_key(name, fixed_at_source):
+    return normalise(name, fixed_at_source)
+
+def truth(name):
+    "" => out
+    for ch in name:
+        if ch == " ":
+            pass
+        else:
+            out + ch => out
+    return out
+
+["ana lee", "bo", "cy tan", "di wu"] => names
+
+# ---- the report ----
+
+"the report" ^0
+"  seen on : the report screen" ^0
+"  input   : " + names[0] ^0
+"  actual  : " + label_report(names[0], 0, 0) ^0
+"  correct : " + truth(names[0]) ^0
+"  filed against : the report screen's label code" ^0
+"" ^0
+
+# ---- fix at the reported location ----
+
+"after fixing at the reported location" ^0
+0 => report_wrong
+0 => other_wrong
+for n in names:
+    if label_report(n, 0, 1) != truth(n):
+        report_wrong + 1 => report_wrong
+    if label_invoice(n, 0) != truth(n):
+        other_wrong + 1 => other_wrong
+    if label_export(n, 0) != truth(n):
+        other_wrong + 1 => other_wrong
+    if label_search_key(n, 0) != truth(n):
+        other_wrong + 1 => other_wrong
+"  report screen wrong : " + str(report_wrong) + " of " + str(len(names)) ^0
+"  other consumers wrong : " + str(other_wrong) ^0
+"" ^0
+
+# ---- fix at the source ----
+
+"after fixing at the source instead" ^0
+0 => all_wrong
+for n in names:
+    if label_report(n, 1, 0) != truth(n):
+        all_wrong + 1 => all_wrong
+    if label_invoice(n, 1) != truth(n):
+        all_wrong + 1 => all_wrong
+    if label_export(n, 1) != truth(n):
+        all_wrong + 1 => all_wrong
+    if label_search_key(n, 1) != truth(n):
+        all_wrong + 1 => all_wrong
+"  consumers wrong across all sites : " + str(all_wrong) ^0
+"" ^0
+
+# ---- how many surfacing sites read the same source ----
+
+"consumers of the normaliser, and whether each shows the defect" ^0
+["report", "invoice", "export", "search key"] => sites
+["report"] => reported_sites
+names[0] => probe
+[label_report(probe, 0, 0), label_invoice(probe, 0), label_export(probe, 0), label_search_key(probe, 0)] => before
+0 => si
+0 => showing
+for s in sites:
+    if before[si] != truth(probe):
+        showing + 1 => showing
+        "  " + s + " : " + before[si] + "  (correct " + truth(probe) + ")" ^0
+    else:
+        "  " + s + " : " + before[si] ^0
+    si + 1 => si
+"  sites showing the defect : " + str(showing) + " of " + str(len(sites)) ^0
+"  sites named in the report : " + str(len(reported_sites)) ^0
+"" ^0
+
+# ---- the same probe after each fix ----
+
+[label_report(probe, 0, 1), label_invoice(probe, 0), label_export(probe, 0), label_search_key(probe, 0)] => after_local
+[label_report(probe, 1, 0), label_invoice(probe, 1), label_export(probe, 1), label_search_key(probe, 1)] => after_source
+
+"sites still showing the defect" ^0
+0 => left_local
+0 => left_source
+0 => qi
+for s in sites:
+    if after_local[qi] != truth(probe):
+        left_local + 1 => left_local
+    if after_source[qi] != truth(probe):
+        left_source + 1 => left_source
+    qi + 1 => qi
+"  after fixing the reported site : " + str(left_local) + " of " + str(len(sites)) ^0
+"  after fixing the source        : " + str(left_source) + " of " + str(len(sites)) ^0
+"" ^0
+
+# ---- and the two fixes are not equivalent even where they agree ----
+#
+# Fixing at the surfacing site strips the marker after the fact. Fixing at the
+# source never produces it. On a name that legitimately contains the marker
+# character, the two disagree.
+
+"a name that legitimately contains the marker" ^0
+"c# dev" => tricky
+"  correct                : " + truth(tricky) ^0
+"  fixed at reported site : " + label_report(tricky, 0, 1) ^0
+"  fixed at source        : " + label_report(tricky, 1, 0) ^0
+if label_report(tricky, 0, 1) != truth(tricky):
+    "  the local fix is wrong here, and the source fix is right" ^0
+"" ^0
+
+"A reporter locates a defect by following the value backwards until it stops" ^0
+"being visible. That is a surfacing site by construction. Whether it is also" ^0
+"the cause is decided by how many other sites read the same source, and that" ^0
+"number is on the inside." ^0

@@ -1,0 +1,572 @@
+{"stream":"eml","proto":"eml-trace-v1","seq":1,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:start","mono":1,"file":"the_repro_succeeds_for_another_reason.eml","statements":42}
+{"stream":"eml","proto":"eml-trace-v1","seq":2,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":2,"fn":"total","params":["order","fix_discount"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":3,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":3,"fn":"build_repro_order","params":["fix_builder"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":4,"ts":"1970-01-01T00:00:00.000Z","type":"eml:def","mono":4,"fn":"expected_total","params":["order"],"temperature":"neutral","async":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":5,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":5,"name":"production","value":"[[['a', 100, 10]], [['b', 50, 0], ['c', 50, 5]], [['d', 20, 0]], [['e', 80, 30]]]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":6,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":6,"fn":"build_repro_order","args":["0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":7,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":7,"name":"o","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":8,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":8,"name":"o","value":"[['widget', 60, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":9,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":9,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":10,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":10,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":11,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":11,"fn":"build_repro_order","value":"[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":12,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":12,"name":"repro_order","value":"[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":13,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":13,"text":"the report","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":14,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":14,"text":"  claim  : the total is wrong","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":15,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":15,"text":"  filed against : the discount is applied twice","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":16,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":16,"fn":"total","args":["[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]","0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":17,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":17,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":18,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":18,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":19,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":19,"name":"sum_amounts","value":"60","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":20,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":20,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":21,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":21,"name":"sum_amounts","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":22,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":22,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":23,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":23,"name":"sum_amounts","value":"140","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":24,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":24,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":25,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":25,"fn":"total","value":"140"}
+{"stream":"eml","proto":"eml-trace-v1","seq":26,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":26,"fn":"build_repro_order","args":["1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":27,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":27,"name":"o","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":28,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":28,"name":"o","value":"[['widget', 60, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":29,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":29,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":30,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":30,"fn":"build_repro_order","value":"[['widget', 60, 0], ['cable', 40, 0]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":31,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":31,"fn":"expected_total","args":["[['widget', 60, 0], ['cable', 40, 0]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":32,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":32,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":33,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":33,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":34,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":34,"name":"a","value":"60","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":35,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":35,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":36,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":36,"name":"a","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":37,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":37,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":38,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":38,"fn":"expected_total","value":"100"}
+{"stream":"eml","proto":"eml-trace-v1","seq":39,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":39,"text":"  the script shows : total 140, expected 100","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":40,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":40,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":41,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":41,"text":"does the reproduction pass?","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":42,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":42,"fn":"build_repro_order","args":["0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":43,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":43,"name":"o","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":44,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":44,"name":"o","value":"[['widget', 60, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":45,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":45,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":46,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":46,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":47,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":47,"fn":"build_repro_order","value":"[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":48,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":48,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":49,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":49,"fn":"total","args":["[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]","0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":50,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":50,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":51,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":51,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":52,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":52,"name":"sum_amounts","value":"60","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":53,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":53,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":54,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":54,"name":"sum_amounts","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":55,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":55,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":56,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":56,"name":"sum_amounts","value":"140","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":57,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":57,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":58,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":58,"fn":"total","value":"140"}
+{"stream":"eml","proto":"eml-trace-v1","seq":59,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":59,"name":"got","value":"140","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":60,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":60,"fn":"build_repro_order","args":["1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":61,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":61,"name":"o","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":62,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":62,"name":"o","value":"[['widget', 60, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":63,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":63,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":64,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":64,"fn":"build_repro_order","value":"[['widget', 60, 0], ['cable', 40, 0]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":65,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":65,"fn":"expected_total","args":["[['widget', 60, 0], ['cable', 40, 0]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":66,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":66,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":67,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":67,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":68,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":68,"name":"a","value":"60","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":69,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":69,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":70,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":70,"name":"a","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":71,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":71,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":72,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":72,"fn":"expected_total","value":"100"}
+{"stream":"eml","proto":"eml-trace-v1","seq":73,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":73,"name":"want","value":"100","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":74,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":74,"text":"  builder fixed 0, discount fixed 0 : total 140 - fails","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":75,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":75,"fn":"build_repro_order","args":["0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":76,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":76,"name":"o","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":77,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":77,"name":"o","value":"[['widget', 60, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":78,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":78,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":79,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":79,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":80,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":80,"fn":"build_repro_order","value":"[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":81,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":81,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":82,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":82,"fn":"total","args":["[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]","1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":83,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":83,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":84,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":84,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":85,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":85,"name":"sum_amounts","value":"60","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":86,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":86,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":87,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":87,"name":"sum_amounts","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":88,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":88,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":89,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":89,"name":"sum_amounts","value":"140","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":90,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":90,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":91,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":91,"fn":"total","value":"140"}
+{"stream":"eml","proto":"eml-trace-v1","seq":92,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":92,"name":"got","value":"140","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":93,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":93,"fn":"build_repro_order","args":["1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":94,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":94,"name":"o","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":95,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":95,"name":"o","value":"[['widget', 60, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":96,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":96,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":97,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":97,"fn":"build_repro_order","value":"[['widget', 60, 0], ['cable', 40, 0]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":98,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":98,"fn":"expected_total","args":["[['widget', 60, 0], ['cable', 40, 0]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":99,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":99,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":100,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":100,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":101,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":101,"name":"a","value":"60","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":102,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":102,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":103,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":103,"name":"a","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":104,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":104,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":105,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":105,"fn":"expected_total","value":"100"}
+{"stream":"eml","proto":"eml-trace-v1","seq":106,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":106,"name":"want","value":"100","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":107,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":107,"text":"  builder fixed 0, discount fixed 1 : total 140 - fails","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":108,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":108,"fn":"build_repro_order","args":["1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":109,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":109,"name":"o","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":110,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":110,"name":"o","value":"[['widget', 60, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":111,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":111,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":112,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":112,"fn":"build_repro_order","value":"[['widget', 60, 0], ['cable', 40, 0]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":113,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":113,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":114,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":114,"fn":"total","args":["[['widget', 60, 0], ['cable', 40, 0]]","0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":115,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":115,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":116,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":116,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":117,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":117,"name":"sum_amounts","value":"60","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":118,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":118,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":119,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":119,"name":"sum_amounts","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":120,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":120,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":121,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":121,"fn":"total","value":"100"}
+{"stream":"eml","proto":"eml-trace-v1","seq":122,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":122,"name":"got","value":"100","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":123,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":123,"fn":"build_repro_order","args":["1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":124,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":124,"name":"o","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":125,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":125,"name":"o","value":"[['widget', 60, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":126,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":126,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":127,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":127,"fn":"build_repro_order","value":"[['widget', 60, 0], ['cable', 40, 0]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":128,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":128,"fn":"expected_total","args":["[['widget', 60, 0], ['cable', 40, 0]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":129,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":129,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":130,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":130,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":131,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":131,"name":"a","value":"60","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":132,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":132,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":133,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":133,"name":"a","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":134,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":134,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":135,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":135,"fn":"expected_total","value":"100"}
+{"stream":"eml","proto":"eml-trace-v1","seq":136,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":136,"name":"want","value":"100","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":137,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":137,"text":"  builder fixed 1, discount fixed 0 : total 100 - PASSES","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":138,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":138,"fn":"build_repro_order","args":["1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":139,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":139,"name":"o","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":140,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":140,"name":"o","value":"[['widget', 60, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":141,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":141,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":142,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":142,"fn":"build_repro_order","value":"[['widget', 60, 0], ['cable', 40, 0]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":143,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":143,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":144,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":144,"fn":"total","args":["[['widget', 60, 0], ['cable', 40, 0]]","1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":145,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":145,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":146,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":146,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":147,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":147,"name":"sum_amounts","value":"60","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":148,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":148,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":149,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":149,"name":"sum_amounts","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":150,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":150,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":151,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":151,"fn":"total","value":"100"}
+{"stream":"eml","proto":"eml-trace-v1","seq":152,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":152,"name":"got","value":"100","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":153,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":153,"fn":"build_repro_order","args":["1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":154,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":154,"name":"o","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":155,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":155,"name":"o","value":"[['widget', 60, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":156,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":156,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":157,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":157,"fn":"build_repro_order","value":"[['widget', 60, 0], ['cable', 40, 0]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":158,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":158,"fn":"expected_total","args":["[['widget', 60, 0], ['cable', 40, 0]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":159,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":159,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":160,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":160,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":161,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":161,"name":"a","value":"60","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":162,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":162,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":163,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":163,"name":"a","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":164,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":164,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":165,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":165,"fn":"expected_total","value":"100"}
+{"stream":"eml","proto":"eml-trace-v1","seq":166,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":166,"name":"want","value":"100","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":167,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":167,"text":"  builder fixed 1, discount fixed 1 : total 100 - PASSES","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":168,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":168,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":169,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":169,"text":"the reproduction's order, run with the reported defect on and off","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":170,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":170,"fn":"build_repro_order","args":["0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":171,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":171,"name":"o","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":172,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":172,"name":"o","value":"[['widget', 60, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":173,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":173,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":174,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":174,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":175,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":175,"fn":"build_repro_order","value":"[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":176,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":176,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":177,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":177,"fn":"total","args":["[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]","0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":178,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":178,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":179,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":179,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":180,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":180,"name":"sum_amounts","value":"60","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":181,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":181,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":182,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":182,"name":"sum_amounts","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":183,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":183,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":184,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":184,"name":"sum_amounts","value":"140","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":185,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":185,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":186,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":186,"fn":"total","value":"140"}
+{"stream":"eml","proto":"eml-trace-v1","seq":187,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":187,"text":"  discount defect on  : 140","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":188,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":188,"fn":"total","args":["[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]","1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":189,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":189,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":190,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":190,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":191,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":191,"name":"sum_amounts","value":"60","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":192,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":192,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":193,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":193,"name":"sum_amounts","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":194,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":194,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":195,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":195,"name":"sum_amounts","value":"140","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":196,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":196,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":197,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":197,"fn":"total","value":"140"}
+{"stream":"eml","proto":"eml-trace-v1","seq":198,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":198,"text":"  discount defect off : 140","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":199,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":199,"fn":"total","args":["[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]","0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":200,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":200,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":201,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":201,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":202,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":202,"name":"sum_amounts","value":"60","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":203,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":203,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":204,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":204,"name":"sum_amounts","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":205,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":205,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":206,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":206,"name":"sum_amounts","value":"140","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":207,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":207,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":208,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":208,"fn":"total","value":"140"}
+{"stream":"eml","proto":"eml-trace-v1","seq":209,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":209,"fn":"total","args":["[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]","1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":210,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":210,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":211,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":211,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":212,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":212,"name":"sum_amounts","value":"60","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":213,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":213,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":214,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":214,"name":"sum_amounts","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":215,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":215,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":216,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":216,"name":"sum_amounts","value":"140","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":217,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":217,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":218,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":218,"fn":"total","value":"140"}
+{"stream":"eml","proto":"eml-trace-v1","seq":219,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":219,"text":"  identical - this script cannot distinguish the defect it was filed against","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":220,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":220,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":221,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":221,"text":"production orders, which the reproduction never touches","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":222,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":222,"name":"wrong_with","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":223,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":223,"name":"wrong_without","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":224,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":224,"fn":"total","args":["[['a', 100, 10]]","0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":225,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":225,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":226,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":226,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":227,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":227,"name":"sum_amounts","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":228,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":228,"name":"sum_discount","value":"10","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":229,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":229,"fn":"total","value":"80"}
+{"stream":"eml","proto":"eml-trace-v1","seq":230,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":230,"fn":"expected_total","args":["[['a', 100, 10]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":231,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":231,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":232,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":232,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":233,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":233,"name":"a","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":234,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":234,"name":"d","value":"10","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":235,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":235,"fn":"expected_total","value":"90"}
+{"stream":"eml","proto":"eml-trace-v1","seq":236,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":236,"name":"wrong_with","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":237,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":237,"fn":"total","args":["[['a', 100, 10]]","1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":238,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":238,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":239,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":239,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":240,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":240,"name":"sum_amounts","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":241,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":241,"name":"sum_discount","value":"10","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":242,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":242,"fn":"total","value":"90"}
+{"stream":"eml","proto":"eml-trace-v1","seq":243,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":243,"fn":"expected_total","args":["[['a', 100, 10]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":244,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":244,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":245,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":245,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":246,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":246,"name":"a","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":247,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":247,"name":"d","value":"10","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":248,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":248,"fn":"expected_total","value":"90"}
+{"stream":"eml","proto":"eml-trace-v1","seq":249,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":249,"fn":"total","args":["[['b', 50, 0], ['c', 50, 5]]","0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":250,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":250,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":251,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":251,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":252,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":252,"name":"sum_amounts","value":"50","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":253,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":253,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":254,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":254,"name":"sum_amounts","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":255,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":255,"name":"sum_discount","value":"5","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":256,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":256,"fn":"total","value":"90"}
+{"stream":"eml","proto":"eml-trace-v1","seq":257,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":257,"fn":"expected_total","args":["[['b', 50, 0], ['c', 50, 5]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":258,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":258,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":259,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":259,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":260,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":260,"name":"a","value":"50","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":261,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":261,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":262,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":262,"name":"a","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":263,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":263,"name":"d","value":"5","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":264,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":264,"fn":"expected_total","value":"95"}
+{"stream":"eml","proto":"eml-trace-v1","seq":265,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":265,"name":"wrong_with","value":"2","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":266,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":266,"fn":"total","args":["[['b', 50, 0], ['c', 50, 5]]","1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":267,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":267,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":268,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":268,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":269,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":269,"name":"sum_amounts","value":"50","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":270,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":270,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":271,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":271,"name":"sum_amounts","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":272,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":272,"name":"sum_discount","value":"5","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":273,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":273,"fn":"total","value":"95"}
+{"stream":"eml","proto":"eml-trace-v1","seq":274,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":274,"fn":"expected_total","args":["[['b', 50, 0], ['c', 50, 5]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":275,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":275,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":276,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":276,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":277,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":277,"name":"a","value":"50","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":278,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":278,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":279,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":279,"name":"a","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":280,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":280,"name":"d","value":"5","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":281,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":281,"fn":"expected_total","value":"95"}
+{"stream":"eml","proto":"eml-trace-v1","seq":282,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":282,"fn":"total","args":["[['d', 20, 0]]","0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":283,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":283,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":284,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":284,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":285,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":285,"name":"sum_amounts","value":"20","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":286,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":286,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":287,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":287,"fn":"total","value":"20"}
+{"stream":"eml","proto":"eml-trace-v1","seq":288,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":288,"fn":"expected_total","args":["[['d', 20, 0]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":289,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":289,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":290,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":290,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":291,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":291,"name":"a","value":"20","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":292,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":292,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":293,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":293,"fn":"expected_total","value":"20"}
+{"stream":"eml","proto":"eml-trace-v1","seq":294,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":294,"fn":"total","args":["[['d', 20, 0]]","1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":295,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":295,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":296,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":296,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":297,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":297,"name":"sum_amounts","value":"20","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":298,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":298,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":299,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":299,"fn":"total","value":"20"}
+{"stream":"eml","proto":"eml-trace-v1","seq":300,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":300,"fn":"expected_total","args":["[['d', 20, 0]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":301,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":301,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":302,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":302,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":303,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":303,"name":"a","value":"20","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":304,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":304,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":305,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":305,"fn":"expected_total","value":"20"}
+{"stream":"eml","proto":"eml-trace-v1","seq":306,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":306,"fn":"total","args":["[['e', 80, 30]]","0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":307,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":307,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":308,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":308,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":309,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":309,"name":"sum_amounts","value":"80","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":310,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":310,"name":"sum_discount","value":"30","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":311,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":311,"fn":"total","value":"20"}
+{"stream":"eml","proto":"eml-trace-v1","seq":312,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":312,"fn":"expected_total","args":["[['e', 80, 30]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":313,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":313,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":314,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":314,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":315,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":315,"name":"a","value":"80","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":316,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":316,"name":"d","value":"30","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":317,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":317,"fn":"expected_total","value":"50"}
+{"stream":"eml","proto":"eml-trace-v1","seq":318,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":318,"name":"wrong_with","value":"3","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":319,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":319,"fn":"total","args":["[['e', 80, 30]]","1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":320,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":320,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":321,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":321,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":322,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":322,"name":"sum_amounts","value":"80","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":323,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":323,"name":"sum_discount","value":"30","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":324,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":324,"fn":"total","value":"50"}
+{"stream":"eml","proto":"eml-trace-v1","seq":325,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":325,"fn":"expected_total","args":["[['e', 80, 30]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":326,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":326,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":327,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":327,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":328,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":328,"name":"a","value":"80","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":329,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":329,"name":"d","value":"30","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":330,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":330,"fn":"expected_total","value":"50"}
+{"stream":"eml","proto":"eml-trace-v1","seq":331,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":331,"text":"  wrong totals with the discount defect    : 3 of 4","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":332,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":332,"text":"  wrong totals after fixing it             : 0","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":333,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":333,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":334,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":334,"fn":"total","args":["[['a', 100, 10]]","0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":335,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":335,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":336,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":336,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":337,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":337,"name":"sum_amounts","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":338,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":338,"name":"sum_discount","value":"10","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":339,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":339,"fn":"total","value":"80"}
+{"stream":"eml","proto":"eml-trace-v1","seq":340,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":340,"fn":"expected_total","args":["[['a', 100, 10]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":341,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":341,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":342,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":342,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":343,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":343,"name":"a","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":344,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":344,"name":"d","value":"10","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":345,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":345,"fn":"expected_total","value":"90"}
+{"stream":"eml","proto":"eml-trace-v1","seq":346,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":346,"fn":"total","args":["[['a', 100, 10]]","0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":347,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":347,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":348,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":348,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":349,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":349,"name":"sum_amounts","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":350,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":350,"name":"sum_discount","value":"10","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":351,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":351,"fn":"total","value":"80"}
+{"stream":"eml","proto":"eml-trace-v1","seq":352,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":352,"fn":"expected_total","args":["[['a', 100, 10]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":353,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":353,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":354,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":354,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":355,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":355,"name":"a","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":356,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":356,"name":"d","value":"10","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":357,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":357,"fn":"expected_total","value":"90"}
+{"stream":"eml","proto":"eml-trace-v1","seq":358,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":358,"text":"    a... : got 80, expected 90","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":359,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":359,"fn":"total","args":["[['b', 50, 0], ['c', 50, 5]]","0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":360,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":360,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":361,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":361,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":362,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":362,"name":"sum_amounts","value":"50","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":363,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":363,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":364,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":364,"name":"sum_amounts","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":365,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":365,"name":"sum_discount","value":"5","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":366,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":366,"fn":"total","value":"90"}
+{"stream":"eml","proto":"eml-trace-v1","seq":367,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":367,"fn":"expected_total","args":["[['b', 50, 0], ['c', 50, 5]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":368,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":368,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":369,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":369,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":370,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":370,"name":"a","value":"50","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":371,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":371,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":372,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":372,"name":"a","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":373,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":373,"name":"d","value":"5","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":374,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":374,"fn":"expected_total","value":"95"}
+{"stream":"eml","proto":"eml-trace-v1","seq":375,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":375,"fn":"total","args":["[['b', 50, 0], ['c', 50, 5]]","0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":376,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":376,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":377,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":377,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":378,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":378,"name":"sum_amounts","value":"50","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":379,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":379,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":380,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":380,"name":"sum_amounts","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":381,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":381,"name":"sum_discount","value":"5","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":382,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":382,"fn":"total","value":"90"}
+{"stream":"eml","proto":"eml-trace-v1","seq":383,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":383,"fn":"expected_total","args":["[['b', 50, 0], ['c', 50, 5]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":384,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":384,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":385,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":385,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":386,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":386,"name":"a","value":"50","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":387,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":387,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":388,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":388,"name":"a","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":389,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":389,"name":"d","value":"5","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":390,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":390,"fn":"expected_total","value":"95"}
+{"stream":"eml","proto":"eml-trace-v1","seq":391,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":391,"text":"    b... : got 90, expected 95","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":392,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":392,"fn":"total","args":["[['d', 20, 0]]","0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":393,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":393,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":394,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":394,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":395,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":395,"name":"sum_amounts","value":"20","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":396,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":396,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":397,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":397,"fn":"total","value":"20"}
+{"stream":"eml","proto":"eml-trace-v1","seq":398,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":398,"fn":"expected_total","args":["[['d', 20, 0]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":399,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":399,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":400,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":400,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":401,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":401,"name":"a","value":"20","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":402,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":402,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":403,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":403,"fn":"expected_total","value":"20"}
+{"stream":"eml","proto":"eml-trace-v1","seq":404,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":404,"fn":"total","args":["[['e', 80, 30]]","0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":405,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":405,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":406,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":406,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":407,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":407,"name":"sum_amounts","value":"80","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":408,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":408,"name":"sum_discount","value":"30","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":409,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":409,"fn":"total","value":"20"}
+{"stream":"eml","proto":"eml-trace-v1","seq":410,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":410,"fn":"expected_total","args":["[['e', 80, 30]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":411,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":411,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":412,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":412,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":413,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":413,"name":"a","value":"80","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":414,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":414,"name":"d","value":"30","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":415,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":415,"fn":"expected_total","value":"50"}
+{"stream":"eml","proto":"eml-trace-v1","seq":416,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":416,"fn":"total","args":["[['e', 80, 30]]","0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":417,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":417,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":418,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":418,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":419,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":419,"name":"sum_amounts","value":"80","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":420,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":420,"name":"sum_discount","value":"30","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":421,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":421,"fn":"total","value":"20"}
+{"stream":"eml","proto":"eml-trace-v1","seq":422,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":422,"fn":"expected_total","args":["[['e', 80, 30]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":423,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":423,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":424,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":424,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":425,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":425,"name":"a","value":"80","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":426,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":426,"name":"d","value":"30","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":427,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":427,"fn":"expected_total","value":"50"}
+{"stream":"eml","proto":"eml-trace-v1","seq":428,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":428,"text":"    e... : got 20, expected 50","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":429,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":429,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":430,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":430,"fn":"build_repro_order","args":["1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":431,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":431,"name":"o","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":432,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":432,"name":"o","value":"[['widget', 60, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":433,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":433,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":434,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":434,"fn":"build_repro_order","value":"[['widget', 60, 0], ['cable', 40, 0]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":435,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":435,"name":"fixed_builder_order","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":436,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":436,"name":"repro_pass_states","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":437,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":437,"name":"repro_pass_when_discount_fixed","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":438,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":438,"name":"repro_pass_when_builder_fixed","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":439,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":439,"name":"states","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":440,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":440,"name":"states","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":441,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":441,"fn":"build_repro_order","args":["0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":442,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":442,"name":"o","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":443,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":443,"name":"o","value":"[['widget', 60, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":444,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":444,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":445,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":445,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":446,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":446,"fn":"build_repro_order","value":"[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":447,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":447,"name":"oo","value":"[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":448,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":448,"fn":"total","args":["[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]","0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":449,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":449,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":450,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":450,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":451,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":451,"name":"sum_amounts","value":"60","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":452,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":452,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":453,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":453,"name":"sum_amounts","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":454,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":454,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":455,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":455,"name":"sum_amounts","value":"140","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":456,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":456,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":457,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":457,"fn":"total","value":"140"}
+{"stream":"eml","proto":"eml-trace-v1","seq":458,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":458,"fn":"build_repro_order","args":["1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":459,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":459,"name":"o","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":460,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":460,"name":"o","value":"[['widget', 60, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":461,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":461,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":462,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":462,"fn":"build_repro_order","value":"[['widget', 60, 0], ['cable', 40, 0]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":463,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":463,"fn":"expected_total","args":["[['widget', 60, 0], ['cable', 40, 0]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":464,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":464,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":465,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":465,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":466,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":466,"name":"a","value":"60","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":467,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":467,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":468,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":468,"name":"a","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":469,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":469,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":470,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":470,"fn":"expected_total","value":"100"}
+{"stream":"eml","proto":"eml-trace-v1","seq":471,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":471,"name":"states","value":"2","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":472,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":472,"fn":"build_repro_order","args":["0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":473,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":473,"name":"o","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":474,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":474,"name":"o","value":"[['widget', 60, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":475,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":475,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":476,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":476,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":477,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":477,"fn":"build_repro_order","value":"[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":478,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":478,"name":"oo","value":"[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":479,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":479,"fn":"total","args":["[['widget', 60, 0], ['cable', 40, 0], ['cable', 40, 0]]","1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":480,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":480,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":481,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":481,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":482,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":482,"name":"sum_amounts","value":"60","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":483,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":483,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":484,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":484,"name":"sum_amounts","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":485,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":485,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":486,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":486,"name":"sum_amounts","value":"140","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":487,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":487,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":488,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":488,"fn":"total","value":"140"}
+{"stream":"eml","proto":"eml-trace-v1","seq":489,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":489,"fn":"build_repro_order","args":["1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":490,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":490,"name":"o","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":491,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":491,"name":"o","value":"[['widget', 60, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":492,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":492,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":493,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":493,"fn":"build_repro_order","value":"[['widget', 60, 0], ['cable', 40, 0]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":494,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":494,"fn":"expected_total","args":["[['widget', 60, 0], ['cable', 40, 0]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":495,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":495,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":496,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":496,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":497,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":497,"name":"a","value":"60","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":498,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":498,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":499,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":499,"name":"a","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":500,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":500,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":501,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":501,"fn":"expected_total","value":"100"}
+{"stream":"eml","proto":"eml-trace-v1","seq":502,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":502,"name":"states","value":"3","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":503,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":503,"fn":"build_repro_order","args":["1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":504,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":504,"name":"o","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":505,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":505,"name":"o","value":"[['widget', 60, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":506,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":506,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":507,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":507,"fn":"build_repro_order","value":"[['widget', 60, 0], ['cable', 40, 0]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":508,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":508,"name":"oo","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":509,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":509,"fn":"total","args":["[['widget', 60, 0], ['cable', 40, 0]]","0"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":510,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":510,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":511,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":511,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":512,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":512,"name":"sum_amounts","value":"60","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":513,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":513,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":514,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":514,"name":"sum_amounts","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":515,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":515,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":516,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":516,"fn":"total","value":"100"}
+{"stream":"eml","proto":"eml-trace-v1","seq":517,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":517,"fn":"build_repro_order","args":["1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":518,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":518,"name":"o","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":519,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":519,"name":"o","value":"[['widget', 60, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":520,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":520,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":521,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":521,"fn":"build_repro_order","value":"[['widget', 60, 0], ['cable', 40, 0]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":522,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":522,"fn":"expected_total","args":["[['widget', 60, 0], ['cable', 40, 0]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":523,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":523,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":524,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":524,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":525,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":525,"name":"a","value":"60","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":526,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":526,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":527,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":527,"name":"a","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":528,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":528,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":529,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":529,"fn":"expected_total","value":"100"}
+{"stream":"eml","proto":"eml-trace-v1","seq":530,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":530,"name":"repro_pass_states","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":531,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":531,"name":"repro_pass_when_builder_fixed","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":532,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":532,"name":"states","value":"4","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":533,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":533,"fn":"build_repro_order","args":["1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":534,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":534,"name":"o","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":535,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":535,"name":"o","value":"[['widget', 60, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":536,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":536,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":537,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":537,"fn":"build_repro_order","value":"[['widget', 60, 0], ['cable', 40, 0]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":538,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":538,"name":"oo","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":539,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":539,"fn":"total","args":["[['widget', 60, 0], ['cable', 40, 0]]","1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":540,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":540,"name":"sum_amounts","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":541,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":541,"name":"sum_discount","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":542,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":542,"name":"sum_amounts","value":"60","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":543,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":543,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":544,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":544,"name":"sum_amounts","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":545,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":545,"name":"sum_discount","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":546,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":546,"fn":"total","value":"100"}
+{"stream":"eml","proto":"eml-trace-v1","seq":547,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":547,"fn":"build_repro_order","args":["1"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":548,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":548,"name":"o","value":"[]","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":549,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":549,"name":"o","value":"[['widget', 60, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":550,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":550,"name":"o","value":"[['widget', 60, 0], ['cable', 40, 0]]","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":551,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":551,"fn":"build_repro_order","value":"[['widget', 60, 0], ['cable', 40, 0]]"}
+{"stream":"eml","proto":"eml-trace-v1","seq":552,"ts":"1970-01-01T00:00:00.000Z","type":"eml:call","mono":552,"fn":"expected_total","args":["[['widget', 60, 0], ['cable', 40, 0]]"],"temperature":"neutral"}
+{"stream":"eml","proto":"eml-trace-v1","seq":553,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":553,"name":"a","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":554,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":554,"name":"d","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":555,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":555,"name":"a","value":"60","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":556,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":556,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":557,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":557,"name":"a","value":"100","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":558,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":558,"name":"d","value":"0","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":559,"ts":"1970-01-01T00:00:00.000Z","type":"eml:return","mono":559,"fn":"expected_total","value":"100"}
+{"stream":"eml","proto":"eml-trace-v1","seq":560,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":560,"name":"repro_pass_states","value":"2","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":561,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":561,"name":"repro_pass_when_discount_fixed","value":"1","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":562,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":562,"name":"repro_pass_when_builder_fixed","value":"2","declares":false}
+{"stream":"eml","proto":"eml-trace-v1","seq":563,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":563,"text":"states in which the reproduction passes : 2 of 4","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":564,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":564,"text":"  of those, states where the reported defect was fixed : 1","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":565,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":565,"text":"  of those, states where the BUILDER was fixed         : 2","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":566,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":566,"text":"  the reproduction passes exactly when the builder is fixed, and the","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":567,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":567,"text":"  reported defect makes no difference to it either way","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":568,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":568,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":569,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":569,"text":"A reproduction is a claim that a symptom can be produced on demand. It is","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":570,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":570,"text":"not a claim about which mechanism produced it, and the second claim is the","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":571,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":571,"text":"one everybody reads it as.","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":572,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:done","mono":572,"ok":true,"outputs":33,"anomalies":0}
