@@ -1,0 +1,142 @@
+# Self-authored for the EML case corpus (no external origin). The error rate is
+# zero because the errors could not be parsed, and unparseable records are
+# dropped before the rate is computed.
+#
+# Dropping records is not the defect. Every pipeline drops something, and the
+# drop is usually harmless: it costs a little precision and leaves the estimate
+# where it was. The failure needs one extra property - that whatever is being
+# counted is also what makes a record undroppable.
+#
+# So the program runs two worlds with the SAME drop rate. In one, the dropped
+# records are picked by a rule unrelated to the fault. In the other, the fault
+# itself truncates the record, and truncation is the drop rule.
+#
+# The comparison is the case. A reader who sees only the correlated world can
+# blame "we lose 25% of records" and be wrong about which part hurt.
+
+40 => n
+
+def faulty(i):
+    if i % 5 == 0:
+        return 1
+    return 0
+
+# drop rule 1: unrelated to the fault - every fourth record is lost in transit
+def dropped_independent(i):
+    if i % 4 == 0:
+        return 1
+    return 0
+
+# drop rule 2: the fault truncates the record, and truncated records cannot be
+# parsed, so the parser discards them
+def dropped_correlated(i):
+    return faulty(i)
+
+def truth_faulty():
+    0 => c
+    for i in [1:n]:
+        c + faulty(i) => c
+    return c
+
+def parsed_count(rule):
+    0 => c
+    for i in [1:n]:
+        if rule == 1:
+            if dropped_independent(i) == 0:
+                c + 1 => c
+        else:
+            if dropped_correlated(i) == 0:
+                c + 1 => c
+    return c
+
+def faulty_among_parsed(rule):
+    0 => c
+    for i in [1:n]:
+        if rule == 1:
+            if dropped_independent(i) == 0:
+                c + faulty(i) => c
+        else:
+            if dropped_correlated(i) == 0:
+                c + faulty(i) => c
+    return c
+
+def pct(a, b):
+    if b == 0:
+        return 0
+    return int(a * 100 / b)
+
+# ---- what is actually true of the world ----
+
+truth_faulty() => truth
+"the world" ^0
+"  records produced : " + str(n) ^0
+"  faulty           : " + str(truth) ^0
+"  true rate        : " + str(pct(truth, n)) + "%" ^0
+"" ^0
+
+# ---- drop rule 1: independent of the fault ----
+
+parsed_count(1) => p1
+faulty_among_parsed(1) => f1
+"pipeline A - drops every fourth record, for reasons of its own" ^0
+"  parsed   : " + str(p1) ^0
+"  dropped  : " + str(n - p1) ^0
+"  faulty among parsed : " + str(f1) ^0
+"  reported rate       : " + str(pct(f1, p1)) + "%" ^0
+"" ^0
+
+# ---- drop rule 2: the fault is the drop rule ----
+
+parsed_count(2) => p2
+faulty_among_parsed(2) => f2
+"pipeline B - the fault truncates the record, so the parser discards it" ^0
+"  parsed   : " + str(p2) ^0
+"  dropped  : " + str(n - p2) ^0
+"  faulty among parsed : " + str(f2) ^0
+"  reported rate       : " + str(pct(f2, p2)) + "%" ^0
+"" ^0
+
+# ---- the two pipelines lose comparable amounts ----
+
+"loss" ^0
+"  A dropped : " + str(n - p1) ^0
+"  B dropped : " + str(n - p2) ^0
+"  A reported rate vs truth : " + str(pct(f1, p1)) + "% vs " + str(pct(truth, n)) + "%" ^0
+"  B reported rate vs truth : " + str(pct(f2, p2)) + "% vs " + str(pct(truth, n)) + "%" ^0
+if pct(f1, p1) == pct(truth, n):
+    "  A loses records and keeps the answer" ^0
+if pct(f2, p2) < pct(truth, n):
+    "  B loses records and loses the answer" ^0
+"" ^0
+
+# ---- what B's dropped set is made of ----
+
+0 => b_dropped_faulty
+0 => b_dropped_clean
+for i in [1:n]:
+    if dropped_correlated(i) == 1:
+        if faulty(i) == 1:
+            b_dropped_faulty + 1 => b_dropped_faulty
+        else:
+            b_dropped_clean + 1 => b_dropped_clean
+
+0 => a_dropped_faulty
+0 => a_dropped_clean
+for i in [1:n]:
+    if dropped_independent(i) == 1:
+        if faulty(i) == 1:
+            a_dropped_faulty + 1 => a_dropped_faulty
+        else:
+            a_dropped_clean + 1 => a_dropped_clean
+
+"what each pipeline threw away" ^0
+"  A : " + str(a_dropped_faulty) + " faulty, " + str(a_dropped_clean) + " clean" ^0
+"  B : " + str(b_dropped_faulty) + " faulty, " + str(b_dropped_clean) + " clean" ^0
+if b_dropped_clean == 0:
+    if b_dropped_faulty == truth:
+        "  B threw away every faulty record and nothing else" ^0
+"" ^0
+
+"Both pipelines can say 'we drop some records'. Only one of them is reporting" ^0
+"a number about the world. A count is only as good as the independence between" ^0
+"what got counted and what got kept." ^0

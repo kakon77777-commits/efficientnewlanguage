@@ -1,0 +1,129 @@
+# Self-authored for the EML case corpus (no external origin). The disambiguating
+# fact is not missing. It lands three days after the decision it would change.
+#
+# This is the version of the problem that survives every fix aimed at content.
+# The basis is written down, the schema has a field for it, the consumer reads
+# that field - and the field is filled in by a reconciliation job that runs on a
+# slower clock than the thing making decisions.
+#
+# So the decision maker is never wrong about what it knew; it is wrong about
+# what was knowable. Both are computed here by replaying each decision at its
+# own time and again with everything that eventually arrived.
+
+# [day, order, provisional_amount, final_amount, final_known_on_day]
+[[1, "o1", 100, 100, 1], [1, "o2", 400, 250, 4], [2, "o3", 120, 120, 2], [2, "o4", 500, 500, 2], [3, "o5", 300, 90, 6], [3, "o6", 150, 150, 3], [4, "o7", 700, 700, 4], [5, "o8", 260, 80, 8], [5, "o9", 110, 110, 5], [6, "o10", 900, 900, 6]] => orders
+
+250 => threshold
+
+def amount_known_on(o, d):
+    if d >= o[4]:
+        return o[3]
+    return o[2]
+
+def flagged_on(o, d):
+    if amount_known_on(o, d) > threshold:
+        return 1
+    return 0
+
+def flagged_final(o):
+    if o[3] > threshold:
+        return 1
+    return 0
+
+"orders : " + str(len(orders)) + ", review threshold : " + str(threshold) ^0
+0 => revised
+for o in orders:
+    if not (o[2] == o[3]):
+        revised + 1 => revised
+"  orders whose amount was later revised : " + str(revised) ^0
+"" ^0
+
+# ---- the decision, made on the day the order arrives ----
+
+"decisions made at arrival time" ^0
+0 => flagged_then
+for o in orders:
+    flagged_on(o, o[0]) => f
+    flagged_then + f => flagged_then
+    if f == 1:
+        "  " + o[1] + " day " + str(o[0]) + " : amount " + str(amount_known_on(o, o[0])) + " -> review" ^0
+"  flagged : " + str(flagged_then) ^0
+"" ^0
+
+"the same rule, on the amounts that turned out to be true" ^0
+0 => flagged_now
+for o in orders:
+    flagged_final(o) => f
+    flagged_now + f => flagged_now
+"  flagged : " + str(flagged_now) ^0
+"" ^0
+
+# ---- where the two disagree, split by direction ----
+
+0 => wrongly_flagged
+0 => wrongly_cleared
+for o in orders:
+    flagged_on(o, o[0]) => a
+    flagged_final(o) => b
+    if a == 1:
+        if b == 0:
+            wrongly_flagged + 1 => wrongly_flagged
+            "  " + o[1] + " : reviewed on " + str(o[2]) + ", actually " + str(o[3]) ^0
+    else:
+        if b == 1:
+            wrongly_cleared + 1 => wrongly_cleared
+            "  " + o[1] + " : cleared on " + str(o[2]) + ", actually " + str(o[3]) ^0
+"  reviewed and should not have been : " + str(wrongly_flagged) ^0
+"  cleared and should not have been  : " + str(wrongly_cleared) ^0
+"" ^0
+
+# ---- how long the answer was unavailable ----
+
+"lag between arrival and the final amount" ^0
+0 => total_lag
+0 => worst
+for o in orders:
+    o[4] - o[0] => lag
+    total_lag + lag => total_lag
+    if lag > worst:
+        lag => worst
+"  total order-days of lag : " + str(total_lag) ^0
+"  longest lag             : " + str(worst) ^0
+"" ^0
+
+# ---- waiting is not free either ----
+#
+# Deciding later is the obvious repair. It is measured rather than assumed:
+# how many decisions are right if every order waits d days before being judged.
+
+"if every decision waited d days" ^0
+for d in [0:4]:
+    0 => correct
+    for o in orders:
+        if flagged_on(o, o[0] + d) == flagged_final(o):
+            correct + 1 => correct
+    "  wait " + str(d) + " days : " + str(correct) + " of " + str(len(orders)) + " decisions match the final answer" ^0
+"" ^0
+
+# ---- the control: orders whose amount never moved ----
+#
+# For those, arrival-time and final-time decisions agree by construction, so the
+# disagreement above is not an artifact of the rule or the threshold.
+
+0 => stable
+0 => stable_agree
+for o in orders:
+    if o[2] == o[3]:
+        stable + 1 => stable
+        if flagged_on(o, o[0]) == flagged_final(o):
+            stable_agree + 1 => stable_agree
+"control - orders that were never revised" ^0
+"  orders : " + str(stable) ^0
+"  where the two decisions agree : " + str(stable_agree) ^0
+if stable_agree == stable:
+    "  the rule is not the problem" ^0
+"" ^0
+
+"The clarifying fact exists, has a field, and is read. It is simply not there" ^0
+"yet at the moment something has to be decided, and no amount of writing the" ^0
+"definition down moves it earlier." ^0

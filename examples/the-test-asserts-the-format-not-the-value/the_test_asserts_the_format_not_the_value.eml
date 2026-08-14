@@ -1,0 +1,137 @@
+# Self-authored for the EML case corpus (no external origin). The assertion
+# compares the rendered string. The caller depends on the fields.
+#
+# Comparing the rendered output is the cheapest assertion there is and it looks
+# like the strongest one: it constrains everything the function produces. The
+# trouble is that it constrains the rendering as well, and the rendering is a
+# presentation decision that nobody promised to keep.
+#
+# So the assertion is wrong in both directions at once, and the two directions
+# are measured separately here. It goes red for changes that alter no value.
+# It stays green for changes that alter a value the renderer cannot show.
+
+# [code, suffix] - rendered by joining with nothing between them
+[["AB", "C"], ["A", "BC"], ["XY", "Z"], ["X", "YZ"], ["Q", "R"]] => records
+
+def render(r):
+    return r[0] + r[1]
+
+def render_v2(r):
+    return r[0] + "-" + r[1]
+
+def same_value(a, b):
+    if a[0] == b[0]:
+        if a[1] == b[1]:
+            return 1
+    return 0
+
+# ---- direction one: values differ, the string does not ----
+
+"pairs of records" ^0
+0 => pairs
+0 => value_differs
+0 => string_differs
+0 => hidden
+0 => i
+for a in records:
+    0 => j
+    for b in records:
+        if j > i:
+            pairs + 1 => pairs
+            same_value(a, b) => sv
+            if sv == 0:
+                value_differs + 1 => value_differs
+                if render(a) == render(b):
+                    hidden + 1 => hidden
+                else:
+                    string_differs + 1 => string_differs
+        j + 1 => j
+    i + 1 => i
+
+"  pairs compared        : " + str(pairs) ^0
+"  pairs differing in value : " + str(value_differs) ^0
+"  the string separates  : " + str(string_differs) ^0
+"  the string cannot     : " + str(hidden) ^0
+"" ^0
+
+"the pairs the rendering hides" ^0
+0 => i
+for a in records:
+    0 => j
+    for b in records:
+        if j > i:
+            if same_value(a, b) == 0:
+                if render(a) == render(b):
+                    "  [" + a[0] + "|" + a[1] + "] and [" + b[0] + "|" + b[1] + "] both render as " + render(a) ^0
+        j + 1 => j
+    i + 1 => i
+"" ^0
+
+# ---- direction two: the string differs, no value does ----
+
+"a rendering change, with every field left alone" ^0
+0 => red
+0 => value_changed
+for r in records:
+    if not (render(r) == render_v2(r)):
+        red + 1 => red
+    if same_value(r, r) == 0:
+        value_changed + 1 => value_changed
+"  records            : " + str(len(records)) ^0
+"  string assertions that go red : " + str(red) ^0
+"  values that changed           : " + str(value_changed) ^0
+"" ^0
+
+# ---- what a field-wise assertion does on the same two changes ----
+
+def fieldwise_flags_pair(a, b):
+    if same_value(a, b) == 0:
+        return 1
+    return 0
+
+0 => fw_catches
+0 => i
+for a in records:
+    0 => j
+    for b in records:
+        if j > i:
+            if same_value(a, b) == 0:
+                fw_catches + fieldwise_flags_pair(a, b) => fw_catches
+        j + 1 => j
+    i + 1 => i
+
+"the same two questions, asked of the fields" ^0
+"  value-differing pairs it separates : " + str(fw_catches) + " of " + str(value_differs) ^0
+"  red on the rendering change        : 0" ^0
+"" ^0
+
+if hidden > 0:
+    if red > 0:
+        "The string assertion is both too strict and too loose, on the same" ^0
+        "function, at the same time - " + str(red) + " false alarms and " + str(hidden) + " blind pairs." ^0
+"" ^0
+
+# ---- the control: a rendering that is injective on this data ----
+#
+# Without this the reader could conclude that rendered comparisons are always
+# blind. They are blind exactly when the rendering loses a boundary.
+
+0 => hidden_v2
+0 => i
+for a in records:
+    0 => j
+    for b in records:
+        if j > i:
+            if same_value(a, b) == 0:
+                if render_v2(a) == render_v2(b):
+                    hidden_v2 + 1 => hidden_v2
+        j + 1 => j
+    i + 1 => i
+"control - the separated rendering, same comparison" ^0
+"  blind pairs : " + str(hidden_v2) ^0
+if hidden_v2 == 0:
+    "  with a separator the rendering loses nothing, and the blindness is gone" ^0
+"" ^0
+
+"An assertion answers a question about whatever it compares. Comparing the" ^0
+"output answers a question about the output." ^0

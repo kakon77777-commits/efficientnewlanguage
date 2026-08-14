@@ -1,0 +1,123 @@
+# Self-authored for the EML case corpus (no external origin). One query, three
+# worlds, one answer.
+#
+# The query is right. It asks the question it was asked to ask - how many
+# refunds are in this window - and it returns zero, and zero is a true count of
+# the rows matching it. Nothing is broken anywhere in this program.
+#
+# What the reader does next is decide something about the world, and there are
+# three worlds that produce this answer: no refund happened; refunds happened
+# and no row was written; refunds happened and were written under another name.
+# Those three call for three different actions.
+#
+# So the three worlds are run through the same query, and then through probes
+# chosen to split them. Which worlds a probe separates is measured by comparing
+# signatures, not asserted.
+
+# [type, amount]
+# A and C are given the SAME number of rows on purpose. If they differ, the row
+# count separates them for a reason that has nothing to do with refunds, and
+# the second probe appears to buy nothing.
+[["sale", 100], ["sale", 250], ["sale", 80]] => world_a
+[] => world_b
+[["reversal", -40], ["sale", 250], ["reversal", -15]] => world_c
+
+[world_a, world_b, world_c] => worlds
+["A refunds never happened", "B refunds happened, nothing was written", "C refunds happened, written as reversals"] => names
+
+# what is true of each world, known to the program and not to the query
+[0, 2, 2] => truth_refunds
+
+def q_refund_rows(rows):
+    0 => c
+    for r in rows:
+        if r[0] == "refund":
+            c + 1 => c
+    return c
+
+def p_any_rows(rows):
+    return len(rows)
+
+def p_negative_amounts(rows):
+    0 => c
+    for r in rows:
+        if r[1] < 0:
+            c + 1 => c
+    return c
+
+# ---- the query, on all three ----
+
+"the query: rows of type refund in this window" ^0
+for i in [0:2]:
+    "  " + names[i] + " -> " + str(q_refund_rows(worlds[i])) ^0
+"" ^0
+"what is actually true" ^0
+for i in [0:2]:
+    "  " + names[i] + " -> " + str(truth_refunds[i]) + " refunds occurred" ^0
+"" ^0
+
+# ---- how many worlds each set of observations can tell apart ----
+#
+# A signature is what an observer can see. Counting distinct signatures counts
+# how many of the three worlds are still separable after looking.
+
+def distinct(sigs):
+    0 => c
+    0 => idx
+    for s in sigs:
+        1 => is_new
+        0 => j
+        for t in sigs:
+            if j < idx:
+                if t == s:
+                    0 => is_new
+            j + 1 => j
+        c + is_new => c
+        idx + 1 => idx
+    return c
+
+[] => sig1
+[] => sig2
+[] => sig3
+for i in [0:2]:
+    sig1 + [str(q_refund_rows(worlds[i]))] => sig1
+    sig2 + [str(q_refund_rows(worlds[i])) + "/" + str(p_any_rows(worlds[i]))] => sig2
+    sig3 + [str(q_refund_rows(worlds[i])) + "/" + str(p_any_rows(worlds[i])) + "/" + str(p_negative_amounts(worlds[i]))] => sig3
+
+"worlds still separable" ^0
+"  query alone                          : " + str(distinct(sig1)) + " of " + str(len(worlds)) ^0
+"  query + row count                    : " + str(distinct(sig2)) + " of " + str(len(worlds)) ^0
+"  query + row count + negative amounts : " + str(distinct(sig3)) + " of " + str(len(worlds)) ^0
+"" ^0
+
+# ---- what each probe bought ----
+
+"each probe, and the worlds it splits off" ^0
+"  row count      : " + str(distinct(sig2) - distinct(sig1)) + " more separated" ^0
+"  negative amounts : " + str(distinct(sig3) - distinct(sig2)) + " more separated" ^0
+"" ^0
+
+"the observations, side by side" ^0
+for i in [0:2]:
+    "  " + names[i] ^0
+    "    refund rows : " + str(q_refund_rows(worlds[i])) ^0
+    "    rows at all : " + str(p_any_rows(worlds[i])) ^0
+    "    negative amounts : " + str(p_negative_amounts(worlds[i])) ^0
+"" ^0
+
+# ---- the control: a world where the query's zero means what it sounds like ----
+#
+# Without this the case would only show that the query is weak. It is not weak
+# everywhere: where rows exist, are complete, and use the expected vocabulary,
+# zero refund rows is zero refunds.
+
+[["sale", 100], ["refund", -30], ["sale", 250]] => world_d
+"control - a fourth world with a refund actually written as one" ^0
+"  refund rows : " + str(q_refund_rows(world_d)) ^0
+if q_refund_rows(world_d) > 0:
+    "  the query can return non-zero, so its zero is an observation" ^0
+"" ^0
+
+if distinct(sig1) == 1:
+    "Three worlds, one number. The query answered its own question correctly" ^0
+    "and the reader asked a different one." ^0

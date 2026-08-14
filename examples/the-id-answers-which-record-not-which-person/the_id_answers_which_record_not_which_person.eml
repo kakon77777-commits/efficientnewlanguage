@@ -1,0 +1,117 @@
+# Self-authored for the EML case corpus (no external origin). The index answers
+# "is there a record with this id". The question asked was "is this a new
+# customer".
+#
+# Nothing is wrong with the index. Account id is the right key for an account
+# table, it is unique, the lookup is correct, and every count computed from it
+# is a correct count of accounts.
+#
+# The two questions come apart exactly when one person holds more than one
+# account, which is not an edge case - it is what happens when someone signs up
+# again with a work address, or a household shares a card.
+#
+# Both counts are computed from the same rows. Neither is an estimate.
+
+# [account_id, owner, signup_month]
+# Month 1 deliberately contains no returning person. That month is the control:
+# where each new account is a new person the two counts coincide, so the
+# account count is not simply always inflated.
+[["a1", "kai@x", 1], ["a2", "mei@x", 1], ["a4", "ravi@x", 1], ["a3", "kai@work", 2], ["a5", "sol@x", 2], ["a6", "mei@home", 2], ["a7", "tam@x", 2], ["a8", "kai@x2", 2], ["a9", "ravi@alt", 2], ["a10", "wen@x", 2]] => accounts
+
+# The owner strings differ per account. Who is actually the same person is a
+# separate fact, and it is stated as data rather than guessed from the string.
+[["kai@x", "kai"], ["kai@work", "kai"], ["kai@x2", "kai"], ["mei@x", "mei"], ["mei@home", "mei"], ["ravi@x", "ravi"], ["ravi@alt", "ravi"], ["sol@x", "sol"], ["tam@x", "tam"], ["wen@x", "wen"]] => identity
+
+def person_of(owner):
+    for p in identity:
+        if p[0] == owner:
+            return p[1]
+    return owner
+
+def accounts_in(month):
+    0 => c
+    for a in accounts:
+        if a[2] == month:
+            c + 1 => c
+    return c
+
+def people_first_seen_in(month):
+    [] => seen
+    for a in accounts:
+        if a[2] < month:
+            person_of(a[1]) => p
+            0 => have
+            for s in seen:
+                if s == p:
+                    1 => have
+            if have == 0:
+                seen + [p] => seen
+    0 => fresh
+    [] => counted
+    for a in accounts:
+        if a[2] == month:
+            person_of(a[1]) => p
+            0 => have
+            for s in seen:
+                if s == p:
+                    1 => have
+            for s in counted:
+                if s == p:
+                    1 => have
+            if have == 0:
+                fresh + 1 => fresh
+                counted + [p] => counted
+    return fresh
+
+"rows" ^0
+"  accounts : " + str(len(accounts)) ^0
+[] => people
+for a in accounts:
+    person_of(a[1]) => p
+    0 => have
+    for s in people:
+        if s == p:
+            1 => have
+    if have == 0:
+        people + [p] => people
+"  distinct people : " + str(len(people)) ^0
+"" ^0
+
+"new this month, two ways" ^0
+for m in [1:2]:
+    "  month " + str(m) + " : " + str(accounts_in(m)) + " accounts, " + str(people_first_seen_in(m)) + " people" ^0
+"" ^0
+
+accounts_in(1) + accounts_in(2) => acc_total
+people_first_seen_in(1) + people_first_seen_in(2) => ppl_total
+"  totals : " + str(acc_total) + " accounts, " + str(ppl_total) + " people" ^0
+"  the account number is larger by : " + str(acc_total - ppl_total) ^0
+"" ^0
+
+# ---- who is responsible for the gap ----
+
+"people holding more than one account" ^0
+0 => multi
+for p in people:
+    0 => c
+    for a in accounts:
+        if person_of(a[1]) == p:
+            c + 1 => c
+    if c > 1:
+        multi + 1 => multi
+        "  " + p + " : " + str(c) + " accounts" ^0
+"  people with more than one : " + str(multi) ^0
+"" ^0
+
+# ---- the control: a month where the two questions coincide ----
+#
+# Month 1 has no returning person, so both counts agree there. Without this the
+# reader cannot tell whether the account count is simply always inflated.
+
+if accounts_in(1) == people_first_seen_in(1):
+    "In month 1 the two counts agree - every new account was a new person." ^0
+    "In month 2 they do not: " + str(accounts_in(2)) + " accounts, " + str(people_first_seen_in(2)) + " people." ^0
+"" ^0
+
+"The index is correct and the count is correct. Both answer a question about" ^0
+"accounts, and growth is usually asked about people." ^0

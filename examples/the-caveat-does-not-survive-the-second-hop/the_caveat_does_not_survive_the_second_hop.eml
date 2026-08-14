@@ -1,0 +1,107 @@
+# Self-authored for the EML case corpus (no external origin). The qualifier was
+# attached. It is dropped at the first consumer that has no field for it.
+#
+# "Carry the caveat with the number" is the standard fix, and it works at the
+# first hop. What it does not survive is a consumer that reshapes the record -
+# which every consumer does, because each one keeps the fields its own schema
+# names and the caveat is not in that schema.
+#
+# The number is never altered. Every hop copies it exactly. What changes is how
+# much of the record travels with it, and that is measured here by walking the
+# same payload through each hop and asking what is left.
+
+# The record as produced.
+[["value", "59"], ["basis", "of those who reached the step"], ["window", "days 1-6"], ["excludes", "trial accounts"]] => origin
+
+# Each hop keeps only the fields its schema names. This is not neglect; it is
+# what a schema is for.
+[["dashboard row", ["value", "basis", "window", "excludes"]], ["weekly rollup", ["value", "window"]], ["exec summary", ["value"]], ["press line", ["value"]]] => hops
+
+def has_field(record, name):
+    for f in record:
+        if f[0] == name:
+            return 1
+    return 0
+
+def project(record, keep):
+    [] => out
+    for f in record:
+        for k in keep:
+            if f[0] == k:
+                out + [f] => out
+    return out
+
+def value_of(record):
+    for f in record:
+        if f[0] == "value":
+            return f[1]
+    return "?"
+
+"the record as produced" ^0
+for f in origin:
+    "  " + f[0] + " : " + f[1] ^0
+"  fields : " + str(len(origin)) ^0
+"" ^0
+
+"each hop" ^0
+origin => cur
+0 => first_loss
+0 => hop_no
+for h in hops:
+    project(cur, h[1]) => cur
+    hop_no + 1 => hop_no
+    "  " + h[0] + " : value=" + value_of(cur) + ", fields=" + str(len(cur)) ^0
+    if len(cur) < len(origin):
+        if first_loss == 0:
+            hop_no => first_loss
+"" ^0
+
+"  the value at the last hop : " + value_of(cur) ^0
+"  the value at the source   : " + value_of(origin) ^0
+if value_of(cur) == value_of(origin):
+    "  the number survived every hop unchanged" ^0
+"  fields at the last hop : " + str(len(cur)) + " of " + str(len(origin)) ^0
+"  first hop that dropped something : " + str(first_loss) ^0
+"" ^0
+
+# ---- which fields are gone, and what they were for ----
+
+"fields lost" ^0
+0 => lost
+for f in origin:
+    if has_field(cur, f[0]) == 0:
+        lost + 1 => lost
+        "  " + f[0] + " (" + f[1] + ")" ^0
+"  lost : " + str(lost) + " of " + str(len(origin) - 1) + " qualifiers" ^0
+"" ^0
+
+# ---- the reader at the end, asked what the number means ----
+
+"what each hop can still answer" ^0
+["is this of everyone or of those who got there", "which window", "who is excluded"] => questions
+["basis", "window", "excludes"] => needed
+origin => cur2
+for h in hops:
+    project(cur2, h[1]) => cur2
+    0 => can
+    0 => qi
+    for n in needed:
+        can + has_field(cur2, n) => can
+        qi + 1 => qi
+    "  " + h[0] + " : " + str(can) + " of " + str(len(needed)) ^0
+"" ^0
+
+# ---- the control: a hop whose schema does name the qualifiers ----
+#
+# The dashboard row keeps all four. So schemas do not lose things by nature -
+# they lose the fields nobody put in them.
+
+project(origin, hops[0][1]) => d0
+"control - the first hop, whose schema names all four fields" ^0
+"  fields kept : " + str(len(d0)) + " of " + str(len(origin)) ^0
+if len(d0) == len(origin):
+    "  nothing is lost where the schema has somewhere to put it" ^0
+"" ^0
+
+"Attaching the caveat is a fix at the boundary you can see. Past the first" ^0
+"reshaping, the number travels alone and still reads as an answer." ^0

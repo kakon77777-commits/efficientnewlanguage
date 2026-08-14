@@ -1,0 +1,136 @@
+# Self-authored for the EML case corpus (no external origin). The test asks
+# "does this run". The caller asks "is this the right number".
+#
+# A smoke test that only calls the function is the first test anybody writes and
+# it is genuinely useful: it catches import errors, signature drift, and the
+# whole class of failures where the code cannot execute at all. It is also the
+# test most likely to survive untouched into a suite that people trust, because
+# it never goes red for a silly reason.
+#
+# The question it answers is "did control reach the end". Which mutations that
+# separates, and which it cannot, is measured here by running both kinds
+# through both tests rather than argued from the shape of the assertion.
+
+def discount(price, tier, variant):
+    if variant == 0:
+        if tier == "gold":
+            return price - int(price * 20 / 100)
+        return price - int(price * 5 / 100)
+    elif variant == 1:
+        if tier == "gold":
+            return price - int(price * 2 / 100)
+        return price - int(price * 5 / 100)
+    elif variant == 2:
+        if tier == "gold":
+            return price - int(price * 20 / 100)
+        return price
+    elif variant == 3:
+        if tier == "gold":
+            raise ValueError("tier table missing")
+        return price - int(price * 5 / 100)
+    else:
+        if tier == "gold":
+            return int(price / 0)
+        return price - int(price * 5 / 100)
+
+["correct", "gold rate wrong", "standard rate dropped", "raises on gold", "divides by zero on gold"] => labels
+[0, 1, 2, 3, 4] => variants
+[[100, "gold"], [100, "standard"], [250, "gold"], [40, "standard"]] => inputs
+
+# The reference is a separate expression of the rule, not a copy of variant 0.
+def expected(price, tier):
+    if tier == "gold":
+        return int(price * 80 / 100)
+    return int(price * 95 / 100)
+
+def smoke_test(variant):
+    for inp in inputs:
+        try:
+            discount(inp[0], inp[1], variant) => v
+        except ValueError:
+            return 1
+        except ZeroDivisionError:
+            return 1
+    return 0
+
+def value_test(variant):
+    for inp in inputs:
+        try:
+            discount(inp[0], inp[1], variant) => v
+        except ValueError:
+            return 1
+        except ZeroDivisionError:
+            return 1
+        if not (v == expected(inp[0], inp[1])):
+            return 1
+    return 0
+
+# ---- the reference agrees with the correct implementation ----
+#
+# Without this the whole table could be an artifact of a wrong reference.
+
+"reference check, on the correct variant" ^0
+0 => agree
+for inp in inputs:
+    if discount(inp[0], inp[1], 0) == expected(inp[0], inp[1]):
+        agree + 1 => agree
+"  inputs where the two independent expressions agree : " + str(agree) + " of " + str(len(inputs)) ^0
+"" ^0
+
+# ---- both tests against every variant ----
+
+"variant                     smoke   value" ^0
+0 => smoke_caught
+0 => value_caught
+0 => broken
+0 => idx
+for v in variants:
+    smoke_test(v) => s
+    value_test(v) => t
+    if v > 0:
+        broken + 1 => broken
+        smoke_caught + s => smoke_caught
+        value_caught + t => value_caught
+    if s == 1:
+        "  " + labels[idx] + "  ... red" ^0
+    else:
+        if t == 1:
+            "  " + labels[idx] + "  ... GREEN   red" ^0
+        else:
+            "  " + labels[idx] + "  ... green   green" ^0
+    idx + 1 => idx
+"" ^0
+
+"broken variants   : " + str(broken) ^0
+"  smoke test catches : " + str(smoke_caught) ^0
+"  value test catches : " + str(value_caught) ^0
+"" ^0
+
+# ---- split by what kind of breakage it is ----
+
+0 => crashy
+0 => crashy_smoke
+0 => quiet
+0 => quiet_smoke
+for v in variants:
+    if v > 0:
+        if smoke_test(v) == 1:
+            crashy + 1 => crashy
+            crashy_smoke + 1 => crashy_smoke
+        else:
+            quiet + 1 => quiet
+            quiet_smoke + smoke_test(v) => quiet_smoke
+
+"by kind of breakage" ^0
+"  variants that cannot finish : " + str(crashy) + ", smoke catches " + str(crashy_smoke) ^0
+"  variants that finish wrong  : " + str(quiet) + ", smoke catches " + str(quiet_smoke) ^0
+"" ^0
+
+if quiet_smoke == 0:
+    if crashy_smoke == crashy:
+        "The smoke test is perfect on one kind and blind on the other, and the" ^0
+        "two kinds are not distinguishable from its output." ^0
+"" ^0
+
+"A green smoke test is a true statement about reachability. Read as a" ^0
+"statement about correctness it covers " + str(quiet_smoke) + " of " + str(quiet) + " wrong answers." ^0

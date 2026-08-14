@@ -1,0 +1,174 @@
+# Self-authored for the EML case corpus (no external origin). Three teams share
+# one loose rule, then each writes down what it actually means. The question is
+# which ranking is closer to the truth.
+#
+# This case was written to show the opposite of what it shows. The argument it
+# was built to make - "the roughness was identical, so the ranking between teams
+# was informative even though no single number was" - is the standard case for
+# keeping a shared metric rather than letting teams refine their own. It is a
+# real argument and it is why loose company-wide definitions survive.
+#
+# The measurement refuses it on this data. The ranking is compared against one
+# strict rule applied to everybody, which is what all three teams are groping
+# toward, and the loose shared rule agrees with it least. That is a fact about
+# this population, not a law: a population where the exclusions cancel out would
+# come out the other way, and the reader should read the numbers rather than
+# the title.
+#
+# Everything is computed from one event log, so the three rankings are three
+# readings of the same facts.
+
+# [team, ticket, closed, reopened_later, was_duplicate, closed_by_customer]
+[["a", 1, 1, 0, 0, 0], ["a", 2, 1, 1, 0, 0], ["a", 3, 1, 0, 1, 0], ["a", 4, 1, 0, 0, 1], ["a", 5, 1, 0, 0, 0], ["a", 6, 0, 0, 0, 0], ["b", 7, 1, 0, 0, 0], ["b", 8, 1, 0, 0, 0], ["b", 9, 1, 1, 0, 0], ["b", 10, 1, 0, 0, 0], ["b", 11, 0, 0, 0, 0], ["c", 12, 1, 0, 1, 0], ["c", 13, 1, 0, 1, 0], ["c", 14, 1, 0, 0, 0], ["c", 15, 1, 0, 0, 1], ["c", 16, 1, 1, 0, 0]] => tickets
+
+["a", "b", "c"] => teams
+
+# The loose rule, used by everyone: anything closed counts.
+def loose(t):
+    0 => c
+    for k in tickets:
+        if k[0] == t:
+            c + k[2] => c
+    return c
+
+# Each team's own precise rule, each an improvement on the loose one.
+def precise(t):
+    0 => c
+    for k in tickets:
+        if k[0] == t:
+            if k[2] == 1:
+                1 => keep
+                if t == "a":
+                    if k[3] == 1:
+                        0 => keep
+                elif t == "b":
+                    if k[5] == 1:
+                        0 => keep
+                else:
+                    if k[4] == 1:
+                        0 => keep
+                c + keep => c
+    return c
+
+# One rule applied to everybody, strictly better than the loose one.
+def uniform(t):
+    0 => c
+    for k in tickets:
+        if k[0] == t:
+            if k[2] == 1:
+                if k[3] == 0:
+                    if k[4] == 0:
+                        if k[5] == 0:
+                            c + 1 => c
+    return c
+
+def rank_of(t, mode):
+    0 => better
+    for u in teams:
+        if mode == 0:
+            if loose(u) > loose(t):
+                better + 1 => better
+        elif mode == 1:
+            if precise(u) > precise(t):
+                better + 1 => better
+        else:
+            if uniform(u) > uniform(t):
+                better + 1 => better
+    return better + 1
+
+"team   loose   own precise   one shared precise" ^0
+for t in teams:
+    "  " + t + "      " + str(loose(t)) + "         " + str(precise(t)) + "              " + str(uniform(t)) ^0
+"" ^0
+
+"rankings" ^0
+for t in teams:
+    "  " + t + " : loose #" + str(rank_of(t, 0)) + ", own precise #" + str(rank_of(t, 1)) + ", shared precise #" + str(rank_of(t, 2)) ^0
+"" ^0
+
+# ---- what each team's rule excludes, which is different per team ----
+
+"what each precise rule removes" ^0
+"  a : tickets that were reopened" ^0
+"  b : tickets the customer closed" ^0
+"  c : duplicates" ^0
+0 => distinct_rules
+for t in teams:
+    distinct_rules + 1 => distinct_rules
+"  distinct exclusion rules in play : " + str(distinct_rules) ^0
+"" ^0
+
+# ---- how much of each team's drop is its own rule ----
+
+"drop from loose to own precise" ^0
+for t in teams:
+    "  " + t + " : " + str(loose(t) - precise(t)) ^0
+"" ^0
+
+# ---- the measurement that matters: does the ordering survive ----
+
+0 => same_as_loose
+0 => same_as_uniform
+for t in teams:
+    if rank_of(t, 1) == rank_of(t, 0):
+        same_as_loose + 1 => same_as_loose
+    if rank_of(t, 1) == rank_of(t, 2):
+        same_as_uniform + 1 => same_as_uniform
+
+"agreement of the own-precise ranking" ^0
+"  with the loose ranking   : " + str(same_as_loose) + " of " + str(len(teams)) ^0
+"  with the shared-precise ranking : " + str(same_as_uniform) + " of " + str(len(teams)) ^0
+"" ^0
+
+0 => loose_vs_uniform
+for t in teams:
+    if rank_of(t, 0) == rank_of(t, 2):
+        loose_vs_uniform + 1 => loose_vs_uniform
+"  the LOOSE ranking against the shared-precise one : " + str(loose_vs_uniform) + " of " + str(len(teams)) ^0
+if loose_vs_uniform > same_as_uniform:
+    "  the vague shared rule tracked the good shared rule better" ^0
+else:
+    "  three DIFFERENT better rules tracked the good shared rule better than" ^0
+    "  one identical worse rule did" ^0
+"" ^0
+
+# ---- the control: a log where nothing is excluded by any rule ----
+#
+# There loose, own-precise and shared-precise are the same function, so all
+# three rankings coincide. That is how we know the disagreement above comes
+# from what the tickets contain and not from the ranking code.
+
+[["a", 1, 1, 0, 0, 0], ["a", 2, 1, 0, 0, 0], ["b", 3, 1, 0, 0, 0], ["c", 4, 1, 0, 0, 0], ["c", 5, 1, 0, 0, 0], ["c", 6, 1, 0, 0, 0]] => plain
+
+def plain_loose(t):
+    0 => c
+    for k in plain:
+        if k[0] == t:
+            c + k[2] => c
+    return c
+
+def plain_uniform(t):
+    0 => c
+    for k in plain:
+        if k[0] == t:
+            if k[2] == 1:
+                if k[3] == 0:
+                    if k[4] == 0:
+                        if k[5] == 0:
+                            c + 1 => c
+    return c
+
+0 => plain_agree
+for t in teams:
+    if plain_loose(t) == plain_uniform(t):
+        plain_agree + 1 => plain_agree
+"control - a log with nothing to exclude" ^0
+"  teams where loose and strict give the same number : " + str(plain_agree) + " of " + str(len(teams)) ^0
+if plain_agree == len(teams):
+    "  the two rules are the same function here, and the rankings coincide" ^0
+"" ^0
+
+"Each precise definition is an improvement over the loose one it replaced," ^0
+"and on this data the shared loose rule ranked the teams worst of the three." ^0
+"Sameness is what makes numbers addable. It is not by itself what makes a" ^0
+"ranking mean something." ^0

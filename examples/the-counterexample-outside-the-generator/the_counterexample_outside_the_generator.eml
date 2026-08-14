@@ -1,0 +1,119 @@
+# Self-authored for the EML case corpus (no external origin). A property check
+# runs thousands of inputs, finds nothing, and could not have found anything.
+#
+# Two implementations of integer division: one truncates toward zero, the other
+# floors. They agree on every non-negative numerator and disagree on negatives
+# that do not divide evenly. That is a real divergence, not a contrived one.
+#
+# The generator draws numerators from 0 upward, because that is what the caller
+# was documented to pass. So the check is sound, the implementations are as
+# written, and the result is zero divergences - forever, at any sample size.
+#
+# The measurement that matters is not how many samples found nothing. It is how
+# much of the domain the generator can reach at all. Raising the count moves
+# one number; widening the range moves the other.
+
+7 => d
+
+def trunc_div(n):
+    return int(n / d)
+
+def floor_div(n):
+    return int((n - n % d) / d)
+
+def diverges(n):
+    if trunc_div(n) == floor_div(n):
+        return 0
+    return 1
+
+# ---- the generator as written: numerators 0 upward ----
+
+def sweep(lo, hi):
+    0 => found
+    for n in [lo:hi]:
+        found + diverges(n) => found
+    return found
+
+def size(lo, hi):
+    0 => n
+    for i in [lo:hi]:
+        n + 1 => n
+    return n
+
+"generator as written - numerators from 0" ^0
+"  100 inputs  : " + str(sweep(0, 99)) + " divergences" ^0
+"  500 inputs  : " + str(sweep(0, 499)) + " divergences" ^0
+"  2000 inputs : " + str(sweep(0, 1999)) + " divergences" ^0
+"" ^0
+
+# ---- the same check, a generator that can express negatives ----
+
+"generator widened - numerators from -60" ^0
+"  160 inputs  : " + str(sweep(-60, 99)) + " divergences" ^0
+"" ^0
+
+sweep(0, 1999) => big_narrow
+sweep(-60, 99) => small_wide
+size(0, 1999) => big_n
+size(-60, 99) => small_n
+
+"  " + str(big_n) + " inputs from the narrow generator : " + str(big_narrow) ^0
+"  " + str(small_n) + " inputs from the wide generator   : " + str(small_wide) ^0
+if big_narrow == 0:
+    if small_wide > 0:
+        "  the smaller sweep found more, and count was never the constraint" ^0
+"" ^0
+
+# ---- where the divergences actually live ----
+
+0 => neg_total
+0 => neg_diverging
+for n in [-60:-1]:
+    neg_total + 1 => neg_total
+    neg_diverging + diverges(n) => neg_diverging
+
+0 => pos_total
+0 => pos_diverging
+for n in [0:1999]:
+    pos_total + 1 => pos_total
+    pos_diverging + diverges(n) => pos_diverging
+
+"divergences by sign of numerator" ^0
+"  negative numerators tried : " + str(neg_total) + ", diverging : " + str(neg_diverging) ^0
+"  positive numerators tried : " + str(pos_total) + ", diverging : " + str(pos_diverging) ^0
+if pos_diverging == 0:
+    "  every divergence is on the side the generator cannot produce" ^0
+"" ^0
+
+# ---- one witness, printed, so the divergence is not taken on trust ----
+
+0 => witness
+for n in [-60:-1]:
+    if witness == 0:
+        if diverges(n) == 1:
+            n => witness
+
+"witness" ^0
+"  n            : " + str(witness) ^0
+"  truncating   : " + str(trunc_div(witness)) ^0
+"  flooring     : " + str(floor_div(witness)) ^0
+"  n % d        : " + str(witness % d) ^0
+"" ^0
+
+# ---- and the control: a numerator the narrow generator DOES produce ----
+#
+# Without this the reader cannot tell whether the two implementations differ
+# everywhere and the sweep is simply broken.
+
+13 => ctrl
+"control - a numerator inside the narrow range" ^0
+"  n            : " + str(ctrl) ^0
+"  truncating   : " + str(trunc_div(ctrl)) ^0
+"  flooring     : " + str(floor_div(ctrl)) ^0
+if trunc_div(ctrl) == floor_div(ctrl):
+    "  they agree here, so the sweep's zero is a real observation" ^0
+"" ^0
+
+"A sweep reports two things and returns one: what it found, and the shape of" ^0
+"the inputs it was able to build. When those inputs are drawn from a subspace," ^0
+"the count of samples measures effort, not coverage." ^0
