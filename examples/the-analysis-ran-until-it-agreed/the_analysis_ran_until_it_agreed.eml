@@ -1,0 +1,154 @@
+# Self-authored for the EML case corpus (no external origin). The overall result
+# was flat, so it was cut by segment, and one segment was up.
+#
+# Segmenting is how real findings are made. Effects genuinely do concentrate -
+# in new users, on mobile, in one region - and a team that reported only the
+# average would be missing the thing that matters. The instinct is sound and
+# the analysis is arithmetic.
+#
+# In this data the overall effect is exactly zero, and it is zero in every
+# segment too: the per-segment numbers below are what unequal segment sizes do
+# to an average of nothing. The question is how many segments have to be tried
+# before one of them is up.
+
+# [segment, users, measured_change_in_tenths]  - true effect is 0 everywhere
+[["new users", 120, 9], ["returning", 900, -1], ["mobile", 600, -2], ["desktop", 420, 4], ["region A", 300, -3], ["region B", 180, 7], ["region C", 60, 14], ["enterprise", 40, -11], ["free tier", 980, -1], ["trial", 90, 6]] => segments
+
+def show(x):
+    if x < 0:
+        return "-" + str(int((0 - x) / 10)) + "." + str((0 - x) % 10)
+    return str(int(x / 10)) + "." + str(x % 10)
+
+def overall():
+    0 => num
+    0 => den
+    for s in segments:
+        num + s[1] * s[2] => num
+        den + s[1] => den
+    return int(num / den)
+
+"overall, weighted by users : " + show(overall()) ^0
+"" ^0
+
+"segment          users   measured" ^0
+for s in segments:
+    "  " + s[0] + "   " + str(s[1]) + "     " + show(s[2]) ^0
+"" ^0
+
+0 => up
+0 => down
+for s in segments:
+    if s[2] > 0:
+        up + 1 => up
+    else:
+        down + 1 => down
+"  segments up   : " + str(up) + " of " + str(len(segments)) ^0
+"  segments down : " + str(down) ^0
+"" ^0
+
+# ---- how many you have to try ----
+
+"trying segments in order, until one is up" ^0
+0 => tried
+0 => found
+for s in segments:
+    if found == 0:
+        tried + 1 => tried
+        if s[2] > 0:
+            1 => found
+            "  " + str(tried) + " segment(s) tried, and " + s[0] + " is up by " + show(s[2]) ^0
+"" ^0
+
+# ---- the segments that are up are the small ones ----
+
+"the ones that are up, by size" ^0
+0 => up_users
+0 => down_users
+for s in segments:
+    if s[2] > 0:
+        up_users + s[1] => up_users
+        "  " + s[0] + " : " + str(s[1]) + " users, " + show(s[2]) ^0
+    else:
+        down_users + s[1] => down_users
+"  users in the up segments   : " + str(up_users) ^0
+"  users in the down segments : " + str(down_users) ^0
+if up_users < down_users:
+    "  the positive story covers the smaller part of the population" ^0
+"" ^0
+
+# ---- the biggest number belongs to the smallest segment ----
+
+0 => best
+0 => best_at
+0 => i
+for s in segments:
+    if s[2] > best:
+        s[2] => best
+        i => best_at
+    i + 1 => i
+"the largest measured lift" ^0
+"  " + segments[best_at][0] + " : " + show(best) + " on " + str(segments[best_at][1]) + " users" ^0
+0 => smallest
+9999 => sz
+0 => j
+for s in segments:
+    if s[1] < sz:
+        s[1] => sz
+        j => smallest
+    j + 1 => j
+"the smallest segment" ^0
+"  " + segments[smallest][0] + " : " + str(segments[smallest][1]) + " users, " + show(segments[smallest][2]) ^0
+if best_at == smallest:
+    "  the largest lift and the smallest segment are the same one" ^0
+else:
+    "  they are NOT the same segment - the largest lift sits in a segment of" ^0
+    "  " + str(segments[best_at][1]) + " while the smallest has " + str(segments[smallest][1]) ^0
+"" ^0
+
+# The tidy version of this case would say the biggest lift is always in the
+# smallest segment. Measured over these ten, it is not: the smallest segment
+# here is one of the ones that went DOWN. What does hold is the weaker and
+# duller statement above - the up segments carry fewer users than the down
+# ones - and that is the one the data supports.
+
+0 => up_n
+0 => up_sum
+0 => down_n
+0 => down_sum
+for s in segments:
+    if s[2] > 0:
+        up_n + 1 => up_n
+        up_sum + s[1] => up_sum
+    else:
+        down_n + 1 => down_n
+        down_sum + s[1] => down_sum
+"average segment size" ^0
+"  among the ones that are up   : " + str(int(up_sum / up_n)) ^0
+"  among the ones that are down : " + str(int(down_sum / down_n)) ^0
+"" ^0
+
+# ---- the control: a real effect, present in the average ----
+#
+# Segmenting is not the defect. A real effect shows up before you segment, and
+# survives being cut.
+
+[["new users", 120, 34], ["returning", 900, 28], ["mobile", 600, 31], ["desktop", 420, 29]] => real
+0 => rnum
+0 => rden
+for s in real:
+    rnum + s[1] * s[2] => rnum
+    rden + s[1] => rden
+"control - a world with a real effect of about 3.0" ^0
+"  overall : " + show(int(rnum / rden)) ^0
+0 => rup
+for s in real:
+    if s[2] > 0:
+        rup + 1 => rup
+"  segments up : " + str(rup) + " of " + str(len(real)) ^0
+if rup == len(real):
+    "  every segment agrees, and the average said so first" ^0
+"" ^0
+
+"Every number here is correct and every segment is one a reasonable person" ^0
+"would look at. What is missing from the writeup is how many were looked at" ^0
+"before one of them was reported." ^0

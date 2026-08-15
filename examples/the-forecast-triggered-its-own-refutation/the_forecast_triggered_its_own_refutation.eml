@@ -1,0 +1,109 @@
+# Self-authored for the EML case corpus (no external origin). The forecast said
+# 900. Usage came in at 640. The forecast is filed as a 29% overestimate.
+#
+# The forecast was acted on, which is what forecasts are for. Acting meant
+# provisioning, and provisioning included a per-tenant cap so the new capacity
+# could not be consumed by one noisy tenant. The cap is the thing that held
+# usage down.
+#
+# So the number the forecast is graded against was produced by a world the
+# forecast itself created. The comparison is not wrong arithmetic - it is a
+# comparison against the wrong world, and the right world is the one that was
+# prevented.
+#
+# Here the counterfactual is computable because this is a model. In the real
+# system it is not observable at all, which is the whole difficulty.
+
+[["t1", 180], ["t2", 140], ["t3", 260], ["t4", 90], ["t5", 230]] => demand
+120 => cap
+
+def unconstrained():
+    0 => t
+    for d in demand:
+        t + d[1] => t
+    return t
+
+def with_cap():
+    0 => t
+    for d in demand:
+        if d[1] > cap:
+            t + cap => t
+        else:
+            t + d[1] => t
+    return t
+
+900 => forecast
+
+"the forecast, made before anything was provisioned" ^0
+"  forecast : " + str(forecast) ^0
+"" ^0
+
+"what happened" ^0
+"  observed usage : " + str(with_cap()) ^0
+"  forecast error as filed : " + str(int((forecast - with_cap()) * 100 / forecast)) + "% over" ^0
+"" ^0
+
+"the world the forecast was about, which no longer exists" ^0
+"  demand, uncapped : " + str(unconstrained()) ^0
+"  forecast error against THAT : " + str(int((forecast - unconstrained()) * 100 / forecast)) + "% over" ^0
+"" ^0
+
+# ---- how much of the gap the action itself created ----
+
+unconstrained() - with_cap() => suppressed
+forecast - with_cap() => filed_error
+"  gap between the two worlds : " + str(suppressed) ^0
+"  filed error                : " + str(filed_error) ^0
+"  share of the filed error created by acting on the forecast : " + str(int(suppressed * 100 / filed_error)) + "%" ^0
+"" ^0
+
+"per tenant" ^0
+for d in demand:
+    if d[1] > cap:
+        "  " + d[0] + " : wanted " + str(d[1]) + ", got " + str(cap) + "  (-" + str(d[1] - cap) + ")" ^0
+    else:
+        "  " + d[0] + " : wanted " + str(d[1]) + ", got " + str(d[1]) ^0
+0 => capped
+for d in demand:
+    if d[1] > cap:
+        capped + 1 => capped
+"  tenants at the cap : " + str(capped) + " of " + str(len(demand)) ^0
+"" ^0
+
+# ---- what happens next year ----
+#
+# The forecaster is told they overshoot, so they shade the next forecast down.
+# The cap is still there, so the observation still agrees with them - and the
+# error against real demand grows.
+
+def shaded(f):
+    return int(f * 75 / 100)
+
+shaded(forecast) => f2
+"next year, the forecaster shades down by a quarter" ^0
+"  new forecast : " + str(f2) ^0
+"  observed (cap still in place) : " + str(with_cap()) ^0
+"  error as filed : " + str(int((f2 - with_cap()) * 100 / f2)) + "% over" ^0
+"  error against uncapped demand : " + str(int((unconstrained() - f2) * 100 / unconstrained())) + "% UNDER" ^0
+if f2 < unconstrained():
+    "  the correction that looked right made it too small for the real world" ^0
+"" ^0
+
+# ---- the control: a forecast nobody acted on ----
+#
+# Without this the case reads as "forecasts cannot be graded". They can, when
+# the grading world is not one the forecast produced.
+
+def no_action_usage():
+    return unconstrained()
+
+"control - a forecast filed and not acted on" ^0
+"  forecast : " + str(forecast) ^0
+"  observed : " + str(no_action_usage()) ^0
+"  error    : " + str(int((forecast - no_action_usage()) * 100 / forecast)) + "% over" ^0
+"  here the observation and the forecast are about the same world" ^0
+"" ^0
+
+"A forecast that is acted on is graded against the world its own output made." ^0
+"The gap is real, the arithmetic is right, and the thing being measured is not" ^0
+"the thing that was predicted." ^0

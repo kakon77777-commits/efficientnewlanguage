@@ -1,0 +1,143 @@
+# Self-authored for the EML case corpus (no external origin). The list is
+# ordered by clicks. Position determines clicks. The list orders itself.
+#
+# Ranking by clicks is the honest choice available. Nobody has to guess what is
+# good, no editor imposes taste, and the signal comes from the people the list
+# is for. On the first day it works exactly as intended.
+#
+# From the second day the clicks it reads are clicks it caused, because the top
+# of a list is seen more than the bottom regardless of what is there. The rule
+# is still measuring something real; what it measures is no longer only quality.
+#
+# Quality is fixed and known to this program and never read by the ranker. The
+# question asked here is how much of that order the visible list recovers.
+
+# [name, quality]
+[["a", 3], ["b", 9], ["c", 5], ["d", 7], ["e", 4], ["f", 8]] => items
+
+# How much each slot is seen. The top is seen ten times as much as the bottom.
+[10, 6, 4, 3, 2, 1] => attention
+[1, 1, 1, 1, 1, 1] => flat
+
+def quality_of(idx):
+    return items[idx][1]
+
+def order_by(scores):
+    [] => out
+    [] => used
+    for k in [1:len(items)]:
+        -1 => best
+        0 => at
+        0 => i
+        for s in scores:
+            0 => taken
+            for u in used:
+                if u == i:
+                    1 => taken
+            if taken == 0:
+                if s > best:
+                    s => best
+                    i => at
+            i + 1 => i
+        used + [at] => used
+        out + [at] => out
+    return out
+
+# One day: each item earns clicks at the slot it currently occupies, and the
+# next day's order is those click counts.
+def next_order(order, weights):
+    [] => scored
+    for it in items:
+        scored + [-1] => scored
+    0 => pos
+    for idx in order:
+        [] => nb
+        0 => q
+        for v in scored:
+            if q == idx:
+                nb + [quality_of(idx) * weights[pos]] => nb
+            else:
+                nb + [v] => nb
+            q + 1 => q
+        nb => scored
+        pos + 1 => pos
+    return order_by(scored)
+
+def concordance(order):
+    0 => agree
+    0 => pairs
+    0 => i
+    for x in order:
+        0 => j
+        for y in order:
+            if j > i:
+                if not (quality_of(x) == quality_of(y)):
+                    pairs + 1 => pairs
+                    if quality_of(x) > quality_of(y):
+                        agree + 1 => agree
+            j + 1 => j
+        i + 1 => i
+    return int(agree * 100 / pairs)
+
+def names(order):
+    "" => s
+    for idx in order:
+        s + items[idx][0] => s
+    return s
+
+[] => truth_scores
+for it in items:
+    truth_scores + [it[1]] => truth_scores
+order_by(truth_scores) => true_order
+
+"items and their quality, which the ranker never reads" ^0
+for it in items:
+    "  " + it[0] + " : " + str(it[1]) ^0
+"  best possible order : " + names(true_order) + "  (" + str(concordance(true_order)) + "%)" ^0
+"" ^0
+
+# ---- the list, day by day ----
+#
+# The launch order is alphabetical because on day 0 nothing better exists.
+
+[0, 1, 2, 3, 4, 5] => order
+5 => days
+"day 0 - launch order : " + names(order) + "  (" + str(concordance(order)) + "%)" ^0
+for d in [1:days]:
+    next_order(order, attention) => order
+    "day " + str(d) + " - " + names(order) + "  (" + str(concordance(order)) + "%)" ^0
+"" ^0
+"  best possible : " + str(concordance(true_order)) + "%" ^0
+"  reached       : " + str(concordance(order)) + "%" ^0
+"" ^0
+
+# ---- how much of a click count is the slot ----
+
+"the same item at each slot" ^0
+for p in [0:5]:
+    "  quality 5 at slot " + str(p + 1) + " : " + str(5 * attention[p]) + " clicks" ^0
+"" ^0
+"the worst item at the top against the best at the bottom" ^0
+"  quality 3 at slot 1 : " + str(3 * attention[0]) ^0
+"  quality 9 at slot 6 : " + str(9 * attention[5]) ^0
+if 3 * attention[0] > 9 * attention[5]:
+    "  position outweighs a three-fold quality gap" ^0
+"" ^0
+
+# ---- the control: the same ranker where every slot is seen equally ----
+#
+# Without this the case reads as "click ranking cannot work". It works when the
+# clicks are not also a record of where the ranker put things.
+
+[0, 1, 2, 3, 4, 5] => order2
+for d in [1:days]:
+    next_order(order2, flat) => order2
+"control - every slot seen equally" ^0
+"  order : " + names(order2) + "  (" + str(concordance(order2)) + "%)" ^0
+if concordance(order2) == concordance(true_order):
+    "  with position removed, clicks recover the quality order exactly" ^0
+"" ^0
+
+"The ranker reads a real signal. After the first day that signal contains the" ^0
+"ranker's own previous output, and nothing in a click count says which part is" ^0
+"which." ^0

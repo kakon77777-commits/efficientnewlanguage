@@ -1,0 +1,125 @@
+# Self-authored for the EML case corpus (no external origin). The control group
+# was excluded from the new ranker. It was not excluded from the cache the new
+# ranker fills.
+#
+# The exclusion is real and correctly implemented: control requests never enter
+# the new code path, and an audit of the routing would find nothing wrong. The
+# leak is one layer down, in a component neither group is assigned to, which
+# both groups read and only one group writes.
+#
+# The effect is not destroyed, which is what makes this hard to notice. It is
+# attenuated, in proportion to how much of the control group's traffic is
+# served from what the treated group warmed - and the measured number remains
+# plausible at every level of contamination.
+
+# [request, key, group]  - control requests share keys with treated ones
+[["r1", "k1", "t"], ["r2", "k2", "t"], ["r3", "k3", "t"], ["r4", "k1", "t"], ["r5", "k4", "t"], ["r6", "k2", "t"], ["r7", "k5", "t"], ["r8", "k3", "t"], ["r9", "k1", "c"], ["r10", "k6", "c"], ["r11", "k2", "c"], ["r12", "k7", "c"], ["r13", "k3", "c"], ["r14", "k8", "c"], ["r15", "k4", "c"], ["r16", "k9", "c"]] => requests
+
+100 => baseline
+20 => benefit
+
+# A key is warm if some treated request used it.
+def warmed(key):
+    for r in requests:
+        if r[2] == "t":
+            if r[1] == key:
+                return 1
+    return 0
+
+def score(r, leak):
+    if r[2] == "t":
+        return baseline + benefit
+    if leak == 1:
+        if warmed(r[1]) == 1:
+            return baseline + benefit
+    return baseline
+
+def mean(group, leak):
+    0 => t
+    0 => n
+    for r in requests:
+        if r[2] == group:
+            t + score(r, leak) => t
+            n + 1 => n
+    return int(t * 10 / n)
+
+def show(x):
+    return str(int(x / 10)) + "." + str(x % 10)
+
+0 => c_total
+0 => c_warm
+for r in requests:
+    if r[2] == "c":
+        c_total + 1 => c_total
+        c_warm + warmed(r[1]) => c_warm
+
+"requests : " + str(len(requests)) + ", control : " + str(c_total) ^0
+"  control requests whose key a treated request already warmed : " + str(c_warm) ^0
+"  contamination : " + str(int(c_warm * 100 / c_total)) + "%" ^0
+"" ^0
+
+"if the cache were per-group, as everyone assumes" ^0
+"  treated : " + show(mean("t", 0)) ^0
+"  control : " + show(mean("c", 0)) ^0
+"  measured effect : " + show(mean("t", 0) - mean("c", 0)) ^0
+"  true effect     : " + show(benefit * 10) ^0
+"" ^0
+
+"with the shared cache that is actually there" ^0
+"  treated : " + show(mean("t", 1)) ^0
+"  control : " + show(mean("c", 1)) ^0
+"  measured effect : " + show(mean("t", 1) - mean("c", 1)) ^0
+"  true effect     : " + show(benefit * 10) ^0
+"" ^0
+
+mean("t", 1) - mean("c", 1) => seen
+benefit * 10 => truth
+"  the measurement recovers : " + str(int(seen * 100 / truth)) + "% of the effect" ^0
+"  and it is still positive, still stable, and still the right shape" ^0
+"" ^0
+
+# ---- what the leak looks like from inside the experiment ----
+#
+# Nothing about the control group's own numbers is odd. They went up, which is
+# what a control group does when the world moves.
+
+"the control group's own view" ^0
+"  control mean, no leak : " + show(mean("c", 0)) ^0
+"  control mean, leaking : " + show(mean("c", 1)) ^0
+if mean("c", 1) > mean("c", 0):
+    "  the control group improved, which reads as 'the world got better'" ^0
+"" ^0
+
+# ---- which requests carry the leak ----
+
+"control requests, one by one" ^0
+for r in requests:
+    if r[2] == "c":
+        if warmed(r[1]) == 1:
+            "  " + r[0] + " key " + r[1] + " : WARMED by treated traffic -> got the benefit" ^0
+        else:
+            "  " + r[0] + " key " + r[1] + " : cold -> did not" ^0
+"" ^0
+
+# ---- the control: keys that no treated request touches ----
+#
+# Restricted to control requests whose keys are theirs alone, the leak has
+# nowhere to act, and the comparison is the one that was designed.
+
+0 => clean_t
+0 => clean_n
+for r in requests:
+    if r[2] == "c":
+        if warmed(r[1]) == 0:
+            clean_t + score(r, 1) => clean_t
+            clean_n + 1 => clean_n
+"control - only the control requests with keys of their own" ^0
+"  such requests : " + str(clean_n) ^0
+"  their mean    : " + show(int(clean_t * 10 / clean_n)) ^0
+"  effect against treated : " + show(mean("t", 1) - int(clean_t * 10 / clean_n)) ^0
+if mean("t", 1) - int(clean_t * 10 / clean_n) == truth:
+    "  the full effect, recovered by excluding what was never excluded" ^0
+"" ^0
+
+"A holdout is a claim that two groups differ in exactly one way. The claim is" ^0
+"about every layer, and it was checked at the layer where the split was made." ^0

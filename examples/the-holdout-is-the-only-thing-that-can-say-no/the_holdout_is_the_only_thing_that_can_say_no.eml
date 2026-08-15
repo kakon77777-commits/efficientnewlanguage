@@ -1,0 +1,123 @@
+# Self-authored for the EML case corpus (no external origin). Conversion rose 12
+# points after the change. It rose 12 points for the people who did not get it.
+#
+# Rolling out to everyone is the default and it is not laziness. A holdout means
+# deliberately withholding something you believe in from real users, it needs
+# extra plumbing, and it delays the full effect. Skipping it costs nothing that
+# anyone can see at the time.
+#
+# What it costs is the ability to answer no. Before and after are separated by
+# time, and everything else that moved in that time is inside the number.
+#
+# Two worlds are run through the same arithmetic: one where the change does
+# nothing, and one where it works. Without the holdout the two are printed
+# identically.
+
+# [unit, before, seasonal_lift, treatment_effect_if_it_works]
+[["u1", 20, 12, 0], ["u2", 24, 12, 0], ["u3", 18, 12, 0], ["u4", 30, 12, 0], ["u5", 22, 12, 0], ["u6", 26, 12, 0], ["u7", 19, 12, 0], ["u8", 28, 12, 0], ["u9", 21, 12, 0], ["u10", 25, 12, 0]] => units
+
+# who is held out, when there is a holdout at all
+["u8", "u9", "u10"] => held
+
+def is_held(name):
+    for h in held:
+        if h == name:
+            return 1
+    return 0
+
+def after(u, world, treated):
+    u[1] + u[2] => v
+    if treated == 1:
+        if world == 1:
+            v + 9 => v
+    return v
+
+def mean_before(only_held, use_holdout):
+    0 => t
+    0 => n
+    for u in units:
+        if use_holdout == 0:
+            t + u[1] => t
+            n + 1 => n
+        else:
+            if is_held(u[0]) == only_held:
+                t + u[1] => t
+                n + 1 => n
+    return int(t * 10 / n)
+
+def mean_after(only_held, use_holdout, world):
+    0 => t
+    0 => n
+    for u in units:
+        if use_holdout == 0:
+            t + after(u, world, 1) => t
+            n + 1 => n
+        else:
+            if is_held(u[0]) == only_held:
+                if only_held == 1:
+                    t + after(u, world, 0) => t
+                else:
+                    t + after(u, world, 1) => t
+                n + 1 => n
+    return int(t * 10 / n)
+
+def show(x):
+    return str(int(x / 10)) + "." + str(x % 10)
+
+"units : " + str(len(units)) + ", held out when a holdout exists : " + str(len(held)) ^0
+"" ^0
+
+for world in [0:1]:
+    if world == 0:
+        "WORLD A - the change does nothing" ^0
+    else:
+        "WORLD B - the change is worth 9 points" ^0
+    mean_before(0, 0) => b_all
+    mean_after(0, 0, world) => a_all
+    "  no holdout : before " + show(b_all) + " -> after " + show(a_all) + "   reported lift " + show(a_all - b_all) ^0
+    mean_after(0, 1, world) => a_treated
+    mean_after(1, 1, world) => a_control
+    mean_before(0, 1) => b_treated
+    mean_before(1, 1) => b_control
+    "  with holdout : treated " + show(b_treated) + " -> " + show(a_treated) + ",  held out " + show(b_control) + " -> " + show(a_control) ^0
+    (a_treated - b_treated) - (a_control - b_control) => diff
+    "  difference in differences : " + show(diff) ^0
+    "" ^0
+
+# ---- the two worlds, side by side ----
+
+mean_after(0, 0, 0) - mean_before(0, 0) => naive_a
+mean_after(0, 0, 1) - mean_before(0, 0) => naive_b
+"what the no-holdout number says in each world" ^0
+"  world A : " + show(naive_a) ^0
+"  world B : " + show(naive_b) ^0
+if naive_a == naive_b - 90:
+    "  the two differ only by the real effect, and both look like success" ^0
+"" ^0
+
+def did(world):
+    mean_after(0, 1, world) - mean_before(0, 1) => t
+    mean_after(1, 1, world) - mean_before(1, 1) => c
+    return t - c
+
+"what the holdout number says in each world" ^0
+"  world A : " + show(did(0)) ^0
+"  world B : " + show(did(1)) ^0
+if did(0) == 0:
+    "  in world A it says zero, which is the answer nothing else can produce" ^0
+"" ^0
+
+# ---- the control for this case is world B ----
+#
+# Without it the reader could conclude that holdouts always report nothing.
+# The holdout is not a way of finding zeros; it is a way of finding the number.
+
+if did(1) > 0:
+    "In world B the holdout reports " + show(did(1)) + ", not zero." ^0
+    "The seasonal lift of " + show(120) + " is subtracted because it happened to" ^0
+    "both groups, and what is left is the part the change caused." ^0
+"" ^0
+
+"Before and after are separated by time, and time is not empty. The holdout" ^0
+"is not a second measurement of the same thing - it is the only way to ask" ^0
+"what would have happened anyway." ^0
