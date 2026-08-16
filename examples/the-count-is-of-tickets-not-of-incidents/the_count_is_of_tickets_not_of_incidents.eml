@@ -1,0 +1,113 @@
+# Self-authored for the EML case corpus (no external origin). Reports fell. The
+# thing being reported did not move. Both figures are computed below rather
+# than stated here - a number written into a comment is checked by nothing.
+#
+# Counting tickets is the only thing a ticket system can do, and it is the
+# right count for the questions the ticket system was built for: how much
+# support load, how many things are open, who is assigned what. Every ticket is
+# real and every one was filed by someone who hit something.
+#
+# The number of tickets an event produces depends on how many people notice it
+# and whether they check for an existing one first. Adding a search box before
+# the file button changes that ratio and nothing else.
+#
+# Both quarters are built from the same underlying events here, so the two
+# counts can be separated.
+
+# [event, tickets it produced in Q1, tickets in Q2 after the search box]
+[["e1", 4, 1], ["e2", 3, 1], ["e3", 2, 1], ["e4", 5, 2], ["e5", 1, 1], ["e6", 3, 2], ["e7", 2, 1], ["e8", 4, 2]] => events
+
+def tickets(q):
+    0 => t
+    for e in events:
+        if q == 1:
+            t + e[1] => t
+        else:
+            t + e[2] => t
+    return t
+
+def event_count():
+    return len(events)
+
+"underlying events : " + str(event_count()) + " in both quarters" ^0
+"" ^0
+
+"tickets" ^0
+"  Q1 : " + str(tickets(1)) ^0
+"  Q2 : " + str(tickets(2)) ^0
+"  change : " + str(int((tickets(1) - tickets(2)) * 100 / tickets(1))) + "% fewer" ^0
+"" ^0
+
+"events" ^0
+"  Q1 : " + str(event_count()) ^0
+"  Q2 : " + str(event_count()) ^0
+"  change : 0%" ^0
+"" ^0
+
+"tickets per event" ^0
+"  Q1 : " + str(int(tickets(1) * 10 / event_count())) ^0
+"  Q2 : " + str(int(tickets(2) * 10 / event_count())) ^0
+"  (in tenths)" ^0
+"" ^0
+
+# ---- what moved, per event ----
+
+"per event" ^0
+for e in events:
+    "  " + e[0] + " : " + str(e[1]) + " -> " + str(e[2]) ^0
+0 => still_reported
+for e in events:
+    if e[2] > 0:
+        still_reported + 1 => still_reported
+"  events that still produced at least one ticket : " + str(still_reported) + " of " + str(event_count()) ^0
+if still_reported == event_count():
+    "  every event is still visible - nothing was hidden, only deduplicated" ^0
+"" ^0
+
+# ---- the two readings ----
+
+"the two readings of the same drop" ^0
+"  'we fixed " + str(int((tickets(1) - tickets(2)) * 100 / tickets(1))) + "% of our problems'" ^0
+"  'the same problems now produce fewer duplicate tickets'" ^0
+"  events that stopped happening : " + str(event_count() - still_reported) ^0
+"" ^0
+
+# ---- what would distinguish them ----
+#
+# Not the ticket count, which is identical under both stories. The distinct
+# events behind the tickets, which the ticket system can produce only if
+# something links tickets to events.
+
+"what would tell the two apart" ^0
+"  ticket count       : same under both stories" ^0
+"  distinct events    : " + str(event_count()) + " - unchanged, and this is the discriminating number" ^0
+"  and it exists only if tickets are linked to an event" ^0
+"" ^0
+
+# ---- the control: a quarter where events really fell ----
+#
+# The ticket count is not a bad measure. It tracks the events exactly when the
+# tickets-per-event ratio holds still, and this is that quarter.
+
+[["f1", 2, 2], ["f2", 2, 2], ["f3", 2, 0], ["f4", 2, 0], ["f5", 2, 2]] => q3
+0 => q3a
+0 => q3b
+0 => q3_events_before
+0 => q3_events_after
+for e in q3:
+    q3a + e[1] => q3a
+    q3b + e[2] => q3b
+    if e[1] > 0:
+        q3_events_before + 1 => q3_events_before
+    if e[2] > 0:
+        q3_events_after + 1 => q3_events_after
+"control - a quarter where the ratio held and events actually fell" ^0
+"  tickets : " + str(q3a) + " -> " + str(q3b) + "  (" + str(int((q3a - q3b) * 100 / q3a)) + "% fewer)" ^0
+"  events  : " + str(q3_events_before) + " -> " + str(q3_events_after) + "  (" + str(int((q3_events_before - q3_events_after) * 100 / q3_events_before)) + "% fewer)" ^0
+if int((q3a - q3b) * 100 / q3a) == int((q3_events_before - q3_events_after) * 100 / q3_events_before):
+    "  here the ticket count tracks the events exactly" ^0
+"" ^0
+
+"Every ticket is real and the count is correct. It counts reports, and the" ^0
+"number of reports an event produces is a property of how people file, not of" ^0
+"how often the event happens." ^0

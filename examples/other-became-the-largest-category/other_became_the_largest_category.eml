@@ -1,0 +1,133 @@
+# Self-authored for the EML case corpus (no external origin). The catch-all was
+# 4% at launch. It is the largest category now, and the taxonomy never changed.
+#
+# Having an "other" is correct design. Without it the classifier either refuses
+# items or forces them into a category they do not belong in, and both are
+# worse than admitting the item does not fit. Every item filed under it is
+# filed honestly.
+#
+# The named categories were chosen from the items that existed when the scheme
+# was written. New kinds arrive; none of them is any named category; each one
+# is correctly filed as other. Nothing decays and nothing is misused.
+#
+# Both eras are classified by the same scheme here, so the growth of the
+# catch-all is a fact about the arriving population rather than about drift.
+
+["auth", "billing", "search", "export"] => named
+
+# [item kind, era it first appears]
+[["auth", 1], ["billing", 1], ["search", 1], ["export", 1], ["auth", 1], ["billing", 1], ["search", 1], ["auth", 1], ["billing", 1], ["export", 1], ["mobile-sync", 2], ["webhooks", 2], ["mobile-sync", 2], ["sso", 2], ["webhooks", 2], ["sso", 2], ["mobile-sync", 2], ["api-limits", 2], ["webhooks", 2], ["sso", 2], ["api-limits", 2], ["auth", 2], ["billing", 2], ["search", 2]] => items
+
+def is_named(k):
+    for n in named:
+        if n == k:
+            return 1
+    return 0
+
+def in_era(era):
+    0 => c
+    for it in items:
+        if it[1] <= era:
+            c + 1 => c
+    return c
+
+def other_in_era(era):
+    0 => c
+    for it in items:
+        if it[1] <= era:
+            if is_named(it[0]) == 0:
+                c + 1 => c
+    return c
+
+def named_count(n, era):
+    0 => c
+    for it in items:
+        if it[1] <= era:
+            if it[0] == n:
+                c + 1 => c
+    return c
+
+"categories in the scheme : " + str(len(named)) + " named, plus other" ^0
+"" ^0
+
+for era in [1:2]:
+    "era " + str(era) ^0
+    "  items : " + str(in_era(era)) ^0
+    for n in named:
+        "    " + n + " : " + str(named_count(n, era)) ^0
+    "    other : " + str(other_in_era(era)) ^0
+    "    other as a share : " + str(int(other_in_era(era) * 100 / in_era(era))) + "%" ^0
+    "" ^0
+
+# ---- is other the largest ----
+
+0 => biggest
+"" => biggest_name
+for n in named:
+    if named_count(n, 2) > biggest:
+        named_count(n, 2) => biggest
+        n => biggest_name
+"the largest category in era 2" ^0
+"  largest named : " + biggest_name + " at " + str(biggest) ^0
+"  other         : " + str(other_in_era(2)) ^0
+if other_in_era(2) > biggest:
+    "  other is larger than every named category" ^0
+"" ^0
+
+# ---- what is inside it ----
+
+"what is inside other, in era 2" ^0
+[] => kinds
+for it in items:
+    if is_named(it[0]) == 0:
+        0 => have
+        for k in kinds:
+            if k == it[0]:
+                1 => have
+        if have == 0:
+            kinds + [it[0]] => kinds
+for k in kinds:
+    0 => c
+    for it in items:
+        if it[0] == k:
+            c + 1 => c
+    "  " + k + " : " + str(c) ^0
+"  distinct kinds inside other : " + str(len(kinds)) ^0
+if len(kinds) > 1:
+    "  each of them would be a named category if the scheme were written today" ^0
+"" ^0
+
+# ---- what a question about other can be answered with ----
+
+"questions the scheme can answer" ^0
+"  how many auth problems : yes, " + str(named_count("auth", 2)) ^0
+"  how many other problems : yes, " + str(other_in_era(2)) ^0
+"  which kind of other problem is growing : no - other has no structure" ^0
+"  share of the population that cannot be analysed : " + str(int(other_in_era(2) * 100 / in_era(2))) + "%" ^0
+"" ^0
+
+# ---- the control: the same items with the scheme rewritten today ----
+#
+# Nothing about the classifier is broken. Naming the kinds that arrived makes
+# every question answerable again, and it is the only thing that does.
+
+["auth", "billing", "search", "export", "mobile-sync", "webhooks", "sso", "api-limits"] => named2
+def is_named2(k):
+    for n in named2:
+        if n == k:
+            return 1
+    return 0
+0 => other2
+for it in items:
+    if is_named2(it[0]) == 0:
+        other2 + 1 => other2
+"control - the same items under a scheme written today" ^0
+"  named categories : " + str(len(named2)) ^0
+"  other : " + str(other2) + "  (" + str(int(other2 * 100 / len(items))) + "%)" ^0
+if other2 == 0:
+    "  every item lands in a named category, and every question is answerable" ^0
+"" ^0
+
+"Every item in the catch-all was filed correctly. The scheme is a snapshot of" ^0
+"what existed when it was written, and it is the only part of the system that" ^0
+"nothing forces anyone to revisit." ^0

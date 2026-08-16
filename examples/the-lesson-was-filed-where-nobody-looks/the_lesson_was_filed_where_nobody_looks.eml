@@ -1,0 +1,123 @@
+# Self-authored for the EML case corpus (no external origin). The document is
+# correct, findable, and read by nobody at the moment it would help.
+#
+# Writing it down is the recommendation every postmortem ends with, and the
+# document that follows is genuinely good: accurate, specific, and indexed.
+# Someone searching for it will find it.
+#
+# Searching for it requires knowing it exists, and the people who hit this
+# problem are by definition the ones who did not know. So the question is not
+# whether the lesson was recorded - it was - but whether the recording is on
+# the path anyone walks when the situation arises.
+#
+# Each place a lesson can live is scored by the same three properties, and the
+# reach is computed from them rather than argued.
+
+# [place, is it read at the moment of need, does it require knowing it exists, does it survive staff turnover]
+[["a wiki page", 0, 1, 1], ["the postmortem document", 0, 1, 1], ["a team chat message", 0, 0, 0], ["onboarding training", 0, 1, 0], ["a comment at the call site", 1, 0, 1], ["a test that fails", 1, 0, 1], ["a lint rule", 1, 0, 1]] => places
+
+def reaches(p):
+    if p[1] == 0:
+        return 0
+    if p[2] == 1:
+        return 0
+    return 1
+
+"places a lesson can be filed : " + str(len(places)) ^0
+"" ^0
+
+"place                        at the moment   needs prior knowledge   survives turnover   reaches" ^0
+for p in places:
+    "" => l
+    if p[1] == 1:
+        l + "yes" => l
+    else:
+        l + "no " => l
+    "" => m
+    if p[2] == 1:
+        m + "yes" => m
+    else:
+        m + "no " => m
+    "" => n
+    if p[3] == 1:
+        n + "yes" => n
+    else:
+        n + "no " => n
+    "" => r
+    if reaches(p) == 1:
+        r + "YES" => r
+    else:
+        r + "no" => r
+    "  " + p[0] + "   " + l + "   " + m + "   " + n + "   " + r ^0
+"" ^0
+
+0 => reaching
+for p in places:
+    reaching + reaches(p) => reaching
+"  places that reach the person who needs it : " + str(reaching) + " of " + str(len(places)) ^0
+"" ^0
+
+# ---- what the ones that fail have in common ----
+
+"the ones that do not reach" ^0
+0 => not_at_moment
+0 => needs_knowing
+for p in places:
+    if reaches(p) == 0:
+        if p[1] == 0:
+            not_at_moment + 1 => not_at_moment
+        else:
+            needs_knowing + 1 => needs_knowing
+        "  " + p[0] ^0
+"  not present at the moment of need : " + str(not_at_moment) ^0
+"  present but require knowing to look : " + str(needs_knowing) ^0
+"" ^0
+
+# ---- the ones that reach, and what they have in common ----
+
+"the ones that reach" ^0
+for p in places:
+    if reaches(p) == 1:
+        "  " + p[0] ^0
+"  all three are in the path of the work, not in a description of it" ^0
+"" ^0
+
+# ---- turnover ----
+#
+# Surviving turnover is a separate property from reaching. A chat message
+# reaches nobody later AND does not survive; a wiki page survives and still
+# does not reach.
+
+0 => survive
+0 => survive_and_reach
+for p in places:
+    survive + p[3] => survive
+    if p[3] == 1:
+        survive_and_reach + reaches(p) => survive_and_reach
+"durability against reach" ^0
+"  survive turnover        : " + str(survive) + " of " + str(len(places)) ^0
+"  survive AND reach       : " + str(survive_and_reach) ^0
+"  survive and do NOT reach: " + str(survive - survive_and_reach) ^0
+if survive > survive_and_reach:
+    "  a lesson can be permanent and still never arrive" ^0
+"" ^0
+
+# ---- the control: a reader who already knows the lesson exists ----
+#
+# For them every place works. The document is not badly written; it is
+# addressed to someone who does not need it.
+
+0 => informed_reach
+for p in places:
+    if p[1] == 1:
+        informed_reach + 1 => informed_reach
+    else:
+        informed_reach + 1 => informed_reach
+"control - a reader who already knows the lesson exists" ^0
+"  places they can use : " + str(informed_reach) + " of " + str(len(places)) ^0
+"  which is why the document passes review" ^0
+"" ^0
+
+"The lesson was recorded and the recording is correct. Whether it is on the" ^0
+"path the next person walks is a property of the place, and the place is" ^0
+"chosen by whoever writes the postmortem rather than by whoever needs it." ^0

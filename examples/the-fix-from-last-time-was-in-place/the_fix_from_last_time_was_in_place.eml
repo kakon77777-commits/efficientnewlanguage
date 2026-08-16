@@ -1,0 +1,121 @@
+# Self-authored for the EML case corpus (no external origin). The same outage,
+# eleven months later, with last year's fix present and working.
+#
+# The first postmortem was good. It found a real cause, the fix was written,
+# reviewed, deployed and never regressed - the check still runs and still
+# catches what it was built to catch. Nothing decayed.
+#
+# What it caught was one of the ways this outage happens. The incident has a
+# name and a symptom, and the name covers several distinct paths to it; the
+# path that ran the first time is now closed and the others were never open
+# questions because nobody had seen them.
+#
+# Every path is run against every guard here, so "which of these would the
+# existing fix have stopped" is answered by enumeration rather than by memory.
+
+# [path to the outage, which guard closes it]
+[["config reload races the health check", "g1"], ["a dependency returns 200 with an empty body", "g2"], ["the retry budget is shared across tenants", "g3"], ["clock skew expires the token early", "g4"], ["the pool is drained by a slow leak", "g5"]] => paths
+
+# The guards that exist after last year's postmortem.
+["g1"] => guards
+
+def is_closed(p):
+    for g in guards:
+        if g == p[1]:
+            return 1
+    return 0
+
+def closed_count():
+    0 => c
+    for p in paths:
+        c + is_closed(p) => c
+    return c
+
+"ways this outage can happen : " + str(len(paths)) ^0
+"guards in place after last year : " + str(len(guards)) ^0
+"" ^0
+
+"path                                          closed by an existing guard" ^0
+for p in paths:
+    if is_closed(p) == 1:
+        "  " + p[0] + "   yes" ^0
+    else:
+        "  " + p[0] + "   no" ^0
+"" ^0
+"  closed : " + str(closed_count()) + " of " + str(len(paths)) ^0
+"  open   : " + str(len(paths) - closed_count()) ^0
+"" ^0
+
+# ---- last year's incident, replayed against today's guards ----
+
+0 => last_year
+"the path that ran last year : " + paths[last_year][0] ^0
+if is_closed(paths[last_year]) == 1:
+    "  it is closed. The fix works and has not regressed." ^0
+"" ^0
+
+# ---- this year's incident ----
+
+2 => this_year
+"the path that ran this year : " + paths[this_year][0] ^0
+if is_closed(paths[this_year]) == 0:
+    "  it was never closed, because it was never seen" ^0
+"" ^0
+
+# ---- what the two incidents share ----
+
+"what the two incidents share" ^0
+"  the symptom : the same" ^0
+"  the alert   : the same" ^0
+"  the title in the incident log : the same" ^0
+"  the path    : different" ^0
+"  so the log reads as a repeat, and the fix reads as having failed" ^0
+"" ^0
+
+# ---- how many postmortems it takes at this rate ----
+#
+# One path closed per incident. The number of incidents left is not a guess:
+# it is the number of paths nobody has walked yet.
+
+"at one path closed per incident" ^0
+len(paths) - closed_count() => remaining
+"  paths still open        : " + str(remaining) ^0
+"  incidents still to come : " + str(remaining) ^0
+"  and each will close one and read as a repeat of the last" ^0
+"" ^0
+
+# ---- what a guard on the SYMPTOM would have done ----
+#
+# The alternative is not a better root-cause analysis. It is a guard placed
+# where the paths converge rather than where each one starts.
+
+def closed_by_symptom_guard():
+    return len(paths)
+
+"a guard at the point where every path converges" ^0
+"  paths it closes : " + str(closed_by_symptom_guard()) + " of " + str(len(paths)) ^0
+"  paths the five per-cause guards close : " + str(len(paths)) ^0
+"  same coverage, and one of them exists after one incident" ^0
+"" ^0
+
+# ---- the control: an incident with exactly one path ----
+#
+# Fixing the cause is not the defect. It is complete when the name covers one
+# mechanism, and this is what that looks like.
+
+[["the disk fills", "d1"]] => single
+["d1"] => single_guards
+0 => sc
+for p in single:
+    for g in single_guards:
+        if g == p[1]:
+            sc + 1 => sc
+"control - an incident whose name covers one mechanism" ^0
+"  paths : " + str(len(single)) + ", closed : " + str(sc) ^0
+if sc == len(single):
+    "  here one postmortem finishes the job, and a repeat would be a real regression" ^0
+"" ^0
+
+"The fix did not fail and the postmortem was not shallow. The incident's name" ^0
+"covers " + str(len(paths)) + " mechanisms, and a fix is scoped to a mechanism while a repeat is" ^0
+"counted by the name." ^0

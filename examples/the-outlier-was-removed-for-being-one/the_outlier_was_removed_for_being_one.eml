@@ -1,0 +1,123 @@
+# Self-authored for the EML case corpus (no external origin). The cleaning step
+# removes points far from the mean. The investigation is into why some points
+# are far from the mean.
+#
+# Removing outliers is standard and usually right: a sensor glitch, a test
+# account, a duplicated import. Leaving them in lets one bad row dominate every
+# statistic, and the rule that removes them is simple, documented and applied
+# consistently.
+#
+# It is also defined by exactly the property being looked for. The rule does
+# not know why a point is far out, and neither does anyone until they look at
+# it - which the rule removes the opportunity to do.
+
+# [request, latency, is it a genuine slow path]
+[[1, 40, 0], [2, 45, 0], [3, 38, 0], [4, 42, 0], [5, 900, 1], [6, 41, 0], [7, 44, 0], [8, 39, 0], [9, 870, 1], [10, 43, 0], [11, 40, 0], [12, 910, 1]] => requests
+
+def mean_of(keep_all):
+    0 => t
+    0 => n
+    for r in requests:
+        if keep_all == 1:
+            t + r[1] => t
+            n + 1 => n
+        else:
+            if r[1] < 200:
+                t + r[1] => t
+                n + 1 => n
+    return int(t / n)
+
+def kept(keep_all):
+    0 => n
+    for r in requests:
+        if keep_all == 1:
+            n + 1 => n
+        else:
+            if r[1] < 200:
+                n + 1 => n
+    return n
+
+def worst(keep_all):
+    0 => w
+    for r in requests:
+        if keep_all == 1:
+            if r[1] > w:
+                r[1] => w
+        else:
+            if r[1] < 200:
+                if r[1] > w:
+                    r[1] => w
+    return w
+
+"requests : " + str(len(requests)) ^0
+"" ^0
+
+"with everything" ^0
+"  kept  : " + str(kept(1)) ^0
+"  mean  : " + str(mean_of(1)) ^0
+"  worst : " + str(worst(1)) ^0
+"" ^0
+"after the cleaning rule" ^0
+"  kept  : " + str(kept(0)) ^0
+"  mean  : " + str(mean_of(0)) ^0
+"  worst : " + str(worst(0)) ^0
+"" ^0
+
+# ---- what was removed ----
+
+0 => removed
+0 => removed_genuine
+for r in requests:
+    if r[1] >= 200:
+        removed + 1 => removed
+        removed_genuine + r[2] => removed_genuine
+"what the rule removed" ^0
+"  points removed : " + str(removed) ^0
+"  of those, genuine slow paths : " + str(removed_genuine) ^0
+"  of those, glitches : " + str(removed - removed_genuine) ^0
+if removed_genuine == removed:
+    "  every removed point was real" ^0
+"" ^0
+
+# ---- the question being asked ----
+
+0 => genuine_total
+for r in requests:
+    genuine_total + r[2] => genuine_total
+"the investigation" ^0
+"  question : why are some requests slow" ^0
+"  genuine slow requests in the data : " + str(genuine_total) ^0
+0 => survivors
+for r in requests:
+    if r[1] < 200:
+        survivors + r[2] => survivors
+"  genuine slow requests surviving the cleaning : " + str(survivors) ^0
+if survivors == 0:
+    "  the cleaned data contains no instance of the thing being investigated" ^0
+"" ^0
+
+# ---- what each dataset can answer ----
+
+"what each dataset supports" ^0
+"  typical latency, for capacity planning : cleaned, " + str(mean_of(0)) ^0
+"  what the slowest users experience      : cleaned cannot say" ^0
+"  how often the slow path is taken       : " + str(int(genuine_total * 100 / len(requests))) + "% - only in the raw data" ^0
+"" ^0
+
+# ---- the control: a dataset whose far points really are glitches ----
+
+[[1, 40, 0], [2, 42, 0], [3, 99999, 0], [4, 41, 0]] => glitchy
+0 => g_removed
+0 => g_genuine
+for r in glitchy:
+    if r[1] >= 200:
+        g_removed + 1 => g_removed
+        g_genuine + r[2] => g_genuine
+"control - a dataset whose far point is a sensor glitch" ^0
+"  removed : " + str(g_removed) + ", of which genuine : " + str(g_genuine) ^0
+if g_genuine == 0:
+    "  here the rule removes only noise, and it is exactly the right thing to do" ^0
+"" ^0
+
+"The rule is correct, documented and consistently applied. It selects on" ^0
+"distance from the mean, and so does the question." ^0

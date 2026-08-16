@@ -1,0 +1,118 @@
+# Self-authored for the EML case corpus (no external origin). Three of the top
+# five error messages are one error, spelled three ways.
+#
+# Grouping by the message string is the only grouping available - there is no
+# error code, and the string is what the log carries. Every count is a correct
+# count of that exact string.
+#
+# The strings differ because one of them interpolates a hostname, one was
+# reworded in a release, and one comes from a retry path. Nothing about the
+# grouping is careless; the key is simply finer than the thing it is standing
+# in for.
+
+# [message, count, underlying cause]
+[["connect failed: db-1", 41, "db-pool"], ["timeout in handler", 33, "handler"], ["connection failed to db-1", 29, "db-pool"], ["parse error at line 3", 22, "parser"], ["connect failed (retry): db-1", 18, "db-pool"], ["disk full", 9, "disk"]] => rows
+
+def total():
+    0 => t
+    for r in rows:
+        t + r[1] => t
+    return t
+
+"the top errors, as displayed" ^0
+for r in rows:
+    "  " + str(r[1]) + "  " + r[0] ^0
+"  total : " + str(total()) ^0
+"" ^0
+
+# ---- grouped by the cause the strings stand for ----
+
+[] => causes
+for r in rows:
+    0 => have
+    for c in causes:
+        if c == r[2]:
+            1 => have
+    if have == 0:
+        causes + [r[2]] => causes
+
+"grouped by cause" ^0
+0 => biggest
+"" => biggest_name
+for c in causes:
+    0 => n
+    0 => k
+    for r in rows:
+        if r[2] == c:
+            n + r[1] => n
+            k + 1 => k
+    "  " + str(n) + "  " + c + "   (" + str(k) + " distinct strings)" ^0
+    if n > biggest:
+        n => biggest
+        c => biggest_name
+"" ^0
+
+"  largest cause : " + biggest_name + " at " + str(biggest) + "  (" + str(int(biggest * 100 / total())) + "% of all errors)" ^0
+"  largest single string : " + str(rows[0][1]) + "  (" + str(int(rows[0][1] * 100 / total())) + "%)" ^0
+"" ^0
+
+# ---- what a top-3 list says under each grouping ----
+
+"the top three, by string" ^0
+0 => shown
+for r in rows:
+    if shown < 3:
+        "  " + r[0] ^0
+        shown + 1 => shown
+0 => top3_str
+0 => shown2
+for r in rows:
+    if shown2 < 3:
+        top3_str + r[1] => top3_str
+        shown2 + 1 => shown2
+"  they cover " + str(int(top3_str * 100 / total())) + "% of errors and " ^0
+[] => top3_causes
+0 => shown3
+for r in rows:
+    if shown3 < 3:
+        0 => have
+        for c in top3_causes:
+            if c == r[2]:
+                1 => have
+        if have == 0:
+            top3_causes + [r[2]] => top3_causes
+        shown3 + 1 => shown3
+"  " + str(len(top3_causes)) + " distinct causes" ^0
+"" ^0
+
+# ---- how the ranking changes ----
+
+"where each cause would rank" ^0
+"  by string, " + biggest_name + " does not appear as one entry at all" ^0
+"  by cause, it is first, at " + str(int(biggest * 100 / total())) + "% - larger than any string in the list" ^0
+"" ^0
+
+# ---- the control: strings that map one-to-one onto causes ----
+
+[["disk full", 9, "disk"], ["parse error at line 3", 22, "parser"], ["timeout in handler", 33, "handler"]] => clean
+0 => ct
+for r in clean:
+    ct + r[1] => ct
+0 => clean_causes
+[] => seen
+for r in clean:
+    0 => have
+    for c in seen:
+        if c == r[2]:
+            1 => have
+    if have == 0:
+        seen + [r[2]] => seen
+"control - a log where each cause emits one string" ^0
+"  strings : " + str(len(clean)) + ", causes : " + str(len(seen)) ^0
+if len(clean) == len(seen):
+    "  here the string ranking IS the cause ranking" ^0
+"" ^0
+
+"Every count is right about the string it counts. Whether the strings stand" ^0
+"one-to-one for the things anyone cares about is a separate fact, and the" ^0
+"ranking is read as though they do." ^0

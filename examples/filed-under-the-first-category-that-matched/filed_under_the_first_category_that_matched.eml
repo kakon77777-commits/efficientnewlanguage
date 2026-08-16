@@ -1,0 +1,153 @@
+# Self-authored for the EML case corpus (no external origin). The classifier is
+# a list of rules checked in order. The order is not part of the taxonomy.
+#
+# Checking rules in order is how every classifier of this kind works, and it
+# has to stop somewhere - an item gets one label because downstream wants one
+# label. Each rule is correct about what it matches; none of them is wrong.
+#
+# What the order encodes is a precedence between categories that nobody wrote
+# down, because it was never a decision - it is the sequence someone happened
+# to type. Here every item is run under several orderings, so how much of the
+# distribution is the data and how much is the sequence is measured.
+
+# [item, matches security, matches performance, matches usability]
+[["t1", 1, 1, 0], ["t2", 0, 1, 1], ["t3", 1, 0, 1], ["t4", 1, 1, 1], ["t5", 0, 1, 0], ["t6", 1, 0, 0], ["t7", 0, 0, 1], ["t8", 1, 1, 0], ["t9", 0, 1, 1], ["t10", 1, 0, 1]] => items
+
+["security", "performance", "usability"] => names
+
+def matches(it, cat):
+    if cat == 0:
+        return it[1]
+    if cat == 1:
+        return it[2]
+    return it[3]
+
+def classify(it, order):
+    for c in order:
+        if matches(it, c) == 1:
+            return c
+    return -1
+
+def counts(order):
+    [0, 0, 0] => c
+    [] => out
+    for n in names:
+        out + [0] => out
+    for it in items:
+        classify(it, order) => k
+        [] => nb
+        0 => i
+        for v in out:
+            if i == k:
+                nb + [v + 1] => nb
+            else:
+                nb + [v] => nb
+            i + 1 => i
+        nb => out
+    return out
+
+def show_counts(order):
+    counts(order) => c
+    "" => s
+    0 => i
+    for n in names:
+        s + n + "=" + str(c[i]) + "  " => s
+        i + 1 => i
+    return s
+
+"items : " + str(len(items)) ^0
+0 => multi
+for it in items:
+    it[1] + it[2] + it[3] => m
+    if m > 1:
+        multi + 1 => multi
+"  items matching more than one category : " + str(multi) ^0
+"" ^0
+
+"the same items under every ordering of the same three rules" ^0
+"  security, performance, usability : " + show_counts([0, 1, 2]) ^0
+"  security, usability, performance : " + show_counts([0, 2, 1]) ^0
+"  performance, security, usability : " + show_counts([1, 0, 2]) ^0
+"  performance, usability, security : " + show_counts([1, 2, 0]) ^0
+"  usability, security, performance : " + show_counts([2, 0, 1]) ^0
+"  usability, performance, security : " + show_counts([2, 1, 0]) ^0
+"" ^0
+
+# ---- the range each category's count can take ----
+
+"the range of each count, across the six orderings" ^0
+[[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]] => orders
+0 => i
+for n in names:
+    99 => lo
+    -1 => hi
+    for o in orders:
+        counts(o) => c
+        if c[i] < lo:
+            c[i] => lo
+        if c[i] > hi:
+            c[i] => hi
+    "  " + n + " : " + str(lo) + " to " + str(hi) + "   (spread " + str(hi - lo) + ")" ^0
+    i + 1 => i
+"" ^0
+
+# ---- which items move ----
+
+"items whose label depends on the ordering" ^0
+0 => movers
+for it in items:
+    classify(it, [0, 1, 2]) => a
+    0 => moved
+    for o in orders:
+        if not (classify(it, o) == a):
+            1 => moved
+    if moved == 1:
+        movers + 1 => movers
+        "  " + it[0] ^0
+"  count : " + str(movers) + " of " + str(len(items)) ^0
+if movers == multi:
+    "  exactly the items that match more than one rule" ^0
+"" ^0
+
+# ---- what a report built on one ordering can say ----
+
+counts([0, 1, 2]) => first
+counts([2, 1, 0]) => last
+"the headline under two orderings" ^0
+"  'our biggest category is security, at " + str(first[0]) + "'" ^0
+"  'our biggest category is usability, at " + str(last[2]) + "'" ^0
+"  same items, same rules, different sequence" ^0
+"" ^0
+
+# ---- the control: items that match at most one rule ----
+#
+# Order-dependence is not inherent to first-match classification. It appears
+# exactly where the categories overlap, and vanishes where they do not.
+
+[["s1", 1, 0, 0], ["s2", 0, 1, 0], ["s3", 0, 0, 1], ["s4", 1, 0, 0]] => clean
+def classify_clean(it, order):
+    for c in order:
+        if c == 0:
+            if it[1] == 1:
+                return c
+        elif c == 1:
+            if it[2] == 1:
+                return c
+        else:
+            if it[3] == 1:
+                return c
+    return -1
+0 => clean_movers
+for it in clean:
+    classify_clean(it, [0, 1, 2]) => a
+    for o in orders:
+        if not (classify_clean(it, o) == a):
+            clean_movers + 1 => clean_movers
+"control - items matching at most one rule" ^0
+"  items whose label depends on ordering : " + str(clean_movers) ^0
+if clean_movers == 0:
+    "  here the sequence carries nothing, and first-match is exact" ^0
+"" ^0
+
+"Each rule is right about what it matches. The distribution is a fact about" ^0
+"the sequence they were typed in, and the sequence is not in the taxonomy." ^0

@@ -1,0 +1,149 @@
+# Self-authored for the EML case corpus (no external origin). The summary is
+# accurate over every record it covers. Opening a handful of them says
+# something the summary has no field for, and how few is computed below.
+#
+# Summarising is not laziness - nobody reads every record every week, and the
+# summary was built so that the weekly review could happen at all. Every number
+# in it is correct.
+#
+# A summary reports the columns it was given. The pattern here lives in a
+# column the schema does not have, and the only place it is visible is in the
+# records themselves, which the summary exists to avoid reading.
+#
+# Both the summary and a four-record sample are computed from the same rows.
+
+# [id, category, minutes, note]
+[["r1", "timeout", 12, "vendor A"], ["r2", "timeout", 9, "vendor A"], ["r3", "parse", 4, "self"], ["r4", "timeout", 15, "vendor A"], ["r5", "auth", 7, "self"], ["r6", "timeout", 11, "vendor A"], ["r7", "parse", 5, "self"], ["r8", "timeout", 13, "vendor A"], ["r9", "auth", 6, "self"], ["r10", "timeout", 10, "vendor A"], ["r11", "parse", 3, "self"], ["r12", "timeout", 14, "vendor A"]] => records
+
+["timeout", "parse", "auth"] => categories
+
+def count(c):
+    0 => n
+    for r in records:
+        if r[1] == c:
+            n + 1 => n
+    return n
+
+def minutes(c):
+    0 => t
+    for r in records:
+        if r[1] == c:
+            t + r[2] => t
+    return t
+
+"the weekly summary" ^0
+"  records : " + str(len(records)) ^0
+for c in categories:
+    "  " + c + " : " + str(count(c)) + " records, " + str(minutes(c)) + " minutes" ^0
+0 => total
+for r in records:
+    total + r[2] => total
+"  total minutes : " + str(total) ^0
+"" ^0
+
+# ---- reading four records ----
+
+"four records, opened" ^0
+0 => shown
+for r in records:
+    if shown < 4:
+        "  " + r[0] + " : " + r[1] + ", " + str(r[2]) + " min, note: " + r[3] ^0
+        shown + 1 => shown
+"" ^0
+
+# ---- the pattern the summary cannot express ----
+
+[] => notes
+for r in records:
+    0 => have
+    for n in notes:
+        if n == r[3]:
+            1 => have
+    if have == 0:
+        notes + [r[3]] => notes
+
+"grouping by the note field, which the summary does not carry" ^0
+for n in notes:
+    0 => c
+    0 => m
+    for r in records:
+        if r[3] == n:
+            c + 1 => c
+            m + r[2] => m
+    "  " + n + " : " + str(c) + " records, " + str(m) + " minutes  (" + str(int(m * 100 / total)) + "% of the total)" ^0
+"" ^0
+
+# ---- is the note field redundant with the category ----
+#
+# If every record with a given note has the same category, the summary already
+# encodes it. That is checked rather than assumed.
+
+0 => redundant
+for n in notes:
+    "" => first
+    1 => same
+    for r in records:
+        if r[3] == n:
+            if len(first) == 0:
+                r[1] => first
+            else:
+                if not (r[1] == first):
+                    0 => same
+    if same == 1:
+        redundant + 1 => redundant
+"  notes whose records all share one category : " + str(redundant) + " of " + str(len(notes)) ^0
+if redundant == len(notes):
+    "  every note maps to one category, so the summary already encodes it" ^0
+else:
+    "  at least one note spans several categories, so its grouping is one the" ^0
+    "  summary lists separately and cannot recombine" ^0
+"" ^0
+
+# ---- what each view supports ----
+
+"what each view can answer" ^0
+"  which category costs the most minutes : summary, " + str(minutes("timeout")) + " for timeout" ^0
+"  who to call about it                  : not in the summary" ^0
+0 => vendor_min
+for r in records:
+    if r[3] == "vendor A":
+        vendor_min + r[2] => vendor_min
+"  minutes attributable to one outside party    : " + str(vendor_min) + "  (" + str(int(vendor_min * 100 / total)) + "%)" ^0
+"" ^0
+
+# ---- how many records it takes ----
+
+"how many records have to be opened before the pattern is visible" ^0
+0 => seen_vendor
+0 => opened
+for r in records:
+    if seen_vendor < 2:
+        opened + 1 => opened
+        if r[3] == "vendor A":
+            seen_vendor + 1 => seen_vendor
+"  records opened before the same note appears twice : " + str(opened) ^0
+"  records in the summary : " + str(len(records)) ^0
+"" ^0
+
+# ---- the control: a week where the note adds nothing ----
+
+[["s1", "timeout", 10, "vendor A"], ["s2", "parse", 4, "self"], ["s3", "auth", 6, "vendor B"], ["s4", "timeout", 9, "vendor C"]] => spread
+0 => sp_total
+for r in spread:
+    sp_total + r[2] => sp_total
+0 => biggest_note
+for r in spread:
+    0 => m
+    for q in spread:
+        if q[3] == r[3]:
+            m + q[2] => m
+    if m > biggest_note:
+        m => biggest_note
+"control - a week where no note repeats" ^0
+"  largest share held by one note : " + str(int(biggest_note * 100 / sp_total)) + "%" ^0
+if int(biggest_note * 100 / sp_total) < 50:
+    "  here the records hold nothing the summary is hiding" ^0
+"" ^0
+
+"The summary is accurate and complete over the columns it has. Which columns" ^0
+"it has was decided before anyone knew what this week would contain." ^0

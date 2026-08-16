@@ -1,0 +1,132 @@
+# Self-authored for the EML case corpus (no external origin). Six action items,
+# all closed, and five of them change nothing the incident does. How far it
+# still gets is computed below rather than claimed here.
+#
+# Closing them was not dishonest. Each ticket says something true - the doc was
+# written, the alert was added, the training happened - and a reviewer checking
+# whether the stated work was done would tick every box correctly.
+#
+# The postmortem's question was not "was the work done". It was "would this
+# happen again", and those two are answered by different evidence. Here the
+# incident is replayed against the post-fix system, step by step, so the second
+# question gets its own answer.
+
+# [action item, closed, does it block a step of the incident, which step]
+[["write a runbook for this failure", 1, 0, 0], ["add an alert on queue depth", 1, 0, 0], ["train the on-call rotation", 1, 0, 0], ["add a guard rejecting empty payloads", 1, 1, 2], ["file a ticket with the vendor", 1, 0, 0], ["document the escalation path", 1, 0, 0]] => items
+
+# The incident, as a sequence of steps that each have to succeed for it to run.
+["a malformed payload is accepted", "it is written to the queue", "the consumer parses it", "the consumer crashes", "the queue backs up"] => steps
+
+def closed_count():
+    0 => c
+    for a in items:
+        c + a[1] => c
+    return c
+
+def blocking_count():
+    0 => c
+    for a in items:
+        c + a[2] => c
+    return c
+
+def step_blocked(i):
+    for a in items:
+        if a[2] == 1:
+            if a[3] == i:
+                return 1
+    return 0
+
+"action items : " + str(len(items)) ^0
+"  closed                       : " + str(closed_count()) ^0
+"  that block a step            : " + str(blocking_count()) ^0
+"  that change nothing the incident does : " + str(len(items) - blocking_count()) ^0
+"" ^0
+
+"the items, one by one" ^0
+for a in items:
+    if a[2] == 1:
+        "  [closed] " + a[0] + "   <- blocks step " + str(a[3] + 1) ^0
+    else:
+        "  [closed] " + a[0] ^0
+"" ^0
+
+# ---- replaying the incident ----
+
+"replaying the incident against the post-fix system" ^0
+0 => reached
+0 => i
+1 => running
+for s in steps:
+    if running == 1:
+        if step_blocked(i) == 1:
+            "  step " + str(i + 1) + " : " + s + "   BLOCKED" ^0
+            0 => running
+        else:
+            "  step " + str(i + 1) + " : " + s ^0
+            reached + 1 => reached
+    i + 1 => i
+"  steps reached : " + str(reached) + " of " + str(len(steps)) ^0
+if reached == len(steps):
+    "  the incident runs to completion" ^0
+else:
+    "  the incident stops at step " + str(reached + 1) ^0
+"" ^0
+
+# ---- what the items that block nothing are for ----
+#
+# They are not waste. Every one of them shortens the incident or makes it
+# easier to handle - which is why they pass review, and why they are counted
+# as if they had prevented it.
+
+"what the non-blocking items do instead" ^0
+"  runbook, training, escalation doc : make the response faster" ^0
+"  alert on queue depth              : makes the detection earlier" ^0
+"  vendor ticket                     : moves the fix somewhere else" ^0
+"  none of them changes whether step 1 happens" ^0
+"" ^0
+
+# ---- the two questions, answered separately ----
+
+"the two questions" ^0
+"  were the action items done : " + str(closed_count()) + " of " + str(len(items)) + " - yes" ^0
+"  would it happen again      : " + str(reached) + " of " + str(len(steps)) + " steps still run" ^0
+if closed_count() == len(items):
+    if reached > 0:
+        "  both answers are correct and they are not the same answer" ^0
+"" ^0
+
+# ---- the control: the same list with the guard placed at step 1 ----
+#
+# One item moved. Nothing else about the postmortem changes - same count, same
+# closure rate, same review.
+
+[["write a runbook for this failure", 1, 0, 0], ["add an alert on queue depth", 1, 0, 0], ["train the on-call rotation", 1, 0, 0], ["reject malformed payloads at the edge", 1, 1, 0], ["file a ticket with the vendor", 1, 0, 0], ["document the escalation path", 1, 0, 0]] => items2
+
+def step_blocked2(i):
+    for a in items2:
+        if a[2] == 1:
+            if a[3] == i:
+                return 1
+    return 0
+
+0 => reached2
+0 => j
+1 => running2
+for s in steps:
+    if running2 == 1:
+        if step_blocked2(j) == 1:
+            0 => running2
+        else:
+            reached2 + 1 => reached2
+    j + 1 => j
+
+"control - the same six items, one of them placed at step 1" ^0
+"  closed : " + str(len(items2)) + " of " + str(len(items2)) ^0
+"  steps still reached : " + str(reached2) + " of " + str(len(steps)) ^0
+if reached2 < reached:
+    "  same closure rate, " + str(reached - reached2) + " fewer steps of the incident" ^0
+"" ^0
+
+"A closed action item is a true statement about work. Whether the incident can" ^0
+"still run is a different statement, and the postmortem is filed against the" ^0
+"first one." ^0

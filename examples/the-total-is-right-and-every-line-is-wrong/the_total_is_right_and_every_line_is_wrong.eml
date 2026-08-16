@@ -1,0 +1,105 @@
+# Self-authored for the EML case corpus (no external origin). The total
+# reconciles to the penny. Not one line item is correct.
+#
+# Reconciling the total is the check that exists, and it is a good check: it
+# catches dropped rows, double-counted rows, and most arithmetic slips. It is
+# also the only check anyone runs, because it is the one that can be run
+# against an external number.
+#
+# What it cannot catch is an error that moves value between lines. Here a
+# rounding rule pushes fractions of a cent from one account to the next, so
+# every line is off and the errors sum to zero by construction.
+
+# [account, true amount in cents, as posted]
+[["a1", 1003, 1000], ["a2", 2007, 2010], ["a3", 505, 500], ["a4", 1495, 1500], ["a5", 802, 800], ["a6", 1198, 1200]] => lines
+
+def true_total():
+    0 => t
+    for l in lines:
+        t + l[1] => t
+    return t
+
+def posted_total():
+    0 => t
+    for l in lines:
+        t + l[2] => t
+    return t
+
+"the check that is run" ^0
+"  true total   : " + str(true_total()) ^0
+"  posted total : " + str(posted_total()) ^0
+if true_total() == posted_total():
+    "  reconciles exactly" ^0
+"" ^0
+
+"the lines" ^0
+0 => wrong
+0 => abs_error
+for l in lines:
+    l[2] - l[1] => d
+    if not (d == 0):
+        wrong + 1 => wrong
+        if d < 0:
+            abs_error + (0 - d) => abs_error
+        else:
+            abs_error + d => abs_error
+    if d < 0:
+        "  " + l[0] + " : true " + str(l[1]) + ", posted " + str(l[2]) + "   (-" + str(0 - d) + ")" ^0
+    else:
+        "  " + l[0] + " : true " + str(l[1]) + ", posted " + str(l[2]) + "   (+" + str(d) + ")" ^0
+"  lines wrong : " + str(wrong) + " of " + str(len(lines)) ^0
+"  total absolute error : " + str(abs_error) ^0
+"  net error : " + str(posted_total() - true_total()) ^0
+"" ^0
+
+if wrong == len(lines):
+    if posted_total() == true_total():
+        "Every line is wrong and the net error is zero, so the check that exists" ^0
+        "passes and the check that would fail was never written." ^0
+"" ^0
+
+# ---- who is affected ----
+
+0 => over
+0 => under
+for l in lines:
+    if l[2] > l[1]:
+        over + 1 => over
+    else:
+        under + 1 => under
+"  accounts credited too much : " + str(over) ^0
+"  accounts credited too little : " + str(under) ^0
+"  a per-account complaint is the only signal left" ^0
+"" ^0
+
+# ---- the check that would catch it ----
+
+0 => per_line_fail
+for l in lines:
+    if not (l[1] == l[2]):
+        per_line_fail + 1 => per_line_fail
+"a per-line check on the same data" ^0
+"  lines it flags : " + str(per_line_fail) ^0
+"  cost : one comparison per line, against a number that already exists" ^0
+"" ^0
+
+# ---- the control: an error the total DOES catch ----
+#
+# The total check is not weak in general. It catches anything that changes the
+# sum, which is most kinds of mistake.
+
+[["b1", 1000, 1000], ["b2", 2000, 2000], ["b3", 500, 0]] => dropped
+0 => dt
+0 => dp
+for l in dropped:
+    dt + l[1] => dt
+    dp + l[2] => dp
+"control - a dropped row, which changes the sum" ^0
+"  true total   : " + str(dt) ^0
+"  posted total : " + str(dp) ^0
+if not (dt == dp):
+    "  the total check catches this one immediately" ^0
+"" ^0
+
+"The reconciliation is a real check and it passes for a real reason. It" ^0
+"constrains one number, and the report has " + str(len(lines)) + "." ^0
