@@ -1,0 +1,113 @@
+# Self-authored for the EML case corpus (no external origin). The documentation
+# says the order is unspecified. Seven of nine callers depend on it.
+#
+# The doc is not wrong and was not neglected: leaving the order unspecified was
+# a deliberate choice that kept the implementation free. Anyone who read that
+# sentence was told exactly what they could rely on.
+#
+# What every caller saw instead was a stable order, every time they ran it, for
+# years. Reading the doc tells you the order is not promised; running the code
+# tells you what the order is, and only one of those two is available at three
+# in the morning when something has to ship.
+#
+# Which callers break is computed by running each one against both orders.
+
+# [caller, does it read positionally, does it sort first]
+[["report builder", 1, 0], ["csv export", 1, 0], ["cache key builder", 1, 0], ["ui list", 1, 0], ["audit log", 0, 1], ["sum totals", 0, 0], ["diff tool", 1, 0], ["fixture loader", 1, 0], ["search index", 1, 0]] => callers
+
+def breaks(c):
+    if c[1] == 0:
+        return 0
+    if c[2] == 1:
+        return 0
+    return 1
+
+0 => broken
+0 => safe
+for c in callers:
+    if breaks(c) == 1:
+        broken + 1 => broken
+    else:
+        safe + 1 => safe
+
+"callers : " + str(len(callers)) ^0
+"  break if the order changes : " + str(broken) ^0
+"  survive                    : " + str(safe) ^0
+"" ^0
+
+"caller                who breaks" ^0
+for c in callers:
+    if breaks(c) == 1:
+        "  " + c[0] + "   BREAKS" ^0
+    else:
+        "  " + c[0] + "   fine" ^0
+"" ^0
+
+# ---- why the survivors survive ----
+
+0 => by_sorting
+0 => by_not_caring
+for c in callers:
+    if breaks(c) == 0:
+        if c[2] == 1:
+            by_sorting + 1 => by_sorting
+        else:
+            by_not_caring + 1 => by_not_caring
+"how the survivors survive" ^0
+"  they sort first        : " + str(by_sorting) ^0
+"  they never read positions : " + str(by_not_caring) ^0
+"" ^0
+
+# ---- what each source of truth says ----
+
+"what a caller can learn, and from where" ^0
+"  the documentation : the order is unspecified" ^0
+"  running the code  : the order is this exact sequence" ^0
+"  which one is checkable at write time : the second" ^0
+"  which one is a promise               : the first" ^0
+"" ^0
+
+# ---- the cost of the two ways to keep faith with the doc ----
+
+"changing the order" ^0
+"  callers that must change : " + str(broken) + " of " + str(len(callers)) ^0
+"  the change is permitted by every word of the contract" ^0
+"" ^0
+"keeping the order" ^0
+"  callers that must change : 0" ^0
+"  the freedom the doc reserved : now unusable in practice" ^0
+"" ^0
+
+# ---- what would have prevented it ----
+#
+# Not a stronger sentence in the doc. A visible instability - shuffling the
+# order deliberately - would have made every one of those callers fail on the
+# day it was written instead of years later.
+
+0 => would_fail_early
+for c in callers:
+    would_fail_early + breaks(c) => would_fail_early
+"if the order had been deliberately varied from the start" ^0
+"  callers that would have failed immediately : " + str(would_fail_early) ^0
+"  callers that would have failed later       : 0" ^0
+if would_fail_early == broken:
+    "  the same callers, discovered at write time instead of at change time" ^0
+"" ^0
+
+# ---- the control: a field whose order IS promised ----
+#
+# Where the contract promises the order, depending on it is correct, and the
+# implementation is the side that must not change.
+
+[["invoice lines", 1, 0], ["ledger entries", 1, 0]] => promised
+0 => promised_dep
+for c in promised:
+    promised_dep + breaks(c) => promised_dep
+"control - a list whose order the contract does promise" ^0
+"  callers depending on it : " + str(promised_dep) + " of " + str(len(promised)) ^0
+"  and they are entitled to" ^0
+"" ^0
+
+"The sentence in the documentation is true and was read. What callers build" ^0
+"against is what they can observe, and an unspecified behaviour that never" ^0
+"varies is indistinguishable from a promise." ^0

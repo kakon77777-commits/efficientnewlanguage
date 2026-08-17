@@ -1,0 +1,139 @@
+# Self-authored for the EML case corpus (no external origin). Four compound
+# assignments look alike. One of them changes what the variable is.
+#
+# `^+`, `^-` and `^*` on two integers give an integer. `^/` gives a float,
+# always, even when the division is exact - which is the right rule, because
+# the alternative is a division whose result type depends on the values.
+#
+# The consequence is that a counter updated with `^/` stops printing the way it
+# did while still comparing the way it did, in code that changed by one
+# character. Which of those two survives is measured below, not asserted here.
+
+12 => a
+12 => b
+12 => c
+12 => d
+
+a ^+ 4
+b ^- 4
+c ^* 4
+d ^/ 4
+
+"starting from 12" ^0
+"  ^+ 4 : " + str(a) ^0
+"  ^- 4 : " + str(b) ^0
+"  ^* 4 : " + str(c) ^0
+"  ^/ 4 : " + str(d) ^0
+"" ^0
+
+# ---- the one that prints differently ----
+
+"how each renders" ^0
+"  the three integer results carry no point" ^0
+"  the divided one renders as " + str(d) ^0
+if d == int(d):
+    "  and 12 divided by 4 leaves no remainder, so the point is the type" ^0
+else:
+    "  and the division was not exact, so the point carries information" ^0
+"" ^0
+
+# ---- what it does to a comparison ----
+
+3 => want
+if d == want:
+    "  d == 3 is true, so equality still holds across the types" ^0
+if str(d) == str(want):
+    "  and the strings match too" ^0
+else:
+    "  but str(d) is '" + str(d) + "' and str(3) is '" + str(want) + "'" ^0
+"" ^0
+
+# ---- a counter that goes through a halving ----
+
+100 => n
+0 => steps
+[] => fvals
+[] => ftexts
+"halving a counter until it is below 10" ^0
+while n >= 10:
+    n ^/ 2
+    steps ^+ 1
+    fvals + [n] => fvals
+    ftexts + [str(n)] => ftexts
+    "  step " + str(steps) + " : " + str(n) ^0
+"  steps : " + str(steps) ^0
+"" ^0
+
+# ---- the integer-preserving way to write the same loop ----
+
+100 => m
+0 => msteps
+[] => ivals
+[] => itexts
+"the same loop keeping an integer" ^0
+while m >= 10:
+    int(m / 2) => m
+    msteps ^+ 1
+    ivals + [m] => ivals
+    itexts + [str(m)] => itexts
+    "  step " + str(msteps) + " : " + str(m) ^0
+"  steps : " + str(msteps) ^0
+"" ^0
+
+# ---- how far apart the two loops actually are ----
+#
+# "they print differently" and "they hold different numbers" are two different
+# counts, and the second is smaller. Both are computed from the recorded steps.
+
+"comparing the two loops step by step" ^0
+if steps == msteps:
+    "  both ran " + str(steps) + " steps" ^0
+else:
+    "  they ran different numbers of steps : " + str(steps) + " and " + str(msteps) ^0
+0 => text_diff
+0 => value_diff
+for i in [0:steps - 1]:
+    if not (ftexts[i] == itexts[i]):
+        text_diff + 1 => text_diff
+    if not (fvals[i] == ivals[i]):
+        value_diff + 1 => value_diff
+"  steps that print differently : " + str(text_diff) + " of " + str(steps) ^0
+"  steps that hold a different number : " + str(value_diff) + " of " + str(steps) ^0
+if text_diff > value_diff:
+    "  so " + str(text_diff - value_diff) + " of them are the same number wearing a point" ^0
+"" ^0
+
+# ---- where the two actually diverge ----
+
+25 => p
+25 => q
+p ^/ 2
+int(q / 2) => q
+"a division that is not exact" ^0
+"  ^/ 2   : " + str(p) ^0
+"  int(/2): " + str(q) ^0
+if not (p == q):
+    "  here the two disagree on the value, not only on the rendering" ^0
+"" ^0
+
+# ---- the control: the three that keep the type ----
+#
+# The rule is specific to division. The other three compound operators return
+# what they were given.
+
+7 => x
+7 => y
+7 => z
+x ^+ 0
+y ^- 0
+z ^* 1
+"control - the other three, applied as identities" ^0
+"  ^+ 0 : " + str(x) + ", ^- 0 : " + str(y) + ", ^* 1 : " + str(z) ^0
+if str(x) == "7":
+    if str(y) == "7":
+        if str(z) == "7":
+            "  all three render exactly as they started" ^0
+"" ^0
+
+"One character separates the three that preserve the type from the one that" ^0
+"does not, and the divided value is still equal to the integer it should be." ^0

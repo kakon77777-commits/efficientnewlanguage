@@ -1,0 +1,109 @@
+# Self-authored for the EML case corpus (no external origin). The documented
+# endpoint carries 3% of the traffic. The one nobody wrote down carries most
+# of it.
+#
+# The documented one is better in every way it was designed to be: versioned,
+# validated, rate-limited, and the only one with a stability guarantee. It was
+# announced, it has a tutorial, and it is the one the team maintains.
+#
+# The other one exists because the web client needs it, and the web client is
+# public, so its requests are visible to anyone who opens a browser console.
+# Nothing was leaked; it was simply observable, and observable beats documented
+# when someone needs to ship today.
+#
+# Traffic and guarantees are counted per endpoint, so which one is load-bearing
+# is measured rather than assumed.
+
+# [endpoint, documented, versioned, calls per day, distinct callers]
+[["/api/v2/orders", 1, 1, 300, 4], ["/internal/orders.json", 0, 0, 6200, 19], ["/api/v2/customers", 1, 1, 210, 3], ["/_next/data/orders", 0, 0, 2400, 11]] => endpoints
+
+def total(col):
+    0 => t
+    for e in endpoints:
+        t + e[col] => t
+    return t
+
+"endpoints : " + str(len(endpoints)) ^0
+"" ^0
+"endpoint                  documented   calls/day   callers" ^0
+for e in endpoints:
+    "" => d
+    if e[1] == 1:
+        d + "yes" => d
+    else:
+        d + "no " => d
+    "  " + e[0] + "   " + d + "        " + str(e[3]) + "      " + str(e[4]) ^0
+"" ^0
+
+0 => doc_calls
+0 => doc_callers
+0 => undoc_calls
+0 => undoc_callers
+for e in endpoints:
+    if e[1] == 1:
+        doc_calls + e[3] => doc_calls
+        doc_callers + e[4] => doc_callers
+    else:
+        undoc_calls + e[3] => undoc_calls
+        undoc_callers + e[4] => undoc_callers
+
+"documented endpoints" ^0
+"  calls   : " + str(doc_calls) + "  (" + str(int(doc_calls * 100 / total(3))) + "%)" ^0
+"  callers : " + str(doc_callers) + "  (" + str(int(doc_callers * 100 / total(4))) + "%)" ^0
+"" ^0
+"undocumented endpoints" ^0
+"  calls   : " + str(undoc_calls) + "  (" + str(int(undoc_calls * 100 / total(3))) + "%)" ^0
+"  callers : " + str(undoc_callers) + "  (" + str(int(undoc_callers * 100 / total(4))) + "%)" ^0
+"" ^0
+
+# ---- what a change to each one costs ----
+
+"changing the documented endpoint" ^0
+"  callers affected : " + str(doc_callers) ^0
+"  they were told it is versioned, so a v3 costs them a migration they expect" ^0
+"" ^0
+"changing the undocumented one" ^0
+"  callers affected : " + str(undoc_callers) ^0
+"  they were told nothing, so they find out when it breaks" ^0
+"" ^0
+
+# ---- where the guarantees are ----
+
+0 => guarded_calls
+for e in endpoints:
+    if e[2] == 1:
+        guarded_calls + e[3] => guarded_calls
+"share of traffic that is versioned, validated and rate-limited" ^0
+"  " + str(int(guarded_calls * 100 / total(3))) + "%" ^0
+"  the other " + str(100 - int(guarded_calls * 100 / total(3))) + "% has none of those, and is most of the load" ^0
+"" ^0
+
+# ---- what documenting the observed one would change ----
+#
+# Not the traffic, which is already there. What it changes is whether the
+# callers are known, and whether a change to it can be announced.
+
+"if the observed endpoint were documented tomorrow" ^0
+"  traffic moved : 0" ^0
+"  callers who become announceable : " + str(undoc_callers) ^0
+"  guarantees the team then owes : the ones it already effectively provides" ^0
+"" ^0
+
+# ---- the control: a service whose documented path carries the load ----
+
+[["/v1/pay", 1, 1, 5000, 12], ["/internal/debug", 0, 0, 20, 1]] => healthy
+0 => ht
+0 => hd
+for e in healthy:
+    ht + e[3] => ht
+    if e[1] == 1:
+        hd + e[3] => hd
+"control - a service where the documented path carries the traffic" ^0
+"  documented share : " + str(int(hd * 100 / ht)) + "%" ^0
+if int(hd * 100 / ht) > 90:
+    "  here the contract and the load are the same surface" ^0
+"" ^0
+
+"The documented endpoint is better and is maintained. Callers build against" ^0
+"what they can see working, and a public client makes its own requests" ^0
+"visible to everyone who reads them." ^0

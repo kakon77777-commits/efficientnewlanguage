@@ -1,0 +1,109 @@
+# Self-authored for the EML case corpus (no external origin). The deprecation
+# was announced in every channel the team has. How many callers that reached is
+# computed below; stating it here would be a number nothing checks.
+#
+# The announcement was thorough: release notes, changelog, a blog post, a
+# banner in the dashboard and a mailing list. Each of those is a real channel
+# with real subscribers, and the team can name every one of them.
+#
+# Who reads a channel and who calls the endpoint are two different sets, and
+# only one of them is measurable from inside the team. The other is visible in
+# the request logs, which is where the callers actually are.
+#
+# The overlap is computed here rather than assumed, per channel.
+
+# [caller, reads release notes, reads the blog, sees the dashboard, on the list]
+[["c1", 1, 0, 1, 1], ["c2", 0, 0, 0, 0], ["c3", 0, 0, 0, 0], ["c4", 1, 1, 1, 1], ["c5", 0, 0, 0, 0], ["c6", 0, 0, 1, 0], ["c7", 0, 0, 0, 0], ["c8", 0, 0, 0, 0], ["c9", 1, 0, 0, 1], ["c10", 0, 0, 0, 0], ["c11", 0, 0, 0, 0]] => callers
+
+["release notes", "the blog", "the dashboard", "the mailing list"] => channels
+
+def reach(ch):
+    0 => c
+    for x in callers:
+        c + x[ch + 1] => c
+    return c
+
+def reached_any(x):
+    for k in [1:4]:
+        if x[k] == 1:
+            return 1
+    return 0
+
+"callers : " + str(len(callers)) ^0
+"" ^0
+"channel            callers it reaches" ^0
+0 => k
+for ch in channels:
+    "  " + ch + " : " + str(reach(k)) + " of " + str(len(callers)) ^0
+    k + 1 => k
+"" ^0
+
+0 => any_reach
+for x in callers:
+    any_reach + reached_any(x) => any_reach
+"reached by at least one channel : " + str(any_reach) + " of " + str(len(callers)) ^0
+"reached by none                 : " + str(len(callers) - any_reach) ^0
+"" ^0
+
+# ---- adding channels ----
+#
+# Each channel is real and each adds something. What it adds is measured.
+
+"cumulative reach, adding one channel at a time" ^0
+for upto in [1:4]:
+    0 => c
+    for x in callers:
+        0 => hit
+        for j in [1:upto]:
+            if x[j] == 1:
+                1 => hit
+        c + hit => c
+    "  through " + channels[upto - 1] + " : " + str(c) ^0
+"" ^0
+
+# ---- what the unreached have in common ----
+
+"the callers no channel reaches" ^0
+for x in callers:
+    if reached_any(x) == 0:
+        "  " + x[0] ^0
+"  count : " + str(len(callers) - any_reach) ^0
+"  they have one thing in common: they appear in the request log" ^0
+"" ^0
+
+# ---- the channel that is not a channel ----
+#
+# A deprecation warning in the response itself reaches exactly the callers who
+# call, because calling is what puts it in front of them.
+
+def reached_by_response(x):
+    return 1
+
+0 => response_reach
+for x in callers:
+    response_reach + reached_by_response(x) => response_reach
+"a warning header on the response itself" ^0
+"  callers it reaches : " + str(response_reach) + " of " + str(len(callers)) ^0
+if response_reach > any_reach:
+    "  more than all four announcement channels together, by " + str(response_reach - any_reach) ^0
+"  because the audience is defined by the same act as the usage" ^0
+"" ^0
+
+# ---- the control: a population that does read ----
+#
+# Announcing is not futile. Where the callers are the subscribers, the
+# announcement is the right instrument and reaches everyone.
+
+[["p1", 1, 1, 1, 1], ["p2", 1, 0, 1, 1], ["p3", 1, 1, 0, 1]] => partners
+0 => p_reach
+for x in partners:
+    p_reach + reached_any(x) => p_reach
+"control - a partner integration programme, where callers subscribe" ^0
+"  reached : " + str(p_reach) + " of " + str(len(partners)) ^0
+if p_reach == len(partners):
+    "  here announcing is exactly the right instrument" ^0
+"" ^0
+
+"Every channel is real and every one has subscribers. Who subscribes and who" ^0
+"calls are two populations, and the deprecation was addressed to the one the" ^0
+"team can see." ^0

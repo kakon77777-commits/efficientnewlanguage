@@ -1,0 +1,161 @@
+# Self-authored for the EML case corpus (no external origin). A guard clause was
+# added at the top of a loop. It skipped more than the record it was aimed at.
+#
+# The guard is good practice: it takes the invalid case out of the way in one
+# line and leaves the body un-nested, which is easier to read than wrapping
+# everything below it in an `if`. Nothing about it is wrong.
+#
+# What it changes is which lines of the body run. `continue` does not skip the
+# record - it skips every line beneath it, and the accounting was beneath it,
+# because the accounting is written last and appended at the bottom.
+#
+# Both counts are computed by running the same records through both shapes.
+
+# [id, amount, valid]
+[["r1", 40, 1], ["r2", 15, 0], ["r3", 30, 1], ["r4", 25, 0], ["r5", 60, 1], ["r6", 10, 0], ["r7", 20, 1]] => records
+
+len(records) => n
+"records : " + str(n) ^0
+0 => valid_records
+for r in records:
+    if r[2] == 1:
+        valid_records + 1 => valid_records
+"  valid   : " + str(valid_records) ^0
+"  invalid : " + str(n - valid_records) ^0
+"" ^0
+
+# ---- the loop as it was written, with the guard on top ----
+
+0 => seen
+0 => counted
+0 => total
+for r in records:
+    seen + 1 => seen
+    if r[2] == 0:
+        continue
+    total + r[1] => total
+    counted + 1 => counted
+
+"the loop with the guard at the top" ^0
+"  records the loop saw     : " + str(seen) ^0
+"  records the loop counted : " + str(counted) ^0
+"  total                    : " + str(total) ^0
+if seen > counted:
+    "  the difference is " + str(seen - counted) + ", which is how many times continue ran" ^0
+"" ^0
+
+# ---- what the accounting was supposed to say ----
+#
+# The counter at the bottom was written to answer "how many records did this
+# run process", which includes the ones it declined. That question now has no
+# answer in the loop, because the line that answered it is below the guard.
+
+0 => processed
+0 => declined
+for r in records:
+    processed + 1 => processed
+    if r[2] == 0:
+        declined + 1 => declined
+        continue
+    0 => ignore
+
+"what the run actually handled" ^0
+"  records processed : " + str(processed) ^0
+"  of those declined : " + str(declined) ^0
+"  of those totalled : " + str(processed - declined) ^0
+if processed == n:
+    "  every record is accounted for, because the counting happens above the guard" ^0
+"" ^0
+
+# ---- the same guard written as an if/else ----
+#
+# The nested shape keeps the accounting reachable without moving any line. It
+# costs one level of indentation and answers both questions.
+
+0 => e_total
+0 => e_counted
+0 => e_seen
+for r in records:
+    e_seen + 1 => e_seen
+    if r[2] == 1:
+        e_total + r[1] => e_total
+        e_counted + 1 => e_counted
+    else:
+        0 => ignore
+
+"the same filter written as if/else" ^0
+"  seen : " + str(e_seen) + ", counted : " + str(e_counted) + ", total : " + str(e_total) ^0
+if e_total == total:
+    if e_counted == counted:
+        "  identical answers to the guard version, and seen is still " + str(e_seen) ^0
+"" ^0
+
+# ---- where it gets expensive: an accumulator below the guard ----
+#
+# A running maximum kept at the bottom of the body sees only the records that
+# reached the bottom. When the guard skips the largest one, the maximum is not
+# merely late - it is wrong, and nothing in the output says so.
+
+0 => max_all
+for r in records:
+    if r[1] > max_all:
+        r[1] => max_all
+
+0 => max_below
+for r in records:
+    if r[2] == 0:
+        continue
+    if r[1] > max_below:
+        r[1] => max_below
+
+"a running maximum over every record" ^0
+"  computed above the guard : " + str(max_all) ^0
+"  computed below the guard : " + str(max_below) ^0
+if max_all == max_below:
+    "  the two agree on this input, because the largest record happens to be valid" ^0
+else:
+    "  the two disagree by " + str(abs(max_all - max_below)) ^0
+"" ^0
+
+# The same two maxima over records where the largest one is invalid.
+
+[["s1", 40, 1], ["s2", 95, 0], ["s3", 30, 1]] => skewed
+0 => s_all
+for r in skewed:
+    if r[1] > s_all:
+        r[1] => s_all
+0 => s_below
+for r in skewed:
+    if r[2] == 0:
+        continue
+    if r[1] > s_below:
+        r[1] => s_below
+"  the same two maxima where the largest record is invalid" ^0
+"  above the guard : " + str(s_all) + ", below the guard : " + str(s_below) ^0
+if not (s_all == s_below):
+    "  here the placement of one line changes the answer by " + str(s_all - s_below) ^0
+"" ^0
+
+# ---- the control: a guard with nothing below it ----
+#
+# `continue` is not the defect. A guard that is the last decision in the body
+# skips nothing, because there is nothing left to skip.
+
+0 => c_seen
+0 => c_total
+for r in records:
+    c_seen + 1 => c_seen
+    if r[2] == 1:
+        c_total + r[1] => c_total
+    if r[2] == 0:
+        continue
+"control - a guard at the bottom of the body" ^0
+"  seen : " + str(c_seen) + ", total : " + str(c_total) ^0
+if c_seen == n:
+    if c_total == total:
+        "  both answers intact, with the same continue in the same loop" ^0
+"" ^0
+
+"The guard is correct and the body is easier to read for having it. What it" ^0
+"skips is decided by what is written below it, and the accounting is written" ^0
+"below everything because it was added last." ^0
