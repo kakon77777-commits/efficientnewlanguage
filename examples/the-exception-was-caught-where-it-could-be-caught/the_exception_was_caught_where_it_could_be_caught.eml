@@ -1,0 +1,122 @@
+# Self-authored for the EML case corpus (no external origin). The handler sits
+# at the top of the request, because that is the function this team owns. How
+# many of the failures it catches it can answer correctly is computed below.
+#
+# Catching at the boundary is standard and it is right. It guarantees no
+# failure escapes as a stack trace to a user, it is one place to maintain
+# instead of forty, and it is the only layer where a team that owns the entry
+# point can put a handler at all without editing somebody else's file.
+#
+# By the time an exception reaches the boundary it has lost the thing that
+# distinguishes it. Six causes arrive as one type, so one response is chosen
+# for all six, and a response is either right for a cause or it is not.
+#
+# Each cause is scored against the single available response.
+
+# [cause, occurrences, retrying helps, retrying makes it worse, what it needs]
+[["network reset", 340, 1, 0, "retry"], ["downstream 500", 210, 1, 0, "retry"], ["malformed payload", 95, 0, 1, "reject and tell the sender"], ["quota exceeded", 60, 0, 1, "back off, then retry"], ["auth token expired", 45, 0, 0, "re-authenticate, then retry"], ["mapper defect", 18, 0, 0, "a code change"]] => causes
+
+len(causes) => n
+
+def occurrences():
+    0 => t
+    for c in causes:
+        t + c[1] => t
+    return t
+
+"distinct causes : " + str(n) ^0
+"failures a week : " + str(occurrences()) ^0
+"the boundary handler does one thing : log it and retry three times" ^0
+"" ^0
+
+0 => helped
+0 => worsened
+0 => neither
+0 => helped_calls
+0 => worsened_calls
+0 => neither_calls
+for c in causes:
+    if c[2] == 1:
+        helped + 1 => helped
+        helped_calls + c[1] => helped_calls
+    elif c[3] == 1:
+        worsened + 1 => worsened
+        worsened_calls + c[1] => worsened_calls
+    else:
+        neither + 1 => neither
+        neither_calls + c[1] => neither_calls
+
+"what the one response does to each cause" ^0
+"  it is the right answer for   : " + str(helped) + " causes, " + str(helped_calls) + " failures" ^0
+"  it makes things worse for    : " + str(worsened) + " causes, " + str(worsened_calls) + " failures" ^0
+"  it changes nothing for       : " + str(neither) + " causes, " + str(neither_calls) + " failures" ^0
+if helped_calls > occurrences() - helped_calls:
+    "  by volume the single response is right more often than not" ^0
+else:
+    "  by volume the single response is wrong more often than not" ^0
+"" ^0
+
+"cause                what it needs" ^0
+for c in causes:
+    "  " + c[0] + "   " + c[4] ^0
+0 => distinct_needs
+[] => seen_needs
+for c in causes:
+    if not (c[4] in seen_needs):
+        seen_needs + [c[4]] => seen_needs
+        distinct_needs + 1 => distinct_needs
+"  distinct responses required : " + str(distinct_needs) ^0
+"  responses the boundary can choose between : 1" ^0
+"" ^0
+
+# ---- what retrying costs where it is the wrong answer ----
+
+3 => attempts
+"retrying three times, on the causes it does not help" ^0
+"  extra calls a week : " + str((worsened_calls + neither_calls) * (attempts - 1)) ^0
+"  none of them can succeed, because nothing between attempts changes" ^0
+if worsened_calls > 0:
+    "  and " + str(worsened_calls * attempts) + " of the attempts land on a system already refusing them" ^0
+"" ^0
+
+# ---- what is knowable at each layer ----
+#
+# The information is not missing from the program. It is missing from the
+# frame where the handler is.
+
+"how many of the six a handler can tell apart" ^0
+"  at the call site : " + str(n) + ", the cause is the thing that was raised" ^0
+"  at the boundary  : 1, every one arrives as the same wrapped type" ^0
+if n > 1:
+    "  so the boundary is choosing without the field it would choose on" ^0
+"" ^0
+
+# ---- what one distinguishing field would buy ----
+
+"if the raised error carried its cause to the boundary" ^0
+"  causes the boundary could route : " + str(n) + ", by construction of the field" ^0
+"  responses it could then pick    : " + str(distinct_needs) ^0
+"  handlers to write               : " + str(distinct_needs) + ", still all in the one function this team owns" ^0
+"  the boundary is the right place; it was the wrong amount of information" ^0
+"" ^0
+
+# ---- the control: a layer where one response fits everything ----
+#
+# A nightly import skips any row it cannot read and continues. Every cause has
+# the same correct answer there, so collapsing them loses nothing.
+
+[["bad encoding", 12], ["short row", 30], ["unknown column", 5]] => import_causes
+0 => ic
+0 => ic_calls
+for c in import_causes:
+    ic + 1 => ic
+    ic_calls + c[1] => ic_calls
+"control - a nightly import whose answer is always skip the row" ^0
+"  causes : " + str(ic) + ", rows : " + str(ic_calls) + ", distinct responses needed : 1" ^0
+"  here one handler for every cause is not a loss, because the causes differ" ^0
+"  in nothing the response depends on" ^0
+"" ^0
+
+"The boundary is the correct place for a handler and the team that owns it" ^0
+"owns nothing further in. What arrives there is one type, and picking one" ^0
+"response is what one type leaves available." ^0

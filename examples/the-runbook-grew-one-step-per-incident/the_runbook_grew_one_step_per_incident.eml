@@ -1,0 +1,115 @@
+# Self-authored for the EML case corpus (no external origin). Fourteen steps,
+# one per incident. How many of them the next incident needs is computed below.
+#
+# Every step earned its place. Each was written by someone at three in the
+# morning who had just discovered that this check would have saved an hour, and
+# each is correct: run it and you learn something true about the system.
+#
+# A runbook is read in order under time pressure by somebody who does not know
+# which incident they are in. The steps that matter for tonight are a subset,
+# the reader cannot tell which subset, and the ones that do not apply still
+# cost their minutes because they are above the ones that do.
+#
+# Each step is scored against each incident type rather than in general.
+
+# [step, minutes, applies to: db, queue, deploy, network]
+[["check disk", 2, 1, 0, 0, 0], ["check replica lag", 3, 1, 0, 0, 0], ["check queue depth", 2, 0, 1, 0, 0], ["check consumer count", 2, 0, 1, 0, 0], ["diff last deploy", 4, 0, 0, 1, 0], ["check feature flags", 3, 0, 0, 1, 0], ["ping the upstream", 1, 0, 0, 0, 1], ["traceroute", 5, 0, 0, 0, 1], ["check cert expiry", 2, 0, 0, 0, 1], ["check connection pool", 3, 1, 1, 0, 0], ["read the error budget", 2, 0, 0, 0, 0], ["check the status page", 1, 0, 0, 0, 1], ["restart the worker", 4, 0, 1, 0, 0], ["page the db owner", 1, 1, 0, 0, 0]] => steps
+
+len(steps) => n
+["a database incident", "a queue incident", "a deploy incident", "a network incident"] => kinds
+
+def total_minutes():
+    0 => t
+    for s in steps:
+        t + s[1] => t
+    return t
+
+def useful_for(k):
+    0 => c
+    for s in steps:
+        if s[k + 2] == 1:
+            c + 1 => c
+    return c
+
+def useful_minutes(k):
+    0 => t
+    for s in steps:
+        if s[k + 2] == 1:
+            t + s[1] => t
+    return t
+
+"steps in the runbook : " + str(n) ^0
+"minutes to run it end to end : " + str(total_minutes()) ^0
+"" ^0
+
+"incident kind          steps that apply   minutes that apply   minutes spent" ^0
+for k in [0:3]:
+    "  " + kinds[k] + "   " + str(useful_for(k)) + " of " + str(n) + "            " + str(useful_minutes(k)) + "                  " + str(total_minutes()) ^0
+"" ^0
+
+0 => worst_wasted
+for k in [0:3]:
+    if total_minutes() - useful_minutes(k) > worst_wasted:
+        total_minutes() - useful_minutes(k) => worst_wasted
+"minutes spent on steps that cannot apply" ^0
+for k in [0:3]:
+    "  " + kinds[k] + " : " + str(total_minutes() - useful_minutes(k)) ^0
+"  worst case : " + str(worst_wasted) + " of " + str(total_minutes()) ^0
+"" ^0
+
+# ---- the steps that apply to nothing ----
+
+0 => universal
+0 => orphan
+for s in steps:
+    s[2] + s[3] + s[4] + s[5] => hits
+    if hits == 0:
+        orphan + 1 => orphan
+    elif hits == 4:
+        universal + 1 => universal
+"steps that apply to every kind : " + str(universal) ^0
+"steps that apply to no kind    : " + str(orphan) ^0
+if orphan > 0:
+    "  each of those was right for an incident not in this list, which is the" ^0
+    "  reason they are here and the reason nobody removes them" ^0
+"" ^0
+
+# ---- what ordering alone would buy ----
+#
+# No step is deleted. The reader is asked one question first, and the steps
+# that cannot apply move below the ones that can.
+
+"if the first line asked which kind of incident this is" ^0
+for k in [0:3]:
+    "  " + kinds[k] + " : " + str(useful_minutes(k)) + " minutes instead of " + str(total_minutes()) ^0
+0 => saved
+for k in [0:3]:
+    saved + total_minutes() - useful_minutes(k) => saved
+"  average saved per incident : " + str(int(saved / 4)) + " minutes, with every step kept" ^0
+"" ^0
+
+# ---- why it is in this order ----
+
+"the order the steps are in" ^0
+"  the order they were added, which is the order the incidents happened" ^0
+"  that order is a fact about the past and carries no information about" ^0
+"  tonight" ^0
+"" ^0
+
+# ---- the control: a runbook for one kind of incident ----
+#
+# Where every step applies, running all of them is running the right ones, and
+# length costs nothing but time that had to be spent anyway.
+
+[["check disk", 2], ["check replica lag", 3], ["page the db owner", 1]] => focused
+0 => f_min
+for s in focused:
+    f_min + s[1] => f_min
+"control - a runbook written for database incidents only" ^0
+"  steps : " + str(len(focused)) + ", minutes : " + str(f_min) + ", steps that cannot apply : 0" ^0
+"  here reordering saves nothing, because there is nothing to skip" ^0
+"" ^0
+
+"Every step was added by somebody who was right and every step is true. Which" ^0
+"of them tonight needs is a question the runbook never asks, so it runs all" ^0
+"of them in the order the last few years happened." ^0

@@ -1,0 +1,168 @@
+# Self-authored for the EML case corpus (no external origin). The older a
+# workaround is, the more likely its condition is gone and the less likely
+# anyone looks at it. Both halves are computed below.
+#
+# Not looking at old code is a reasonable prior. Old code has survived, it is
+# not what changed last week, and the thing that broke this morning is almost
+# always something recent. Attention going to the new is how debugging works
+# and it is right.
+#
+# Applied to removal it points the wrong way. A workaround is removable when
+# the condition it was written for stopped happening, and that becomes more
+# likely as time passes. Review attention becomes less likely over the same
+# time, so the two curves cross and never come back.
+#
+# Both are measured against the same list.
+
+# [id, age in months, the condition still occurs, reviews in the last year]
+[["w01", 2, 1, 3], ["w02", 4, 1, 2], ["w03", 6, 1, 2], ["w04", 9, 0, 2], ["w05", 14, 1, 1], ["w06", 18, 0, 1], ["w07", 22, 0, 1], ["w08", 30, 0, 1], ["w09", 38, 0, 0], ["w10", 44, 0, 0], ["w11", 51, 1, 0], ["w12", 60, 0, 0], ["w13", 72, 0, 0], ["w14", 84, 0, 0]] => items
+
+len(items) => n
+[12, 36, 999] => bands
+["under a year", "one to three years", "over three years"] => band_names
+
+def in_band(age, b):
+    0 => lo
+    if b > 0:
+        bands[b - 1] => lo
+    if age < lo:
+        return 0
+    if age >= bands[b]:
+        return 0
+    return 1
+
+"workarounds : " + str(n) ^0
+"" ^0
+
+"age band              count   condition gone   reviews last year" ^0
+for b in [0:2]:
+    0 => c
+    0 => gone
+    0 => revs
+    for it in items:
+        if in_band(it[1], b) == 1:
+            c + 1 => c
+            revs + it[3] => revs
+            if it[2] == 0:
+                gone + 1 => gone
+    "  " + band_names[b] + "   " + str(c) + "       " + str(gone) + " of " + str(c) + "           " + str(revs) ^0
+"" ^0
+
+0 => young_gone
+0 => young_n
+0 => old_gone
+0 => old_n
+0 => young_revs
+0 => old_revs
+for it in items:
+    if it[1] < bands[0]:
+        young_n + 1 => young_n
+        young_revs + it[3] => young_revs
+        if it[2] == 0:
+            young_gone + 1 => young_gone
+    if it[1] >= bands[1]:
+        old_n + 1 => old_n
+        old_revs + it[3] => old_revs
+        if it[2] == 0:
+            old_gone + 1 => old_gone
+
+"the two ends of the list" ^0
+"  under a year     : " + str(young_gone) + " of " + str(young_n) + " gone, " + str(young_revs) + " reviews" ^0
+"  over three years : " + str(old_gone) + " of " + str(old_n) + " gone, " + str(old_revs) + " reviews" ^0
+if old_gone * young_n > young_gone * old_n:
+    "  the older group is likelier to be removable" ^0
+if old_revs < young_revs:
+    "  and it is looked at less, by " + str(young_revs - old_revs) + " reviews" ^0
+"" ^0
+
+# ---- what the current order finds ----
+#
+# Reviews land where attention lands, which is on the newest entries.
+
+5 => sweep
+"a review sweep of " + str(sweep) + " entries, newest first" ^0
+0 => found_new
+0 => seen
+for it in items:
+    if seen < sweep:
+        seen + 1 => seen
+        if it[2] == 0:
+            found_new + 1 => found_new
+"  removable found : " + str(found_new) + " of " + str(sweep) ^0
+"" ^0
+
+"the same sweep, oldest first" ^0
+0 => found_old
+0 => seen2
+for i in [0:n - 1]:
+    items[n - 1 - i] => it
+    if seen2 < sweep:
+        seen2 + 1 => seen2
+        if it[2] == 0:
+            found_old + 1 => found_old
+"  removable found : " + str(found_old) + " of " + str(sweep) ^0
+if found_old > found_new:
+    "  " + str(found_old - found_new) + " more, from the same amount of reading" ^0
+"" ^0
+
+# ---- the entry that breaks the rule ----
+#
+# Age is a correlate, not a fact about any one entry. One old workaround here
+# is still load-bearing, and ordering by age is a heuristic rather than a
+# licence to delete.
+
+"old entries whose condition still occurs" ^0
+for it in items:
+    if it[1] >= bands[1]:
+        if it[2] == 1:
+            "  " + it[0] + " : " + str(it[1]) + " months old and still firing" ^0
+"  so the sweep reads them, it does not delete them" ^0
+"" ^0
+
+# ---- the total that never shrinks ----
+
+0 => gone_total
+for it in items:
+    if it[2] == 0:
+        gone_total + 1 => gone_total
+"removable right now : " + str(gone_total) + " of " + str(n) ^0
+0 => zero_review
+for it in items:
+    if it[3] == 0:
+        if it[2] == 0:
+            zero_review + 1 => zero_review
+"  of those, never reviewed in the last year : " + str(zero_review) ^0
+if zero_review > 0:
+    "  they will still be here next year, for the same reason they are here now" ^0
+"" ^0
+
+# ---- the control: a list where age says nothing ----
+#
+# Where removability is independent of age, reviewing oldest-first and
+# newest-first find the same amount, and the ordering is not the lever.
+
+[["a", 2, 0, 1], ["b", 20, 1, 1], ["c", 40, 0, 1], ["d", 70, 1, 1]] => flat
+0 => f_first
+0 => f_last
+0 => k
+for it in flat:
+    if k < 2:
+        if it[2] == 0:
+            f_first + 1 => f_first
+    k + 1 => k
+0 => k2
+for i in [0:len(flat) - 1]:
+    flat[len(flat) - 1 - i] => it
+    if k2 < 2:
+        if it[2] == 0:
+            f_last + 1 => f_last
+    k2 + 1 => k2
+"control - a list where removability does not track age" ^0
+"  newest two : " + str(f_first) + " removable, oldest two : " + str(f_last) + " removable" ^0
+if f_first == f_last:
+    "  the same, so ordering by age would buy nothing here" ^0
+"" ^0
+
+"Spending attention on what changed recently is how anything gets debugged." ^0
+"Removability accumulates in the other direction, so the two orders are" ^0
+"opposite and only one of them is anybody's habit." ^0
