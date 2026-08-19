@@ -1,0 +1,105 @@
+# Self-authored for the EML case corpus (no external origin). The A/B test was
+# clean: random assignment, one change, a large sample, a clear result. How
+# much of the measured lift is the treatment is computed below.
+#
+# The experiment was run properly. Assignment was random, the groups were
+# balanced, the metric was pre-registered and the difference was far outside
+# the noise. Everything an experiment is supposed to control for was
+# controlled for.
+#
+# Randomisation makes the two groups alike. It does not make them independent:
+# both draw on one cache, one pool and one database, so a treatment that uses
+# more of a shared thing leaves less of it for the control. The comparison then
+# contains the treatment's gain and the control's loss.
+#
+# Both terms are computed from the same run.
+
+100 => baseline
+1000 => users
+500 => in_treatment
+
+12 => treatment_gain
+9 => control_loss
+
+baseline - treatment_gain => treated_latency
+baseline + control_loss => control_latency
+control_latency - treated_latency => measured_lift
+
+"baseline latency, before the experiment : " + str(baseline) ^0
+"users : " + str(users) + ", in treatment : " + str(in_treatment) ^0
+"" ^0
+"during the experiment" ^0
+"  treatment group : " + str(treated_latency) ^0
+"  control group   : " + str(control_latency) ^0
+"  measured lift   : " + str(measured_lift) ^0
+"" ^0
+
+"what the lift is made of" ^0
+"  the treatment got faster by : " + str(treatment_gain) ^0
+"  the control got slower by   : " + str(control_loss) ^0
+if measured_lift == treatment_gain + control_loss:
+    "  and those two account for the whole of the " + str(measured_lift) ^0
+"  the share of the lift that is the control moving : " + str(int(control_loss * 100 / measured_lift)) + "%" ^0
+"" ^0
+
+# ---- what the rollout gets ----
+#
+# At full rollout there is no control group to take capacity from, and the
+# shared resource is contended by the treatment itself.
+
+2 => contention_at_full
+treatment_gain - contention_at_full => full_gain
+baseline - full_gain => rolled_out
+"rolling the treatment out to everybody" ^0
+"  predicted from the lift : " + str(baseline - measured_lift) ^0
+"  actual                  : " + str(rolled_out) ^0
+if rolled_out > baseline - measured_lift:
+    "  short of the prediction by " + str(rolled_out - baseline + measured_lift) ^0
+if rolled_out < baseline:
+    "  still an improvement of " + str(baseline - rolled_out) + " on the baseline, which is real" ^0
+    "  and is " + str(int((baseline - rolled_out) * 100 / measured_lift)) + "% of what the experiment reported" ^0
+"" ^0
+
+# ---- the measurement that would have caught it ----
+#
+# Not a bigger sample. The control group's own before-and-after, which the
+# comparison does not need and therefore nobody looks at.
+
+"the control group against its own history" ^0
+"  before the experiment : " + str(baseline) ^0
+"  during                : " + str(control_latency) ^0
+if control_latency > baseline:
+    "  the control moved by " + str(control_latency - baseline) + ", and a control that moves is not a baseline" ^0
+"  this comparison needs no extra instrumentation, only the question" ^0
+"" ^0
+
+# ---- how big the sample would have to be to fix it ----
+#
+# It cannot. The bias does not shrink with n, because every extra user is
+# assigned to one of two groups that share the same pool.
+
+"the same experiment at ten times the sample" ^0
+"  measured lift : " + str(measured_lift) + ", unchanged" ^0
+"  the share that is control degradation : " + str(int(control_loss * 100 / measured_lift)) + "%, unchanged" ^0
+"  a larger sample narrows the interval around a number that is not the" ^0
+"  treatment effect" ^0
+"" ^0
+
+# ---- the control: an experiment with nothing shared ----
+#
+# Where the treatment consumes nothing the control needs, the control does not
+# move and the lift is the effect.
+
+0 => iso_loss
+baseline + iso_loss => iso_control
+baseline - treatment_gain => iso_treated
+iso_control - iso_treated => iso_lift
+"control - the same treatment with a per-group cache" ^0
+"  control group : " + str(iso_control) + ", treatment : " + str(iso_treated) + ", lift : " + str(iso_lift) ^0
+if iso_lift == treatment_gain:
+    "  the lift equals the gain exactly, and the rollout gets what was measured" ^0
+"" ^0
+
+"Randomisation balanced the groups and the difference between them is real." ^0
+"It is a difference between two groups drawing on one pool, and only one of" ^0
+"the two survives the rollout." ^0

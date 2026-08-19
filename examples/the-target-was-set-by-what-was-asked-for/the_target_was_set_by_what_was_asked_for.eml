@@ -1,0 +1,125 @@
+# Self-authored for the EML case corpus (no external origin). The availability
+# target was set to what consumers asked for, and consumers asked for what was
+# published. What any of them needs is computed below.
+#
+# Setting the target from consumer requirements is the correct method and it is
+# what every guide says: do not pick a number, ask the people who depend on you.
+# The team did ask, wrote the answers down, and set the target to the strictest
+# one. Nothing about the process was skipped.
+#
+# A consumer asked what to ask for looks at what is on offer. So the answers
+# come back as the published figure, the strictest of them is the published
+# figure, and the requirement and the target are the same number arrived at
+# twice. The one thing not in the loop is what breaks if it is missed.
+#
+# Each consumer's real tolerance is computed from its own retry budget.
+
+# [consumer, nines it asked for, seconds it can wait, its own published target in nines]
+[["checkout", 3, 30, 3], ["search", 3, 120, 2], ["reporting", 3, 3600, 1], ["mobile app", 3, 60, 2], ["partner feed", 3, 900, 1], ["fraud check", 3, 5, 4]] => consumers
+
+len(consumers) => n
+3 => published
+
+# a consumer needs the provider to be at least as available as its own promise
+def needs(c):
+    return c[3]
+
+0 => asked_same
+0 => below
+0 => above
+0 => strictest
+for c in consumers:
+    if c[1] == published:
+        asked_same + 1 => asked_same
+    if needs(c) < published:
+        below + 1 => below
+    if needs(c) > published:
+        above + 1 => above
+    if needs(c) > strictest:
+        needs(c) => strictest
+
+"consumers : " + str(n) + ", published target : " + str(published) + " nines" ^0
+"" ^0
+"consumer        asked for   can wait   own promise   really needs" ^0
+for c in consumers:
+    "  " + c[0] + "   " + str(c[1]) + " nines     " + str(c[2]) + "s      " + str(c[3]) + " nines      " + str(needs(c)) + " nines" ^0
+"" ^0
+
+"consumers whose answer equals the published figure : " + str(asked_same) + " of " + str(n) ^0
+if asked_same == n:
+    "  every answer came back as the number that was already on the page" ^0
+"" ^0
+
+"against what each one's own promise implies" ^0
+"  need less than " + str(published) + " nines : " + str(below) ^0
+"  need exactly " + str(published) + "        : " + str(n - below - above) ^0
+"  need more than " + str(published) + "      : " + str(above) ^0
+"  strictest real requirement : " + str(strictest) + " nines" ^0
+if strictest > published:
+    "  which is above the target the survey produced, by " + str(strictest - published) ^0
+"" ^0
+
+for c in consumers:
+    if needs(c) == strictest:
+        "  the consumer that needs it : " + c[0] + ", which can wait " + str(c[2]) + " seconds" ^0
+        "  it asked for " + str(c[1]) + " nines, the same as everyone, and it is the one" ^0
+        "  the target does not cover" ^0
+"" ^0
+
+# ---- what the target costs ----
+
+[0, 40, 120, 300, 900] => cost_by_nines
+"cost of running at each level" ^0
+for k in [1:4]:
+    "  " + str(k) + " nines : " + str(cost_by_nines[k]) ^0
+"" ^0
+"at the published target of " + str(published) + " : " + str(cost_by_nines[published]) ^0
+0 => max_below
+for c in consumers:
+    if needs(c) < published:
+        if needs(c) > max_below:
+            needs(c) => max_below
+"the strictest requirement among consumers that need less than the target : " + str(max_below) ^0
+if below > 0:
+    "  " + str(below) + " consumers would be inside their own promise at " + str(max_below) + " nines" ^0
+    "  which costs " + str(cost_by_nines[max_below]) + " against " + str(cost_by_nines[published]) ^0
+"" ^0
+
+"serving the one strict consumer separately" ^0
+"  the other " + str(n - 1) + " at " + str(max_below) + " nines : " + str(cost_by_nines[max_below]) ^0
+"  one path at " + str(strictest) + " nines      : " + str(cost_by_nines[strictest]) ^0
+"  total                       : " + str(cost_by_nines[max_below] + cost_by_nines[strictest]) ^0
+"  one uniform target at " + str(strictest) + "     : " + str(cost_by_nines[strictest]) ^0
+if cost_by_nines[max_below] + cost_by_nines[strictest] > cost_by_nines[strictest]:
+    "  splitting costs " + str(cost_by_nines[max_below]) + " more here, so the uniform strict target wins" ^0
+    "  on cost - and it is a different number from the one the survey found" ^0
+"" ^0
+
+# ---- what would have broken the circle ----
+#
+# Not a better survey. A question whose answer is not a number the provider
+# has already published.
+
+"the question that was asked : what availability do you require" ^0
+"the question that is answerable : how long can you wait, and what do you" ^0
+"  promise your own users" ^0
+"  the second one was answered above, in seconds and in nines, and it" ^0
+"  produced " + str(strictest) + " where the first produced " + str(published) ^0
+"" ^0
+
+# ---- the control: a consumer with no published target of its own ----
+#
+# Where a consumer has nothing of its own to derive from, the circular answer
+# is the only answer it has, and asking harder does not help.
+
+"control - a consumer that publishes nothing and has no retry budget" ^0
+"  what it can derive a requirement from : nothing" ^0
+"  what it will answer                   : the published figure" ^0
+"  for this consumer the survey is not circular by accident, it is circular" ^0
+"  because there is no second source to reach" ^0
+"" ^0
+
+"Asking the consumers is the right method and the answers were recorded" ^0
+"faithfully. A requirement gathered from people reading your own page is your" ^0
+"own page, and the one consumer it fails is the one that answered like the" ^0
+"others." ^0

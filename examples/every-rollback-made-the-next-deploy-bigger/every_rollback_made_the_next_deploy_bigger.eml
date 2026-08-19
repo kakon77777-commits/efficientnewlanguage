@@ -1,0 +1,161 @@
+# Self-authored for the EML case corpus (no external origin). A bad deploy is
+# followed by more review before the next one. What that does to the next
+# deploy is simulated rather than argued.
+#
+# Slowing down after a failure is the correct instinct and it is what every
+# incident review recommends. More eyes on a change finds more in it, and the
+# team that just broke production has evidence that its current rate is too
+# fast for its current process.
+#
+# Waiting does not stop the changes arriving. It stores them, so the next
+# deploy carries everything written during the wait, and a deploy's risk is
+# mostly its size. The response to a failure is an input to the next failure.
+#
+# Both policies are run over the same stream of changes.
+
+3 => changes_per_day
+60 => days
+6 => risk_per_failure
+
+# Returns [failures, changes shipped, largest batch, interval at the end]
+def run(after_failure, after_clean, start_interval):
+    start_interval => interval
+    0 => day
+    0 => pending
+    0 => failures
+    0 => shipped
+    0 => biggest
+    while day < days:
+        pending + changes_per_day => pending
+        day + 1 => day
+        if day % interval == 0:
+            pending => batch
+            if batch > biggest:
+                batch => biggest
+            shipped + batch => shipped
+            int(batch / risk_per_failure) => broke
+            0 => pending
+            if broke > 0:
+                failures + broke => failures
+                interval + after_failure => interval
+            else:
+                interval - after_clean => interval
+            if interval < 1:
+                1 => interval
+            if interval > 30:
+                30 => interval
+    return [failures, shipped, biggest, interval]
+
+"changes written per day : " + str(changes_per_day) ^0
+"days simulated          : " + str(days) ^0
+"a deploy breaks once per " + str(risk_per_failure) + " changes it carries" ^0
+"both runs start the day after an incident, at a 4-day interval" ^0
+"" ^0
+
+run(1, 1, 4) => cautious
+run(0 - 1, 1, 4) => forward
+
+"policy                          failures   shipped   largest deploy   interval at the end" ^0
+"  wait longer after a failure   " + str(cautious[0]) + "         " + str(cautious[1]) + "       " + str(cautious[2]) + "               " + str(cautious[3]) ^0
+"  deploy sooner after a failure " + str(forward[0]) + "          " + str(forward[1]) + "       " + str(forward[2]) + "                " + str(forward[3]) ^0
+"" ^0
+
+if cautious[0] > forward[0]:
+    "waiting longer produced " + str(cautious[0] - forward[0]) + " more failures than deploying sooner" ^0
+if cautious[2] > forward[2]:
+    "and its largest deploy was " + str(cautious[2] - forward[2]) + " changes bigger" ^0
+"" ^0
+
+# ---- the interval, step by step, under the cautious rule ----
+
+"the cautious rule, deploy by deploy" ^0
+4 => interval
+0 => day
+0 => pending
+0 => k
+0 => broke_deploys
+while day < days:
+    pending + changes_per_day => pending
+    day + 1 => day
+    if day % interval == 0:
+        pending => batch
+        int(batch / risk_per_failure) => broke
+        k + 1 => k
+        if broke > 0:
+            broke_deploys + 1 => broke_deploys
+        if k <= 6:
+            "" => verdict
+            if broke > 0:
+                "broke, wait " + str(interval + 1) + " days next" => verdict
+            else:
+                "clean" => verdict
+            "  deploy " + str(k) + " : after " + str(interval) + " days, " + str(batch) + " changes, " + verdict ^0
+        0 => pending
+        if broke > 0:
+            interval + 1 => interval
+        else:
+            interval - 1 => interval
+        if interval < 1:
+            1 => interval
+        if interval > 30:
+            30 => interval
+"  deploys in the whole run : " + str(k) + ", of which broke : " + str(broke_deploys) ^0
+"  breakages counted : " + str(cautious[0]) + ", because a big deploy breaks more than once" ^0
+"  the interval goes 4 to " + str(cautious[3]) + "; the batches do not rise monotonically," ^0
+"  because a deploy only happens on a day divisible by the current interval," ^0
+"  so lengthening it sometimes lands on a shorter gap first" ^0
+"" ^0
+
+# ---- how long a change waits before it is live ----
+#
+# The interval is also latency. A change written on day one of a wait sits
+# until the wait ends, whatever happens to it after that.
+
+"the interval each run ends on, which a change waits half of on average" ^0
+"  cautious : " + str(cautious[3]) + " days" ^0
+"  forward  : " + str(forward[3]) + " days" ^0
+if cautious[3] > forward[3]:
+    "  the cautious rule ends " + str(cautious[3] - forward[3]) + " days slower per deploy as well as more broken" ^0
+"" ^0
+
+# ---- where the caution would have been right ----
+#
+# If risk came from the number of deploys rather than their size, waiting
+# would reduce it. That is the world the instinct is calibrated for.
+
+30 => per_deploy_risk
+int(days / cautious[3]) => cautious_deploys
+int(days / forward[3]) => forward_deploys
+"if each deploy carried a fixed risk regardless of size" ^0
+"  deploys under the cautious rule : about " + str(cautious_deploys) ^0
+"  deploys under the forward rule  : about " + str(forward_deploys) ^0
+if forward_deploys > cautious_deploys:
+    "  the cautious rule would win, with " + str(forward_deploys - cautious_deploys) + " fewer exposures" ^0
+"  which risk model holds is a fact about the change, not about the policy" ^0
+"" ^0
+
+# ---- the control: changes that do not accumulate ----
+#
+# Where nothing arrives during the wait, a longer interval produces the same
+# deploy later, and the loop has nothing to feed on.
+
+0 => still_pending
+4 => c_interval
+0 => c_day
+0 => c_failures
+while c_day < days:
+    c_day + 1 => c_day
+    if c_day % c_interval == 0:
+        int(still_pending / risk_per_failure) => broke
+        if broke > 0:
+            c_failures + broke => c_failures
+            c_interval + 1 => c_interval
+"control - a frozen codebase, no changes arriving" ^0
+"  failures : " + str(c_failures) + ", interval at the end : " + str(c_interval) ^0
+if c_failures == 0:
+    "  waiting costs nothing here, because the batch does not grow while you wait" ^0
+"" ^0
+
+"Reviewing harder after a failure finds more in each change, and the wait it" ^0
+"buys is stored as batch size. The size is what the next failure is drawn" ^0
+"from, so the response is upstream of the thing it responds to." ^0

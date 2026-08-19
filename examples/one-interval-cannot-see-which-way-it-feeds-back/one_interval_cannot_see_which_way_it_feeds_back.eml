@@ -1,0 +1,108 @@
+# Self-authored for the EML case corpus (no external origin). Two systems take
+# the same shock and respond identically in the first interval. Which of them
+# is amplifying is not in that interval, and is computed here.
+#
+# Reading the first interval is not a mistake. It is the only interval anybody
+# has when the decision is due, the response in it is real, and its size is
+# measured correctly. Waiting for a second one has a cost, sometimes a large
+# one.
+#
+# What a single interval contains is the size of a response. Whether the next
+# response will be larger or smaller is a fact about the sign of the loop, and
+# a difference between two responses needs two of them to exist at all.
+#
+# Both systems are run from the same shock over the same intervals.
+
+100 => normal
+40 => shock
+8 => intervals
+
+# amplifying: each interval adds a quarter of the current excess again
+# damping:    each interval removes a quarter of the current excess
+def trace(sign):
+    [] => out
+    normal + shock => v
+    0 => t
+    while t < intervals:
+        out + [v] => out
+        int((v - normal) / 4) => delta
+        if sign == 1:
+            v + delta => v
+        else:
+            v - delta => v
+        t + 1 => t
+    return out
+
+trace(1) => amp
+trace(0) => damp
+
+"both systems sit at " + str(normal) + " and take a shock of " + str(shock) ^0
+"" ^0
+"interval   amplifying   damping" ^0
+for i in [0:intervals - 1]:
+    "  " + str(i + 1) + "          " + str(amp[i]) + "          " + str(damp[i]) ^0
+"" ^0
+
+if amp[0] == damp[0]:
+    "at interval 1 the two are identical at " + str(amp[0]) ^0
+    "  a reader with one interval has the size of the response and nothing else" ^0
+"" ^0
+
+0 => first_diff
+for i in [0:intervals - 1]:
+    if first_diff == 0:
+        if not (amp[i] == damp[i]):
+            i + 1 => first_diff
+if first_diff > 0:
+    "they first differ at interval " + str(first_diff) + ", by " + str(amp[first_diff - 1] - damp[first_diff - 1]) ^0
+"" ^0
+
+"by interval " + str(intervals) ^0
+"  amplifying : " + str(amp[intervals - 1]) + ", which is " + str(amp[intervals - 1] - normal) + " above rest" ^0
+"  damping    : " + str(damp[intervals - 1]) + ", which is " + str(damp[intervals - 1] - normal) + " above rest" ^0
+"" ^0
+
+# ---- what the second interval buys that the first does not ----
+#
+# The sign of the loop is a property of the change between responses. One
+# interval has no change in it, so no amount of care in reading it recovers
+# the sign.
+
+amp[1] - amp[0] => amp_step
+damp[1] - damp[0] => damp_step
+"the step from interval 1 to interval 2" ^0
+"  amplifying : " + str(amp_step) ^0
+"  damping    : " + str(damp_step) ^0
+if amp_step > 0:
+    if damp_step < 0:
+        "  opposite signs, so two intervals separate them and one does not" ^0
+"" ^0
+
+# ---- what deciding at interval 1 costs under each ----
+
+"adding capacity at interval 1 for the observed excess of " + str(shock) ^0
+"  if the system is damping    : the excess is gone by interval " + str(intervals) + ", leaving" ^0
+"    " + str(shock - damp[intervals - 1] + normal) + " of the added capacity idle" ^0
+"  if the system is amplifying : the excess reaches " + str(amp[intervals - 1] - normal) + ", so the addition is" ^0
+"    short by " + str(amp[intervals - 1] - normal - shock) ^0
+"  the two errors are different sizes, so the cheaper guess is not the safer" ^0
+"  one and the choice is not symmetric" ^0
+"" ^0
+
+# ---- the control: a shock with no loop at all ----
+#
+# A system that simply returns to rest in one step shows the same first
+# interval again, and the same reader cannot tell it from either of the others.
+
+normal + shock => flat_first
+"control - a system that returns to " + str(normal) + " immediately after the shock" ^0
+"  interval 1 : " + str(flat_first) + ", interval 2 : " + str(normal) ^0
+if flat_first == amp[0]:
+    if flat_first == damp[0]:
+        "  interval 1 matches both of the others exactly" ^0
+        "  three different systems, one first interval, and the decision is due" ^0
+"" ^0
+
+"The first interval is measured correctly and it is what there is. The sign" ^0
+"of a loop lives in the difference between two responses, and one response" ^0
+"has no difference in it." ^0

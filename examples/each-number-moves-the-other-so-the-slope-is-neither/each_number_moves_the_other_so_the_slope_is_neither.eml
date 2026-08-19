@@ -1,0 +1,135 @@
+# Self-authored for the EML case corpus (no external origin). Test count and
+# build time move together across twelve weeks. What the slope between them
+# measures is computed below.
+#
+# Reading the relationship off the data is the right instinct and the data is
+# good: twelve clean weeks, both quantities measured by the build system
+# itself, no missing points. The two move together tightly, and that is a real
+# fact about the weeks observed.
+#
+# Tests make the build slower, and a slower build makes people write fewer
+# tests. Both effects are present in every week, so the observed pairing is
+# produced by the two together and the slope through it is neither of them.
+#
+# The two effects are set separately here and the observed slope is computed.
+
+# per test added, the build gets this many seconds slower
+3 => seconds_per_test
+# one test fewer is written for each this-many seconds the build sits above base
+200 => seconds_per_lost_test
+
+400 => base_build
+120 => base_tests
+12 => weeks
+# tests somebody adds regardless, per week, from unrelated feature work
+[6, 2, 9, 3, 8, 1, 7, 4, 6, 2, 8, 3] => new_tests_each_week
+
+[] => tests_series
+[] => build_series
+base_tests => tests
+base_build + base_tests * seconds_per_test => build
+0 => w
+while w < weeks:
+    tests_series + [tests] => tests_series
+    build_series + [build] => build_series
+    base_build + tests * seconds_per_test => build
+    new_tests_each_week[w] => added
+    int((build - base_build) / seconds_per_lost_test) => discouraged
+    tests + added - discouraged => next_tests
+    if next_tests < 0:
+        0 => next_tests
+    next_tests => tests
+    w + 1 => w
+
+"weeks : " + str(weeks) ^0
+"true effects, set independently:" ^0
+"  each test adds " + str(seconds_per_test) + " seconds to the build" ^0
+"  one test fewer is written per " + str(seconds_per_lost_test) + " seconds the build sits above base" ^0
+"" ^0
+"week   tests   build seconds" ^0
+for i in [0:weeks - 1]:
+    "  " + str(i + 1) + "      " + str(tests_series[i]) + "     " + str(build_series[i]) ^0
+"" ^0
+
+# ---- the slope somebody would read off these points ----
+
+tests_series[weeks - 1] - tests_series[0] => d_tests
+build_series[weeks - 1] - build_series[0] => d_build
+"from the first week to the last" ^0
+"  tests moved by : " + str(d_tests) ^0
+"  build moved by : " + str(d_build) ^0
+if not (d_tests == 0):
+    int(d_build / d_tests) => slope
+    "  seconds per test, read off the pair : " + str(slope) ^0
+    if not (slope == seconds_per_test):
+        "  against a true cost of " + str(seconds_per_test) + " seconds per test" ^0
+        "  the reading is out by " + str(slope - seconds_per_test) ^0
+else:
+    "  tests did not move, so no slope can be read" ^0
+"" ^0
+
+# ---- why the reading is not the effect ----
+
+"what the observed pair contains" ^0
+"  tests pushing the build up   : yes, at " + str(seconds_per_test) + " seconds each" ^0
+"  build pushing the tests down : yes, one per " + str(seconds_per_lost_test) + " seconds above base" ^0
+"  a slope through the points is one number for two effects that point in" ^0
+"  opposite directions, so its size depends on which one moved first" ^0
+"" ^0
+
+# ---- what an exogenous push measures ----
+#
+# Change one of them for a reason unrelated to the other, and the response of
+# the second is the effect of the first, with nothing else in it.
+
+base_tests => t0
+base_build + t0 * seconds_per_test => b0
+t0 + 30 => t1
+base_build + t1 * seconds_per_test => b1
+"adding 30 tests for a reason unrelated to build time" ^0
+"  tests : " + str(t0) + " to " + str(t1) ^0
+"  build : " + str(b0) + " to " + str(b1) ^0
+int((b1 - b0) / (t1 - t0)) => measured
+"  seconds per test, measured this way : " + str(measured) ^0
+if measured == seconds_per_test:
+    "  which is the true value, because nothing else moved" ^0
+"" ^0
+
+# ---- what each reading supports ----
+
+"the question : should we delete 40 slow tests" ^0
+"  answered with the observed slope : the build changes by " + str(0 - 40 * slope) + " if the" ^0
+"    slope is read as causal, and the pair drifts back afterwards" ^0
+"  answered with the exogenous figure : " + str(40 * seconds_per_test) + " seconds faster, and then the" ^0
+"    second effect adds tests back, one per " + str(seconds_per_lost_test) + " seconds recovered" ^0
+"  the second answer has both terms and the first has one number standing" ^0
+"  in for both" ^0
+"" ^0
+
+# ---- the control: one direction only ----
+#
+# Where build time does not affect how many tests get written, the pairing
+# contains one effect and the slope through it is that effect.
+
+[] => one_way
+base_tests => t
+0 => k
+0 => ow_tests
+while k < weeks:
+    one_way + [base_build + t * seconds_per_test] => one_way
+    if k < weeks - 1:
+        ow_tests + new_tests_each_week[k] => ow_tests
+        t + new_tests_each_week[k] => t
+    k + 1 => k
+one_way[weeks - 1] - one_way[0] => ow_build
+"control - the same weeks with no discouragement effect" ^0
+"  tests moved by " + str(ow_tests) + ", build by " + str(ow_build) ^0
+int(ow_build / ow_tests) => ow_slope
+"  slope : " + str(ow_slope) ^0
+if ow_slope == seconds_per_test:
+    "  equal to the true cost, so with one direction the slope is the effect" ^0
+"" ^0
+
+"Twelve clean weeks, two quantities measured by the same system, and they" ^0
+"move together. Each is moving the other, so the line through them is a" ^0
+"number belonging to neither." ^0

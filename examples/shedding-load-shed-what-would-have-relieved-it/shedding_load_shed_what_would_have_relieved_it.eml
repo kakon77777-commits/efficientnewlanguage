@@ -1,0 +1,174 @@
+# Self-authored for the EML case corpus (no external origin). Under overload
+# the requests nobody is waiting on are refused first. What that does to the
+# next interval is simulated rather than assumed.
+#
+# Shedding by who is waiting is the right ranking for the question it answers.
+# Under overload something has to go, and dropping traffic no user is blocked
+# on protects the traffic they are blocked on. Every load-shedding guide says
+# this and it is correct about the interval it is applied in.
+#
+# Some of that traffic is what keeps the next interval cheap: the request that
+# refills a cache, the drain that keeps a queue short, the probe that keeps a
+# node in the pool. Refusing it saves load now and buys load later, and a
+# ranking by who is waiting does not contain the later term.
+#
+# Both rankings are run over the same overload.
+
+# [name, load it contributes, cost of refusing it now, load it adds to the NEXT interval if refused]
+[["health probe", 2, 0, 14], ["cache refill", 6, 0, 22], ["queue drain", 8, 0, 18], ["report job", 12, 1, 0], ["user read", 14, 8, 0], ["user write", 10, 14, 0]] => kinds
+
+len(kinds) => n
+40 => capacity
+6 => intervals
+
+0 => base_load
+for k in kinds:
+    base_load + k[1] => base_load
+
+# Returns [total offered across the run, worst interval, total user pain, sheds]
+def run(order):
+    0 => extra
+    0 => total
+    0 => peak
+    0 => pain
+    0 => sheds
+    0 => t
+    while t < intervals:
+        base_load + extra => offered
+        total + offered => total
+        if offered > peak:
+            offered => peak
+        offered => remaining
+        0 => next_extra
+        0 => j
+        while j < n:
+            if remaining > capacity:
+                order[j] => idx
+                remaining - kinds[idx][1] => remaining
+                pain + kinds[idx][2] => pain
+                next_extra + kinds[idx][3] => next_extra
+                sheds + 1 => sheds
+            j + 1 => j
+        next_extra => extra
+        t + 1 => t
+    return [total, peak, pain, sheds]
+
+"request kinds : " + str(n) ^0
+"offered load with nothing shed : " + str(base_load) ^0
+"capacity : " + str(capacity) + ", so " + str(base_load - capacity) + " must go" ^0
+"intervals : " + str(intervals) ^0
+"" ^0
+
+"request        load   cost of refusing   adds to the next interval" ^0
+for k in kinds:
+    "  " + k[0] + "   " + str(k[1]) + "      " + str(k[2]) + "                  " + str(k[3]) ^0
+"" ^0
+
+[0, 1, 2, 3, 4, 5] => by_waiting
+[3, 4, 5, 2, 1, 0] => by_effect
+
+run(by_waiting) => waiting
+run(by_effect) => aware
+
+"ranking                          offered over the run   worst interval   user pain   sheds" ^0
+"  refuse what nobody waits on    " + str(waiting[0]) + "                 " + str(waiting[1]) + "             " + str(waiting[2]) + "           " + str(waiting[3]) ^0
+"  refuse what costs least later  " + str(aware[0]) + "                  " + str(aware[1]) + "              " + str(aware[2]) + "           " + str(aware[3]) ^0
+"" ^0
+
+if waiting[0] > aware[0]:
+    "shedding by who is waiting carried " + str(waiting[0] - aware[0]) + " more offered load across the run" ^0
+    "  and its worst interval was " + str(waiting[1] - aware[1]) + " above the other's" ^0
+elif waiting[0] == aware[0]:
+    "the two rankings carried the same load" ^0
+else:
+    "shedding by later cost carried " + str(aware[0] - waiting[0]) + " more offered load" ^0
+if aware[2] > waiting[2]:
+    "it bought that at " + str(aware[2] - waiting[2]) + " user pain against " + str(waiting[2] + 0) + ", which is the trade" ^0
+"" ^0
+
+# ---- interval by interval, under the ranking by who is waiting ----
+
+"offered load each interval, refusing what nobody waits on" ^0
+0 => extra
+0 => t
+while t < intervals:
+    base_load + extra => offered
+    offered => remaining
+    0 => next_extra
+    "" => dropped
+    0 => j
+    while j < n:
+        if remaining > capacity:
+            by_waiting[j] => idx
+            remaining - kinds[idx][1] => remaining
+            next_extra + kinds[idx][3] => next_extra
+            dropped + kinds[idx][0] + " " => dropped
+        j + 1 => j
+    t + 1 => t
+    "  interval " + str(t) + " : offered " + str(offered) + ", shed " + dropped ^0
+    next_extra => extra
+"" ^0
+
+"offered load each interval, refusing what costs least later" ^0
+0 => extra2
+0 => t2
+while t2 < intervals:
+    base_load + extra2 => offered
+    offered => remaining
+    0 => next_extra
+    "" => dropped
+    0 => j
+    while j < n:
+        if remaining > capacity:
+            by_effect[j] => idx
+            remaining - kinds[idx][1] => remaining
+            next_extra + kinds[idx][3] => next_extra
+            dropped + kinds[idx][0] + " " => dropped
+        j + 1 => j
+    t2 + 1 => t2
+    "  interval " + str(t2) + " : offered " + str(offered) + ", shed " + dropped ^0
+    next_extra => extra2
+"" ^0
+
+# ---- which requests carry a later term ----
+
+0 => with_tail
+0 => tail_total
+0 => tail_load
+0 => tail_pain
+for k in kinds:
+    if k[3] > 0:
+        with_tail + 1 => with_tail
+        tail_total + k[3] => tail_total
+        tail_load + k[1] => tail_load
+        tail_pain + k[2] => tail_pain
+"requests whose refusal costs something later : " + str(with_tail) + " of " + str(n) ^0
+"  load they occupy now      : " + str(tail_load) ^0
+"  cost of refusing them now : " + str(tail_pain) ^0
+"  load they add back later  : " + str(tail_total) ^0
+if tail_total > tail_load:
+    "  refusing all three frees " + str(tail_load) + " and returns " + str(tail_total) + ", a net loss of " + str(tail_total - tail_load) ^0
+if tail_pain == 0:
+    "  every one of them costs nothing to refuse, which is exactly why a" ^0
+    "  ranking on who is waiting puts them first" ^0
+"" ^0
+
+# ---- the control: an overload with no later term ----
+#
+# Where refusing a request costs nothing later, the two rankings differ only
+# in user pain and refusing the unwatched traffic is simply correct.
+
+[["read a", 14, 8, 0], ["read b", 12, 6, 0], ["report", 20, 1, 0]] => flat_kinds
+0 => f_tail
+for k in flat_kinds:
+    f_tail + k[3] => f_tail
+"control - three request kinds, none with a later term" ^0
+"  total later cost across all of them : " + str(f_tail) ^0
+if f_tail == 0:
+    "  with no later term, refusing the unwatched traffic is simply correct" ^0
+    "  and this overload cannot separate the two rankings" ^0
+"" ^0
+
+"Refusing what nobody is waiting on is the right ranking for the interval it" ^0
+"is computed in. Being unwatched is also what maintenance traffic looks like," ^0
+"so the sort puts the next interval's cost at the top of the list." ^0

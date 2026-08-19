@@ -1,0 +1,174 @@
+# Self-authored for the EML case corpus (no external origin). Review got
+# stricter because defects were escaping, and self-checking got lighter because
+# review was catching things. Where the pair settles is simulated.
+#
+# Both adjustments are correct responses to correct evidence. The reviewer saw
+# defects reach production and looked harder, which found more. The author saw
+# review catching things reliably and spent the pre-submit hour on the next
+# change instead, which is what a working review process is for.
+#
+# Effort spent by one party is evidence for the other party about how much to
+# spend. Neither is optimising the pair, and neither can see the other's
+# number, so the total lands wherever the two adjustments meet.
+#
+# Ten rounds are run and every quantity is computed from the pair.
+
+20 => base_defects
+12 => rounds
+2 => escape_tolerance
+5 => reliance_threshold
+
+"a change carries " + str(base_defects) + " latent defects before any effort" ^0
+"author effort removes 1 each; review effort catches 2 each" ^0
+"" ^0
+
+6 => author
+2 => reviewer
+0 => total_author
+0 => total_reviewer
+0 => total_escaped
+0 => t
+"round   author   reviewer   caught   escaped   review days" ^0
+while t < rounds:
+    base_defects - author => written
+    if written < 0:
+        0 => written
+    reviewer * 2 => caught
+    if written < caught:
+        written => caught
+    written - caught => escaped
+    total_author + author => total_author
+    total_reviewer + reviewer => total_reviewer
+    total_escaped + escaped => total_escaped
+    t + 1 => t
+    if t <= 6:
+        "  " + str(t) + "       " + str(author) + "        " + str(reviewer) + "          " + str(caught) + "        " + str(escaped) + "         " + str(reviewer) ^0
+    author => next_author
+    reviewer => next_reviewer
+    if escaped > escape_tolerance:
+        reviewer + 1 => next_reviewer
+    if caught >= reliance_threshold:
+        author - 1 => next_author
+    if next_author < 0:
+        0 => next_author
+    if next_reviewer > 10:
+        10 => next_reviewer
+    next_author => author
+    next_reviewer => reviewer
+"" ^0
+
+"where it settles" ^0
+"  author effort   : 6 at the start, " + str(author) + " at the end" ^0
+"  reviewer effort : 2 at the start, " + str(reviewer) + " at the end" ^0
+"  effort per change, start : " + str(6 + 2) ^0
+"  effort per change, end   : " + str(author + reviewer) ^0
+if author + reviewer > 8:
+    "  the pair spends " + str(author + reviewer - 8) + " more than it started with" ^0
+elif author + reviewer == 8:
+    "  the pair spends exactly what it started with, in a different place" ^0
+else:
+    "  the pair spends " + str(8 - author - reviewer) + " less than it started with" ^0
+"" ^0
+
+"escaped defects, over " + str(rounds) + " rounds : " + str(total_escaped) ^0
+"  author effort spent   : " + str(total_author) ^0
+"  reviewer effort spent : " + str(total_reviewer) ^0
+"" ^0
+
+# ---- what the same total effort buys if it is placed rather than negotiated ----
+#
+# The two efforts are not interchangeable: one removes a defect, the other
+# catches two. A pair that could see both numbers would not split it this way.
+
+author + reviewer => budget
+0 => best_escaped
+0 => best_a
+0 => first
+for a in [0:budget]:
+    budget - a => r
+    base_defects - a => w
+    if w < 0:
+        0 => w
+    r * 2 => c
+    if w < c:
+        w => c
+    w - c => e
+    if first == 0:
+        e => best_escaped
+        a => best_a
+        1 => first
+    if e < best_escaped:
+        e => best_escaped
+        a => best_a
+"the same budget of " + str(budget) + ", split every possible way" ^0
+"  best split : author " + str(best_a) + ", reviewer " + str(budget - best_a) + ", escaping " + str(best_escaped) ^0
+base_defects - author => w_now
+if w_now < 0:
+    0 => w_now
+reviewer * 2 => c_now
+if w_now < c_now:
+    w_now => c_now
+w_now - c_now => e_now
+"  where it settled : author " + str(author) + ", reviewer " + str(reviewer) + ", escaping " + str(e_now) ^0
+if e_now > best_escaped:
+    "  the negotiated split lets " + str(e_now - best_escaped) + " more through for the same effort" ^0
+elif e_now == best_escaped:
+    "  the two coincide: mutual adjustment landed on the efficient split," ^0
+    "  which it should, because review effort here is twice as productive" ^0
+    "  as author effort and the pair kept moving until that showed" ^0
+"" ^0
+
+# ---- what the journey cost ----
+#
+# The destination is right. It was reached one increment per round, and every
+# round before it ran at the split it had reached so far.
+
+best_escaped * rounds => ideal_total
+"escapes if the efficient split had been chosen on the first day" ^0
+"  " + str(best_escaped) + " per round over " + str(rounds) + " rounds : " + str(ideal_total) ^0
+"escapes actually incurred : " + str(total_escaped) ^0
+if total_escaped > ideal_total:
+    "  the difference is " + str(total_escaped - ideal_total) + ", which is what discovering the split by" ^0
+    "  mutual adjustment cost, at " + str(int((total_escaped - ideal_total) * 100 / ideal_total)) + "% on top" ^0
+"  neither party could have named the split earlier: it depends on both" ^0
+"  productivities, and each of them knows only its own" ^0
+"" ^0
+
+# ---- what each party sees ----
+
+"each party reading only its own instrument" ^0
+"  the reviewer sees : defects it catches, which rose" ^0
+"  the author sees   : defects it is told about, which rose" ^0
+"  both read a rising number as evidence their own adjustment was right" ^0
+"  neither reads " + str(total_escaped) + ", the count that reached production" ^0
+"" ^0
+
+# ---- the control: a party that cannot observe the other ----
+#
+# Where the author never learns what review caught, there is no signal to lean
+# on, and the effort stays where it was put.
+
+6 => c_author
+2 => c_reviewer
+0 => ct
+while ct < rounds:
+    base_defects - c_author => w
+    c_reviewer * 2 => c
+    if w < c:
+        w => c
+    w - c => e
+    if e > escape_tolerance:
+        c_reviewer + 1 => c_reviewer
+    if c_reviewer > 10:
+        10 => c_reviewer
+    ct + 1 => ct
+"control - the author is never told what review caught" ^0
+"  author effort at the end   : " + str(c_author) ^0
+"  reviewer effort at the end : " + str(c_reviewer) ^0
+if c_author == 6:
+    "  unchanged, because the signal it was responding to was the other party" ^0
+"" ^0
+
+"Two parties each adjusting on their own signal reached the split neither" ^0
+"could compute, one increment at a time. What the search cost is the defects" ^0
+"that escaped while it was still searching." ^0

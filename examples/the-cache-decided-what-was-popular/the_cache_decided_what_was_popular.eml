@@ -1,0 +1,210 @@
+# Self-authored for the EML case corpus (no external origin). The cache holds
+# the most requested items, and being held is part of why they are requested.
+# Which items it settles on is simulated rather than assumed.
+#
+# Keeping the popular items is the right rule and the request counts it reads
+# are real: those requests happened, they were served, and the count is not an
+# estimate. Ranking by observed demand is what every cache does and it is
+# correct as far as it goes.
+#
+# A cached item answers quickly, and a quick answer gets used more - retried
+# less, clicked through more, polled harder. So the count the cache ranks on is
+# a count of demand plus a term the cache itself contributed. The ranking is
+# over a quantity the ranking is an input to.
+#
+# The fixed point is computed by running it.
+
+# true demand per interval, independent of what is cached
+[100, 90, 80, 70, 60, 50, 40, 30] => demand
+["a", "b", "c", "d", "e", "f", "g", "h"] => names
+len(demand) => n
+4 => slots
+2 => boost
+
+# the cache was warmed in the wrong order by a bulk import
+[0, 0, 0, 0, 1, 1, 1, 1] => cached
+
+def observed(i, c):
+    if c[i] == 1:
+        return demand[i] * boost
+    return demand[i]
+
+def top_slots(c):
+    [] => chosen
+    0 => picked
+    while picked < slots:
+        0 - 1 => best
+        0 => best_i
+        for i in [0:n - 1]:
+            if not (i in chosen):
+                if observed(i, c) > best:
+                    observed(i, c) => best
+                    i => best_i
+        chosen + [best_i] => chosen
+        picked + 1 => picked
+    [] => flags
+    for i in [0:n - 1]:
+        0 => f
+        if i in chosen:
+            1 => f
+        flags + [f] => flags
+    return flags
+
+def show(c):
+    "" => s
+    for i in [0:n - 1]:
+        if c[i] == 1:
+            s + names[i] + " " => s
+    return s
+
+"items : " + str(n) + ", cache slots : " + str(slots) ^0
+"a cached item is requested " + str(boost) + "x as often as the same item uncached" ^0
+"" ^0
+"item   true demand" ^0
+for i in [0:n - 1]:
+    "  " + names[i] + "      " + str(demand[i]) ^0
+"" ^0
+
+"the true top " + str(slots) + " by demand alone : " ^0
+[0, 0, 0, 0, 0, 0, 0, 0] => nobody
+top_slots(nobody) => truth
+"  " + show(truth) ^0
+"" ^0
+
+# ---- what the loop settles on ----
+
+cached => c
+"round   cache contents" ^0
+"  0     " + show(c) ^0
+0 => r
+0 => settled
+while r < 6:
+    top_slots(c) => nxt
+    r + 1 => r
+    "  " + str(r) + "     " + show(nxt) ^0
+    0 => same
+    for i in [0:n - 1]:
+        if nxt[i] == c[i]:
+            same + 1 => same
+    if same == n:
+        if settled == 0:
+            r => settled
+    nxt => c
+if settled > 0:
+    "  settled after round " + str(settled) + " and does not move again" ^0
+"" ^0
+
+# ---- how wrong the fixed point is ----
+
+0 => agree
+for i in [0:n - 1]:
+    if c[i] == 1:
+        if truth[i] == 1:
+            agree + 1 => agree
+"the cache it settles on against the true top " + str(slots) ^0
+"  items in both      : " + str(agree) + " of " + str(slots) ^0
+"  held but not top   : " ^0
+for i in [0:n - 1]:
+    if c[i] == 1:
+        if truth[i] == 0:
+            "    " + names[i] + ", true demand " + str(demand[i]) ^0
+"  top but locked out : " ^0
+for i in [0:n - 1]:
+    if truth[i] == 1:
+        if c[i] == 0:
+            "    " + names[i] + ", true demand " + str(demand[i]) ^0
+"" ^0
+
+# ---- why the locked-out ones cannot get back in ----
+
+for i in [0:n - 1]:
+    if truth[i] == 1:
+        if c[i] == 0:
+            for j in [0:n - 1]:
+                if c[j] == 1:
+                    if truth[j] == 0:
+                        if observed(i, c) < observed(j, c):
+                            "  " + names[i] + " is observed at " + str(observed(i, c)) + " against " + names[j] + " at " + str(observed(j, c)) ^0
+"  the same pairs ranked on true demand alone" ^0
+for i in [0:n - 1]:
+    if truth[i] == 1:
+        if c[i] == 0:
+            for j in [0:n - 1]:
+                if c[j] == 1:
+                    if truth[j] == 0:
+                        if demand[i] > demand[j]:
+                            "    " + names[i] + " " + str(demand[i]) + " beats " + names[j] + " " + str(demand[j]) ^0
+"  every pair inverts once the boost is removed, so the boost is not a" ^0
+"  tiebreaker between close rivals - it is the whole of the ordering here" ^0
+"" ^0
+
+# ---- what one admission changes ----
+#
+# Nothing about the ranking rule needs to change. One slot given to the best
+# uncached item for one round is enough for the true demand to speak.
+
+c => e
+0 => rounds_to_truth
+0 => k
+while k < 4:
+    0 => best
+    0 => best_i
+    for i in [0:n - 1]:
+        if e[i] == 0:
+            if demand[i] > best:
+                demand[i] => best
+                i => best_i
+    [] => probe
+    for i in [0:n - 1]:
+        if i == best_i:
+            probe + [1] => probe
+        else:
+            probe + [e[i]] => probe
+    top_slots(probe) => e
+    k + 1 => k
+    0 => match
+    for i in [0:n - 1]:
+        if e[i] == truth[i]:
+            match + 1 => match
+    if match == n:
+        if rounds_to_truth == 0:
+            k => rounds_to_truth
+"admitting the best uncached item for one round, repeatedly" ^0
+"  cache after " + str(k) + " such rounds : " + show(e) ^0
+if rounds_to_truth > 0:
+    "  reaches the true top " + str(slots) + " after " + str(rounds_to_truth) + " admissions" ^0
+else:
+    "  does not reach the true top " + str(slots) + " within " + str(k) + " admissions" ^0
+"" ^0
+
+# ---- the control: a cache that does not change demand ----
+#
+# Where being cached does not make an item more requested, the observed counts
+# are the true ones and the rule lands on the right items immediately.
+
+0 => picked2
+[] => chosen2
+while picked2 < slots:
+    0 => best2
+    0 => bi2
+    for i in [0:n - 1]:
+        if not (i in chosen2):
+            if demand[i] > best2:
+                demand[i] => best2
+                i => bi2
+    chosen2 + [bi2] => chosen2
+    picked2 + 1 => picked2
+0 => flat_agree
+for i in [0:n - 1]:
+    if i in chosen2:
+        if truth[i] == 1:
+            flat_agree + 1 => flat_agree
+"control - the same rule where caching does not change demand" ^0
+"  items in both : " + str(flat_agree) + " of " + str(slots) ^0
+if flat_agree == slots:
+    "  the ranking lands on the true top immediately, from any starting cache" ^0
+"" ^0
+
+"A ranking whose input it partly produces has fixed points, and this one has" ^0
+"a wrong one two rounds away from any start. Two admissions leave it; nothing" ^0
+"in the rule can reach it from inside." ^0

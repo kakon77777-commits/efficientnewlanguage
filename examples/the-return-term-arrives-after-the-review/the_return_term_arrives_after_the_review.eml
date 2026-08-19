@@ -1,0 +1,130 @@
+# Self-authored for the EML case corpus (no external origin). Each change was
+# reviewed two weeks after it shipped. What each one is worth at two weeks and
+# at six months is computed below.
+#
+# Reviewing at two weeks is the right cadence for most of what a team ships.
+# The signal is there, the context is fresh, the people who made the decision
+# are still on it, and a review held six months out is a review nobody attends
+# and nothing acts on.
+#
+# Some changes have a term that arrives later than the review: an index that
+# has to be rebuilt, a queue that fills slowly, a dependency that is pinned
+# now and unpinnable in a year. A cadence chosen for the common case reads
+# those at the point where only their first term has landed.
+#
+# Both horizons are computed for the same five changes.
+
+# [change, benefit per week, week the cost lands, size of that cost]
+[["drop the extra index", 8, 0, 0], ["cache the join", 12, 10, 260], ["pin the dependency", 5, 40, 300], ["batch the writes", 6, 3, 40], ["denormalise the table", 15, 14, 520]] => changes
+
+len(changes) => n
+2 => review_week
+26 => horizon
+
+def value_at(c, week):
+    c[1] * week => gained
+    0 => paid
+    if week >= c[2]:
+        c[3] => paid
+    return gained - paid
+
+"changes : " + str(n) + ", reviewed at week " + str(review_week) + ", horizon week " + str(horizon) ^0
+"" ^0
+"change                  at week " + str(review_week) + "   at week " + str(horizon) + "   cost lands" ^0
+for c in changes:
+    "" => when
+    if c[2] == 0:
+        "never" => when
+    else:
+        "week " + str(c[2]) => when
+    "  " + c[0] + "   " + str(value_at(c, review_week)) + "        " + str(value_at(c, horizon)) + "        " + when ^0
+"" ^0
+
+# ---- the two rankings ----
+
+"" => best_early
+0 - 9999 => be
+"" => best_late
+0 - 9999 => bl
+for c in changes:
+    if value_at(c, review_week) > be:
+        value_at(c, review_week) => be
+        c[0] => best_early
+    if value_at(c, horizon) > bl:
+        value_at(c, horizon) => bl
+        c[0] => best_late
+"best change by the review-week number : " + best_early + " (" + str(be) + ")" ^0
+"best change by the horizon number     : " + best_late + " (" + str(bl) + ")" ^0
+if not (best_early == best_late):
+    "  different changes, and the review is what the next quarter copies" ^0
+"" ^0
+
+0 => positive_early
+0 => negative_late
+for c in changes:
+    if value_at(c, review_week) > 0:
+        positive_early + 1 => positive_early
+        if value_at(c, horizon) < 0:
+            negative_late + 1 => negative_late
+"changes that look good at week " + str(review_week) + " : " + str(positive_early) + " of " + str(n) ^0
+if negative_late > 0:
+    "  of those, negative by week " + str(horizon) + " : " + str(negative_late) ^0
+    for c in changes:
+        if value_at(c, review_week) > 0:
+            if value_at(c, horizon) < 0:
+                "    " + c[0] + " : " + str(value_at(c, review_week)) + " then " + str(value_at(c, horizon)) ^0
+"" ^0
+
+# ---- how far out the review would have to sit ----
+
+0 => latest
+for c in changes:
+    if c[2] > latest:
+        c[2] => latest
+"the last cost to land does so at week " + str(latest) ^0
+if latest > review_week:
+    "  a review that saw every term would sit " + str(latest - review_week) + " weeks later than this one" ^0
+    "  and would be held after the next " + str(int((latest - review_week) / review_week)) + " reviews had already happened" ^0
+"" ^0
+
+# ---- what the review can do without moving ----
+#
+# Not wait. Record, at review time, the week each change's remaining term is
+# due, which is knowable then and is what the review is missing.
+
+0 => with_pending
+for c in changes:
+    if c[2] > review_week:
+        with_pending + 1 => with_pending
+"changes with a term still outstanding at the review : " + str(with_pending) + " of " + str(n) ^0
+if with_pending > 0:
+    "  each of those is knowable at review time, because the cost is scheduled" ^0
+    "  and not discovered; the review reads a number, not a forecast" ^0
+"" ^0
+
+# ---- the control: changes whose whole effect is immediate ----
+#
+# Where nothing is outstanding, the review-week ranking and the horizon
+# ranking are the same ranking.
+
+[["a", 8, 0, 0], ["b", 12, 0, 0], ["c", 5, 0, 0]] => immediate
+"" => ie
+0 => iev
+"" => il
+0 => ilv
+for c in immediate:
+    if value_at(c, review_week) > iev:
+        value_at(c, review_week) => iev
+        c[0] => ie
+    if value_at(c, horizon) > ilv:
+        value_at(c, horizon) => ilv
+        c[0] => il
+"control - three changes with no later term" ^0
+"  best at week " + str(review_week) + " : " + ie + ", best at week " + str(horizon) + " : " + il ^0
+if ie == il:
+    "  the same change under both, so the cadence decides nothing here" ^0
+"" ^0
+
+"Two weeks is the right cadence for the changes whose whole effect has" ^0
+"landed by then, which is most of them. For the rest the review reads the" ^0
+"first term of a sum, and the date it is held on is what selects which." ^0

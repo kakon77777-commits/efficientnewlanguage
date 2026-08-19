@@ -1,0 +1,131 @@
+# Self-authored for the EML case corpus (no external origin). A metric improved
+# for six months after an initiative started. What else predicts that curve is
+# computed below.
+#
+# Crediting the initiative is reasonable. It started in month one, the metric
+# moved from month one, it moved in the intended direction, and it kept moving.
+# That is what a working intervention looks like and there is no sleight of
+# hand in reading it that way.
+#
+# A control loop that was knocked off its resting point also produces a run of
+# improving months, ending at a level the loop's own parameters fix. The two
+# explanations agree on every month observed and disagree about where it stops.
+#
+# Both curves are generated and compared to the recorded months.
+
+[62, 54, 48, 44, 41, 39] => observed
+len(observed) => months
+30 => resting_point
+4 => gap_divisor
+
+# a loop returning to its resting point: each month closes a fixed share of the gap
+def loop_value(m):
+    62 => v
+    0 => k
+    while k < m:
+        v - int((v - resting_point) / gap_divisor) => v
+        k + 1 => k
+    return v
+
+"month   observed   what a settling loop predicts" ^0
+0 => worst_gap
+for i in [0:months - 1]:
+    loop_value(i) => pred
+    observed[i] - pred => gap
+    if gap < 0:
+        0 - gap => gap
+    if gap > worst_gap:
+        gap => worst_gap
+    "  " + str(i + 1) + "       " + str(observed[i]) + "         " + str(pred) ^0
+"" ^0
+"largest disagreement over the six months : " + str(worst_gap) ^0
+if worst_gap <= 2:
+    "  the two explanations are within " + str(worst_gap) + " on every month recorded," ^0
+    "  so the six months do not choose between them" ^0
+"" ^0
+
+# ---- where they part ----
+
+"what each explanation says about month 12 and month 24" ^0
+loop_value(11) => l12
+loop_value(23) => l24
+observed[months - 1] => last
+last - observed[months - 2] => last_step
+last - last_step => t12
+if t12 < 0:
+    0 => t12
+"  the loop      : month 12 " + str(l12) + ", month 24 " + str(l24) ^0
+"  the initiative, continuing at the last observed rate of " + str(0 - last_step) + " a month:" ^0
+last => proj
+0 => k2
+while k2 < 6:
+    proj + last_step => proj
+    k2 + 1 => k2
+"    month 12 " + str(proj) ^0
+if l12 > proj:
+    "  they differ by " + str(l12 - proj) + " at month 12, which is " + str(int((l12 - proj) * 100 / l12)) + "% of the loop's figure" ^0
+"  and the loop's floor is " + str(resting_point) + ", which the other reading has no term for" ^0
+"" ^0
+
+# ---- the observation that would have separated them ----
+#
+# Not a longer run of the same measurement. The loop's claim is about the
+# resting point, so the test is to look at a period before the initiative.
+
+[63, 61, 62, 62, 63, 62] => before
+0 => before_swing
+0 => bmin
+0 => bmax
+for v in before:
+    if bmin == 0:
+        v => bmin
+        v => bmax
+    if v < bmin:
+        v => bmin
+    if v > bmax:
+        v => bmax
+bmax - bmin => before_swing
+0 => bsum
+for v in before:
+    bsum + v => bsum
+int(bsum / len(before)) => before_mean
+"the six months before the initiative" ^0
+"  range : " + str(bmin) + " to " + str(bmax) + ", a swing of " + str(before_swing) ^0
+if before_swing < 5:
+    "  flat, so the system was AT a resting point of about " + str(before_mean) + " and not settling toward one" ^0
+    "  that makes the loop reading weaker, and it is the cheapest thing to check" ^0
+"" ^0
+
+# ---- what it costs to be wrong either way ----
+
+"if the initiative is the cause and it is stopped" ^0
+"  the metric returns toward " + str(before_mean) + ", losing the " + str(before_mean - last) + " points gained" ^0
+"if the loop is the cause and the initiative is scaled up" ^0
+"  the metric stops at " + str(resting_point) + " however much is spent" ^0
+"  and the spend is attributed to the months where the two agree" ^0
+"" ^0
+
+# ---- the control: a metric with no resting point ----
+#
+# A quantity that does not return anywhere has no settling explanation to
+# compete with, and the same six months support only one reading.
+
+[100, 92, 84, 76, 68, 60] => linear
+0 => same_step
+1 => steady
+for i in [1:months - 1]:
+    linear[i - 1] - linear[i] => step
+    if i == 1:
+        step => same_step
+    if not (step == same_step):
+        0 => steady
+"control - a metric falling by a constant amount each month" ^0
+"  step : " + str(same_step) + " every month" ^0
+if steady == 1:
+    "  a settling loop cannot produce a constant step, because its steps" ^0
+    "  shrink with the gap; here the six months do choose" ^0
+"" ^0
+
+"The initiative started when the metric started moving and the metric moved" ^0
+"the intended way. A loop returning to its resting point fits the same six" ^0
+"points, and the two readings differ first at the month nobody has yet." ^0

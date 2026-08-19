@@ -1,0 +1,133 @@
+# Self-authored for the EML case corpus (no external origin). Each team set its
+# date from the other team's date. Where either date came from is computed
+# below.
+#
+# Aligning to the dependency is correct planning. A team that ships before the
+# thing it integrates with is finished has shipped nothing, and a team that
+# ships long after has wasted the gap. Reading the other side's date and
+# planning against it is what coordination means.
+#
+# A date read from a plan is not evidence about work. When both sides do it,
+# the pair holds two dates that agree with each other and neither of which was
+# derived from an estimate, so the first contact with the work moves both.
+#
+# The work-derived dates are computed alongside so the gap is visible.
+
+# weeks of real work remaining, per team
+14 => work_a
+9 => work_b
+2 => integration_margin
+0 => week
+
+# each team's announced date, in weeks from now
+16 => date_a
+18 => date_b
+
+"real work remaining : team A " + str(work_a) + " weeks, team B " + str(work_b) + " weeks" ^0
+"announced dates     : team A week " + str(date_a) + ", team B week " + str(date_b) ^0
+"integration margin  : " + str(integration_margin) + " weeks" ^0
+"" ^0
+
+"what each announced date was derived from" ^0
+"  team A : team B's date " + str(date_b) + " minus the margin " + str(integration_margin) + " = " + str(date_b - integration_margin) ^0
+"  team B : team A's date " + str(date_a) + " plus the margin " + str(integration_margin) + " = " + str(date_a + integration_margin) ^0
+if date_a == date_b - integration_margin:
+    if date_b == date_a + integration_margin:
+        "  the pair is consistent, and each date's only support is the other" ^0
+"" ^0
+
+"what the work implies" ^0
+"  team A : " + str(work_a) + " weeks of work, so week " + str(work_a) ^0
+"  team B : " + str(work_b) + " weeks of work, so week " + str(work_b) ^0
+"  the binding one is team A at week " + str(work_a) ^0
+if date_a > work_a:
+    "  the announced date for A is " + str(date_a - work_a) + " weeks later than its own work needs" ^0
+if date_b > work_b + integration_margin:
+    "  and B's is " + str(date_b - work_b - integration_margin) + " weeks later than B's work plus the margin" ^0
+"" ^0
+
+# ---- a discovery on team B ----
+#
+# Three weeks of work appear on the smaller side. Because each date is anchored
+# to the other, the correction propagates in both directions.
+
+3 => discovery
+work_b + discovery => work_b2
+"team B discovers " + str(discovery) + " more weeks of work, taking it to " + str(work_b2) ^0
+"" ^0
+"if each side re-derives from the other, one round at a time" ^0
+date_a => a
+date_b => b
+0 => r
+while r < 4:
+    r + 1 => r
+    b => old_b
+    a + integration_margin => b
+    if work_b2 + integration_margin > b:
+        work_b2 + integration_margin => b
+    b - integration_margin => a
+    if work_a > a:
+        work_a => a
+    "  round " + str(r) + " : A week " + str(a) + ", B week " + str(b) ^0
+"" ^0
+
+if a == date_a:
+    if b == date_b:
+        "  neither date moved. " + str(discovery) + " weeks of work appeared and the pair is" ^0
+        "  unchanged, because each date is supported by the other and the" ^0
+        "  margin between them still holds" ^0
+"" ^0
+"where it comes to rest" ^0
+"  team A : week " + str(a) + ", against " + str(work_a) + " weeks of work" ^0
+"  team B : week " + str(b) + ", against " + str(work_b2) + " weeks of work plus " + str(integration_margin) ^0
+if a > work_a:
+    "  A is still " + str(a - work_a) + " weeks past what its own work needs, because it is" ^0
+    "  anchored to B and B is anchored to the margin" ^0
+"" ^0
+
+# ---- what the same discovery costs if the dates come from the work ----
+
+work_a => wa
+work_b2 + integration_margin => wb
+0 => joint
+if wa > wb:
+    wa => joint
+else:
+    wb => joint
+"if both dates were derived from estimates and reconciled once" ^0
+"  team A : week " + str(wa) + ", team B : week " + str(wb) ^0
+"  the pair ships at week " + str(joint) ^0
+if b > joint:
+    "  against week " + str(b) + " under the mutual anchoring, a difference of " + str(b - joint) ^0
+"" ^0
+
+# ---- what the announced dates are evidence of ----
+
+"what a reader can conclude from the two announced dates" ^0
+"  that the teams agree : yes" ^0
+"  that either date is achievable : nothing" ^0
+"  the agreement was produced by copying, which is also what agreement" ^0
+"  produced by evidence looks like from outside" ^0
+"" ^0
+
+# ---- the control: one side anchored to the work ----
+#
+# One team deriving from its own estimate is enough to give the pair a floor
+# that a discovery moves by exactly the discovery.
+
+work_a => ca
+work_b2 + integration_margin => cb
+0 => cjoint
+if ca > cb:
+    ca => cjoint
+else:
+    cb => cjoint
+"control - team A dates from its own estimate, B aligns to A" ^0
+"  before the discovery : A week " + str(work_a) + ", B week " + str(work_b + integration_margin) ^0
+"  after                : A week " + str(ca) + ", B week " + str(cb) ^0
+"  the discovery moved the pair by " + str(cb - work_b - integration_margin) + ", which is the discovery" ^0
+"" ^0
+
+"Planning against the dependency is what coordination is, and the two dates" ^0
+"are consistent to the week. Consistency between two copies is not evidence" ^0
+"about the work, and the work is what the dates are about." ^0
