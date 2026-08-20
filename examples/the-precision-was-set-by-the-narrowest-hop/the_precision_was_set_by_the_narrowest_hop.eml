@@ -1,0 +1,134 @@
+# Self-authored for the EML case corpus (no external origin). Five systems
+# carry a timestamp and each documents its own resolution. Which one the chain
+# has is computed below.
+#
+# Each system chose its resolution for a reason and each is documented. Seconds
+# are enough for an audit log, milliseconds for a request trace, microseconds
+# for a profiler. Nobody picked a coarse unit carelessly, and each is correct
+# about itself.
+#
+# A value that passes through all of them comes out with the resolution of the
+# coarsest one it touched, whatever the others store. The chain's precision is
+# a minimum over the hops, and it is documented in none of them, because each
+# document describes one hop.
+#
+# The chain is computed from the hops rather than read off any of them.
+
+# [hop, ticks per second it can represent]
+[["client sdk", 1000000], ["ingest api", 1000], ["queue", 1000], ["archive", 1], ["report", 1000]] => hops
+
+len(hops) => n
+
+"hop            ticks per second   resolution" ^0
+0 => coarsest
+"" => coarsest_name
+for h in hops:
+    "" => res
+    if h[1] >= 1000000:
+        res + "microseconds" => res
+    elif h[1] >= 1000:
+        res + "milliseconds" => res
+    else:
+        res + "seconds" => res
+    "  " + h[0] + "   " + str(h[1]) + "            " + res ^0
+    if coarsest == 0:
+        h[1] => coarsest
+        h[0] => coarsest_name
+    if h[1] < coarsest:
+        h[1] => coarsest
+        h[0] => coarsest_name
+"" ^0
+
+"the chain's resolution is set by " + coarsest_name + " at " + str(coarsest) + " ticks per second" ^0
+"" ^0
+
+# ---- a value through the chain ----
+
+1234567 => micros
+"a timestamp of " + str(micros) + " microseconds past the second" ^0
+0 => value
+micros => value
+for h in hops:
+    int(value * h[1] / 1000000) => ticks
+    int(ticks * 1000000 / h[1]) => value
+    "  after " + h[0] + " : " + str(value) + " microseconds" ^0
+"" ^0
+"  lost through the chain : " + str(micros - value) + " microseconds" ^0
+"" ^0
+
+# ---- what each hop's own document says ----
+
+"what each hop can honestly claim" ^0
+for h in hops:
+    "  " + h[0] + " : stores to " + str(int(1000000 / h[1])) + " microseconds, which is true" ^0
+"  none of these is wrong and none of them describes the chain" ^0
+"" ^0
+
+# ---- what the coarsest hop costs downstream ----
+
+"two events " + str(500) + " microseconds apart" ^0
+1000000 => t1
+1000500 => t2
+int(t1 * coarsest / 1000000) => c1
+int(t2 * coarsest / 1000000) => c2
+"  at the chain's resolution they are " + str(c1) + " and " + str(c2) ^0
+if c1 == c2:
+    "  the same tick, so their order is not recoverable downstream" ^0
+    "  the profiler that produced them can tell them apart and the archive" ^0
+    "  that keeps them cannot" ^0
+"" ^0
+
+# ---- where the loss actually happens ----
+
+0 => lossy_hops
+for h in hops:
+    if h[1] > coarsest:
+        lossy_hops + 1 => lossy_hops
+"hops finer than the chain : " + str(lossy_hops) + " of " + str(n) ^0
+if lossy_hops > 0:
+    "  each of those is storing digits that the chain has already lost or is" ^0
+    "  about to lose, and each of them is meeting its own specification" ^0
+"" ^0
+
+# ---- what upgrading one hop buys ----
+
+"upgrading the archive to milliseconds" ^0
+1000 => upgraded
+0 => new_coarsest
+for h in hops:
+    h[1] => v
+    if h[0] == coarsest_name:
+        upgraded => v
+    if new_coarsest == 0:
+        v => new_coarsest
+    if v < new_coarsest:
+        v => new_coarsest
+"  the chain's resolution becomes " + str(new_coarsest) + " ticks per second" ^0
+if new_coarsest > coarsest:
+    "  which is " + str(int(new_coarsest / coarsest)) + " times finer" ^0
+"  and the client sdk's microseconds are still not reaching the report," ^0
+"  because the minimum moved rather than went away" ^0
+"" ^0
+
+# ---- the control: a chain whose hops all agree ----
+#
+# Where every hop has the same resolution, the chain has it too and the
+# minimum is not hiding anywhere.
+
+[["a", 1000], ["b", 1000], ["c", 1000]] => level
+0 => l_coarse
+for h in level:
+    if l_coarse == 0:
+        h[1] => l_coarse
+    if h[1] < l_coarse:
+        h[1] => l_coarse
+"control - three hops all at " + str(level[0][1]) + " ticks per second" ^0
+"  the chain : " + str(l_coarse) ^0
+if l_coarse == level[0][1]:
+    "  the same as every hop, so reading any one document gives the right" ^0
+    "  answer and the minimum is invisible because it is not doing anything" ^0
+"" ^0
+
+"Every hop documents its own resolution correctly. The chain has the" ^0
+"smallest of them, and that is a fact about the set rather than about any" ^0
+"member of it." ^0

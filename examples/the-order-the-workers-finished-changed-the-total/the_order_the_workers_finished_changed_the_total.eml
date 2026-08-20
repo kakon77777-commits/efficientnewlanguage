@@ -1,0 +1,136 @@
+# Self-authored for the EML case corpus (no external origin). Three workers
+# return partial sums and the reducer adds them as they arrive. What the total
+# depends on is computed below.
+#
+# Adding partials in completion order is the right way to write a reducer. It
+# holds nothing, it starts as soon as the first result lands, and addition is
+# associative, so the order the results arrive in does not matter.
+#
+# Addition of floating-point numbers is not associative. Where the partials
+# differ greatly in magnitude, a small one added to a large one is discarded,
+# and whether that happens depends on which two arrive first. The reducer is
+# correct and its answer is a function of the scheduling.
+#
+# Every ordering of the same three partials is enumerated here.
+
+10000000000000000.0 => credit
+0.0 - 10000000000000000.0 => debit
+1.0 => fee
+
+[credit, debit, fee] => partials
+["credit", "debit", "fee"] => names
+len(partials) => n
+
+def add3(a, b, c):
+    a + b => t
+    t + c => t
+    return t
+
+"three partial sums" ^0
+"  credit : " + str(credit) ^0
+"  debit  : " + str(debit) ^0
+"  fee    : " + str(fee) ^0
+"the true total is the fee, because the credit and the debit cancel" ^0
+"" ^0
+
+"arrival order            total" ^0
+add3(partials[0], partials[1], partials[2]) => t012
+add3(partials[0], partials[2], partials[1]) => t021
+add3(partials[1], partials[0], partials[2]) => t102
+add3(partials[1], partials[2], partials[0]) => t120
+add3(partials[2], partials[0], partials[1]) => t201
+add3(partials[2], partials[1], partials[0]) => t210
+"  credit debit fee        " + str(t012) ^0
+"  credit fee debit        " + str(t021) ^0
+"  debit credit fee        " + str(t102) ^0
+"  debit fee credit        " + str(t120) ^0
+"  fee credit debit        " + str(t201) ^0
+"  fee debit credit        " + str(t210) ^0
+"" ^0
+
+[] => totals
+totals + [t012] => totals
+totals + [t021] => totals
+totals + [t102] => totals
+totals + [t120] => totals
+totals + [t201] => totals
+totals + [t210] => totals
+
+[] => distinct
+for v in totals:
+    if not (v in distinct):
+        distinct + [v] => distinct
+"distinct totals across the six orderings : " + str(len(distinct)) ^0
+"" ^0
+
+0 => right
+for v in totals:
+    if v == fee:
+        right + 1 => right
+"orderings that produce the true total of " + str(fee) + " : " + str(right) + " of " + str(len(totals)) ^0
+if right < len(totals):
+    "orderings that lose it entirely           : " + str(len(totals) - right) ^0
+"" ^0
+
+# ---- what decides which one happens ----
+
+"what selects the ordering in production" ^0
+"  which worker finishes first, which is scheduling" ^0
+"  nothing in the reducer, the data, or the request" ^0
+"  so the same job run twice can return two different totals with no code" ^0
+"  change and no input change" ^0
+"" ^0
+
+# ---- what the reducer would have to do ----
+#
+# Not hold everything. Adding the two that cancel before the one that does not
+# is enough, and sorting by magnitude achieves it without knowing which is
+# which.
+
+"adding smallest magnitude first" ^0
+add3(fee, credit, debit) => small_first
+"  fee, then credit, then debit : " + str(small_first) ^0
+"adding largest magnitude first" ^0
+add3(credit, debit, fee) => large_first
+"  credit, then debit, then fee : " + str(large_first) ^0
+if large_first == fee:
+    "  the large-first order recovers the true total here" ^0
+if not (small_first == fee):
+    "  the small-first order does not, on this input" ^0
+"  neither order is right in general; what is right is a function of the" ^0
+"  values, which is why the answer is not a property of the reducer" ^0
+"" ^0
+
+# ---- what the compensated builtin does with the same partials ----
+
+"sum() over the same three, in each of two orders" ^0
+[credit, debit, fee] => order_a
+[fee, credit, debit] => order_b
+"  credit debit fee : " + str(sum(order_a)) ^0
+"  fee credit debit : " + str(sum(order_b)) ^0
+if sum(order_a) == sum(order_b):
+    "  the builtin gives the same answer for both, because it carries the" ^0
+    "  part a plain + would drop" ^0
+else:
+    "  the builtin also differs between the two orders" ^0
+"" ^0
+
+# ---- the control: partials of similar magnitude ----
+#
+# Where no partial is large enough to swallow another, every ordering gives
+# the same total and the reducer is order-independent in fact.
+
+[120.5, 88.25, 34.75] => similar
+add3(similar[0], similar[1], similar[2]) => s012
+add3(similar[2], similar[1], similar[0]) => s210
+add3(similar[1], similar[0], similar[2]) => s102
+"control - three partials of similar size" ^0
+"  three orderings : " + str(s012) + ", " + str(s210) + ", " + str(s102) ^0
+if s012 == s210:
+    if s012 == s102:
+        "  identical, so a job like this one can never show the dependence" ^0
+"" ^0
+
+"The reducer adds what it is given in the order it is given, and every one" ^0
+"of those additions is correct. Which additions happen is chosen by the" ^0
+"scheduler, and one of the choices keeps the fee." ^0

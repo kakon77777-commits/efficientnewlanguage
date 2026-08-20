@@ -1,0 +1,179 @@
+# Self-authored for the EML case corpus (no external origin). A condition was
+# inverted to turn a skip into a keep. Which inputs the inverted form treats
+# differently is enumerated below.
+#
+# Rewriting `if not (a and b): skip` as `if not a and not b: skip` is the kind
+# of edit that gets made while cleaning up a nested block, and the new form is
+# shorter and reads as the same sentence in English. On the inputs anybody
+# tries by hand it usually agrees.
+#
+# The negation of an `and` is an `or` of the negations. Distributing it as an
+# `and` produces a strictly narrower condition, so it skips fewer things - and
+# the cases it stops skipping are the ones where exactly one clause failed.
+#
+# All four combinations are enumerated, and then counted over real records.
+
+[[1, 1], [1, 0], [0, 1], [0, 0]] => rows
+
+def is_true(v):
+    if v == 1:
+        return 1
+    return 0
+
+"a   b   not (a and b)   (not a) and (not b)   agree" ^0
+0 => agree
+0 => total
+for r in rows:
+    r[0] => a
+    r[1] => b
+    0 => correct
+    if a == 1:
+        if b == 1:
+            0 => correct
+        else:
+            1 => correct
+    else:
+        1 => correct
+    0 => distributed
+    if a == 0:
+        if b == 0:
+            1 => distributed
+    total + 1 => total
+    "" => mark
+    if correct == distributed:
+        agree + 1 => agree
+        mark + "yes" => mark
+    else:
+        mark + "NO " => mark
+    "  " + str(a) + "   " + str(b) + "   " + str(correct) + "               " + str(distributed) + "                     " + mark ^0
+"" ^0
+"combinations where they agree : " + str(agree) + " of " + str(total) ^0
+if agree < total:
+    "  they part company exactly where one clause holds and the other does not" ^0
+"" ^0
+
+# ---- over real records ----
+#
+# The four combinations are not equally common. What the edit costs depends on
+# how often exactly one clause fails, which is a property of the data.
+
+# [record, has a signature, is within the window]
+[["r1", 1, 1], ["r2", 1, 0], ["r3", 1, 1], ["r4", 0, 1], ["r5", 1, 1], ["r6", 1, 0], ["r7", 0, 0], ["r8", 1, 1], ["r9", 0, 1], ["r10", 1, 0]] => records
+
+len(records) => n
+0 => skip_correct
+0 => skip_distributed
+for r in records:
+    0 => c
+    if r[1] == 1:
+        if r[2] == 1:
+            0 => c
+        else:
+            1 => c
+    else:
+        1 => c
+    0 => d
+    if r[1] == 0:
+        if r[2] == 0:
+            1 => d
+    skip_correct + c => skip_correct
+    skip_distributed + d => skip_distributed
+
+"records : " + str(n) ^0
+"  skipped by the correct form     : " + str(skip_correct) ^0
+"  skipped by the distributed form : " + str(skip_distributed) ^0
+if skip_correct > skip_distributed:
+    "  the edit lets " + str(skip_correct - skip_distributed) + " records through that should have been skipped" ^0
+"" ^0
+
+"the records that changed" ^0
+for r in records:
+    0 => c
+    if r[1] == 1:
+        if r[2] == 1:
+            0 => c
+        else:
+            1 => c
+    else:
+        1 => c
+    0 => d
+    if r[1] == 0:
+        if r[2] == 0:
+            1 => d
+    if not (c == d):
+        "" => why
+        if r[1] == 1:
+            "signed but outside the window" => why
+        else:
+            "unsigned but inside the window" => why
+        "  " + r[0] + " : " + why ^0
+"  each is a record failing exactly one of the two requirements" ^0
+"" ^0
+
+# ---- why it survives review ----
+
+0 => both_fail
+for r in records:
+    if r[1] == 0:
+        if r[2] == 0:
+            both_fail + 1 => both_fail
+0 => both_pass
+for r in records:
+    if r[1] == 1:
+        if r[2] == 1:
+            both_pass + 1 => both_pass
+"records where both clauses agree with each other : " + str(both_pass + both_fail) + " of " + str(n) ^0
+if both_pass + both_fail > 0:
+    "  on every one of those the two forms return the same answer, so a" ^0
+    "  spot check that happens to pick them confirms the edit" ^0
+"" ^0
+
+# ---- the form that is actually equivalent ----
+
+"the correct distribution" ^0
+"  not (a and b) is (not a) OR (not b)" ^0
+0 => or_form
+for r in records:
+    0 => d
+    if r[1] == 0:
+        1 => d
+    if r[2] == 0:
+        1 => d
+    or_form + d => or_form
+"  records skipped by the or form : " + str(or_form) ^0
+if or_form == skip_correct:
+    "  the same " + str(skip_correct) + " as the original, on every record" ^0
+"" ^0
+
+# ---- the control: data where the clauses never disagree ----
+#
+# Where every record either satisfies both requirements or neither, the two
+# forms are the same function on that data.
+
+[["s1", 1, 1], ["s2", 0, 0], ["s3", 1, 1]] => aligned
+0 => a_correct
+0 => a_dist
+for r in aligned:
+    0 => c
+    if r[1] == 1:
+        if r[2] == 1:
+            0 => c
+        else:
+            1 => c
+    else:
+        1 => c
+    0 => d
+    if r[1] == 0:
+        if r[2] == 0:
+            1 => d
+    a_correct + c => a_correct
+    a_dist + d => a_dist
+"control - records that satisfy both requirements or neither" ^0
+"  correct form skips " + str(a_correct) + ", distributed form skips " + str(a_dist) ^0
+if a_correct == a_dist:
+    "  identical, so a suite built from data like this cannot catch the edit" ^0
+"" ^0
+
+"The rewritten condition is shorter and reads as the same sentence. It is a" ^0
+"narrower condition, and the records it stops skipping are the ones that" ^0
+"failed one requirement rather than both." ^0

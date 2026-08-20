@@ -1,0 +1,123 @@
+# Self-authored for the EML case corpus (no external origin). Each line is
+# rounded to the cent as it is computed, because a cent is what money is. What
+# that costs over a run is computed below.
+#
+# Rounding each line is right and is usually required. A line item that prints
+# has to be a real amount, an invoice with three decimal places is not an
+# invoice, and downstream systems reject fractional cents. The rule is not an
+# approximation anybody chose casually.
+#
+# Rounding is applied per line and the total is a sum of the results, so the
+# per-line errors are added along with the amounts. The same figures rounded
+# once at the end carry one rounding rather than N.
+#
+# Everything is in tenths of a cent, as integers, so no float is involved.
+
+# amounts in tenths of a cent
+[1234, 5677, 892, 3345, 7778, 456, 2223, 9995, 1116, 6664, 3338, 887] => amounts
+len(amounts) => n
+
+def round_to_cent(tenths):
+    tenths + 5 => shifted
+    int(shifted / 10) * 10 => r
+    return r
+
+0 => rounded_each
+for a in amounts:
+    rounded_each + round_to_cent(a) => rounded_each
+
+0 => exact_total
+for a in amounts:
+    exact_total + a => exact_total
+round_to_cent(exact_total) => rounded_once
+
+"lines : " + str(n) ^0
+"exact total, in tenths of a cent : " + str(exact_total) ^0
+"" ^0
+"  rounding each line, then adding : " + str(rounded_each) ^0
+"  adding, then rounding once      : " + str(rounded_once) ^0
+if not (rounded_each == rounded_once):
+    "  they differ by " + str(rounded_each - rounded_once) + " tenths of a cent" ^0
+else:
+    "  they agree on this input" ^0
+"" ^0
+
+"line   amount   rounded   error introduced" ^0
+0 => worst
+for i in [0:n - 1]:
+    amounts[i] => a
+    round_to_cent(a) - a => err
+    err => mag
+    if mag < 0:
+        0 - err => mag
+    if mag > worst:
+        mag => worst
+    "  " + str(i + 1) + "      " + str(a) + "     " + str(round_to_cent(a)) + "      " + str(err) ^0
+"" ^0
+"largest single-line error, either direction : " + str(worst) + " tenths" ^0
+"sum of the per-line errors: " + str(rounded_each - exact_total) + " tenths" ^0
+if worst < 10:
+    "  every line is correct to the cent and the total is not" ^0
+"" ^0
+
+# ---- how the gap grows ----
+#
+# The per-line errors do not cancel unless the amounts happen to be symmetric
+# about the rounding boundary. Over more lines the walk continues.
+
+"the same rule over prefixes of the list" ^0
+0 => acc_each
+0 => acc_exact
+for i in [0:n - 1]:
+    acc_each + round_to_cent(amounts[i]) => acc_each
+    acc_exact + amounts[i] => acc_exact
+    if i == 2:
+        "  after 3 lines  : per-line " + str(acc_each) + ", once " + str(round_to_cent(acc_exact)) + ", gap " + str(acc_each - round_to_cent(acc_exact)) ^0
+    if i == 6:
+        "  after 7 lines  : per-line " + str(acc_each) + ", once " + str(round_to_cent(acc_exact)) + ", gap " + str(acc_each - round_to_cent(acc_exact)) ^0
+    if i == n - 1:
+        "  after " + str(n) + " lines : per-line " + str(acc_each) + ", once " + str(round_to_cent(acc_exact)) + ", gap " + str(acc_each - round_to_cent(acc_exact)) ^0
+"" ^0
+
+# ---- what each rule is right about ----
+
+"what each answer is correct for" ^0
+"  rounding per line : every printed line matches what was charged" ^0
+"  rounding once     : the total matches the sum of the true amounts" ^0
+"  a document that shows lines AND a total cannot have both, and the" ^0
+"  difference has to appear somewhere or the document does not add up" ^0
+"" ^0
+
+# ---- the usual resolution, and what it costs ----
+#
+# Round the lines, then make the last line absorb the difference. The total is
+# then right and one line is off by the accumulated amount.
+
+rounded_once - rounded_each => adjustment
+"putting the difference on the last line" ^0
+"  adjustment : " + str(adjustment) + " tenths" ^0
+round_to_cent(amounts[n - 1]) + adjustment => last_line
+"  last line becomes : " + str(last_line) + " instead of " + str(round_to_cent(amounts[n - 1])) ^0
+"  the document now adds up, and one line is not what that line cost" ^0
+"" ^0
+
+# ---- the control: amounts already on the cent ----
+#
+# Where nothing is rounded, the two routes are the same route and no rule has
+# to be chosen.
+
+[1000, 2500, 3000, 4500] => whole
+0 => w_each
+0 => w_exact
+for a in whole:
+    w_each + round_to_cent(a) => w_each
+    w_exact + a => w_exact
+"control - amounts that are already whole cents" ^0
+"  per line : " + str(w_each) + ", once : " + str(round_to_cent(w_exact)) ^0
+if w_each == round_to_cent(w_exact):
+    "  identical, so this invoice cannot show which rule is in use" ^0
+"" ^0
+
+"Every line is rounded correctly and every line prints a real amount. The" ^0
+"total is a sum of results rather than a result of the sum, and those are" ^0
+"two different numbers whenever a line was not already on the cent." ^0

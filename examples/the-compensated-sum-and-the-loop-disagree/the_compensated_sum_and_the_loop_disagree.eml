@@ -1,0 +1,132 @@
+# Self-authored for the EML case corpus (no external origin). The same numbers
+# added two ways give two answers. Which addition each way performs is computed
+# below.
+#
+# Both are correct additions. `sum()` carries a compensation term so the
+# rounding error of each step is folded back in, which is the better algorithm
+# and is why it is the builtin. A loop with `+` does exactly what `+` is
+# specified to do at each step, and every one of those steps is right.
+#
+# The difference is not in any step. It is in what is kept between steps: the
+# builtin keeps the part that would have been lost, the loop does not, and
+# after ten additions the two totals are different numbers.
+#
+# Both are run over the same list and compared at every prefix.
+
+[0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1] => tenths
+len(tenths) => n
+
+0.0 => running
+for v in tenths:
+    running + v => running
+
+"adding " + str(n) + " values of 0.1" ^0
+"  a loop with +   : " + str(running) ^0
+"  sum()           : " + str(sum(tenths)) ^0
+if running == sum(tenths):
+    "  the two agree" ^0
+else:
+    "  the two disagree" ^0
+if running == 1.0:
+    "  the loop total equals 1.0" ^0
+else:
+    "  the loop total does not equal 1.0" ^0
+if sum(tenths) == 1.0:
+    "  the builtin total equals 1.0" ^0
+"" ^0
+
+# ---- where the two part company ----
+
+"prefix   loop total            sum() of the same prefix   equal" ^0
+0.0 => acc
+[] => prefix
+0 => first_gap
+for i in [0:n - 1]:
+    acc + tenths[i] => acc
+    prefix + [tenths[i]] => prefix
+    "" => same
+    if acc == sum(prefix):
+        same + "yes" => same
+    else:
+        same + "no " => same
+        if first_gap == 0:
+            i + 1 => first_gap
+    "  " + str(i + 1) + "        " + str(acc) + "        " + str(sum(prefix)) + "        " + same ^0
+"" ^0
+if first_gap > 0:
+    "they first differ at " + str(first_gap) + " values" ^0
+    "  before that the two agree - neither is exact at 3 values, they are wrong" ^0
+    "  together - so a check on a short list cannot separate them" ^0
+"" ^0
+
+# ---- what a per-step check sees ----
+#
+# Each addition is correct to the precision available. There is no step at
+# which the loop does something a reviewer would call wrong.
+
+0.0 => a
+0 => bad_steps
+for i in [0:n - 1]:
+    a => before
+    a + tenths[i] => a
+    a - before => actual_step
+    if actual_step > 0.1:
+        bad_steps + 1 => bad_steps
+    if actual_step < 0.1:
+        bad_steps + 1 => bad_steps
+"steps whose own increment was not exactly 0.1 : " + str(bad_steps) + " of " + str(n) ^0
+if bad_steps > 0:
+    "  so the error is visible per step after all, and it is tiny at each one" ^0
+    "  what accumulates is the sum of those, which no single step reports" ^0
+"" ^0
+
+# ---- what it costs a test ----
+
+"a test asserting the total is 1.0" ^0
+if sum(tenths) == 1.0:
+    "  written with sum()   : passes" ^0
+if not (running == 1.0):
+    "  written with a loop  : fails" ^0
+"  the same data, the same assertion, and the choice of accumulator decides it" ^0
+"" ^0
+
+"the difference between the two totals" ^0
+sum(tenths) - running => gap
+"  " + str(gap) ^0
+"  small enough that no tolerance anyone sets would reject either total," ^0
+"  and large enough that == rejects one of them" ^0
+"" ^0
+
+# ---- where it matters and where it does not ----
+
+"the same list scaled to money, in whole cents" ^0
+[10, 10, 10, 10, 10, 10, 10, 10, 10, 10] => cents
+0 => cent_total
+for v in cents:
+    cent_total + v => cent_total
+"  a loop over integers : " + str(cent_total) ^0
+"  sum() over integers  : " + str(sum(cents)) ^0
+if cent_total == sum(cents):
+    "  identical, because integer addition has nothing to lose between steps" ^0
+    "  the unit is what removed the problem, not the algorithm" ^0
+"" ^0
+
+# ---- the control: values that are exact in binary ----
+#
+# Where each value is representable, both accumulators are exact and the two
+# routes agree, so a comparison on this list proves nothing about either.
+
+[0.5, 0.25, 0.125, 0.5, 0.25] => exact
+0.0 => e_acc
+for v in exact:
+    e_acc + v => e_acc
+"control - values that are exact in binary" ^0
+"  loop  : " + str(e_acc) ^0
+"  sum() : " + str(sum(exact)) ^0
+if e_acc == sum(exact):
+    "  the same, so this list cannot separate the two accumulators" ^0
+"" ^0
+
+"Both routes perform correct additions and one of them keeps what the other" ^0
+"discards. The choice shows up in no step and in the total, so a program is" ^0
+"tested on the steps and used for the total." ^0

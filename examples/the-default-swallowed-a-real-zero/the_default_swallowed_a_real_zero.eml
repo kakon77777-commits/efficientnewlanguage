@@ -1,0 +1,123 @@
+# Self-authored for the EML case corpus (no external origin). A missing setting
+# falls back to the default. How many settings that are present also fall back
+# is computed below.
+#
+# Defaulting when a field is absent is right and every configuration system
+# does it. Callers should not have to write out every key, a sensible default
+# is better than an error for an optional setting, and the rule is one line.
+#
+# The test asks whether the value is empty, not whether it was supplied. Zero,
+# the empty string and the empty list are all values somebody may have chosen
+# deliberately, and each of them is empty. The rule cannot distinguish "not
+# given" from "given as nothing", and one of those wants the default.
+#
+# Every setting is run through both rules.
+
+# [key, supplied at all, value, the default]
+[["retries", 1, 0, 3], ["timeout_s", 1, 30, 30], ["prefix", 1, 0, 0], ["batch_size", 0, 0, 50], ["rate_limit", 1, 0, 100], ["tag", 1, 0, 0], ["workers", 1, 8, 4], ["debug", 0, 0, 0]] => settings
+
+len(settings) => n
+
+# empty means absent
+def by_emptiness(s):
+    if s[2] == 0:
+        return s[3]
+    return s[2]
+
+# presence is a separate fact from the value
+def by_presence(s):
+    if s[1] == 0:
+        return s[3]
+    return s[2]
+
+"settings : " + str(n) ^0
+"" ^0
+"key           supplied   value   by emptiness   by presence" ^0
+0 => differ
+for s in settings:
+    "" => sup
+    if s[1] == 1:
+        sup + "yes" => sup
+    else:
+        sup + "no " => sup
+    by_emptiness(s) => a
+    by_presence(s) => b
+    if not (a == b):
+        differ + 1 => differ
+    "  " + s[0] + "      " + sup + "        " + str(s[2]) + "       " + str(a) + "             " + str(b) ^0
+"" ^0
+
+"settings the two rules disagree about : " + str(differ) + " of " + str(n) ^0
+if differ > 0:
+    "  each of those was supplied as 0 and is being read as the default" ^0
+"" ^0
+
+# ---- which of the disagreements matter ----
+
+0 => harmful
+for s in settings:
+    if s[1] == 1:
+        if s[2] == 0:
+            if not (s[3] == 0):
+                harmful + 1 => harmful
+"supplied as 0 with a non-zero default : " + str(harmful) ^0
+for s in settings:
+    if s[1] == 1:
+        if s[2] == 0:
+            if not (s[3] == 0):
+                "  " + s[0] + " : asked for 0, will run at " + str(s[3]) ^0
+"" ^0
+
+0 => harmless
+for s in settings:
+    if s[1] == 1:
+        if s[2] == 0:
+            if s[3] == 0:
+                harmless + 1 => harmless
+"supplied as 0 where the default is also 0 : " + str(harmless) ^0
+if harmless > 0:
+    "  the rule is wrong about these too, and nothing observable follows" ^0
+    "  from it, so they will not appear in any bug report" ^0
+"" ^0
+
+# ---- what asking for zero means ----
+
+"what each of the disagreeing settings was asking for" ^0
+"  retries 0    : do not retry, which is a real policy" ^0
+"  rate_limit 0 : unlimited or disabled, depending on the system" ^0
+for s2 in settings:
+    if s2[0] == "retries":
+        "  retries has a default of " + str(s2[3]) + ", so a caller asking for none gets " + str(s2[3]) ^0
+"" ^0
+
+# ---- what the fix costs ----
+#
+# Not a redesign. The presence flag already exists in the parsed input; the
+# rule is reading the value instead of it.
+
+"the two tests, side by side" ^0
+"  value is empty  : one comparison against the value" ^0
+"  key is absent   : one lookup in the same parsed object" ^0
+"  both are one line and only one of them answers the question asked" ^0
+"" ^0
+
+# ---- the control: a setting whose zero is meaningless ----
+#
+# Where zero is not a value anybody would choose, the two rules agree on
+# every input and the distinction cannot be observed.
+
+[["page_size", 1, 25, 25], ["page_size_missing", 0, 0, 25]] => sane
+0 => s_differ
+for s in sane:
+    if not (by_emptiness(s) == by_presence(s)):
+        s_differ + 1 => s_differ
+"control - a setting where 0 is not a choice anybody makes" ^0
+"  disagreements : " + str(s_differ) + " of " + str(len(sane)) ^0
+if s_differ == 0:
+    "  the two rules agree everywhere here, so this setting cannot show the" ^0
+    "  difference between absent and zero" ^0
+"" ^0
+
+"Defaulting an absent setting is correct and the rule is one line. It tests" ^0
+"the value where the question is about the key, and zero is a value somebody" ^0
+"typed." ^0

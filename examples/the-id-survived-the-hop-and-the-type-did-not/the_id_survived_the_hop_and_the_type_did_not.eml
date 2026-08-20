@@ -1,0 +1,116 @@
+# Self-authored for the EML case corpus (no external origin). Identifiers go
+# out as numbers and come back as numbers. How many of them come back as the
+# same number is computed below.
+#
+# Sending an id as a number is the right encoding when the id is a number. It
+# is smaller than a string, it sorts correctly, it needs no quoting, and every
+# system in the chain agrees that the field holds an integer.
+#
+# One hop in the chain stores numbers as doubles, which hold every integer
+# exactly up to a point and round beyond it. Below that point the round trip is
+# exact and the chain is correct; above it, two different ids can arrive as the
+# same number.
+#
+# The boundary is computed rather than looked up, and every id is run over it.
+
+# doubles hold every integer exactly up to 2^53
+2 => base
+53 => bits
+1 => exact_limit
+0 => k
+while k < bits:
+    exact_limit * base => exact_limit
+    k + 1 => k
+
+"integers a double holds exactly : up to " + str(exact_limit) ^0
+"" ^0
+
+# What the hop does is not modelled here - the value is put through a real
+# double and read back, so the rounding is the machine's own.
+def through_double(v):
+    return int(float(v))
+
+[["legacy", 41235], ["current", 900719925474099], ["at the limit", 9007199254740992], ["limit plus 1", 9007199254740993], ["limit plus 3", 9007199254740995], ["twice over", 18014398509481985]] => ids
+
+len(ids) => n
+"id            value                out of the hop        unchanged" ^0
+0 => intact
+for r in ids:
+    r[1] => v
+    through_double(v) => w
+    "" => mark
+    if v == w:
+        intact + 1 => intact
+        mark + "yes" => mark
+    else:
+        mark + "NO " => mark
+    "  " + r[0] + "   " + str(v) + "   " + str(w) + "   " + mark ^0
+"" ^0
+"ids that survive the hop unchanged : " + str(intact) + " of " + str(n) ^0
+"" ^0
+
+# ---- two ids arriving as one ----
+
+0 => collisions
+for i in [0:n - 1]:
+    for j in [0:n - 1]:
+        if i < j:
+            if not (ids[i][1] == ids[j][1]):
+                if through_double(ids[i][1]) == through_double(ids[j][1]):
+                    collisions + 1 => collisions
+                    "  " + ids[i][0] + " and " + ids[j][0] + " are different ids and arrive as " + str(through_double(ids[i][1])) ^0
+"distinct ids that collide after the hop : " + str(collisions) ^0
+if collisions > 0:
+    "  a lookup by the received id returns one record for two requests, and" ^0
+    "  nothing in the chain reports an error" ^0
+"" ^0
+
+# ---- where the boundary sits in practice ----
+
+"the boundary against real id ranges" ^0
+0 => below
+0 => above
+for r in ids:
+    if r[1] <= exact_limit:
+        below + 1 => below
+    else:
+        above + 1 => above
+"  ids below the limit : " + str(below) + ", exact" ^0
+"  ids above           : " + str(above) ^0
+"  the limit is " + str(exact_limit) + ", which is 16 digits, and an id generator" ^0
+"  that emits 19 digits crosses it on its first value" ^0
+"" ^0
+
+# ---- what a test with small ids establishes ----
+
+"a suite whose fixtures use ids like " + str(ids[0][1]) ^0
+"  round trips exactly : yes" ^0
+"  proves the chain preserves ids : only for ids under the limit" ^0
+if below > 0:
+    "  every fixture below the limit passes whatever the hop does above it" ^0
+"" ^0
+
+# ---- the encoding that has no boundary ----
+
+"the same ids sent as strings" ^0
+"  values a string holds exactly : all of them, at any length" ^0
+"  cost : the field sorts as text, so ordering must be done on the number" ^0
+"  the boundary moves from the value to the sort, where it is visible" ^0
+"" ^0
+
+# ---- the control: a chain with no double in it ----
+#
+# Where every hop stores integers as integers, the round trip is exact at any
+# magnitude and the encoding decides nothing.
+
+"control - the same ids through a chain that keeps integers" ^0
+"  such a chain applies no conversion, so there is nothing to measure: the" ^0
+"  value written is the value read, at every magnitude" ^0
+"  ids above the limit in this set : " + str(above) + ", every one of which would be" ^0
+"  unchanged, so a chain like that cannot show the difference between the" ^0
+"  two encodings" ^0
+"" ^0
+
+"Every hop agrees the field holds an integer and every hop is right. One of" ^0
+"them holds integers up to a size, and the ids grew past it without any" ^0
+"schema changing." ^0
