@@ -1,0 +1,130 @@
+# Self-authored for the EML case corpus (no external origin). The fix went out
+# eleven months after the bug. How many of the affected users were still there
+# to receive it is computed below.
+#
+# Fixing it was right and shipping it was right. The bug was real, the fix is
+# correct, and the users who have it now are better off than they were. Nothing
+# about the work is wasted on the people it reached.
+#
+# Who it reached is a different set from who it was about. Eleven months is long
+# enough for the affected population to have changed, and the users most hurt by
+# the bug are the ones most likely to have left - so the fix arrives at the
+# people who tolerated it.
+#
+# Both populations are counted from the same cohort.
+
+# [severity for the user, users affected at the time, monthly churn per 1000 while affected]
+[["blocked entirely", 400, 90], ["slow and annoying", 1800, 35], ["cosmetic", 3200, 8]] => cohorts
+
+len(cohorts) => n
+11 => months
+
+def remaining(c):
+    c[1] => left
+    0 => m
+    while m < months:
+        int(left * c[2] / 1000) => gone
+        left - gone => left
+        m + 1 => m
+    return left
+
+0 => affected
+0 => still_here
+for c in cohorts:
+    affected + c[1] => affected
+    still_here + remaining(c) => still_here
+
+"users affected when the bug was reported : " + str(affected) ^0
+"months until the fix shipped : " + str(months) ^0
+"still using the product when it shipped : " + str(still_here) ^0
+if affected > 0:
+    "  which is " + str(int(still_here * 100 / affected)) + "%" ^0
+"" ^0
+
+"severity            affected   churn/1000/mo   still here   retained" ^0
+for c in cohorts:
+    remaining(c) => r
+    "  " + c[0] + "   " + str(c[1]) + "        " + str(c[2]) + "              " + str(r) + "        " + str(int(r * 100 / c[1])) + "%" ^0
+"" ^0
+
+# ---- the retention is inverse to the severity ----
+
+"retention by severity" ^0
+0 => worst_retained
+"" => worst_name
+0 => best_retained
+"" => best_name
+for c in cohorts:
+    int(remaining(c) * 100 / c[1]) => pct
+    if worst_retained == 0:
+        pct => worst_retained
+        c[0] => worst_name
+    if pct < worst_retained:
+        pct => worst_retained
+        c[0] => worst_name
+    if pct > best_retained:
+        pct => best_retained
+        c[0] => best_name
+"  lowest retention  : " + worst_name + " at " + str(worst_retained) + "%" ^0
+"  highest retention : " + best_name + " at " + str(best_retained) + "%" ^0
+if worst_retained < best_retained:
+    "  the users the bug hurt most are the ones least likely to be there" ^0
+"" ^0
+
+# ---- who the fix actually reaches ----
+
+"composition of the affected group, then and now" ^0
+for c in cohorts:
+    int(c[1] * 100 / affected) => then_pct
+    int(remaining(c) * 100 / still_here) => now_pct
+    "  " + c[0] + " : " + str(then_pct) + "% of affected then, " + str(now_pct) + "% of the reached now" ^0
+"  the fix is aimed at a group whose worst-hit part has thinned out" ^0
+"" ^0
+
+# ---- what the ticket count did over the same period ----
+#
+# Reports come from users who are present. As the worst-hit leave, the report
+# rate falls, and the fall looks like the problem improving.
+
+"reports per month, if 20 per 1000 present users report" ^0
+0 => early
+0 => late
+for c in cohorts:
+    early + int(c[1] * 20 / 1000) => early
+    late + int(remaining(c) * 20 / 1000) => late
+"  month 1  : " + str(early) ^0
+"  month " + str(months) + " : " + str(late) ^0
+if late < early:
+    "  down " + str(int((early - late) * 100 / early)) + "%, with no change to the software" ^0
+    "  a decline in reports is what a fix looks like and also what leaving" ^0
+    "  looks like" ^0
+"" ^0
+
+# ---- what the fix is worth, honestly ----
+
+"what shipping it achieves" ^0
+"  users who stop hitting it : " + str(still_here) ^0
+"  users it was reported for  : " + str(affected) ^0
+"  users who left while it was open : " + str(affected - still_here) ^0
+"  the first number is real and is the case for shipping it; the third is" ^0
+"  the cost of the eleven months and is not recovered by shipping" ^0
+"" ^0
+
+# ---- the control: a bug fixed inside a week ----
+#
+# Where the fix is fast relative to the churn, the two populations are nearly
+# the same set and the distinction does not arise.
+
+"control - the same cohorts with a one-week fix" ^0
+0 => week_left
+for c in cohorts:
+    int(c[1] * c[2] / 4000) => gone
+    week_left + c[1] - gone => week_left
+"  affected : " + str(affected) + ", still here after a week : " + str(week_left) ^0
+if week_left * 100 / affected > 95:
+    "  over 95% retained, so the fix reaches essentially the reported group" ^0
+"" ^0
+
+"The fix is correct and the users who have it are better off. Eleven months" ^0
+"is long enough for the population to turn over, and it turns over fastest" ^0
+"among the people the bug hurt most." ^0

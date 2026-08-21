@@ -1,0 +1,129 @@
+# Self-authored for the EML case corpus (no external origin). Forty-one people
+# reported the bug. How many hit it is computed below, and the two numbers are
+# about different populations.
+#
+# Counting reports is the right way to rank work and it is what every tracker
+# is built to do. A report is a real person taking real trouble to describe a
+# real failure, and a bug with forty-one of them is not a rumour.
+#
+# Reporting requires knowing the behaviour is wrong, knowing where to report,
+# and having a reason to spend the time. Each of those filters the population,
+# and none of them is correlated with severity. So the report count is a count
+# of people who cleared three filters, and the affected set is somewhere else.
+#
+# Both are computed per user segment.
+
+# [segment, users affected, share who notice it is a bug, share who know where to report, share who bother]
+[["power users", 300, 90, 80, 40], ["daily users", 2400, 40, 30, 15], ["occasional", 5100, 15, 10, 5], ["trial", 3800, 10, 5, 2], ["api integrators", 180, 95, 90, 70]] => segments
+
+len(segments) => n
+
+def reporters(s):
+    s[1] * s[2] => a
+    int(a / 100) => noticed
+    noticed * s[3] => b
+    int(b / 100) => knew
+    knew * s[4] => c
+    return int(c / 100)
+
+0 => affected
+0 => reported
+for s in segments:
+    affected + s[1] => affected
+    reported + reporters(s) => reported
+
+"users affected : " + str(affected) ^0
+"reports filed  : " + str(reported) ^0
+if affected > 0:
+    "  reports per 1000 affected : " + str(int(reported * 1000 / affected)) ^0
+"" ^0
+
+"segment          affected   notice   know where   bother   reports" ^0
+for s in segments:
+    "  " + s[0] + "   " + str(s[1]) + "      " + str(s[2]) + "%      " + str(s[3]) + "%          " + str(s[4]) + "%      " + str(reporters(s)) ^0
+"" ^0
+
+# ---- the two rankings ----
+
+"" => top_affected
+0 => ta
+"" => top_reports
+0 => tr
+for s in segments:
+    if s[1] > ta:
+        s[1] => ta
+        s[0] => top_affected
+    if reporters(s) > tr:
+        reporters(s) => tr
+        s[0] => top_reports
+"largest affected segment : " + top_affected + " (" + str(ta) + ")" ^0
+"largest reporting segment : " + top_reports + " (" + str(tr) + " reports)" ^0
+if not (top_affected == top_reports):
+    "  different segments, so the tracker ranks by the second one" ^0
+"" ^0
+
+# ---- reporting rate per segment ----
+
+"reports per 1000 affected, by segment" ^0
+0 => best_rate
+"" => best_seg
+0 => worst_rate
+"" => worst_seg
+for s in segments:
+    int(reporters(s) * 1000 / s[1]) => rate
+    "  " + s[0] + " : " + str(rate) ^0
+    if rate > best_rate:
+        rate => best_rate
+        s[0] => best_seg
+    if worst_rate == 0:
+        rate => worst_rate
+        s[0] => worst_seg
+    if rate < worst_rate:
+        rate => worst_rate
+        s[0] => worst_seg
+"  loudest : " + best_seg + " at " + str(best_rate) + " per 1000" ^0
+"  quietest: " + worst_seg + " at " + str(worst_rate) + " per 1000" ^0
+if best_rate > 0:
+    if worst_rate > 0:
+        "  the loudest segment reports " + str(int(best_rate / worst_rate)) + " times as often per affected user" ^0
+"" ^0
+
+# ---- what the count would have to be corrected by ----
+
+"correcting the report count back to an affected count" ^0
+for s in segments:
+    if reporters(s) > 0:
+        "  " + s[0] + " : multiply reports by " + str(int(s[1] / reporters(s))) ^0
+"  the multiplier is different per segment and none of them is 1, so a single" ^0
+"  correction factor is not available" ^0
+"" ^0
+
+# ---- the segment that is nearly invisible ----
+
+for s in segments:
+    if reporters(s) == 0:
+        "  " + s[0] + " : " + str(s[1]) + " affected, 0 reports" ^0
+0 => silent
+for s in segments:
+    if reporters(s) == 0:
+        silent + s[1] => silent
+if silent > 0:
+    "affected users in segments producing no reports at all : " + str(silent) ^0
+    "  they are not absent from the data; they are absent from the tracker" ^0
+"" ^0
+
+# ---- the control: a population where reporting is automatic ----
+#
+# Where the client reports the failure itself, the three filters are not in
+# the path and the count is of occurrences rather than of volunteers.
+
+"control - the same bug with automatic client-side error reporting" ^0
+"  filters between hitting it and it being counted : 0" ^0
+"  what is counted : occurrences" ^0
+"  what is lost    : the description, which is the part a human report has" ^0
+"  and the automatic one does not" ^0
+"" ^0
+
+"Forty-one people took trouble to describe a real failure and the tracker is" ^0
+"right to record them. Reporting needs three things that severity does not," ^0
+"and the count is of people who had all three." ^0

@@ -1,0 +1,102 @@
+# Self-authored for the EML case corpus (no external origin). Six constraints in
+# the schema encode business rules. How many of those rules are still policy is
+# computed below.
+#
+# Putting the rule in the schema was right and is the advice everybody gives. A
+# constraint in the database holds against every writer, including the ones
+# written after the rule was explained, including the ones written by people who
+# never heard it. That is exactly what makes it worth having.
+#
+# It also holds after the rule is withdrawn. A policy change is announced to
+# people; the schema is not a person, so it keeps enforcing until somebody
+# migrates it, and until then the rule is in force with no owner claiming it.
+#
+# Each constraint is checked against current policy.
+
+# [constraint, the rule it encodes, still policy, rows it currently blocks per month, who is blocked]
+[["NOT NULL on tax_id", "every customer has a tax id", 0, 340, "individuals in new markets"], ["UNIQUE on email", "one account per email", 1, 90, "duplicate signups"], ["CHECK amount > 0", "no zero-value orders", 0, 25, "free trial conversions"], ["FK to region", "every order has a region", 1, 4, "malformed imports"], ["CHECK length(code) = 6", "codes are six characters", 0, 60, "the new eight-character codes"], ["NOT NULL on signed_at", "contracts are signed before use", 1, 12, "unsigned drafts"]] => constraints
+
+len(constraints) => n
+0 => current
+0 => expired
+0 => blocked_by_expired
+0 => blocked_total
+for c in constraints:
+    blocked_total + c[3] => blocked_total
+    if c[2] == 1:
+        current + 1 => current
+    else:
+        expired + 1 => expired
+        blocked_by_expired + c[3] => blocked_by_expired
+
+"constraints : " + str(n) ^0
+"  encoding a rule that is still policy : " + str(current) ^0
+"  encoding a rule that was withdrawn   : " + str(expired) ^0
+"" ^0
+"rows blocked per month : " + str(blocked_total) ^0
+if blocked_by_expired > 0:
+    "  by constraints whose rule ended : " + str(blocked_by_expired) + ", which is " + str(int(blocked_by_expired * 100 / blocked_total)) + "%" ^0
+"" ^0
+
+"constraint                    rule still policy   blocks/month   who" ^0
+for c in constraints:
+    "" => s
+    if c[2] == 1:
+        s + "yes" => s
+    else:
+        s + "NO " => s
+    "  " + c[0] + "   " + s + "                " + str(c[3]) + "           " + c[4] ^0
+"" ^0
+
+# ---- what the blocked writers experience ----
+
+"what a blocked write looks like from outside" ^0
+"  the error         : a constraint violation naming a column" ^0
+"  what it says about policy : nothing" ^0
+"  who can explain it : whoever remembers the rule, which is the part that" ^0
+"  expired" ^0
+"" ^0
+
+# ---- the asymmetry that keeps them ----
+#
+# Adding a constraint requires an argument. Removing one requires an argument
+# too, and the person who would make it is the person being blocked, who is
+# usually outside the team that owns the schema.
+
+"the two directions" ^0
+"  adding a constraint    : proposed by the schema owner, who has the reason" ^0
+"  removing a constraint  : needed by whoever is blocked, who does not own it" ^0
+"  the reason for adding is written in a migration; the reason for removing" ^0
+"  is a policy change that was announced somewhere else entirely" ^0
+"" ^0
+
+# ---- what it would take to find them ----
+
+"how each expired constraint could be found" ^0
+for c in constraints:
+    if c[2] == 0:
+        "  " + c[0] + " : " + str(c[3]) + " rejections a month, all of the same shape" ^0
+"  every one of them is generating a steady signal already, and the signal" ^0
+"  is being read as bad input rather than as an expired rule" ^0
+"" ^0
+
+int(blocked_by_expired * 12) => yearly
+"rejections a year from withdrawn rules : " + str(yearly) ^0
+"" ^0
+
+# ---- the control: a constraint whose rule is checked with it ----
+#
+# Where the migration that adds a constraint names the policy and its review
+# date, the expiry is visible in the same place as the rule.
+
+"control - a constraint whose migration records the policy and a review date" ^0
+"  what a reviewer sees : the rule, the date, and the constraint together" ^0
+"  what expires silently : nothing, because the review date is in the same" ^0
+"  file as the enforcement" ^0
+"  the cost is one comment per migration, paid at the only moment when" ^0
+"  somebody definitely knows the reason" ^0
+"" ^0
+
+"Putting the rule in the schema is what makes it hold against writers who" ^0
+"never heard it. It goes on holding against them after the rule is withdrawn," ^0
+"because a schema is not somebody who can be told." ^0

@@ -1,0 +1,121 @@
+# Self-authored for the EML case corpus (no external origin). The fallback path
+# has run four times in three years. What conditions it ran under is computed
+# below, and it is not a coincidence.
+#
+# Having a fallback is right and this one is well designed: it degrades rather
+# than fails, it needs no operator, and the four times it ran it did what it was
+# written to do. Nobody regrets having it.
+#
+# It runs when the primary is unavailable, which is when the system is already
+# degraded. So the fallback's inputs are never the ordinary ones - they are the
+# inputs present during an incident, and those are the inputs it has been
+# exercised on least, because incidents are rare.
+#
+# The conditions are recorded per activation.
+
+# [activation, primary down, cache cold, load multiple of normal, dependencies also degraded, succeeded]
+[["a1", 1, 1, 3, 1, 1], ["a2", 1, 0, 2, 0, 1], ["a3", 1, 1, 6, 1, 0], ["a4", 1, 1, 4, 2, 0]] => runs
+
+len(runs) => n
+36 => months
+
+"fallback activations in " + str(months) + " months : " + str(n) ^0
+"" ^0
+"run   primary   cache   load   degraded deps   outcome" ^0
+0 => succeeded
+0 => cold_cache
+0 => total_load
+0 => worst_load
+for r in runs:
+    "" => out
+    if r[5] == 1:
+        out + "worked" => out
+        succeeded + 1 => succeeded
+    else:
+        out + "FAILED" => out
+    cold_cache + r[2] => cold_cache
+    total_load + r[3] => total_load
+    if r[3] > worst_load:
+        r[3] => worst_load
+    "  " + r[0] + "    down      " + str(r[2]) + "       " + str(r[3]) + "x     " + str(r[4]) + "              " + out ^0
+"" ^0
+"activations that worked : " + str(succeeded) + " of " + str(n) ^0
+"" ^0
+
+# ---- the conditions are not the ordinary ones ----
+
+"conditions during the " + str(n) + " activations" ^0
+"  primary unavailable : " + str(n) + " of " + str(n) + ", by definition of the trigger" ^0
+"  cache cold          : " + str(cold_cache) + " of " + str(n) ^0
+"  average load        : " + str(int(total_load * 10 / n)) + " tenths of normal" ^0
+"  worst load          : " + str(worst_load) + "x normal" ^0
+"  none of those is the condition anybody tests the fallback under, because" ^0
+"  the fallback is tested when things are fine" ^0
+"" ^0
+
+# ---- the correlation, stated as a count ----
+
+0 => hard_runs
+0 => hard_failures
+0 => easy_runs
+0 => easy_failures
+for r in runs:
+    r[2] + r[4] => severity
+    if r[3] >= 3:
+        severity + 1 => severity
+    if severity >= 2:
+        hard_runs + 1 => hard_runs
+        if r[5] == 0:
+            hard_failures + 1 => hard_failures
+    else:
+        easy_runs + 1 => easy_runs
+        if r[5] == 0:
+            easy_failures + 1 => easy_failures
+"activations split by how bad the conditions were" ^0
+"  milder conditions : " + str(easy_runs) + " runs, " + str(easy_failures) + " failed" ^0
+"  worse conditions  : " + str(hard_runs) + " runs, " + str(hard_failures) + " failed" ^0
+if hard_failures > easy_failures:
+    "  every failure is in the worse group, and the worse group is what the" ^0
+    "  trigger selects for" ^0
+"" ^0
+
+# ---- how often it is exercised, and under what ----
+
+"exercise, by kind" ^0
+"  production activations : " + str(n) + " in " + str(months) + " months" ^0
+"  test-suite runs        : every build, with the primary mocked as down" ^0
+"  what the suite holds constant : warm cache, normal load, healthy deps" ^0
+"  so the suite covers the trigger and none of the conditions that come" ^0
+"  with it" ^0
+"" ^0
+
+# ---- what a drill would add ----
+#
+# Not "turn the primary off". Turn it off with the cache cold and the load
+# raised, which is the combination every real activation has had.
+
+0 => full_combo
+for r in runs:
+    if r[2] == 1:
+        if r[3] >= 3:
+            full_combo + 1 => full_combo
+"activations with a cold cache AND raised load : " + str(full_combo) + " of " + str(n) ^0
+if full_combo > 0:
+    "  a drill that reproduces that combination exercises what " + str(full_combo) + " of the " + str(n) ^0
+    "  real activations actually met, and the suite has never held it" ^0
+"" ^0
+
+# ---- the control: a fallback that runs constantly ----
+#
+# Where the fallback is on the normal path for some fraction of traffic, it is
+# exercised under ordinary conditions and its failures are ordinary bugs.
+
+"control - a read replica used for 30% of reads at all times" ^0
+"  activations : continuous" ^0
+"  conditions  : the ordinary ones, because it is on the ordinary path" ^0
+"  a defect in it is found on a Tuesday rather than during an incident" ^0
+"" ^0
+
+"The fallback is well designed and it has done its job. What triggers it also" ^0
+"selects the conditions it runs under, so the runs it gets are drawn from the" ^0
+"part of the input space it has been exercised on least." ^0

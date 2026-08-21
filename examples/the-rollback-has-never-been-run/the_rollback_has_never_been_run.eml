@@ -1,0 +1,120 @@
+# Self-authored for the EML case corpus (no external origin). Every migration
+# ships with a rollback. How much of the data a rollback would return is
+# computed below.
+#
+# Writing the down migration is right and the review requires it. It is written
+# at the same time as the up migration, by the person who understands the change
+# best, and it is the difference between a bad deploy costing minutes and
+# costing a night.
+#
+# It is also the only part of the change that is never run. The up migration is
+# exercised on every environment; the down one is exercised when something has
+# already gone wrong, against a database that has been taking writes since.
+#
+# Both the step rot and the data written since are computed per migration.
+
+# [migration, days since applied, down-steps that still resolve, down-steps total, rows written since]
+[["add_status_column", 420, 3, 3, 0], ["split_name_field", 310, 2, 4, 88000], ["drop_legacy_index", 260, 1, 2, 0], ["add_audit_table", 150, 4, 5, 240000], ["widen_amount", 40, 3, 3, 51000]] => migrations
+
+len(migrations) => n
+
+"migrations with a down step : " + str(n) + " of " + str(n) ^0
+"down steps ever run in production : 0" ^0
+"" ^0
+
+"migration            days   steps resolving   rows written since" ^0
+0 => fully_ok
+0 => rotted
+for m in migrations:
+    "  " + m[0] + "   " + str(m[1]) + "    " + str(m[2]) + " of " + str(m[3]) + "           " + str(m[4]) ^0
+    if m[2] == m[3]:
+        fully_ok + 1 => fully_ok
+    else:
+        rotted + 1 => rotted
+"" ^0
+"migrations whose down steps all still resolve : " + str(fully_ok) + " of " + str(n) ^0
+if rotted > 0:
+    "migrations with at least one step that does not : " + str(rotted) ^0
+"" ^0
+
+# ---- the part that is not about the steps ----
+#
+# A down migration undoes a schema change. It does not know about the rows
+# written into that schema after it was applied.
+
+0 => at_risk
+0 => rows_at_risk
+for m in migrations:
+    if m[4] > 0:
+        at_risk + 1 => at_risk
+        rows_at_risk + m[4] => rows_at_risk
+"migrations with data written since they were applied : " + str(at_risk) ^0
+"rows that arrived after the schema changed : " + str(rows_at_risk) ^0
+if rows_at_risk > 0:
+    "  a down migration returns the schema and not those rows, and the number" ^0
+    "  grows every day the migration stays applied" ^0
+"" ^0
+
+"per migration, rows arriving per day since it was applied" ^0
+for m in migrations:
+    if m[4] > 0:
+        int(m[4] / m[1]) => per_day
+        "  " + m[0] + " : " + str(per_day) + " a day, " + str(m[4]) + " so far" ^0
+"" ^0
+
+# ---- what a rollback is worth at each age ----
+
+"a rollback run today, per migration" ^0
+0 => clean_rollbacks
+for m in migrations:
+    "" => verdict
+    if m[2] < m[3]:
+        "fails at step " + str(m[2] + 1) => verdict
+    elif m[4] > 0:
+        "runs, drops " + str(m[4]) + " rows" => verdict
+    else:
+        "runs cleanly" => verdict
+        clean_rollbacks + 1 => clean_rollbacks
+    "  " + m[0] + " : " + verdict ^0
+"  rollbacks that would run cleanly : " + str(clean_rollbacks) + " of " + str(n) ^0
+"" ^0
+
+# ---- the one that is newest ----
+#
+# The youngest migration is the one most likely to need rolling back and the
+# one whose rollback is most likely to work. Those two move together, which is
+# the only reason this ever appears to be fine.
+
+0 => youngest
+"" => youngest_name
+for m in migrations:
+    if youngest == 0:
+        m[1] => youngest
+        m[0] => youngest_name
+    if m[1] < youngest:
+        m[1] => youngest
+        m[0] => youngest_name
+"the youngest migration : " + youngest_name + ", " + str(youngest) + " days old" ^0
+for m in migrations:
+    if m[0] == youngest_name:
+        "  its down steps : " + str(m[2]) + " of " + str(m[3]) + " resolve" ^0
+        "  rows written since : " + str(m[4]) ^0
+"  a rollback is almost always of the newest change, so the rot is almost" ^0
+"  never met - and the rot is still there for the day it is" ^0
+"" ^0
+
+# ---- the control: a migration whose down step is exercised ----
+#
+# Where the down migration runs on every developer machine as part of the test
+# cycle, its steps cannot rot silently.
+
+"control - a down migration run by the test suite on every branch" ^0
+"  runs per week : many" ^0
+"  steps that can rot unnoticed : 0, because a broken step fails a build" ^0
+"  what it still cannot test : the rows written in production since, which" ^0
+"  exist in no test database" ^0
+"" ^0
+
+"Every migration has a rollback and every one was written by the right" ^0
+"person. It is the only step that runs when something is already wrong, and" ^0
+"what it returns is the schema rather than the rows." ^0

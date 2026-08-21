@@ -1,0 +1,128 @@
+# Self-authored for the EML case corpus (no external origin). Every latency
+# measurement the team takes is honest. What population it describes is
+# computed below.
+#
+# Measuring locally is right and it is what makes iteration possible. The
+# numbers are real, the profiler is not lying, and a change that makes the local
+# number better usually makes the remote one better too. Nobody is fooling
+# themselves about the measurement.
+#
+# The team and the users are two populations that never share a device or a
+# network. Every developer measurement is taken from one of them, and the
+# distribution of the other is not smaller or noisier - it is somewhere else.
+#
+# Both distributions are computed over the same page.
+
+# [segment, share of users in percent, network round trip ms, device render ms]
+[["the team", 0, 4, 40], ["office broadband", 22, 30, 60], ["home broadband", 34, 60, 90], ["good mobile", 28, 140, 180], ["poor mobile", 16, 420, 340]] => segments
+
+len(segments) => n
+1200 => payload_kb
+0 => user_share
+for s in segments:
+    user_share + s[1] => user_share
+
+def total_ms(s):
+    return s[2] + s[3]
+
+"segments : " + str(n) + " (one of them is the team, with " + str(segments[0][1]) + "% of users)" ^0
+"" ^0
+"segment            users   network   render   total" ^0
+for s in segments:
+    "  " + s[0] + "   " + str(s[1]) + "%     " + str(s[2]) + "        " + str(s[3]) + "      " + str(total_ms(s)) ^0
+"" ^0
+
+total_ms(segments[0]) => team_ms
+"the team's measurement : " + str(team_ms) + " ms, and it is correct" ^0
+"" ^0
+
+# ---- the user-weighted figure ----
+
+0 => weighted
+for s in segments:
+    weighted + total_ms(s) * s[1] => weighted
+int(weighted / user_share) => user_mean
+"the same page, weighted by where users actually are" ^0
+"  user-weighted mean : " + str(user_mean) + " ms" ^0
+if user_mean > team_ms:
+    "  which is " + str(int(user_mean * 10 / team_ms)) + " tenths of the team's figure" ^0
+"" ^0
+
+0 => worst
+"" => worst_name
+for s in segments:
+    if total_ms(s) > worst:
+        total_ms(s) => worst
+        s[0] => worst_name
+"  the slowest segment : " + worst_name + " at " + str(worst) + " ms" ^0
+"" ^0
+
+# ---- who is above a threshold ----
+
+1000 => budget
+0 => over
+for s in segments:
+    if total_ms(s) > budget:
+        over + s[1] => over
+"users over a " + str(budget) + " ms budget : " + str(over) + "%" ^0
+if over == 0:
+    "  nobody, on this page" ^0
+"" ^0
+
+500 => tight
+0 => over_tight
+for s in segments:
+    if total_ms(s) > tight:
+        over_tight + s[1] => over_tight
+"users over a " + str(tight) + " ms budget : " + str(over_tight) + "%" ^0
+if over_tight > 0:
+    "  and the team is " + str(int(tight / team_ms)) + " times inside it, so this threshold never fires locally" ^0
+"" ^0
+
+# ---- what a change looks like from each side ----
+#
+# A change that removes fixed work helps everyone equally. A change that
+# removes bytes helps in proportion to the network, which is the axis the team
+# is at the far end of.
+
+200 => bytes_saved_ms_on_slow
+20 => bytes_saved_ms_on_team
+"a change that removes " + str(int(payload_kb / 4)) + " KB of payload" ^0
+"  measured by the team : " + str(bytes_saved_ms_on_team) + " ms faster, on " + str(team_ms) ^0
+"  on poor mobile       : " + str(bytes_saved_ms_on_slow) + " ms faster" ^0
+if bytes_saved_ms_on_slow > bytes_saved_ms_on_team:
+    "  the local measurement understates it by " + str(int(bytes_saved_ms_on_slow / bytes_saved_ms_on_team)) + " times, so the change" ^0
+    "  looks marginal to the person deciding whether to ship it" ^0
+"" ^0
+
+# ---- and the reverse ----
+
+"a change that adds a synchronous call before render" ^0
+"  measured by the team : " + str(4) + " ms, a rounding error" ^0
+"  on poor mobile       : " + str(420) + " ms, one more round trip" ^0
+"  the same code, and the two populations disagree about whether it is free" ^0
+"" ^0
+
+# ---- what would connect them ----
+
+"what makes the other population visible" ^0
+"  field measurement from real sessions : the distribution, not a number" ^0
+"  a throttled profile locally          : one point on it, chosen by hand" ^0
+"  the second is cheap and is a guess about which segment matters; the first" ^0
+"  is the segments themselves" ^0
+"" ^0
+
+# ---- the control: a population the team is inside ----
+#
+# Where the team is a member of the user population, local measurement is
+# sampling from it, and the two are not separate at all.
+
+"control - an internal tool the team itself uses daily" ^0
+"  the team's share of the user population : large" ^0
+"  local measurement : a sample of the real distribution" ^0
+"  here the instinct that produced the problem above is simply correct" ^0
+"" ^0
+
+"Every local measurement is accurate and the profiler is not lying. It is a" ^0
+"measurement of a population the team is the only member of, and the users" ^0
+"are in a different one." ^0

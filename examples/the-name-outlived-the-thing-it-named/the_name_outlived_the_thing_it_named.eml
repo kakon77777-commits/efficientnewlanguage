@@ -1,0 +1,118 @@
+# Self-authored for the EML case corpus (no external origin). The product was
+# renamed four years ago. Where the old name still is, and what it now means in
+# each place, is computed below.
+#
+# Not renaming everything was right. A rename touches running code, stored data,
+# external contracts and other people's integrations, and the cost of doing all
+# of it at once is far larger than the cost of a stale identifier. Every team
+# that decided to leave a name alone decided correctly.
+#
+# The word did not stop being used, though. It stayed in the places nobody
+# migrated and it was also given to new things, so it now denotes more than one
+# thing, and which one is meant depends on which file you are reading.
+#
+# Every occurrence is classified by what it denotes now.
+
+# [place, what the old name denotes there, safe to rename, external]
+[["the database table", "the original product", 1, 0], ["the API path", "the original product", 0, 1], ["the metrics prefix", "the original product", 0, 0], ["the internal package", "the original product", 1, 0], ["the new team's module", "a different subsystem", 1, 0], ["the config key", "the original product", 0, 1], ["the runbook title", "the whole company's old name", 1, 0], ["the error code prefix", "a different subsystem", 0, 1]] => places
+
+len(places) => n
+
+[] => meanings
+for p in places:
+    if not (p[1] in meanings):
+        meanings + [p[1]] => meanings
+
+"occurrences of the old name : " + str(n) ^0
+"distinct things it now denotes : " + str(len(meanings)) ^0
+for m in meanings:
+    0 => c
+    for p in places:
+        if p[1] == m:
+            c + 1 => c
+    "  " + m + " : " + str(c) ^0
+"" ^0
+
+"place                    denotes                        renameable   external" ^0
+0 => safe
+0 => external
+for p in places:
+    "" => s
+    if p[2] == 1:
+        s + "yes" => s
+        safe + 1 => safe
+    else:
+        s + "no " => s
+    "" => e
+    if p[3] == 1:
+        e + "yes" => e
+        external + 1 => external
+    else:
+        e + "no " => e
+    "  " + p[0] + "   " + p[1] + "   " + s + "          " + e ^0
+"" ^0
+
+"safe to rename now : " + str(safe) + " of " + str(n) ^0
+"visible outside the company : " + str(external) ^0
+"" ^0
+
+# ---- what a rename would achieve, honestly ----
+
+0 => renamed_after
+for p in places:
+    if p[2] == 0:
+        renamed_after + 1 => renamed_after
+"renaming everything that is safe" ^0
+"  occurrences removed : " + str(safe) ^0
+"  occurrences remaining : " + str(renamed_after) ^0
+if renamed_after > 0:
+    "  the word still means more than one thing afterwards, because the ones" ^0
+    "  that stay are the ones with external contracts" ^0
+"" ^0
+
+# ---- the cost that is being paid now ----
+#
+# Not the rename. The cost of the ambiguity is paid by every reader who has to
+# work out which of the meanings is in force.
+
+0 => ambiguous_pairs
+for i in [0:n - 1]:
+    for j in [0:n - 1]:
+        if i < j:
+            if not (places[i][1] == places[j][1]):
+                ambiguous_pairs + 1 => ambiguous_pairs
+"pairs of occurrences that mean different things : " + str(ambiguous_pairs) ^0
+if ambiguous_pairs > 0:
+    "  a reader who learns the word in one place and applies it in another is" ^0
+    "  wrong for " + str(ambiguous_pairs) + " of the possible pairings" ^0
+"" ^0
+
+# ---- what would have prevented it ----
+
+"what makes a stale name harmless" ^0
+"  being stale        : harmless on its own, it is one dead word" ^0
+"  being reused       : this is the part that costs" ^0
+"  the new team gave the old word to a new subsystem, which is the decision" ^0
+"  that turned a dead name into an ambiguous one" ^0
+0 => reused
+for p in places:
+    if p[1] == "a different subsystem":
+        reused + 1 => reused
+"  occurrences that are reuse rather than residue : " + str(reused) ^0
+"" ^0
+
+# ---- the control: a name that was retired and not reused ----
+#
+# Where the old word is dead everywhere and given to nothing new, it costs a
+# moment of confusion and denotes exactly one thing.
+
+"control - an old codename that was never reassigned" ^0
+"  occurrences : several, all denoting the same retired thing" ^0
+"  distinct meanings : 1" ^0
+"  a reader who learns it once is right everywhere, which is the property" ^0
+"  the reused name gave up" ^0
+"" ^0
+
+"Leaving the name alone was cheaper than renaming and every team that chose" ^0
+"it chose correctly. The word was then given to something else, and one word" ^0
+"for two things is a different problem from an old word for an old thing." ^0

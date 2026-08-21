@@ -1,0 +1,127 @@
+# Self-authored for the EML case corpus (no external origin). Deploys go out at
+# two in the morning, when traffic is lowest. Whose traffic is lowest is
+# computed below.
+#
+# Deploying at the trough is right and the reasoning is sound: fewer users are
+# exposed to a bad release, the rollback window is quieter, and the on-call
+# engineer is not also handling peak load. Every part of that holds.
+#
+# The trough is a property of the aggregate, and the aggregate is a sum over
+# regions whose days do not line up. A single global minimum can sit inside
+# another region's working morning, and the people there are not fewer - they
+# are simply outnumbered in the total.
+#
+# Traffic is broken out by region across the day.
+
+# requests per hour, in hundreds, at the deploy hour and at each region's own peak
+# [region, share of total traffic, requests at 02:00 team time, that region's own peak]
+[["team region", 55, 20, 900], ["region B", 25, 300, 420], ["region C", 14, 260, 300], ["region D", 6, 90, 110]] => regions
+
+len(regions) => n
+0 => at_deploy
+0 => peak_total
+for r in regions:
+    at_deploy + r[2] => at_deploy
+    peak_total + r[3] => peak_total
+
+"regions : " + str(n) ^0
+"total traffic at the deploy hour : " + str(at_deploy) ^0
+"" ^0
+"region         share   at 02:00   own peak   at deploy as share of own peak" ^0
+for r in regions:
+    int(r[2] * 100 / r[3]) => pct
+    "  " + r[0] + "   " + str(r[1]) + "%     " + str(r[2]) + "        " + str(r[3]) + "        " + str(pct) + "%" ^0
+"" ^0
+
+# ---- who is at their trough and who is not ----
+
+0 => at_trough
+0 => near_peak
+for r in regions:
+    int(r[2] * 100 / r[3]) => pct
+    if pct < 20:
+        at_trough + 1 => at_trough
+    if pct >= 60:
+        near_peak + 1 => near_peak
+"regions genuinely at a trough (under 20% of own peak) : " + str(at_trough) + " of " + str(n) ^0
+"regions at 60% of their own peak or above             : " + str(near_peak) ^0
+for r in regions:
+    int(r[2] * 100 / r[3]) => pct
+    if pct >= 60:
+        "  " + r[0] + " is at " + str(pct) + "% of its own peak when the deploy goes out" ^0
+"" ^0
+
+# ---- what makes the aggregate look quiet ----
+
+"why the total is at its minimum" ^0
+for r in regions:
+    if r[1] >= 50:
+        "  " + r[0] + " is " + str(r[1]) + "% of traffic and is at " + str(int(r[2] * 100 / r[3])) + "% of its peak" ^0
+"  the aggregate minimum is that one region's night, and it is a minimum" ^0
+"  because that region is the majority, not because everyone is asleep" ^0
+"" ^0
+
+0 => non_team
+for r in regions:
+    if r[1] < 50:
+        non_team + r[2] => non_team
+"requests during the deploy from regions other than the majority : " + str(non_team) ^0
+if at_deploy > 0:
+    "  which is " + str(int(non_team * 100 / at_deploy)) + "% of the traffic in that hour" ^0
+"" ^0
+
+# ---- who is exposed to a bad release ----
+
+"exposure to a bad release, by region" ^0
+0 => worst_exposed
+"" => worst_name
+for r in regions:
+    if r[2] > worst_exposed:
+        r[2] => worst_exposed
+        r[0] => worst_name
+"  most exposed at the deploy hour : " + worst_name + ", " + str(worst_exposed) + " requests" ^0
+for r in regions:
+    if r[1] >= 50:
+        if r[2] < worst_exposed:
+            "  the majority region, which the schedule protects, is at " + str(r[2]) ^0
+"  the schedule protects the region the schedule was chosen from" ^0
+"" ^0
+
+# ---- and who is awake to notice ----
+
+"who is on call at the deploy hour" ^0
+"  in the team region : the middle of the night" ^0
+"  in the exposed regions : working hours, and they are not on this rota" ^0
+"  so the people best placed to see a bad release are the ones with no way" ^0
+"  to report it into the deploy process" ^0
+"" ^0
+
+# ---- what a per-region window would cost ----
+
+"deploying per region at each region's own trough" ^0
+"  deploys per release : " + str(n) + " instead of 1" ^0
+"  exposure per deploy : each region at its own minimum" ^0
+0 => best_case
+for r in regions:
+    int(r[3] * 10 / 100) => est
+    best_case + est => best_case
+"  total exposure : about " + str(best_case) + " against " + str(at_deploy) + " today" ^0
+if best_case < at_deploy:
+    "  lower, at the cost of " + str(n - 1) + " extra deploy windows and a version skew" ^0
+    "  between regions that has to be designed for" ^0
+"" ^0
+
+# ---- the control: a single-region service ----
+#
+# Where all the traffic is in one timezone, the aggregate trough IS everyone's
+# trough and the schedule is simply correct.
+
+"control - a service with one region" ^0
+"  regions : 1, so the aggregate minimum and the only region's minimum are" ^0
+"  the same hour by construction" ^0
+"  the reasoning that produced the problem above is exactly right here" ^0
+"" ^0
+
+"Deploying at the trough exposes fewest users and that reasoning holds. The" ^0
+"trough is a fact about the sum, and the sum is dominated by the region the" ^0
+"schedule was written in." ^0
