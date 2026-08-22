@@ -1,0 +1,116 @@
+# Self-authored for the EML case corpus (no external origin). One staging
+# environment, booked first-come. Who gets it and who needs it are computed
+# below.
+#
+# First-come is the right default for a shared resource. It needs no judge, it
+# cannot be gamed by arguing, everybody understands it, and any scheme that
+# ranks bookings by importance needs somebody to rank them and somebody to
+# appeal to. Nobody was treated unfairly by the calendar.
+#
+# First-come ranks by when you look at the calendar. That is a fact about
+# working hours, planning habits and how far ahead a team knows its schedule,
+# and none of those is how much the booking is worth.
+#
+# Bookings and blocked work are counted per team.
+
+# [team, bookings won, hours held, plans this far ahead in days, value of what needed the environment]
+[["release eng", 14, 56, 10, 3], ["platform", 11, 44, 8, 4], ["payments", 3, 12, 2, 9], ["mobile", 2, 8, 1, 8], ["data", 5, 20, 5, 5], ["security", 1, 4, 1, 10]] => teams
+
+len(teams) => n
+0 => total_hours
+0 => total_bookings
+for t in teams:
+    total_hours + t[2] => total_hours
+    total_bookings + t[1] => total_bookings
+
+"teams : " + str(n) ^0
+"bookings this quarter : " + str(total_bookings) + ", hours : " + str(total_hours) ^0
+"" ^0
+"team           bookings   hours   plans ahead   value of the work" ^0
+for t in teams:
+    "  " + t[0] + "   " + str(t[1]) + "         " + str(t[2]) + "      " + str(t[3]) + " days       " + str(t[4]) ^0
+"" ^0
+
+# ---- hours against planning horizon, and against value ----
+
+"hours held, by planning horizon" ^0
+0 => far_hours
+0 => near_hours
+for t in teams:
+    if t[3] >= 5:
+        far_hours + t[2] => far_hours
+    else:
+        near_hours + t[2] => near_hours
+"  teams that plan 5+ days ahead : " + str(far_hours) + " hours" ^0
+"  teams that plan under 5 days  : " + str(near_hours) + " hours" ^0
+if far_hours > near_hours:
+    "  the long-horizon teams hold " + str(int(far_hours * 100 / total_hours)) + "% of the environment" ^0
+"" ^0
+
+"hours held, by the value of the work" ^0
+0 => high_hours
+0 => low_hours
+0 => high_v
+0 => low_v
+for t in teams:
+    if t[4] >= 7:
+        high_hours + t[2] => high_hours
+        high_v + 1 => high_v
+    else:
+        low_hours + t[2] => low_hours
+        low_v + 1 => low_v
+"  teams whose work scores 7 or above : " + str(high_v) + " team(s), " + str(high_hours) + " hours" ^0
+"  teams below 7                      : " + str(low_v) + " team(s), " + str(low_hours) + " hours" ^0
+if low_hours > high_hours:
+    "  the lower-value work holds " + str(int(low_hours * 100 / total_hours)) + "% of the hours" ^0
+"" ^0
+
+# ---- the correlation that produces it ----
+
+"what predicts hours held" ^0
+"  planning horizon : long horizon, more hours" ^0
+"  value of the work: no relationship visible in this quarter" ^0
+"  a team that knows next week's schedule books next week; a team responding" ^0
+"  to something books today, and today is taken" ^0
+"" ^0
+
+# ---- who cannot plan ahead ----
+
+"why the short-horizon teams are short-horizon" ^0
+for t in teams:
+    if t[3] <= 2:
+        "  " + t[0] + " : " + str(t[3]) + " day(s), work value " + str(t[4]) ^0
+"  security and incident-driven work cannot be scheduled ten days out, and" ^0
+"  that is a property of the work rather than of the team" ^0
+"" ^0
+
+# ---- what a small reservation would change ----
+
+8 => reserved
+"holding back " + str(reserved) + " hours a quarter for same-week booking" ^0
+"  hours removed from open booking : " + str(reserved) + " of " + str(total_hours) ^0
+"  which is " + str(int(reserved * 100 / total_hours)) + "%" ^0
+0 => short_teams
+for t in teams:
+    if t[3] <= 2:
+        short_teams + 1 => short_teams
+"  teams it would serve : " + str(short_teams) ^0
+"  first-come still applies inside the reserved block, so no judge is added" ^0
+"  and nobody has to rank anybody" ^0
+"" ^0
+
+# ---- the control: an environment nobody contends for ----
+#
+# Where supply exceeds demand, first-come allocates nothing, because nobody is
+# ever refused.
+
+"control - a second environment with spare capacity" ^0
+"  bookings refused : 0" ^0
+"  hours contended  : 0" ^0
+"  first-come and any other scheme give the same result here, so the policy" ^0
+"  is only doing work when the thing is scarce" ^0
+"" ^0
+
+"First-come needs no judge and cannot be argued with, which is why it is the" ^0
+"right default. It orders by when a team looks at the calendar, and the teams" ^0
+"that cannot look early are the ones whose work arrives without warning." ^0

@@ -1,0 +1,132 @@
+# Self-authored for the EML case corpus (no external origin). One policy, six
+# pipelines, three enforcement levels. Where the violations end up is computed
+# below.
+#
+# The graduated rollout was right and is what everybody recommends. A rule that
+# blocks on day one blocks the teams who had no warning, so it starts as a
+# warning, becomes a soft failure, and blocks last. Each team got time
+# proportional to how much work the rule created for it.
+#
+# What was graduated by intent was the schedule. What it produced is a standing
+# difference in what the rule means per pipeline, because the last step never
+# happened for the pipelines where it was hardest - which are the pipelines with
+# the most violations.
+#
+# Violations are counted per pipeline at each enforcement level.
+
+# [pipeline, enforcement level (0 warn, 1 soft-fail, 2 block), violations per week, months at this level]
+[["web", 2, 0, 14], ["mobile", 2, 0, 12], ["internal tools", 1, 3, 11], ["data pipeline", 0, 26, 13], ["legacy billing", 0, 41, 13], ["partner sync", 1, 7, 9]] => pipes
+
+len(pipes) => n
+["warns", "soft-fails", "blocks"] => levels
+
+0 => total_v
+0 => at_block
+0 => at_warn
+for p in pipes:
+    total_v + p[2] => total_v
+    if p[1] == 2:
+        at_block + p[2] => at_block
+    if p[1] == 0:
+        at_warn + p[2] => at_warn
+
+"pipelines : " + str(n) ^0
+"violations reaching production per week : " + str(total_v) ^0
+"" ^0
+"pipeline          enforcement   violations/week   months at this level" ^0
+for p in pipes:
+    "  " + p[0] + "   " + levels[p[1]] + "        " + str(p[2]) + "                " + str(p[3]) ^0
+"" ^0
+
+"by enforcement level" ^0
+for k in [0:2]:
+    0 => c
+    0 => v
+    for p in pipes:
+        if p[1] == k:
+            c + 1 => c
+            v + p[2] => v
+    "  " + levels[k] + " : " + str(c) + " pipeline(s), " + str(v) + " violations/week" ^0
+"" ^0
+if at_warn > at_block:
+    "the pipelines that only warn carry " + str(at_warn) + " of the " + str(total_v) + " violations" ^0
+    "  which is " + str(int(at_warn * 100 / total_v)) + "%" ^0
+"" ^0
+
+# ---- the graduation never finished, and where it stopped is not random ----
+
+0 => stalled
+for p in pipes:
+    if p[1] < 2:
+        stalled + 1 => stalled
+"pipelines still below full enforcement : " + str(stalled) + " of " + str(n) ^0
+0 => longest
+for p in pipes:
+    if p[3] > longest:
+        p[3] => longest
+"months since the rollout began : " + str(longest) ^0
+"  the schedule had three steps and no step has moved for the stalled ones" ^0
+"" ^0
+
+"why each one stalled, stated as its violation count" ^0
+for p in pipes:
+    if p[1] < 2:
+        "  " + p[0] + " : " + str(p[2]) + " violations a week would have to be fixed first" ^0
+"  the cost of advancing is proportional to the violations, so the pipelines" ^0
+"  furthest from compliance are the ones it is most expensive to advance" ^0
+"" ^0
+
+# ---- what the policy dashboard says ----
+
+"the rollout, as reported" ^0
+"  pipelines the policy is applied to : " + str(n) + " of " + str(n) + ", which is 100%" ^0
+"  pipelines where a violation cannot reach production : " + str(n - stalled) ^0
+if stalled > 0:
+    "  the first number is what gets reported and the second is what the rule" ^0
+    "  does" ^0
+"" ^0
+
+# ---- what the rule means to each team ----
+
+"what a developer experiences" ^0
+for p in pipes:
+    "" => exp
+    if p[1] == 2:
+        "cannot merge" => exp
+    elif p[1] == 1:
+        "a red check they can override" => exp
+    else:
+        "a line in a log" => exp
+    "  " + p[0] + " : " + exp ^0
+"  the same policy document produces three different experiences, and which" ^0
+"  one a developer gets is decided by which repository they opened" ^0
+"" ^0
+
+# ---- what advancing one level would cost and buy ----
+
+0 => next_step_fixes
+for p in pipes:
+    if p[1] == 0:
+        next_step_fixes + p[2] => next_step_fixes
+"advancing the two warn-only pipelines to soft-fail" ^0
+"  violations that would start being surfaced : " + str(next_step_fixes) + " a week" ^0
+"  violations that would be blocked           : 0, soft-fail is overridable" ^0
+"  what it changes is who sees them, which is the step that was skipped" ^0
+"" ^0
+
+# ---- the control: a rule that shipped at full enforcement ----
+#
+# Where the rule blocked everywhere from the first day, the enforcement level
+# is one number rather than six, and no pipeline can drift from it.
+
+"control - a policy that blocked on every pipeline from day one" ^0
+"  enforcement levels in play : 1" ^0
+"  pipelines that can accumulate violations : 0" ^0
+"  the cost was paid at once by the teams with the most work, which is the" ^0
+"  cost the graduated rollout was designed to spread - and spreading it is" ^0
+"  what left it unpaid" ^0
+"" ^0
+
+"The graduated rollout gave each team time proportional to its work, which is" ^0
+"the fair schedule. The last step is hardest exactly where there is most to" ^0
+"fix, so it is unfinished where it would matter most." ^0

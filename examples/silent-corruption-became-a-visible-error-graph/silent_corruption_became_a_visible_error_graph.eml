@@ -1,0 +1,126 @@
+# Self-authored for the EML case corpus (no external origin). Validation was
+# added and the error rate went from near zero to four percent. What changed is
+# computed below.
+#
+# Adding the validation was right and the reviewers who asked for it were right.
+# Malformed records were being written and read back wrong, quietly, for years.
+# A record that fails loudly at the door is strictly better than one that is
+# stored and misread later.
+#
+# The error graph is a count of what the system now refuses, and before the fix
+# it was a count of nothing, because nothing was refused. The line going up is
+# the same records, at the same rate, meeting a door that now exists.
+#
+# The records are counted before and after.
+
+# per week: [week, records in, malformed, rejected at the door, corrupted rows written]
+[[1, 50000, 2000, 0, 2000], [2, 51000, 2050, 0, 2050], [3, 49000, 1960, 0, 1960], [4, 52000, 2080, 2080, 0], [5, 50500, 2020, 2020, 0], [6, 51500, 2060, 2060, 0]] => weeks
+
+len(weeks) => n
+3 => fix_week
+
+0 => before_in
+0 => before_bad
+0 => before_rej
+0 => after_in
+0 => after_bad
+0 => after_rej
+for w in weeks:
+    if w[0] <= fix_week:
+        before_in + w[1] => before_in
+        before_bad + w[2] => before_bad
+        before_rej + w[3] => before_rej
+    else:
+        after_in + w[1] => after_in
+        after_bad + w[2] => after_bad
+        after_rej + w[3] => after_rej
+
+"week   records in   malformed   rejected   corrupted rows written" ^0
+for w in weeks:
+    "  " + str(w[0]) + "      " + str(w[1]) + "        " + str(w[2]) + "        " + str(w[3]) + "         " + str(w[4]) ^0
+"" ^0
+"validation shipped after week " + str(fix_week) ^0
+"" ^0
+
+"the error rate, as the dashboard shows it" ^0
+"  weeks 1-" + str(fix_week) + " : " + str(int(before_rej * 1000 / before_in)) + " per 1000" ^0
+"  weeks " + str(fix_week + 1) + "-" + str(n) + " : " + str(int(after_rej * 1000 / after_in)) + " per 1000" ^0
+if after_rej > before_rej:
+    "  a rise from nothing to " + str(int(after_rej * 100 / after_in)) + "%" ^0
+"" ^0
+
+"the malformed rate, which is the thing the error rate is about" ^0
+"  weeks 1-" + str(fix_week) + " : " + str(int(before_bad * 1000 / before_in)) + " per 1000" ^0
+"  weeks " + str(fix_week + 1) + "-" + str(n) + " : " + str(int(after_bad * 1000 / after_in)) + " per 1000" ^0
+if int(before_bad * 1000 / before_in) == int(after_bad * 1000 / after_in):
+    "  unchanged - the senders did not start sending worse data" ^0
+"" ^0
+
+# ---- what the fix actually removed ----
+
+0 => before_corrupt
+0 => after_corrupt
+for w in weeks:
+    if w[0] <= fix_week:
+        before_corrupt + w[4] => before_corrupt
+    else:
+        after_corrupt + w[4] => after_corrupt
+"corrupted rows written to the store" ^0
+"  before : " + str(before_corrupt) ^0
+"  after  : " + str(after_corrupt) ^0
+if before_corrupt > after_corrupt:
+    "  the fix removed " + str(before_corrupt - after_corrupt) + " bad rows over three weeks" ^0
+    "  and that number appears on no graph, because a row that is not written" ^0
+    "  leaves nothing to count" ^0
+"" ^0
+
+# ---- the two graphs, side by side ----
+
+"what each graph does at the fix" ^0
+"  errors           : 0 -> " + str(int(after_rej / (n - fix_week))) + " a week, a visible regression" ^0
+"  corrupted rows   : " + str(int(before_corrupt / fix_week)) + " -> 0 a week, and nobody was plotting it" ^0
+"  the improvement is the series that was never instrumented, because before" ^0
+"  the fix there was no event to instrument" ^0
+"" ^0
+
+# ---- what the rollback conversation looks like ----
+
+"the case for reverting, as it is made" ^0
+"  error rate before the change : ~0" ^0
+"  error rate after             : " + str(int(after_rej * 100 / after_in)) + "%" ^0
+"  time to revert               : one deploy" ^0
+"  every number in that case is correct" ^0
+"the case against, which needs a number nobody has" ^0
+"  bad rows currently in the store from the earlier weeks : " + str(before_corrupt) ^0
+"  cost of each one : whatever reading it wrong costs, discovered later" ^0
+"" ^0
+
+# ---- what would have made it legible ----
+
+"instrumenting the thing being prevented, not the prevention" ^0
+"  count malformed records at the door BEFORE enforcing : possible for" ^0
+"  weeks 1-" + str(fix_week) + ", by logging without rejecting" ^0
+"  the graph would then already be at " + str(int(before_bad * 1000 / before_in)) + " per 1000 before the fix," ^0
+"  and enforcing it would move a different line - the corrupted-rows one -" ^0
+"  which is the line the change is about" ^0
+"" ^0
+
+# ---- the control: a validation that rejects nothing ----
+#
+# Where the incoming data is already clean, adding the same check moves no
+# line at all, and the change is invisible in both directions.
+
+[[7, 50000, 0, 0, 0], [8, 50000, 0, 0, 0]] => clean
+0 => c_bad
+for w in clean:
+    c_bad + w[2] => c_bad
+"control - the same validation on a clean feed" ^0
+"  malformed records : " + str(c_bad) ^0
+if c_bad == 0:
+    "  the error graph does not move and neither does the corruption graph," ^0
+    "  so this feed cannot show what the change does" ^0
+"" ^0
+
+"The validation is right and a record that fails at the door beats one that" ^0
+"is stored and misread. The error graph counts what is now refused; before" ^0
+"the fix it counted nothing, because nothing was." ^0

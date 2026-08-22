@@ -1,0 +1,153 @@
+# Self-authored for the EML case corpus (no external origin). The slowest stage
+# was made four times faster. What that did to the pipeline, which stage is the
+# constraint now, and how well that one is understood are all computed below.
+#
+# Optimising the slowest stage is correct and is where the gain was. It was
+# measured, it was the largest single cost, the speedup is real and it did not
+# break anything. Anybody would have picked that stage.
+#
+# A pipeline's throughput is set by its slowest stage, so a big speedup there
+# moves the constraint somewhere else. Where it moves is decided by the
+# remaining stages, and how well the new constraint is understood is decided by
+# how long it has been ignored - which is exactly as long as it was not the
+# bottleneck.
+#
+# Both the timings and the operational knowledge are computed per stage.
+
+# [stage, ms before, ms after, people who have debugged it, runbook pages, last touched in months]
+[["parse", 400, 100, 6, 4, 1], ["enrich", 120, 120, 2, 0, 19], ["validate", 90, 90, 5, 3, 2], ["persist", 110, 110, 1, 0, 31], ["publish", 60, 60, 4, 2, 4]] => stages
+
+len(stages) => n
+0 => before_total
+0 => after_total
+for s in stages:
+    before_total + s[1] => before_total
+    after_total + s[2] => after_total
+
+"stage      before   after   people who know it   runbook pages   months since touched" ^0
+for s in stages:
+    "  " + s[0] + "   " + str(s[1]) + "ms    " + str(s[2]) + "ms    " + str(s[3]) + "                    " + str(s[4]) + "               " + str(s[5]) ^0
+"" ^0
+"pipeline total : " + str(before_total) + "ms -> " + str(after_total) + "ms" ^0
+"  improvement : " + str(int((before_total - after_total) * 100 / before_total)) + "%" ^0
+"" ^0
+
+# ---- which stage is the constraint, before and after ----
+
+0 => was
+"" => was_name
+0 => now
+"" => now_name
+for s in stages:
+    if s[1] > was:
+        s[1] => was
+        s[0] => was_name
+    if s[2] > now:
+        s[2] => now
+        s[0] => now_name
+"the slowest stage" ^0
+"  before : " + was_name + " at " + str(was) + "ms" ^0
+"  after  : " + now_name + " at " + str(now) + "ms" ^0
+if not (was_name == now_name):
+    "  the constraint moved" ^0
+"" ^0
+
+# ---- what is known about each ----
+
+for s in stages:
+    if s[0] == was_name:
+        "the old constraint, " + s[0] ^0
+        "  people who have debugged it : " + str(s[3]) ^0
+        "  runbook pages               : " + str(s[4]) ^0
+        "  months since anyone touched it : " + str(s[5]) ^0
+for s in stages:
+    if s[0] == now_name:
+        "the new constraint, " + s[0] ^0
+        "  people who have debugged it : " + str(s[3]) ^0
+        "  runbook pages               : " + str(s[4]) ^0
+        "  months since anyone touched it : " + str(s[5]) ^0
+"" ^0
+
+0 => old_know
+0 => new_know
+for s in stages:
+    if s[0] == was_name:
+        s[3] => old_know
+    if s[0] == now_name:
+        s[3] => new_know
+if old_know > new_know:
+    "  the pipeline's constraint is now a stage " + str(old_know - new_know) + " fewer people have opened" ^0
+"" ^0
+
+# ---- the correlation is not a coincidence ----
+
+"attention against being the bottleneck" ^0
+for s in stages:
+    "" => role
+    if s[1] >= 120:
+        "was slow" => role
+    else:
+        "was fast" => role
+    "  " + s[0] + " : " + role + ", " + str(s[3]) + " people, touched " + str(s[5]) + " months ago" ^0
+"  a stage gets looked at when it is slow, so the stages nobody has looked" ^0
+"  at are exactly the ones that were never the constraint" ^0
+"" ^0
+
+# ---- what the next speedup would cost ----
+
+"optimising the new constraint" ^0
+for s in stages:
+    if s[0] == now_name:
+        "  the same 4x on " + s[0] + " : " + str(s[2]) + "ms -> " + str(int(s[2] / 4)) + "ms" ^0
+        after_total - s[2] + int(s[2] / 4) => next_total
+        "  pipeline : " + str(after_total) + "ms -> " + str(next_total) + "ms, " + str(int((after_total - next_total) * 100 / after_total)) + "%" ^0
+        "  people available to do it : " + str(s[3]) ^0
+        "  runbook to start from     : " + str(s[4]) + " pages" ^0
+"" ^0
+
+# ---- what a flat pipeline means for the next win ----
+
+0 => spread
+0 => smallest
+for s in stages:
+    if smallest == 0:
+        s[2] => smallest
+    if s[2] < smallest:
+        s[2] => smallest
+now - smallest => spread
+0 => smallest_before
+for s in stages:
+    if smallest_before == 0:
+        s[1] => smallest_before
+    if s[1] < smallest_before:
+        s[1] => smallest_before
+was - smallest_before => spread_before
+"after the fix the stages span " + str(smallest) + "ms to " + str(now) + "ms, a spread of " + str(spread) + "ms" ^0
+"  before, the spread was " + str(spread_before) + "ms" ^0
+if spread < spread_before:
+    "  the pipeline is flatter, so the next single-stage win is smaller, and" ^0
+    "  a flat pipeline is a success rather than a problem" ^0
+"" ^0
+
+# ---- the control: a pipeline with one dominant stage ----
+#
+# Where one stage is most of the time by a wide margin, speeding it up leaves
+# it the constraint and nothing moves.
+
+[["a", 900, 700], ["b", 40, 40], ["c", 30, 30]] => lopsided
+0 => l_was
+0 => l_now
+for s in lopsided:
+    if s[1] > l_was:
+        s[1] => l_was
+    if s[2] > l_now:
+        s[2] => l_now
+"control - a pipeline where one stage is 90% of the time" ^0
+"  slowest before : " + str(l_was) + "ms, after a 22% cut : " + str(l_now) + "ms" ^0
+"  the constraint stays where it was, so the team keeps working on the stage" ^0
+"  it already understands" ^0
+"" ^0
+
+"Optimising the measured slowest stage is where the gain was and the speedup" ^0
+"is real. Throughput is set by whichever stage is slowest now, and how well" ^0
+"that one is understood is a record of how long it was not." ^0

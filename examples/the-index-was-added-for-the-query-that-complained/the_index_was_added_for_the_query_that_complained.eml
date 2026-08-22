@@ -1,0 +1,131 @@
+# Self-authored for the EML case corpus (no external origin). Nine indexes, each
+# added after somebody reported a slow query. What they cost and what they save
+# is computed below.
+#
+# Adding an index when a query is reported slow is right and it works. The
+# report names a real query, the index makes it fast, and the person who
+# reported it confirms the fix. Every one of these was a correct response to a
+# correct observation.
+#
+# An index is paid for on every write to the table, by everybody. A report is
+# made by whoever is blocked enough to write one. So the indexes accumulate
+# where the complaints are, and the write cost accumulates on the tables, and
+# those are two different distributions.
+#
+# Both are computed per index.
+
+# [index, ms saved per read, reads per day, ms added per write, writes per day, was it reported]
+[["orders_status", 40, 900, 3, 12000, 1], ["orders_created", 25, 400, 3, 12000, 1], ["orders_customer", 60, 15000, 3, 12000, 1], ["events_type", 12, 200, 4, 90000, 1], ["events_actor", 18, 350, 4, 90000, 1], ["events_session", 9, 80, 4, 90000, 1], ["users_email", 80, 22000, 2, 800, 1], ["audit_actor", 15, 40, 5, 40000, 1], ["audit_target", 15, 25, 5, 40000, 1]] => indexes
+
+len(indexes) => n
+
+def saves(i):
+    return i[1] * i[2]
+
+def costs(i):
+    return i[3] * i[4]
+
+0 => total_save
+0 => total_cost
+0 => net_negative
+for i in indexes:
+    total_save + saves(i) => total_save
+    total_cost + costs(i) => total_cost
+    if costs(i) > saves(i):
+        net_negative + 1 => net_negative
+
+"indexes : " + str(n) + ", every one added after a report" ^0
+"ms saved on reads per day : " + str(total_save) ^0
+"ms added to writes per day: " + str(total_cost) ^0
+if total_cost > total_save:
+    "  net : " + str(total_cost - total_save) + " ms a day worse" ^0
+else:
+    "  net : " + str(total_save - total_cost) + " ms a day better" ^0
+"" ^0
+
+"index              saves/day   costs/day   net" ^0
+for i in indexes:
+    saves(i) - costs(i) => net
+    "" => sign
+    if net >= 0:
+        sign + "+" => sign
+    "  " + i[0] + "   " + str(saves(i)) + "        " + str(costs(i)) + "      " + sign + str(net) ^0
+"" ^0
+"indexes that cost more than they save : " + str(net_negative) + " of " + str(n) ^0
+"" ^0
+
+# ---- who pays and who reported ----
+
+0 => badly_negative
+for i in indexes:
+    if costs(i) - saves(i) > 100000:
+        badly_negative + 1 => badly_negative
+"the " + str(badly_negative) + " that cost more than 100000 ms a day net" ^0
+for i in indexes:
+    if costs(i) - saves(i) > 100000:
+        "  " + i[0] + " : " + str(i[2]) + " reads a day against " + str(i[4]) + " writes" ^0
+"  each of these serves a low-traffic read on a high-traffic table, which is" ^0
+"  exactly the shape a person notices - the query is slow BECAUSE it is rare" ^0
+"  enough to miss the cache" ^0
+"" ^0
+
+# ---- the ones nobody reported ----
+#
+# A query nobody reported is either fast or run by something that does not
+# complain. The second kind never generates an index request.
+
+0 => reported
+for i in indexes:
+    reported + i[5] => reported
+"indexes added on a report : " + str(reported) + " of " + str(n) ^0
+"indexes added on measured cost : " + str(n - reported) ^0
+if n - reported == 0:
+    "  none, so the entire index set is a record of who complained" ^0
+"" ^0
+
+# ---- what a cost-ordered list would pick ----
+
+"the same nine, ordered by net benefit" ^0
+0 => keep
+0 => drop
+0 => recovered
+for i in indexes:
+    if saves(i) >= costs(i):
+        keep + 1 => keep
+    else:
+        drop + 1 => drop
+        recovered + costs(i) - saves(i) => recovered
+"  worth keeping : " + str(keep) ^0
+"  worth dropping: " + str(drop) ^0
+if recovered > 0:
+    "  write time recovered by dropping them : " + str(recovered) + " ms a day" ^0
+    "  and the " + str(drop) + " reports that produced them were all correct about their query" ^0
+"" ^0
+
+# ---- what dropping one does to the reporter ----
+
+"what the reporter of a dropped index experiences" ^0
+for i in indexes:
+    if costs(i) - saves(i) > 300000:
+        "  " + i[0] + " : their query goes back to +" + str(i[1]) + " ms, " + str(i[2]) + " times a day" ^0
+"  that is a real regression for a real person, and it is the cost of the" ^0
+"  write time everybody else is paying" ^0
+"" ^0
+
+# ---- the control: an index on a read-heavy table ----
+#
+# Where reads dominate writes, the report and the cost point the same way and
+# responding to the complaint is simply correct.
+
+for i in indexes:
+    if i[2] > i[4]:
+        "control - " + i[0] + ", " + str(i[2]) + " reads against " + str(i[4]) + " writes" ^0
+        "  saves " + str(saves(i)) + ", costs " + str(costs(i)) + ", net +" + str(saves(i) - costs(i)) ^0
+        "  here the complaint-driven method and a cost-driven one agree, and" ^0
+        "  most indexes are like this - which is why the method is trusted" ^0
+"" ^0
+
+"Every index was a correct response to a real report, and the reporter" ^0
+"confirmed the fix each time. A report is made by someone blocked; the write" ^0
+"cost is paid by everybody, and nobody is blocked enough by three milliseconds" ^0
+"to write it up." ^0

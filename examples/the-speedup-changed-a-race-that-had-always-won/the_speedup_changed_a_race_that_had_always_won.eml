@@ -1,0 +1,106 @@
+# Self-authored for the EML case corpus (no external origin). Two writers have
+# always raced and one has always won by a wide margin. What the margin was, and
+# what a speedup on the other side does to it, are computed below.
+#
+# The speedup is correct work. The slow path was profiled, the fix is sound, and
+# nothing about it is careless. It also does not touch the ordering: neither
+# writer takes a lock, because in the four years this has run the order has
+# never once come out the other way.
+#
+# "Never once" is a measurement of the margin, not of the guarantee. A race with
+# a 300 ms margin and a race with a 2 ms margin are the same race with the same
+# absent lock, and only one of them has ever been observed to invert.
+#
+# The margin is computed at each version.
+
+# [version, writer A finishes at ms, writer B finishes at ms, observed inversions in a year]
+[["v1", 340, 40, 0], ["v2", 300, 40, 0], ["v3", 210, 40, 0], ["v4 after the speedup", 44, 40, 0]] => versions
+
+len(versions) => n
+
+"version                  A at   B at   margin   inversions seen" ^0
+for v in versions:
+    v[1] - v[2] => m
+    "  " + v[0] + "   " + str(v[1]) + "ms   " + str(v[2]) + "ms   " + str(m) + "ms      " + str(v[3]) ^0
+"" ^0
+
+versions[0][1] - versions[0][2] => first_margin
+versions[n - 1][1] - versions[n - 1][2] => last_margin
+"the margin has gone from " + str(first_margin) + "ms to " + str(last_margin) + "ms" ^0
+if first_margin > last_margin:
+    "  a reduction of " + str(int((first_margin - last_margin) * 100 / first_margin)) + "%" ^0
+"" ^0
+
+0 => total_inv
+for v in versions:
+    total_inv + v[3] => total_inv
+"inversions observed across every version : " + str(total_inv) ^0
+if total_inv == 0:
+    "  the evidence for the ordering is identical at every margin, because" ^0
+    "  the evidence is an absence and an absence does not have a size" ^0
+"" ^0
+
+# ---- what the margin has to survive ----
+
+# things that can delay writer A on any given run, in ms
+[["a GC pause", 15], ["a slow disk flush", 30], ["a noisy neighbour", 25], ["a page fault storm", 60], ["a network retransmit", 200]] => jitters
+
+"delays that can happen to A on any run" ^0
+0 => survives_first
+0 => survives_last
+for j in jitters:
+    "" => a
+    if j[1] < first_margin:
+        a + "no" => a
+        survives_first + 1 => survives_first
+    else:
+        a + "YES" => a
+    "" => b
+    if j[1] < last_margin:
+        b + "no" => b
+        survives_last + 1 => survives_last
+    else:
+        b + "YES" => b
+    "  " + j[0] + " : " + str(j[1]) + "ms, inverts at v1 " + a + ", inverts at v4 " + b ^0
+"" ^0
+"jitters the old margin absorbed : " + str(survives_first) + " of " + str(len(jitters)) ^0
+"jitters the new margin absorbs  : " + str(survives_last) + " of " + str(len(jitters)) ^0
+if survives_first > survives_last:
+    "  the speedup moved " + str(survives_first - survives_last) + " of them from harmless to order-inverting" ^0
+"" ^0
+
+# ---- what the test suite says ----
+
+"what a test run establishes" ^0
+"  runs in CI per day : many" ^0
+"  inversions seen    : " + str(total_inv) ^0
+"  CI machines are quiet, so the jitters above are the ones CI does not have" ^0
+"  the suite is measuring the margin under the conditions least likely to" ^0
+"  close it" ^0
+"" ^0
+
+# ---- what the fix would be ----
+
+"ordering the two writers explicitly" ^0
+"  cost : one lock, held across two writes" ^0
+"  what it removes : the dependence on the margin entirely" ^0
+"  when it was cheapest to add : v1, when the margin was " + str(first_margin) + "ms and" ^0
+"  the change would have been invisible in every measurement" ^0
+"  when it becomes visible : now, when it is a regression against v4" ^0
+"" ^0
+
+# ---- the control: an order that is actually guaranteed ----
+#
+# Where the two writes go through one queue, the order is a property of the
+# structure and the margin is not part of the argument.
+
+"control - the same two writes through a single ordered queue" ^0
+"  margin that the order depends on : none" ^0
+"  effect of any speedup on the ordering : none" ^0
+"  the difference is not how careful anyone was; it is whether the ordering" ^0
+"  is a consequence of timing or of structure" ^0
+"" ^0
+
+"The speedup is correct and the order has never inverted in four years. The" ^0
+"absence of an inversion is the same observation at every margin, and the" ^0
+"margin is what the speedup changed." ^0

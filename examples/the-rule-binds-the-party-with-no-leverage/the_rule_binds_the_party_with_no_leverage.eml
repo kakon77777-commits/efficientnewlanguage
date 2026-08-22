@@ -1,0 +1,132 @@
+# Self-authored for the EML case corpus (no external origin). The integration
+# standard applies to every partner. Which partners it has actually been applied
+# to is computed below.
+#
+# Having one standard is right. It is written once, it is the same document for
+# everybody, and a platform that negotiates its interface separately with each
+# partner ends up with as many interfaces as partners. Nothing in the document
+# distinguishes between them.
+#
+# Applying it needs the platform to be willing to refuse the integration. That
+# willingness is not constant across partners: a partner who is 40% of revenue
+# is refused differently from one who is 0.3%, and the standard has no term for
+# revenue.
+#
+# Compliance is counted against leverage.
+
+# [partner, share of revenue in tenths of a percent, violations of the standard, exemptions granted, integration blocked]
+[["alpha", 400, 6, 6, 0], ["beta", 220, 4, 4, 0], ["gamma", 90, 3, 1, 0], ["delta", 30, 3, 0, 1], ["epsilon", 12, 2, 0, 1], ["zeta", 8, 5, 0, 1], ["eta", 180, 2, 2, 0], ["theta", 5, 1, 0, 1]] => partners
+
+len(partners) => n
+0 => total_v
+0 => total_exempt
+0 => blocked
+for p in partners:
+    total_v + p[2] => total_v
+    total_exempt + p[3] => total_exempt
+    blocked + p[4] => blocked
+
+"partners : " + str(n) ^0
+"violations of the standard : " + str(total_v) ^0
+"exemptions granted         : " + str(total_exempt) ^0
+"integrations blocked       : " + str(blocked) ^0
+"" ^0
+
+"partner   revenue share   violations   exempted   blocked" ^0
+for p in partners:
+    "" => b
+    if p[4] == 1:
+        b + "yes" => b
+    else:
+        b + "no " => b
+    "  " + p[0] + "     " + str(int(p[1] / 10)) + "." + str(p[1] % 10) + "%           " + str(p[2]) + "            " + str(p[3]) + "          " + b ^0
+"" ^0
+
+# ---- exemption rate against leverage ----
+
+0 => big_v
+0 => big_e
+0 => small_v
+0 => small_e
+for p in partners:
+    if p[1] >= 100:
+        big_v + p[2] => big_v
+        big_e + p[3] => big_e
+    else:
+        small_v + p[2] => small_v
+        small_e + p[3] => small_e
+"partners at 10% of revenue or more" ^0
+"  violations : " + str(big_v) + ", exempted : " + str(big_e) ^0
+if big_v > 0:
+    "  exemption rate : " + str(int(big_e * 100 / big_v)) + "%" ^0
+"partners under 10%" ^0
+"  violations : " + str(small_v) + ", exempted : " + str(small_e) ^0
+if small_v > 0:
+    "  exemption rate : " + str(int(small_e * 100 / small_v)) + "%" ^0
+"" ^0
+
+# ---- who the standard has actually stopped ----
+
+"integrations blocked, by partner size" ^0
+for p in partners:
+    if p[4] == 1:
+        "  " + p[0] + " : " + str(int(p[1] / 10)) + "." + str(p[1] % 10) + "% of revenue, " + str(p[2]) + " violations" ^0
+0 => blocked_share
+for p in partners:
+    if p[4] == 1:
+        blocked_share + p[1] => blocked_share
+"  combined revenue share of every blocked partner : " + str(int(blocked_share / 10)) + "." + str(blocked_share % 10) + "%" ^0
+"" ^0
+
+# ---- the partner with the most violations ----
+
+0 => worst_v
+"" => worst_p
+for p in partners:
+    if p[2] > worst_v:
+        p[2] => worst_v
+        p[0] => worst_p
+"the partner with the most violations : " + worst_p + ", " + str(worst_v) ^0
+for p in partners:
+    if p[0] == worst_p:
+        "  revenue share : " + str(int(p[1] / 10)) + "." + str(p[1] % 10) + "%" ^0
+        if p[4] == 1:
+            "  blocked : yes" ^0
+        else:
+            "  blocked : no, exempted " + str(p[3]) + " times" ^0
+"" ^0
+
+# ---- what the standard document says ----
+
+"what the document contains" ^0
+"  requirements     : the same for every partner" ^0
+"  exemption clause : discretionary, no criteria written" ^0
+"  revenue          : not mentioned" ^0
+"  the discretion is the only place a difference can enter, and it is the" ^0
+"  only part with no criteria" ^0
+"" ^0
+
+# ---- what a written criterion would change ----
+
+"if the exemption clause named its criteria" ^0
+"  exemptions that would survive a stated rule : whatever the rule says" ^0
+"  exemptions that would have to be argued     : " + str(total_exempt) ^0
+"  what changes is not the outcome but whether the reason is on the record" ^0
+"  where the next partner can point at it" ^0
+"" ^0
+
+# ---- the control: a standard enforced by the protocol itself ----
+#
+# Where the requirement is a property of the wire format, a non-compliant
+# integration cannot connect, and leverage has nothing to act on.
+
+"control - a requirement the handshake rejects" ^0
+"  partners that can violate it : 0, the connection fails" ^0
+"  exemptions possible          : 0, there is nobody to ask" ^0
+"  the same standard, moved from a document into the protocol, and the" ^0
+"  difference is that refusing is no longer a decision somebody makes" ^0
+"" ^0
+
+"One standard for every partner is the right design and the document does not" ^0
+"mention revenue. Applying it means being willing to refuse, and that" ^0
+"willingness is the part that varies." ^0
