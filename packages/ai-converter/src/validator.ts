@@ -18,6 +18,16 @@ function resolvePython(): string | null {
 // Unique marker so the probe value is never confused with the program's own stdout.
 const SENTINEL = '~~EMLVAL7f3a~~';
 const SPREAD = ['2', '3', '5', '7', '11', '4'];
+/** Value every variable not currently being varied is held at. */
+const BASELINE = '3';
+/**
+ * Soft ceiling on generated inputs (each costs two Python processes). The
+ * requirement that EVERY numeric variable is varied wins over this bound: with
+ * many variables the per-variable spread shrinks instead, never below
+ * MIN_SPREAD_PER_VAR, so no variable is left unvaried to stay under a budget.
+ */
+const MAX_SETS = 48;
+const MIN_SPREAD_PER_VAR = 2;
 
 interface RunResult {
   ok: boolean;
@@ -102,33 +112,115 @@ export function validateEquivalence(
   const timeoutMs = options.timeoutMs ?? 5000;
 
   const freeVars = parseFreeVars(llmBindings);
-  const allNumeric = freeVars.length > 0 && freeVars.every((v) => v.numeric);
+  const numericVars = freeVars.filter((v) => v.numeric);
+  const otherVars = freeVars.filter((v) => !v.numeric);
 
   // Build the binding sets the validator will actually test.
   let testSets: string[];
-  if (allNumeric) {
-    // Vary the first numeric var across a diverse, non-degenerate spread; hold
-    // others at 3. LLM-supplied values are intentionally ignored here.
-    const first = freeVars[0]!.name;
-    testSets = SPREAD.map((v) => freeVars.map((fv) => `${fv.name} = ${fv.name === first ? v : '3'}`).join('\n'));
-  } else {
-    // Non-numeric or no free vars: best effort with the LLM bindings.
+  let coverage = 'LLM-supplied bindings';
+  let generatedNothing = false;
+  if (numericVars.length > 0) {
+    // EMLP-AUDIT-001. Two things were wrong here.
+    //
+    // (a) Only freeVars[0] was varied and every other numeric variable was
+    //     pinned to the literal '3', so a candidate that ignored any other
+    //     variable agreed on every input it was shown. freeVars is in the order
+    //     the LLM wrote its binding lines, so which variable got exercised was
+    //     chosen by the party under test - the same party this function
+    //     documents itself as not trusting.
+    //
+    // (b) Generation was gated on EVERY free variable being numeric, so a
+    //     single legitimate string variable turned the whole scheme off and
+    //     fell back to the LLM's own bindings. The numeric variables then got
+    //     no independent variation at all. Found by 岑衡 against the first fix
+    //     (EMLP-RELAY-0028): a non-numeric variable must not cancel coverage of
+    //     the numeric ones.
+    //
+    // Coverage rule: ONE-AT-A-TIME over the numeric variables. For each, hold
+    // the other numerics at BASELINE and every non-numeric at the value the
+    // caller supplied, and vary that one across the spread. Non-numeric values
+    // are echoed back rather than chosen, so they add no freedom the validator
+    // is trusting the LLM for; the numeric coverage is unaffected by their
+    // presence.
+    //
+    // Bound: MAX_SETS. If it would be exceeded the per-variable spread shrinks,
+    // never the set of variables. This is NOT a claim of general equivalence
+    // from a finite sample; it is a claim that no single numeric variable is
+    // ignored.
+    //
+    // Sorting by name makes the generated inputs independent of the order the
+    // caller listed its bindings in. Sorting ALONE would not be a fix: it would
+    // only make which variable gets missed stable instead of caller-controlled.
+    const ordered = [...numericVars].sort((x, y) => (x.name < y.name ? -1 : x.name > y.name ? 1 : 0));
+    const perVar = Math.min(SPREAD.length, Math.max(MIN_SPREAD_PER_VAR, Math.floor(MAX_SETS / ordered.length)));
+    const values = SPREAD.slice(0, perVar);
+    const held = otherVars.map((fv) => `${fv.name} = ${fv.value}`);
+    const generated: string[] = [];
+    for (const target of ordered) {
+      for (const v of values) {
+        const numericLines = ordered.map((fv) => `${fv.name} = ${fv.name === target.name ? v : BASELINE}`);
+        generated.push([...numericLines, ...held].join('\n'));
+      }
+    }
+    testSets = [...new Set(generated)];
+    coverage = `one-at-a-time over ${ordered.length} numeric variable(s) x ${values.length} value(s)`;
+    if (otherVars.length > 0) {
+      coverage += `, ${otherVars.length} non-numeric held at the supplied value`;
+    }
+  } else if (freeVars.length === 0) {
+    // No free variables at all: the programs are constant, so running them once
+    // is a complete check rather than a sample.
     testSets = llmBindings.length > 0 ? [...llmBindings] : [''];
+    coverage = 'no free variables';
+  } else {
+    // Free variables exist and none is numeric, so the validator cannot
+    // generate anything of its own and would be relying entirely on the
+    // bindings proposed by the model under test. Fail closed rather than
+    // certify on those (EMLP-RELAY-0028).
+    testSets = llmBindings.length > 0 ? [...llmBindings] : [''];
+    coverage = 'LLM-supplied bindings only';
+    generatedNothing = true;
   }
   // The LLM's own bindings must also agree where usable (extra checks, never sole evidence).
   const sets = [...new Set([...testSets, ...llmBindings])];
 
   const usable: { orig: string; comp: string }[] = [];
+  let bothFailed = 0;
+  let firstBothFailure = '';
   for (let i = 0; i < sets.length; i++) {
     const bindings = sets[i] ?? '';
     const a = runPython(python, original, bindings, targetVariable, timeoutMs);
     const b = runPython(python, compiled, bindings, targetVariable, timeoutMs);
-    if (!a.ok || !b.ok) continue; // skip unusable inputs (errors, timeouts)
-    usable.push({ orig: a.value!, comp: b.value! });
+    if (a.ok && b.ok) {
+      usable.push({ orig: a.value!, comp: b.value! });
+      continue;
+    }
+    if (a.ok !== b.ok) {
+      // EMLP-AUDIT-002. One side produced a value and the other did not. That is
+      // a DIVERGENCE, not an unusable input: the candidate either introduced an
+      // error the original does not raise, or swallowed one the original does.
+      // The previous rule dropped this with `continue`, so the one input that
+      // demonstrates the defect was removed precisely because it demonstrated
+      // it, leaving no trace in the count or in the returned detail.
+      const failed = a.ok ? 'compiled' : 'original';
+      const why = ((a.ok ? b.err : a.err).split('\n').pop() ?? 'unknown').trim();
+      return {
+        equivalent: false,
+        detail: `${targetVariable}: ${failed} failed where the other succeeded (${why})`,
+      };
+    }
+    // Both sides failed the same way: the input itself is unusable. Counted,
+    // not silently dropped.
+    bothFailed++;
+    if (!firstBothFailure) firstBothFailure = (a.err.split('\n').pop() ?? '').trim();
   }
 
   if (usable.length === 0) {
-    return { equivalent: false, inconclusive: true, detail: 'no usable test input (every binding errored or timed out)' };
+    return {
+      equivalent: false,
+      inconclusive: true,
+      detail: `no usable test input (${bothFailed} binding(s) failed on BOTH sides; first: ${firstBothFailure || 'unknown'})`,
+    };
   }
   // Agreement: every usable input must match.
   for (const u of usable) {
@@ -136,6 +228,14 @@ export function validateEquivalence(
       return { equivalent: false, detail: `${targetVariable}: original=${u.orig} != compiled=${u.comp}` };
     }
   }
+  if (generatedNothing) {
+    return {
+      equivalent: false,
+      inconclusive: true,
+      detail: `could not confirm - every free variable is non-numeric, so the only inputs available are the ones proposed by the model under test`,
+    };
+  }
+
   // Discrimination: when there are free variables, the inputs must actually
   // exercise the computation (otherwise a degenerate input proves nothing).
   if (freeVars.length > 0) {
@@ -148,5 +248,6 @@ export function validateEquivalence(
       };
     }
   }
-  return { equivalent: true, detail: `equivalent across ${usable.length} validator-chosen input(s)` };
+  const skipped = bothFailed > 0 ? `; ${bothFailed} input(s) unusable on both sides` : '';
+  return { equivalent: true, detail: `equivalent across ${usable.length} validator-chosen input(s) [${coverage}]${skipped}` };
 }
