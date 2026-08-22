@@ -761,8 +761,40 @@
   `60`（改成計算修正前的跨距）、一個「the four worst」印出 5 筆（改成計算數量）、一行以 `", the "`
   結尾的殘句、兩個定義了從未被呼叫的函式、一個把同一行印三次的迴圈。全部在寫的當下改掉。
 
-  **修正戰役：** 岑衡尚未裁定 `EMLP-RELAY-0031`（001 的新 candidate `b1ae54d`），她的 V 分支
-  PR #1 仍開著未 merge。**產品碼對 baseline `f77a43f` 仍是 0 行。**
+  **修正戰役 — 兩個 CRITICAL 落地，產品碼第一次離開 baseline。** 岑衡連發三則：`0033` 裁定
+  001 `VERIFIED_FIXED`、`0034` 把 002 重新綁定到同一個 candidate、`0035` 把 V 追加到既有 PR #1。
+  她是**先承認自己上一輪的 gate 沒有辨識力**才開始裁定的——0028 的 mixed test 只要求
+  `equivalent:false`，分不出「覆蓋延伸到 mixed bindings」與「看到 non-numeric 就一律拒絕」。
+  她沒有沿用我的 control，而是另生 4 個未揭露的 V（001）與 1 個（002），`|R∩V|/|V|` 各是
+  **0/4** 與 **0/1**，沒有一個重用我公開過的輸入。
+
+  我這邊獨立重跑她的 V：未套 patch 的產品 HEAD **4 red / 1 green**，套上 **32/32 green**，
+  全套件 **64 files / 2557 tests**。那個在 baseline 就綠的是她的 ordering NULL control，它在
+  baseline 綠是對的——baseline 沒有 fail-closed return 可以吞掉它。
+
+  **落地：`7bc3100`。這是 audit baseline `f77a43f` 之後第一個產品程式碼變更**，
+  `git diff f77a43f -- packages/` 從空的變成 `validator.ts +112/−11`。blob 相等是查
+  **index** 不是工作區——這台 Windows 的 `git add` 會過 autocrlf，commit 前對三個檔案都印了
+  CRLF 警告，工作區 `hash-object` 相同並不保證存進去的相同。三個都與她裁定的逐位元組相同
+  （`b1ae54d7` / `bc4e0b11` / `dbdd366a`），所以 0034 的重跑回歸條款沒有觸發；她的兩個 V 檔案
+  原封不動落進 `tests/`。
+
+  drill 對**落地後的產品**重跑（不是候選）：A **3 red**、B **2 red**、C **5 red**，與她的計數
+  完全相同，交叉污染 **0**——A 和 B 都屬於 001 這個 patch，打中的卻是不相交的兩組測試。
+
+  **而 drill A 的 3 個 red 全部是 acceptance 測試，rejection 測試一個都沒紅**：把洞還原之後
+  那些案例掉進 fail-closed 分支，它也回 `false`。這就是她在 0033 開頭承認的那個 gap 從另一側
+  量出來的形狀——這個 patch 的 rejection 面完全沒有辨識力，能分辨的只有 acceptance 面。
+
+  `f77a43f` 從此是 **audit 起點**而不是產品現況，`baseline/` 凍結不更新（005-022 都是對它寫的），
+  兩者的分歧已記進 `PROTOCOL.md`。本次沒動任何 example，網站內容未變，LIVE build_id 仍是
+  `eml-site-6c29278-6703c5a`，語言 HEAD 已前進到 `7bc3100`，這個落差是預期的。
+
+  **今天自己的第二個缺陷：** 我補給 Board 的結構化 `meta` 是**雙重編碼**的——傳了已 stringify
+  的字串，API 又包一層，單次 `JSON.parse` 得到 string 而不是 record。一則專門為了讓狀態機器可讀
+  而發的訊息，存成了機器讀不出來的形狀。`0036a` 錯、`0036b` 修正。這與岑衡在 `0030` 修正我的
+  `slice` 是同一個失效模式：人看得到、filter 看不到。**把訊息讀回來不夠，要從消費端實際走的
+  那條路徑讀回來。**
 
 - **2026-07-19** — 完成**案例庫擴充：11 → 50 個自撰真實案例 + `/cases` 分頁**。Neo 指示先驗證
   EML 1.5 改名沒壞（見下一條記錄），再回頭把之前開發的 Phase 9 語法糖（列表推導式、`and`/`or`、
