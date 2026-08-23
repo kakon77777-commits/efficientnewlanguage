@@ -1,0 +1,131 @@
+# Self-authored for the EML case corpus (no external origin). One team added a
+# 40-second test to the shared pre-merge suite. What it protects and what it
+# costs are both computed below, and the answer is not that the test is bad.
+#
+# The test is good. It reproduces a real corruption bug that reached production
+# twice, it is deterministic, it fails for exactly one cause, and it was
+# written carefully by someone who had just spent a week on the incident. A
+# reviewer looking at that pull request should approve it, and one did.
+#
+# The test runs in the shared pre-merge suite, so it runs on every change in
+# the repository. The person who decided to add it pays its cost once, when
+# they write it. Everybody else pays it on every merge, forever, and none of
+# that appears in the pull request that adds it.
+#
+# Both sides are counted below.
+
+# [test, seconds, merges per day it runs on, what it protects, incidents it would have caught]
+[["ledger reconciliation", 40, 180, "the corruption bug", 2], ["schema round trip", 3, 180, "migration drift", 1], ["auth token expiry", 1, 180, "an expired-token path", 0], ["image thumbnailer", 22, 180, "an encoder upgrade", 1]] => tests
+
+len(tests) => n
+230 => working_days
+60 => seconds_per_minute
+
+0 => suite_seconds
+for t in tests:
+    suite_seconds + t[1] => suite_seconds
+
+"tests in the shared suite here : " + str(n) ^0
+"suite time per run             : " + str(suite_seconds) + " seconds" ^0
+"runs per day                   : " + str(tests[0][2]) ^0
+"" ^0
+
+"test                    seconds   protects              incidents it catches" ^0
+for t in tests:
+    "  " + t[0] + "   " + str(t[1]) + "        " + t[3] + "     " + str(t[4]) ^0
+"" ^0
+
+# ---- what the author paid and what everyone pays ----
+
+tests[0][1] => slow_seconds
+tests[0][2] => runs
+slow_seconds * runs => slow_per_day
+slow_per_day * working_days => slow_per_year
+
+"the 40-second test" ^0
+"  the author paid : one afternoon, once" ^0
+"  everyone pays   : " + str(slow_seconds) + " seconds on every merge" ^0
+"  per day         : " + str(slow_per_day) + " seconds of waiting" ^0
+"  per year        : " + str(int(slow_per_year / seconds_per_minute)) + " minutes, which is " + str(int(slow_per_year / (seconds_per_minute * 60))) + " engineer-hours" ^0
+"" ^0
+
+# ---- is it worth it ----
+
+# [what an incident of this class costs, in engineer-hours]
+90 => incident_hours
+tests[0][4] => caught
+caught * incident_hours => saved_hours
+int(slow_per_year / (seconds_per_minute * 60)) => cost_hours
+
+"the honest comparison" ^0
+"  incidents of this class in the last two years : " + str(caught) ^0
+"  cost of one such incident : " + str(incident_hours) + " engineer-hours" ^0
+"  hours the test saves per two years : " + str(saved_hours) ^0
+"  hours the test costs per two years : " + str(cost_hours * 2) ^0
+if saved_hours > cost_hours * 2:
+    "  the test pays for itself, so this is not an argument for deleting it" ^0
+else:
+    "  the test does not pay for itself on waiting time alone" ^0
+"" ^0
+
+# ---- where it runs against where it can fail ----
+
+# [area of the repository, merges per day touching it, can this test fail because of it]
+[["ledger", 12, "yes"], ["frontend", 74, "no"], ["docs", 31, "no"], ["infra", 22, "no"], ["search", 41, "no"]] => areas
+0 => merges_total
+0 => merges_relevant
+for a in areas:
+    merges_total + a[1] => merges_total
+    if a[2] == "yes":
+        merges_relevant + a[1] => merges_relevant
+
+"where the merges are" ^0
+for a in areas:
+    "  " + a[0] + " : " + str(a[1]) + " merges a day, can trigger this test: " + a[2] ^0
+"  merges a day        : " + str(merges_total) ^0
+"  merges that could possibly fail this test : " + str(merges_relevant) ^0
+"  which is " + str(int(merges_relevant * 100 / merges_total)) + "%" ^0
+"  so " + str(100 - int(merges_relevant * 100 / merges_total)) + "% of the runs cannot fail and cannot pass informatively" ^0
+"" ^0
+
+# ---- the same protection, scoped ----
+
+slow_seconds * merges_relevant => scoped_per_day
+"the same test, run only on merges that touch the ledger" ^0
+"  seconds a day : " + str(slow_per_day) + " -> " + str(scoped_per_day) ^0
+"  reduction     : " + str(int((slow_per_day - scoped_per_day) * 100 / slow_per_day)) + "%" ^0
+"  incidents it would still catch : " + str(caught) + " of " + str(caught) ^0
+"  because a corruption bug in the ledger arrives in a ledger merge" ^0
+"  the protection is identical and the cost is not" ^0
+"" ^0
+
+# ---- what the pull request showed ----
+
+"what the reviewer could see in the pull request" ^0
+"  lines added         : visible" ^0
+"  the bug it prevents : visible, it is in the test name" ^0
+"  seconds it adds     : visible if you time it" ^0
+"  merges per day it will run on : not in the diff" ^0
+"  engineer-hours a year         : not in the diff" ^0
+"  the reviewer approved the part of the change that was in front of them," ^0
+"  and every number that would have changed the decision is a property of" ^0
+"  the repository rather than of the change" ^0
+"" ^0
+
+# ---- the control: a test on the author's own path ----
+#
+# Where a test runs only in the package that owns it, the team deciding to add
+# it is the team waiting for it.
+
+for t in tests:
+    if t[1] == 1:
+        "control - " + t[0] + ", " + str(t[1]) + " second" ^0
+        "  a second on 180 merges is " + str(t[1] * t[2]) + " seconds a day" ^0
+        "  small enough that where it runs does not change the answer" ^0
+        "  the externality is not the test, it is the ratio between how long" ^0
+        "  it takes and how often it runs somewhere it cannot fail" ^0
+"" ^0
+
+"The test is well written, it catches a real bug, and approving it was right." ^0
+"It runs " + str(merges_total) + " times a day and can fail on " + str(merges_relevant) + " of them, and neither of" ^0
+"those numbers was in the change that added it." ^0

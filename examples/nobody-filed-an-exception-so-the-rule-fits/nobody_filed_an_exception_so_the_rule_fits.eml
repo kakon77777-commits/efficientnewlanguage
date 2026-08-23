@@ -1,0 +1,131 @@
+# Self-authored for the EML case corpus (no external origin). A coding
+# standard has drawn two exception requests in eighteen months, and both were
+# granted. What that low number measures is computed below, against what it is
+# being read as measuring.
+#
+# The standard is good. It was written after a real class of bug, it is
+# specific, it has a rationale document, and the team that wrote it converted
+# the existing code themselves rather than leaving it to everyone else. Two
+# requests across eighteen months is what a well-fitted rule looks like, and
+# granting both is what a reasonable owner looks like.
+#
+# It is also what an expensive exception process looks like. An exception is
+# filed by somebody weighing the cost of filing against the cost of complying,
+# and where filing costs more, the rule fits by construction. The request
+# count is a measurement of that threshold, not of the rule.
+#
+# The cost of each path is computed below, per case.
+
+# [case, hours to comply, hours to file an exception, filed?, what complying cost]
+[["batch importer", 3, 14, "no", "a second parse of the same file"], ["legacy adapter", 20, 14, "yes", "nothing, it was granted"], ["report builder", 6, 14, "no", "a duplicated struct"], ["stream joiner", 40, 14, "yes", "nothing, it was granted"], ["config loader", 2, 14, "no", "an extra allocation"], ["metrics shim", 9, 14, "no", "a wrapper nobody reads"], ["mail templater", 5, 14, "no", "two copies of one string table"], ["auth cache", 11, 14, "no", "a lock held longer"]] => cases
+
+len(cases) => n
+cases[0][2] => file_cost
+
+"cases where the rule applied : " + str(n) ^0
+"cost of filing an exception  : " + str(file_cost) + " hours" ^0
+"" ^0
+
+"case              comply (h)   file (h)   cheaper      filed?" ^0
+0 => filed
+0 => comply_cheaper
+for c in cases:
+    "" => cheaper
+    if c[1] < c[2]:
+        "comply" => cheaper
+        comply_cheaper + 1 => comply_cheaper
+    else:
+        "file" => cheaper
+    if c[3] == "yes":
+        filed + 1 => filed
+    "  " + c[0] + "   " + str(c[1]) + "           " + str(c[2]) + "        " + cheaper + "       " + c[3] ^0
+"" ^0
+
+"exceptions filed : " + str(filed) + " of " + str(n) ^0
+"cases where filing was the cheaper path : " + str(n - comply_cheaper) ^0
+if filed == n - comply_cheaper:
+    "  every case where filing was cheaper was filed, and no case where it" ^0
+    "  was dearer was filed" ^0
+    "  so the filing decision is fully explained by the " + str(file_cost) + "-hour threshold" ^0
+"" ^0
+
+# ---- what the zero is measuring ----
+
+"the cases that complied without filing" ^0
+0 => silent_cost
+for c in cases:
+    if c[3] == "no":
+        silent_cost + c[1] => silent_cost
+        "  " + c[0] + " : " + str(c[1]) + " hours, and it left " + c[4] ^0
+"  total complied cost : " + str(silent_cost) + " hours" ^0
+"  exception requests these generated : 0" ^0
+"  the rule's record shows zero friction and the codebase shows " + str(silent_cost) + " hours" ^0
+"  of it" ^0
+"" ^0
+
+# ---- what a cheaper process would surface ----
+
+3 => cheap_file
+0 => would_file
+0 => would_hours
+for c in cases:
+    if c[1] > cheap_file:
+        would_file + 1 => would_file
+        would_hours + c[1] => would_hours
+"the same eight cases with a " + str(cheap_file) + "-hour filing cost" ^0
+"  cases where filing becomes the cheaper path : " + str(would_file) + " of " + str(n) ^0
+"  hours of compliance work they represent    : " + str(would_hours) ^0
+"  requests the rule's owners would see       : " + str(would_file) + ", against " + str(filed) + " today" ^0
+"  none of those cases changed, and none of them are new" ^0
+"" ^0
+
+# ---- the threshold decides the evidence ----
+
+"how many cases file, as the filing cost moves" ^0
+[2, 6, 10, 14, 20, 40] => thresholds
+0 => at_cheapest
+0 => at_dearest
+for t in thresholds:
+    0 => k
+    for c in cases:
+        if c[1] > t:
+            k + 1 => k
+    "  filing costs " + str(t) + "h : " + str(k) + " of " + str(n) + " would file" ^0
+    if t == thresholds[0]:
+        k => at_cheapest
+    if t == thresholds[len(thresholds) - 1]:
+        k => at_dearest
+"  the rule did not change anywhere across that range" ^0
+"  the evidence about it moved from " + str(at_cheapest) + " requests to " + str(at_dearest) ^0
+"  a rule is called well fitted on the strength of this number" ^0
+"" ^0
+
+# ---- what the two exceptions had in common ----
+
+"the two that were filed" ^0
+for c in cases:
+    if c[3] == "yes":
+        "  " + c[0] + " : " + str(c[1]) + " hours to comply, " + str(c[1] - c[2]) + " hours above the filing cost" ^0
+"  both were granted, so the rule's owners agreed the rule did not fit" ^0
+"  they are the two most expensive cases here, and the process selected" ^0
+"  them by expense rather than by fit" ^0
+"" ^0
+
+# ---- the control: a rule with no compliance cost ----
+#
+# Where complying is free, nobody files regardless of what filing costs, and
+# zero requests really does mean the rule fits.
+
+[["import ordering", 0, 14, "no", "nothing"]] => free
+for f in free:
+    "control - " + f[0] + ", " + str(f[1]) + " hours to comply" ^0
+    "  filing cost : " + str(f[2]) + " hours" ^0
+    "  cases where filing is cheaper : 0" ^0
+    "  requests : 0" ^0
+    "  here the zero is the same zero at any filing cost, so it carries" ^0
+    "  information about the rule" ^0
+"" ^0
+
+"The standard is well written and two requests in eighteen months is what a" ^0
+"fitted rule looks like. It is also what a " + str(file_cost) + "-hour filing cost looks like," ^0
+"and the " + str(silent_cost) + " hours that complied quietly are in neither number." ^0

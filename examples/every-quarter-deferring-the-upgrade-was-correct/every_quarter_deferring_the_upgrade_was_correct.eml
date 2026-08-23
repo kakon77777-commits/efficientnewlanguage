@@ -1,0 +1,146 @@
+# Self-authored for the EML case corpus (no external origin). A dependency
+# upgrade was deferred eight quarters running. Each deferral is scored under
+# two different rules below, and the accumulated bill is computed.
+#
+# The reasons were real. A team that deferred once for a launch, once for an
+# incident backlog, once for a hiring gap and once for a reorg has deferred
+# four times for four good reasons, and nobody here was lazy.
+#
+# The upgrade's cost is not fixed. It grows with the distance, because each
+# skipped version adds its own breaking changes to the pile. Its value, on the
+# other hand, is realised in a quarter that is not the quarter you pay for it
+# in - the quarter that upgrades ships nothing a user can see.
+#
+# So the answer depends entirely on which rule is applied. A rule that scores
+# a quarter on what shipped in it never looks at the upgrade's cost at all. A
+# stricter marginal rule - is this quarter's work worth the extra days that
+# waiting one more quarter adds - does look at it, and still says defer for a
+# long time. Both are scored below, against the same eight quarters.
+
+# [quarter, versions behind, days to upgrade then, value of the work it displaces, why]
+[["Q1", 1, 2, 5, "launch"], ["Q2", 2, 3, 6, "incident backlog"], ["Q3", 3, 5, 6, "hiring gap"], ["Q4", 5, 8, 7, "launch"], ["Q5", 7, 12, 9, "reorg"], ["Q6", 9, 17, 8, "compliance work"], ["Q7", 12, 24, 9, "launch"], ["Q8", 15, 34, 9, "the bill"]] => quarters
+
+len(quarters) => n
+
+"quarter   versions behind   upgrade cost   value shipped if deferred" ^0
+for q in quarters:
+    "  " + q[0] + "        " + str(q[1]) + "               " + str(q[2]) + " days       " + str(q[3]) + " days (" + q[4] + ")" ^0
+"" ^0
+
+# ---- rule A: what shipped this quarter ----
+#
+# An upgrade delivers nothing a user can see in the quarter it happens, so on
+# a rule that scores the quarter on value shipped, the comparison is against
+# zero and it is not close.
+
+0 => upgrade_value_in_quarter
+0 => defers_a
+for q in quarters:
+    if q[3] > upgrade_value_in_quarter:
+        defers_a + 1 => defers_a
+"rule A - score the quarter on value shipped in it" ^0
+"  value an upgrade ships in its own quarter : " + str(upgrade_value_in_quarter) ^0
+"  quarters where deferring ships more       : " + str(defers_a) + " of " + str(n) ^0
+if defers_a == n:
+    "  the rule defers every quarter, and the upgrade's cost never enters" ^0
+    "  the comparison at all" ^0
+"" ^0
+
+# ---- rule B: the marginal cost of one more quarter ----
+#
+# The stricter rule a careful team actually uses: is this quarter's work worth
+# more than the extra days that waiting one more quarter will add?
+
+"rule B - this quarter's value against the cost that waiting adds" ^0
+0 => defers_b
+0 => scored_b
+"" => flip
+for i in [0:n - 2]:
+    quarters[i + 1][2] - quarters[i][2] => added_by_waiting
+    scored_b + 1 => scored_b
+    "" => verdict
+    if quarters[i][3] > added_by_waiting:
+        "defer" => verdict
+        defers_b + 1 => defers_b
+    else:
+        "upgrade" => verdict
+        if flip == "":
+            quarters[i][0] => flip
+    "  " + quarters[i][0] + " : value " + str(quarters[i][3]) + " against " + str(added_by_waiting) + " days added by waiting -> " + verdict ^0
+"  quarters where deferring is still correct : " + str(defers_b) + " of " + str(scored_b) ^0
+if not (flip == ""):
+    "  the first quarter the rule says upgrade : " + flip ^0
+    "  so under the stricter rule the team was right " + str(defers_b) + " times running and" ^0
+    "  wrong once, at the end" ^0
+"" ^0
+
+# ---- what the cost did while the decisions were being made ----
+
+quarters[0][2] => first_cost
+quarters[n - 1][2] => last_cost
+"the upgrade's cost across the deferrals" ^0
+"  at " + quarters[0][0] + " : " + str(first_cost) + " days, " + str(quarters[0][1]) + " version behind" ^0
+"  at " + quarters[n - 1][0] + " : " + str(last_cost) + " days, " + str(quarters[n - 1][1]) + " versions behind" ^0
+"  multiplied by " + str(int(last_cost / first_cost)) ^0
+"" ^0
+
+"cost added per quarter of waiting" ^0
+0 => prev
+for q in quarters:
+    if prev > 0:
+        "  " + q[0] + " : " + str(q[2] - prev) + " days added" ^0
+    q[2] => prev
+"  the increments grow, so waiting is not a flat carry" ^0
+"" ^0
+
+# ---- who deferred and who paid ----
+
+# [quarter, engineers on the team who made that call, how many are still here at Q8]
+[["Q1", 5, 1], ["Q2", 5, 1], ["Q3", 6, 2], ["Q4", 6, 2], ["Q5", 4, 2], ["Q6", 7, 4], ["Q7", 7, 5]] => rosters
+0 => deciders
+0 => still
+for r in rosters:
+    deciders + r[1] => deciders
+    still + r[2] => still
+"the people" ^0
+"  decisions to defer : " + str(len(rosters)) ^0
+"  engineer-decisions behind them : " + str(deciders) ^0
+"  of those, still on the team when the bill lands : " + str(still) ^0
+"  which is " + str(int(still * 100 / deciders)) + "%" ^0
+"  the " + str(last_cost) + " days are paid by a team that made " + str(int(still * 100 / deciders)) + "% of the calls" ^0
+"" ^0
+
+# ---- what a fixed allowance would have cost ----
+
+2 => allowance
+0 => steady_total
+for q in quarters:
+    steady_total + allowance => steady_total
+"upgrading every quarter within a fixed allowance" ^0
+"  allowance : " + str(allowance) + " days a quarter" ^0
+"  total across " + str(n) + " quarters : " + str(steady_total) + " days" ^0
+"  against the single bill at " + quarters[n - 1][0] + " : " + str(last_cost) + " days" ^0
+if steady_total < last_cost:
+    "  the steady version is " + str(last_cost - steady_total) + " days cheaper in total" ^0
+    "  and it never appears on any quarter's list of things that shipped" ^0
+"" ^0
+
+# ---- the control: a dependency with no breaking changes ----
+#
+# Where the versions skipped add nothing to the work, distance costs nothing
+# and deferring really is free.
+
+[["Q1", 1, 2], ["Q4", 5, 2], ["Q8", 15, 2]] => flat
+"control - a dependency whose upgrade cost does not grow with distance" ^0
+for f in flat:
+    "  " + f[0] + " : " + str(f[1]) + " versions behind, " + str(f[2]) + " days to upgrade" ^0
+flat[0][2] => f_first
+flat[len(flat) - 1][2] => f_last
+"  cost multiplied by " + str(int(f_last / f_first)) + " across the same span" ^0
+"  here every deferral really was free, and the rule that deferred them was" ^0
+"  measuring the whole cost" ^0
+"" ^0
+
+"The reasons were real and the stricter rule agreed with the team for six" ^0
+"quarters running. An upgrade's cost lands in the quarter that does it and" ^0
+"its value lands everywhere else, so the quarter is the wrong unit to ask." ^0

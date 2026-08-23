@@ -1,0 +1,158 @@
+# Self-authored for the EML case corpus (no external origin). Each service
+# team sets its own log level. The bill arrives at a team that cannot change
+# any of them. Both quantities are computed below.
+#
+# Every one of these levels was set for a reason. DEBUG went on during an
+# incident and stayed on because the incident class is not closed. The team
+# that turned it on can point at three bugs they found with it, and they are
+# right that turning it off would have cost them those three bugs.
+#
+# Log volume is decided in a service's own configuration and paid out of a
+# shared retention budget. The team choosing the level sees the diagnosis it
+# buys. The team paying sees a total, with no line item that any single
+# decision would move by much.
+#
+# Both ends are counted below.
+
+# [service, level, lines per day, bytes per line, requests per day, team]
+[["payments", "DEBUG", 240000000, 380, 900000, "payments"], ["catalog", "INFO", 9000000, 240, 4000000, "catalog"], ["notifier", "DEBUG", 88000000, 410, 120000, "growth"], ["auth", "WARN", 400000, 260, 6000000, "identity"], ["reporting", "INFO", 2000000, 300, 40000, "data"]] => services
+
+len(services) => n
+30 => retention_days
+
+def gb_stored(lines, width, days):
+    return int(lines * width * days / 1073741824)
+
+0 => total_gb
+for s in services:
+    total_gb + gb_stored(s[2], s[3], retention_days) => total_gb
+
+"services            : " + str(n) ^0
+"retention           : " + str(retention_days) + " days" ^0
+"stored right now    : " + str(total_gb) + " GB" ^0
+"" ^0
+
+"service      level   lines/day     bytes/line   GB stored   requests/day" ^0
+for s in services:
+    "  " + s[0] + "   " + s[1] + "   " + str(s[2]) + "   " + str(s[3]) + "        " + str(gb_stored(s[2], s[3], retention_days)) + "      " + str(s[4]) ^0
+"" ^0
+
+# ---- volume against size ----
+
+"lines written per 1000 requests, a unit fine enough that the quietest" ^0
+"service does not floor to zero" ^0
+for s in services:
+    "  " + s[0] + " : " + str(int(s[2] * 1000 / s[4])) + " lines per 1000 requests" ^0
+0 => loudest
+"" => loud_name
+for s in services:
+    int(s[2] * 1000 / s[4]) => per_req
+    if per_req > loudest:
+        per_req => loudest
+        s[0] => loud_name
+"  loudest : " + loud_name + " at " + str(loudest) + " lines per 1000 requests" ^0
+for s in services:
+    if s[0] == loud_name:
+        "  its traffic : " + str(s[4]) + " requests a day" ^0
+0 => busiest
+"" => busy_name
+for s in services:
+    if s[4] > busiest:
+        s[4] => busiest
+        s[0] => busy_name
+"  busiest service : " + busy_name + " at " + str(busiest) + " requests a day" ^0
+if not (loud_name == busy_name):
+    "  the loudest service is not the busiest one, so volume here is a" ^0
+    "  configuration choice rather than a consequence of traffic" ^0
+"" ^0
+
+# ---- who spends and who is billed ----
+
+"share of the stored bytes, by the team that set the level" ^0
+for s in services:
+    gb_stored(s[2], s[3], retention_days) => g
+    "  " + s[5] + " : " + str(g) + " GB, " + str(int(g * 100 / total_gb)) + "%" ^0
+"  the retention bill is paid by : platform" ^0
+0 => platform_share
+for s in services:
+    if s[5] == "platform":
+        platform_share + gb_stored(s[2], s[3], retention_days) => platform_share
+"  bytes platform itself wrote : " + str(platform_share) + " GB" ^0
+"  levels platform can change  : 0" ^0
+"" ^0
+
+# ---- what the debug lines were for ----
+
+# [service, level, bugs found with it, times anyone queried these logs per month]
+[["payments", "DEBUG", 3, 6], ["notifier", "DEBUG", 1, 0]] => debuggers
+"what the DEBUG output bought" ^0
+for d in debuggers:
+    "  " + d[0] + " : " + str(d[2]) + " bugs found, logs queried " + str(d[3]) + " times a month" ^0
+0 => never_read
+for d in debuggers:
+    if d[3] == 0:
+        never_read + 1 => never_read
+        for s in services:
+            if s[0] == d[0]:
+                "  " + d[0] + " stores " + str(gb_stored(s[2], s[3], retention_days)) + " GB that nobody has queried" ^0
+"  services at DEBUG whose logs are never read : " + str(never_read) + " of " + str(len(debuggers)) ^0
+"  finding three bugs is a real return, and it is not the same fact as" ^0
+"  whether the volume is still being used" ^0
+"" ^0
+
+# ---- what a shorter window would do ----
+
+7 => shorter
+0 => shorter_gb
+for s in services:
+    shorter_gb + gb_stored(s[2], s[3], shorter) => shorter_gb
+"the same levels at " + str(shorter) + " days of retention" ^0
+"  stored : " + str(total_gb) + " GB -> " + str(shorter_gb) + " GB" ^0
+"  reduction : " + str(int((total_gb - shorter_gb) * 100 / total_gb)) + "%" ^0
+"  levels changed : 0" ^0
+"  this is the only lever the paying team actually holds, and it is the one" ^0
+"  that does not distinguish between the useful lines and the rest" ^0
+"" ^0
+
+# ---- what a per-team budget would do ----
+
+"the same bill, split to the team that set the level" ^0
+for s in services:
+    gb_stored(s[2], s[3], retention_days) => g
+    "  " + s[5] + " : " + str(g) + " GB" ^0
+"  under a shared budget every team's incentive is to log more, because the" ^0
+"  diagnosis is theirs and the storage is everyone's" ^0
+"  under a split budget the same DEBUG decision is still available, and it" ^0
+"  is made by someone who can see what it costs" ^0
+"" ^0
+
+# ---- the control: a service whose team owns its own retention ----
+#
+# Where the team that sets the level also pays for the storage, the level and
+# the bill are two views of one decision.
+
+# [service, level, lines/day, bytes/line, requests/day, sets the level, pays the bill]
+[["auth", "WARN", 400000, 260, 6000000, "identity", "identity"]] => owned
+for o in owned:
+    "control - " + o[0] + " at " + o[1] + ", level set by " + o[5] + ", billed to " + o[6] ^0
+    "  stored : " + str(gb_stored(o[2], o[3], retention_days)) + " GB" ^0
+    0 => busier
+    for s in services:
+        if s[4] > o[4]:
+            busier + 1 => busier
+    "  services here busier than it : " + str(busier) + " of " + str(n) ^0
+    int(o[2] * 1000 / o[4]) => own_rate
+    0 => quieter
+    for s in services:
+        if int(s[2] * 1000 / s[4]) < own_rate:
+            quieter + 1 => quieter
+    "  lines per 1000 requests : " + str(own_rate) + ", with " + str(quieter) + " services below it" ^0
+    if quieter == 0:
+        "  so it is the busiest service here and the quietest writer" ^0
+    "  nothing stops it going to DEBUG, and the team that would do it is the" ^0
+    "  team that would see the number move" ^0
+"" ^0
+
+"Every level here was set for a reason and DEBUG really did find those bugs." ^0
+"A log level is chosen in one team's configuration and paid out of another" ^0
+"team's budget, and only one of those two can see both numbers." ^0

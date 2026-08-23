@@ -1,0 +1,113 @@
+# Self-authored for the EML case corpus (no external origin). CI runners went
+# from 8 to 24 and the median wait is back where it started. What changed in
+# between is computed below, and it is not the amount of code.
+#
+# Tripling the runners was correct. The wait was eleven minutes, engineers
+# were batching unrelated changes into one push to avoid paying it twice, and
+# that batching was making review harder and bisection worse. Buying runners
+# to remove a queue that is distorting how people work is a good use of money,
+# and the wait did drop to a minute immediately.
+#
+# Pushing is a decision and the cost of pushing was the queue. Removing the
+# cost removed the reason to batch, so the same work now arrives as more,
+# smaller pushes. That is the outcome the purchase was arguing for. It is also
+# what consumes the capacity that produced it.
+#
+# The queue is measured, not modelled - it is the observed median from the CI
+# logs, in the data below. Utilisation is computed from it.
+
+# [month, runners, pushes/day, commits per 10 pushes, minutes per run, observed median queue]
+[["Jan", 8, 210, 40, 17, 11], ["Feb", 8, 220, 40, 17, 13], ["Mar", 24, 225, 40, 17, 1], ["Apr", 24, 390, 22, 17, 3], ["May", 24, 560, 15, 17, 8], ["Jun", 24, 630, 14, 17, 12]] => months
+
+len(months) => n
+months[0] => first
+months[n - 1] => last
+480 => minutes_open
+
+def utilisation(pushes, mins, runners):
+    return int(pushes * mins * 100 / (runners * minutes_open))
+
+"month   runners   pushes/day   commits/10 pushes   commits/day   queue min   utilisation" ^0
+for m in months:
+    "  " + m[0] + "     " + str(m[1]) + "        " + str(m[2]) + "          " + str(m[3]) + "              " + str(int(m[2] * m[3] / 10)) + "          " + str(m[5]) + "          " + str(utilisation(m[2], m[4], m[1])) + "%" ^0
+"" ^0
+
+"runners     : " + str(first[1]) + " -> " + str(last[1]) + ", multiplied by " + str(int(last[1] / first[1])) ^0
+"pushes/day  : " + str(first[2]) + " -> " + str(last[2]) + ", " + str(int(last[2] * 100 / first[2])) + " per 100" ^0
+"commits/day : " + str(int(first[2] * first[3] / 10)) + " -> " + str(int(last[2] * last[3] / 10)) + ", " + str(int(int(last[2] * last[3] / 10) * 100 / (int(first[2] * first[3] / 10)))) + " per 100" ^0
+"queue       : " + str(first[5]) + " -> " + str(last[5]) + " minutes" ^0
+"utilisation : " + str(utilisation(first[2], first[4], first[1])) + "% -> " + str(utilisation(last[2], last[4], last[1])) + "%" ^0
+"" ^0
+
+# ---- what grew and what did not ----
+
+int((int(last[2] * last[3] / 10) - int(first[2] * first[3] / 10)) * 100 / (int(first[2] * first[3] / 10))) => commit_growth
+int((last[2] - first[2]) * 100 / first[2]) => push_growth
+"the two demand measures" ^0
+for m in months:
+    "  " + m[0] + " : " + str(m[2]) + " pushes carrying " + str(int(m[2] * m[3] / 10)) + " commits" ^0
+"  pushes grew  : " + str(push_growth) + "%" ^0
+"  commits grew : " + str(commit_growth) + "%" ^0
+if commit_growth < push_growth:
+    "  the work moved by " + str(commit_growth) + "% and the number of submissions by " + str(push_growth) + "%," ^0
+    "  which is the batching coming apart rather than the team writing more" ^0
+"" ^0
+
+# ---- the batch size was a price signal ----
+
+"commits per push against the queue in the same month" ^0
+for m in months:
+    "  " + m[0] + " : queue " + str(m[5]) + " min, batch " + str(m[3]) + " commits per 10 pushes" ^0
+"  the batch falls as the queue falls and does not recover when it returns," ^0
+"  because by then pushing small is the habit" ^0
+"" ^0
+
+# ---- what the smaller pushes bought ----
+
+"what the change of shape is worth, and it is not nothing" ^0
+"  commits per push : " + str(int(first[3] / 10)) + " -> " + str(int(last[3] * 10 / 100)) + " (" + str(last[3]) + " per 10 pushes)" ^0
+"  a red run now implicates " + str(int(last[3] / 10)) + " commit rather than " + str(int(first[3] / 10)) ^0
+"  commits a reviewer sees at once : " + str(int(first[3] / 10)) + " -> " + str(int(last[3] / 10)) ^0
+"  this is exactly the improvement the purchase argued for, and it is real" ^0
+"  and permanent, unlike the queue time" ^0
+"" ^0
+
+# ---- what it costs to hold ----
+
+"runner-minutes" ^0
+for m in months:
+    "  " + m[0] + " : demand " + str(m[2] * m[4]) + ", capacity " + str(m[1] * minutes_open) ^0
+"  " + last[0] + " utilisation : " + str(utilisation(last[2], last[4], last[1])) + "%" ^0
+"  " + first[0] + " utilisation : " + str(utilisation(first[2], first[4], first[1])) + "%" ^0
+"  three times the runners are running at close to the load the original" ^0
+"  eight were running at" ^0
+"" ^0
+
+# ---- what the next request would cite ----
+
+"if the queue is used as the trigger a second time" ^0
+"  queue then : " + str(first[5]) + " minutes on " + str(first[1]) + " runners serving " + str(first[2]) + " pushes" ^0
+"  queue now  : " + str(last[5]) + " minutes on " + str(last[1]) + " runners serving " + str(last[2]) + " pushes" ^0
+"  the queue differs by " + str(first[5] - last[5]) + " minute and the system differs by " + str(last[1] - first[1]) + " runners" ^0
+"  and " + str(last[2] - first[2]) + " pushes a day" ^0
+"  a request citing only the queue cites a number that came back, from a" ^0
+"  system that did not go back" ^0
+"" ^0
+
+# ---- the control: pushes that are not discretionary ----
+#
+# Where every run is a release cut on a fixed calendar, capacity cannot change
+# the arrival rate, and the headroom stays where it was put.
+
+[["Jan", 4, 20, 1, 22, 6], ["Jun", 12, 21, 1, 22, 0]] => scheduled
+"control - a release repository cut on a fixed calendar" ^0
+for s in scheduled:
+    "  " + s[0] + " : " + str(s[1]) + " runners, " + str(s[2]) + " runs, queue " + str(s[5]) + " min, utilisation " + str(utilisation(s[2], s[4], s[1])) + "%" ^0
+"  runs grew " + str(int((scheduled[1][2] - scheduled[0][2]) * 100 / scheduled[0][2])) + "% while runners grew " + str(int((scheduled[1][1] - scheduled[0][1]) * 100 / scheduled[0][1])) + "%" ^0
+"  the arrival rate is set by the release calendar rather than by what it" ^0
+"  costs to push, so the extra runners are still spare six months later" ^0
+"" ^0
+
+"Tripling the runners was right and the batching it removed was a real cost" ^0
+"that has stayed removed. The queue was the price of pushing, so removing it" ^0
+"changed how often people push: " + str(commit_growth) + "% more work in " + str(push_growth) + "% more runs." ^0

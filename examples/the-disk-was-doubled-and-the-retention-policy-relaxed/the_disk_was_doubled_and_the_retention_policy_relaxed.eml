@@ -1,0 +1,149 @@
+# Self-authored for the EML case corpus (no external origin). Storage was
+# doubled and was full again in four months. Whether the data rate grew is
+# computed below, separately from whether the policy did.
+#
+# Doubling the disk was the right call. The array was at 94%, deletion was
+# being done by hand under time pressure, and two people had spent a weekend
+# choosing what to drop. Buying capacity to stop that happening is exactly
+# what capacity is for.
+#
+# Retention was set to 30 days when 30 days was what fitted. It was not a
+# finding about how long anybody needs data - it was a finding about how much
+# disk there was. When the disk grew, the constraint that had produced the
+# number went away, and the number moved without anybody deciding to change a
+# policy.
+#
+# The bytes arriving and the bytes kept are computed separately below.
+
+# [month, TB capacity, retention days, GB arriving per day, TB used]
+[["Jan", 40, 30, 1200, 36], ["Feb", 40, 30, 1240, 37], ["Mar", 80, 30, 1250, 37], ["Apr", 80, 60, 1260, 74], ["May", 80, 60, 1280, 75], ["Jun", 80, 90, 1290, 79]] => months
+
+len(months) => n
+months[0] => first
+months[n - 1] => last
+
+"month   capacity TB   retention   GB/day arriving   TB used   percent full" ^0
+for m in months:
+    "  " + m[0] + "     " + str(m[1]) + "            " + str(m[2]) + "          " + str(m[3]) + "              " + str(m[4]) + "        " + str(int(m[4] * 100 / m[1])) + "%" ^0
+"" ^0
+
+"capacity  : " + str(first[1]) + " -> " + str(last[1]) + " TB, multiplied by " + str(int(last[1] / first[1])) ^0
+"used      : " + str(first[4]) + " -> " + str(last[4]) + " TB" ^0
+"percent full : " + str(int(first[4] * 100 / first[1])) + "% -> " + str(int(last[4] * 100 / last[1])) + "%" ^0
+"" ^0
+
+# ---- the rate against the policy ----
+
+"how much data arrives" ^0
+"  " + first[0] + " : " + str(first[3]) + " GB a day" ^0
+"  " + last[0] + " : " + str(last[3]) + " GB a day" ^0
+"  growth : " + str(int((last[3] - first[3]) * 100 / first[3])) + "%" ^0
+"" ^0
+"how long it is kept" ^0
+"  " + first[0] + " : " + str(first[2]) + " days" ^0
+"  " + last[0] + " : " + str(last[2]) + " days" ^0
+"  growth : " + str(int((last[2] - first[2]) * 100 / first[2])) + "%" ^0
+"" ^0
+
+# ---- which of the two filled the disk ----
+
+first[3] * last[2] => rate_held
+last[3] * first[2] => policy_held
+"the same six months under each variable held fixed" ^0
+"  arrival rate held at " + str(first[3]) + " GB/day, retention as it moved : " + str(int(rate_held / 1000)) + " TB" ^0
+"  retention held at " + str(first[2]) + " days, arrival as it moved     : " + str(int(policy_held / 1000)) + " TB" ^0
+"  actual : " + str(last[4]) + " TB" ^0
+"  capacity : " + str(last[1]) + " TB" ^0
+if int(policy_held / 1000) < last[1]:
+    "  with the policy held, the doubled disk is still under half full" ^0
+if int(rate_held / 1000) > first[1]:
+    "  with the rate held, the policy alone overruns the original array" ^0
+"" ^0
+
+# ---- when each retention change happened ----
+
+"every change to the retention setting" ^0
+0 => prev
+"" => prev_name
+0 => prev_used
+0 => prev_cap
+for m in months:
+    if prev > 0:
+        if not (m[2] == prev):
+            "  " + m[0] + " : " + str(prev) + " -> " + str(m[2]) + " days" ^0
+            "    the month before (" + prev_name + ") the array was " + str(prev_cap) + " TB and " + str(int(prev_used * 100 / prev_cap)) + "% full" ^0
+    m[2] => prev
+    m[0] => prev_name
+    m[4] => prev_used
+    m[1] => prev_cap
+0 => roomy
+0 => tight
+0 => prev2
+0 => used2
+0 => cap2
+for m in months:
+    if prev2 > 0:
+        if not (m[2] == prev2):
+            if used2 * 2 < cap2:
+                roomy + 1 => roomy
+            else:
+                tight + 1 => tight
+    m[2] => prev2
+    m[4] => used2
+    m[1] => cap2
+"  changes made with the array under half full : " + str(roomy) ^0
+"  changes made with it already over half full : " + str(tight) ^0
+if tight > 0:
+    "  so they are not the same decision twice: the first was taken because" ^0
+    "  the space was there, and the second because it was running out, which" ^0
+    "  is the first one's consequence arriving" ^0
+"  neither was a review of how long the data is needed for" ^0
+"" ^0
+
+# ---- what the 30 days was ----
+
+"where the original number came from" ^0
+first[3] * first[2] => needed
+"  30 days at " + str(first[3]) + " GB/day : " + str(int(needed / 1000)) + " TB" ^0
+"  array at the time              : " + str(first[1]) + " TB" ^0
+"  headroom                       : " + str(first[1] - int(needed / 1000)) + " TB" ^0
+"  the policy was the largest window that fitted, so it recorded the disk" ^0
+"  size rather than a requirement" ^0
+"" ^0
+
+# ---- what anyone actually reads ----
+
+# [age of data in days, queries per month against it]
+[[1, 41000], [7, 9000], [30, 700], [60, 40], [90, 3]] => reads
+"queries per month, by how old the data is" ^0
+0 => total_reads
+for r in reads:
+    total_reads + r[1] => total_reads
+for r in reads:
+    "  " + str(r[0]) + " days old : " + str(r[1]) + " queries, " + str(int(r[1] * 1000 / total_reads)) + " per 1000" ^0
+0 => beyond30
+for r in reads:
+    if r[0] > 30:
+        beyond30 + r[1] => beyond30
+"  queries against data older than 30 days : " + str(beyond30) + ", " + str(int(beyond30 * 1000 / total_reads)) + " per 1000" ^0
+"  the two retention extensions cover " + str(int(beyond30 * 1000 / total_reads)) + " queries in a thousand and" ^0
+"  " + str(last[4] - int(policy_held / 1000)) + " TB of the array" ^0
+"" ^0
+
+# ---- the control: a store whose retention is set by law ----
+#
+# Where the window is fixed outside the team, adding disk adds headroom and
+# the headroom stays.
+
+[["Jan", 10, 2555, 9], ["Jun", 20, 2555, 9]] => legal
+"control - an archive with a seven-year statutory window" ^0
+for l in legal:
+    "  " + l[0] + " : " + str(l[1]) + " TB capacity, " + str(l[2]) + " days retention, " + str(l[3]) + " TB used, " + str(int(l[3] * 100 / l[1])) + "% full" ^0
+if legal[0][2] == legal[1][2]:
+    "  retention did not move, because it is not the team's to move" ^0
+    "  doubling the disk took it from " + str(int(legal[0][3] * 100 / legal[0][1])) + "% to " + str(int(legal[1][3] * 100 / legal[1][1])) + "% full and left it there" ^0
+"" ^0
+
+"Buying disk to stop weekend deletions was correct and it stopped them." ^0
+"The 30 days was a measurement of the old array, so doubling the array" ^0
+"moved the policy, and the arrival rate grew " + str(int((last[3] - first[3]) * 100 / first[3])) + "% across the same period." ^0

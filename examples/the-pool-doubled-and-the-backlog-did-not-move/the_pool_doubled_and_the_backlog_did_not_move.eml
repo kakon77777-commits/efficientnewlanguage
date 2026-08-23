@@ -1,0 +1,154 @@
+# Self-authored for the EML case corpus (no external origin). The worker pool
+# was doubled and the overnight backlog is the same length it was. What
+# changed and what did not are computed below.
+#
+# Doubling the pool was correct and it worked. February overran the window by
+# six minutes, the request was made on that measurement, throughput really did
+# double, and in March the run finished in less than half the time. Nobody was
+# mistaken about the capacity.
+#
+# The batch that feeds the pool is sized by the operator to whatever finishes
+# in the window. That rule is sensible - it is how you avoid a batch still
+# running at nine in the morning - and it means the batch grows whenever the
+# window stops binding. Capacity added to a system whose input is sized by its
+# own output does not shorten the queue, it enlarges the work.
+#
+# Times are computed in minutes, because at hourly resolution an overrun and
+# an on-time finish round to the same number.
+
+# [month, workers, jobs submitted, seconds per job, window minutes, backlog at 09:00]
+[["Jan", 20, 40000, 16, 540, 0], ["Feb", 20, 41000, 16, 540, 0], ["Mar", 40, 41000, 16, 540, 0], ["Apr", 40, 62000, 16, 540, 0], ["May", 40, 78000, 16, 540, 0], ["Jun", 40, 81000, 16, 540, 0]] => months
+
+len(months) => n
+
+def runtime(jobs, workers, secs):
+    return int(jobs * secs / (workers * 60))
+
+"month   workers   jobs      minutes to finish   window   slack   backlog" ^0
+for m in months:
+    "  " + m[0] + "     " + str(m[1]) + "        " + str(m[2]) + "     " + str(runtime(m[2], m[1], m[3])) + "                " + str(m[4]) + "      " + str(m[4] - runtime(m[2], m[1], m[3])) + "      " + str(m[5]) ^0
+"" ^0
+
+months[0] => first
+months[n - 1] => last
+"capacity : " + str(first[1]) + " -> " + str(last[1]) + " workers, multiplied by " + str(int(last[1] / first[1])) ^0
+"jobs     : " + str(first[2]) + " -> " + str(last[2]) + ", " + str(int(last[2] * 100 / first[2])) + " per 100" ^0
+"runtime  : " + str(runtime(first[2], first[1], first[3])) + " -> " + str(runtime(last[2], last[1], last[3])) + " minutes" ^0
+"backlog  : " + str(first[5]) + " -> " + str(last[5]) ^0
+"" ^0
+
+# ---- the month that motivated the request ----
+
+"the month the window was breached" ^0
+0 => over
+for m in months:
+    if runtime(m[2], m[1], m[3]) > m[4]:
+        over + 1 => over
+        "  " + m[0] + " : ran " + str(runtime(m[2], m[1], m[3])) + " minutes into a " + str(m[4]) + "-minute window, over by " + str(runtime(m[2], m[1], m[3]) - m[4]) ^0
+"  months over the window : " + str(over) + " of " + str(n) ^0
+"  at hourly resolution that month reads as 9 hours against a 9-hour window," ^0
+"  which is the same number an on-time finish produces" ^0
+"" ^0
+
+# ---- either side of the change ----
+
+"the three months around the doubling" ^0
+for m in months:
+    if m[0] == "Feb":
+        "  " + m[0] + " : " + str(m[1]) + " workers, " + str(m[2]) + " jobs, " + str(runtime(m[2], m[1], m[3])) + " minutes" ^0
+    if m[0] == "Mar":
+        "  " + m[0] + " : " + str(m[1]) + " workers, " + str(m[2]) + " jobs, " + str(runtime(m[2], m[1], m[3])) + " minutes" ^0
+    if m[0] == "Apr":
+        "  " + m[0] + " : " + str(m[1]) + " workers, " + str(m[2]) + " jobs, " + str(runtime(m[2], m[1], m[3])) + " minutes" ^0
+"  March doubled the pool with the batch unchanged, and the runtime halved" ^0
+"  April resized the batch to a window that had stopped binding" ^0
+"" ^0
+
+# ---- what happened to the slack ----
+
+"slack, month by month" ^0
+0 => peak_slack
+"" => peak_month
+for m in months:
+    m[4] - runtime(m[2], m[1], m[3]) => sl
+    "  " + m[0] + " : " + str(sl) + " minutes" ^0
+    if sl > peak_slack:
+        sl => peak_slack
+        m[0] => peak_month
+"" => spent
+0 => seen_peak
+for m in months:
+    if m[0] == peak_month:
+        1 => seen_peak
+    if seen_peak == 1:
+        if spent == "":
+            if not (m[0] == peak_month):
+                if m[4] - runtime(m[2], m[1], m[3]) < 1:
+                    m[0] => spent
+"  peak slack : " + str(peak_slack) + " minutes in " + peak_month ^0
+if not (spent == ""):
+    "  back to nothing by : " + spent ^0
+    "  so the headroom the doubling bought lasted from " + peak_month + " to " + spent ^0
+"  it was not consumed by demand, it was consumed by a batch size that is a" ^0
+"  decision rather than an input" ^0
+"" ^0
+
+# ---- what actually grew ----
+
+"jobs per worker, which takes the capacity change out" ^0
+for m in months:
+    "  " + m[0] + " : " + str(int(m[2] / m[1])) + " jobs per worker" ^0
+int(first[2] / first[1]) => per_first
+int(last[2] / last[1]) => per_last
+int((per_last - per_first) * 100 / per_first) => drift
+"  " + first[0] + " " + str(per_first) + " -> " + last[0] + " " + str(per_last) + ", a change of " + str(drift) + "%" ^0
+if drift < 5:
+    "  per-worker load is back within " + str(drift) + "% of where it was before the pool" ^0
+    "  doubled, which is what it means for demand to have absorbed the" ^0
+    "  capacity completely" ^0
+"" ^0
+
+# ---- the case that was made ----
+
+"the request for more capacity, checked step by step" ^0
+for m in months:
+    if m[0] == "Feb":
+        "  measured  : the run overran by " + str(runtime(m[2], m[1], m[3]) - m[4]) + " minutes" ^0
+    if m[0] == "Mar":
+        "  predicted : " + str(runtime(m[2], m[1], m[3])) + " minutes at double the pool" ^0
+        "  observed  : " + str(runtime(m[2], m[1], m[3])) + " minutes, in the first month" ^0
+"  observed now : " + str(runtime(last[2], last[1], last[3])) + " minutes" ^0
+"  every step of that reasoning was correct and the prediction held for" ^0
+"  exactly as long as the batch size was held" ^0
+"" ^0
+
+# ---- the quantity nobody has ----
+
+"what would settle it" ^0
+"  jobs the business needs run : not measured anywhere" ^0
+"  jobs submitted              : " + str(last[2]) ^0
+"  rule setting that number    : whatever finishes before morning" ^0
+"  under that rule capacity and demand are one variable, so a request for" ^0
+"  more of the first is a request for more of the second" ^0
+"" ^0
+
+# ---- the control: a batch whose size is fixed elsewhere ----
+#
+# Where the input is a fixed daily export that exists whatever the pool does,
+# doubling the pool halves the time and it stays halved.
+
+[["Jan", 20, 12000, 16, 540], ["Jun", 40, 12300, 16, 540]] => fixed
+"control - a second pipeline fed by a fixed daily export" ^0
+for f in fixed:
+    "  " + f[0] + " : " + str(f[1]) + " workers, " + str(f[2]) + " jobs, " + str(runtime(f[2], f[1], f[3])) + " minutes, slack " + str(f[4] - runtime(f[2], f[1], f[3])) ^0
+fixed[0] => c_first
+fixed[1] => c_last
+"  jobs grew " + str(int((c_last[2] - c_first[2]) * 100 / c_first[2])) + "%, capacity grew " + str(int((c_last[1] - c_first[1]) * 100 / c_first[1])) + "%" ^0
+"  runtime " + str(runtime(c_first[2], c_first[1], c_first[3])) + " -> " + str(runtime(c_last[2], c_last[1], c_last[3])) + " minutes, and it stayed there" ^0
+"  the input is a fact about the world rather than a decision about the" ^0
+"  window, so the extra capacity is still extra capacity six months on" ^0
+"" ^0
+
+"Doubling the pool worked and the throughput measurement was correct." ^0
+"The batch is sized to whatever finishes before morning, so the window fills" ^0
+"by construction and the backlog is " + str(last[5]) + " either way." ^0
