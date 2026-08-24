@@ -1,0 +1,118 @@
+# Self-authored for the EML case corpus (no external origin). A compatibility
+# shim translates between an old schema and a new one. One person maintains it
+# by hand. What that does to the migration is computed below.
+#
+# The shim is good work. It has carried every field correctly for two years, it
+# handles four edge cases the automated converter never did, and writing it was
+# the right call - without it the cutover would have needed every consumer
+# migrated in one weekend, which is how the previous attempt failed.
+#
+# A migration finishes when the old path stops working. The shim's whole
+# purpose is to keep it working. So every quarter the shim is maintained is a
+# quarter in which no consumer has to move, and the person keeping the old
+# path alive is the reason the new one is still optional.
+#
+# Consumers are counted by which schema they read, each quarter.
+
+# [quarter, consumers on old schema, on new schema, shim edge cases, days he spent on the shim]
+[["Q1", 14, 0, 2, 9], ["Q2", 12, 2, 3, 7], ["Q3", 11, 3, 3, 6], ["Q4", 11, 3, 4, 8], ["Q5", 10, 4, 4, 7], ["Q6", 10, 4, 4, 6], ["Q7", 10, 4, 5, 9], ["Q8", 9, 5, 5, 8]] => quarters
+
+len(quarters) => n
+quarters[0] => first
+quarters[n - 1] => last
+
+"quarter   on old   on new   shim edge cases   his days on the shim" ^0
+for q in quarters:
+    "  " + q[0] + "        " + str(q[1]) + "        " + str(q[2]) + "        " + str(q[3]) + "                 " + str(q[4]) ^0
+"" ^0
+
+0 => shim_days
+for q in quarters:
+    shim_days + q[4] => shim_days
+"consumers moved across " + str(n) + " quarters : " + str(last[2] - first[2]) ^0
+"consumers still on the old schema  : " + str(last[1]) ^0
+"his days spent on the shim         : " + str(shim_days) ^0
+"" ^0
+
+# ---- the rate ----
+
+"migration rate" ^0
+"  quarters elapsed : " + str(n) ^0
+"  consumers moved  : " + str(last[2] - first[2]) ^0
+"  remaining        : " + str(last[1]) ^0
+"  quarters to finish at the observed rate : " + str(int(last[1] * n / (last[2] - first[2]))) ^0
+"  which is " + str(int(last[1] * n / (last[2] - first[2]) / 4)) + " years" ^0
+"" ^0
+
+# ---- what a consumer's incentive looks like ----
+
+"the decision a consumer team makes each quarter" ^0
+"  cost of migrating now      : 4 to 12 days of their own work" ^0
+"  cost of not migrating now  : 0, the shim carries them" ^0
+"  date the old path stops working : not set" ^0
+"  every one of those teams is making the correct call with the information" ^0
+"  in front of it, and the information is that nothing forces the move" ^0
+"" ^0
+
+# ---- the shim is growing ----
+
+"shim edge cases over time" ^0
+for q in quarters:
+    "  " + q[0] + " : " + str(q[3]) ^0
+"  " + str(first[3]) + " -> " + str(last[3]) + ", growing by " + str(last[3] - first[3]) + " across the period" ^0
+"  each new edge case is a behaviour the old path has that the new one must" ^0
+"  eventually reproduce, so the migration target moves every time the shim" ^0
+"  gets better at its job" ^0
+"" ^0
+
+# ---- his time, and what it is buying ----
+
+int(shim_days / n) => per_quarter
+"his days per quarter : " + str(per_quarter) ^0
+"across " + str(n) + " quarters   : " + str(shim_days) + " days" ^0
+"consumers migrated in that time : " + str(last[2] - first[2]) ^0
+"  his days per consumer migrated : " + str(int(shim_days / (last[2] - first[2]))) ^0
+"  and none of those days were spent migrating anybody - they were spent" ^0
+"  making it unnecessary" ^0
+"" ^0
+
+# ---- what a date would do ----
+
+"the same eight quarters with a shutdown date announced in Q1" ^0
+"  consumers on the old schema at Q1 : " + str(first[1]) ^0
+"  cost to migrate all of them       : " + str(first[1] * 8) + " days of consumer-team work" ^0
+"  his shim days that would not be needed : " + str(shim_days) ^0
+"  net : " + str(first[1] * 8 - shim_days) + " days more work in total" ^0
+"  so the shim is genuinely cheaper in aggregate, and it is cheaper by" ^0
+"  moving work from many teams onto one person indefinitely" ^0
+"" ^0
+
+# ---- what would end it ----
+
+"the quantity that decides when this stops" ^0
+"  consumers remaining : " + str(last[1]) + ", falls slowly" ^0
+"  shim maintenance cost : " + str(per_quarter) + " days a quarter, flat" ^0
+"  shim edge cases : " + str(last[3]) + ", rising" ^0
+"  a shutdown date : none" ^0
+"  of those four, only the last one can terminate the process, and it is" ^0
+"  the only one that is not a measurement" ^0
+"" ^0
+
+# ---- the control: a path that was switched off ----
+#
+# Where the old path was given an end date, the consumers moved and the shim
+# was deleted.
+
+[["legacy auth", 9, 2, 0]] => ended
+for e in ended:
+    "control - " + e[0] + ", shutdown announced two quarters ahead" ^0
+    "  consumers at announcement : " + str(e[1]) ^0
+    "  quarters to complete      : " + str(e[2]) ^0
+    "  shim still maintained     : " + str(e[3]) + " days a quarter" ^0
+    "  same shape of problem, same size, and the difference is that the old" ^0
+    "  path had a date on which it stopped working" ^0
+"" ^0
+
+"The shim carries every field correctly and it prevented a one-weekend" ^0
+"cutover that had already failed once. A migration ends when the old path" ^0
+"stops working, and " + str(shim_days) + " days of good work have kept it working." ^0

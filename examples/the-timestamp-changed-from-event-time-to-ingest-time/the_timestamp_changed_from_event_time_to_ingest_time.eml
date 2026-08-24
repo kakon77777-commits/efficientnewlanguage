@@ -1,0 +1,134 @@
+# Self-authored for the EML case corpus (no external origin). A field called
+# occurred_at changed from the time the event happened to the time the pipeline
+# received it. Same name, same type, same format. What moved is computed below.
+#
+# The change was made for a good reason. Producers were sending clock-skewed
+# event times, some of them from user devices, and 3% of events arrived dated
+# in the future. Stamping at ingest gives a monotonic, trustworthy value that
+# nothing upstream can corrupt, and the team that did it wrote a design note.
+#
+# Ingest time and event time are the same number whenever the pipeline is
+# keeping up. They diverge exactly when it is not. So the field agrees with
+# its old meaning on every ordinary day, and stops agreeing precisely on the
+# days anybody looks at it closely.
+#
+# Both quantities are carried, per hour of one backlog day.
+
+# [hour, events, minutes of pipeline lag, events dated into the next hour by ingest stamping]
+[["09", 41000, 0, 0], ["10", 44000, 0, 0], ["11", 46000, 4, 3000], ["12", 52000, 31, 26000], ["13", 58000, 74, 58000], ["14", 55000, 92, 55000], ["15", 47000, 40, 31000], ["16", 43000, 6, 4000]] => hours
+
+len(hours) => n
+0 => total
+0 => misdated
+for h in hours:
+    total + h[1] => total
+    misdated + h[3] => misdated
+
+"hour   events   pipeline lag   events stamped into a later hour" ^0
+for h in hours:
+    "  " + h[0] + "     " + str(h[1]) + "    " + str(h[2]) + " min        " + str(h[3]) ^0
+"" ^0
+"events that day        : " + str(total) ^0
+"stamped into the wrong hour : " + str(misdated) + ", " + str(int(misdated * 100 / total)) + "%" ^0
+"" ^0
+
+# ---- when the two meanings agree ----
+
+0 => agree_hours
+for h in hours:
+    if h[2] == 0:
+        agree_hours + 1 => agree_hours
+"hours in which the two meanings coincide" ^0
+"  lag zero : " + str(agree_hours) + " of " + str(n) ^0
+"  on those hours the field is identical under either definition" ^0
+"  on the other " + str(n - agree_hours) + " it is not, and those are the hours with a backlog" ^0
+"" ^0
+
+# ---- what each consumer computes ----
+
+"the hourly volume chart, both ways" ^0
+"hour   by event time   by ingest time   difference" ^0
+0 => prev_spill
+for h in hours:
+    h[1] - h[3] + prev_spill => by_ingest
+    "  " + h[0] + "     " + str(h[1]) + "         " + str(by_ingest) + "        " + str(by_ingest - h[1]) ^0
+    h[3] => prev_spill
+"  the chart is smooth under both definitions and it is a different chart" ^0
+"" ^0
+
+# ---- the alert that reads it ----
+
+50000 => alert_threshold
+"an alert fires when an hour exceeds " + str(alert_threshold) + " events" ^0
+0 => fires_event
+0 => fires_ingest
+0 => spill
+for h in hours:
+    if h[1] > alert_threshold:
+        fires_event + 1 => fires_event
+    h[1] - h[3] + spill => by_ingest
+    if by_ingest > alert_threshold:
+        fires_ingest + 1 => fires_ingest
+    h[3] => spill
+"  hours over the bar by event time  : " + str(fires_event) ^0
+"  hours over the bar by ingest time : " + str(fires_ingest) ^0
+"  same data, same threshold, same field name" ^0
+"" ^0
+
+# ---- the retention rule ----
+
+"records are deleted 90 days after occurred_at" ^0
+"  under event time  : 90 days after the thing happened" ^0
+"  under ingest time : 90 days after we received it" ^0
+"  for an event delayed " + str(hours[4][2]) + " minutes the difference is negligible" ^0
+"  for a replayed backfill the difference is the age of the backfill" ^0
+"  so a re-ingest of two-year-old data resets its deletion clock, and the" ^0
+"  retention rule has no way to notice" ^0
+"" ^0
+
+# ---- what the change did and did not do ----
+
+"the problem it solved" ^0
+"  events dated in the future : 3% before, 0 after" ^0
+"  clock skew from user devices : no longer reaches any consumer" ^0
+"  monotonic ordering : guaranteed, which it was not before" ^0
+"  all three of those are real and none of them came back" ^0
+"" ^0
+"what a consumer would need to notice" ^0
+"  field name change : none" ^0
+"  type change       : none" ^0
+"  new field carrying the old meaning : not added" ^0
+"  design note : written, and read by the two people in the review" ^0
+"  consumers of this field : 11" ^0
+"" ^0
+
+# ---- the fix that keeps both ----
+
+"carrying both stamps" ^0
+"  occurred_at : event time, as the name says, skew and all" ^0
+"  ingested_at : pipeline time, monotonic and trustworthy" ^0
+"  bytes added per record : 8" ^0
+"  bytes a day : " + str(total * 8) ^0
+"  consumers that would then be choosing rather than inheriting : 11" ^0
+"  the skew problem is solved by which field the ordering uses, not by" ^0
+"  redefining the one that was already named after the other thing" ^0
+"" ^0
+
+# ---- the control: a field renamed with its meaning ----
+#
+# Where the new meaning got a new name, every consumer had to say which one it
+# wanted, and the ones that did nothing kept the old behaviour.
+
+[["received_at", 11, 11, 0]] => renamed
+for r in renamed:
+    "control - the same change shipped as a new field " + r[0] ^0
+    "  consumers : " + str(r[1]) ^0
+    "  consumers that had to make a choice : " + str(r[2]) ^0
+    "  consumers that silently changed behaviour : " + str(r[3]) ^0
+    "  the identical semantic change, and the rename is what converts a" ^0
+    "  silent shift into a decision somebody makes" ^0
+"" ^0
+
+"Stamping at ingest removed real clock skew and 3% future-dated events." ^0
+"The two meanings agree whenever the pipeline keeps up, so the field only" ^0
+"disagrees with its own name on the " + str(n - agree_hours) + " hours anybody would investigate." ^0

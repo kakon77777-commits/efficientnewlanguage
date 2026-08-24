@@ -1,0 +1,118 @@
+# Self-authored for the EML case corpus (no external origin). An internal tool
+# takes many steps to do anything. Its recorded task time is good. Who produced
+# that number is computed below.
+#
+# The tool works. It has never lost data, it does things no other tool here can
+# do, and the person who uses it most has genuinely mastered it - she knows the
+# keystroke order, she knows which two screens can be skipped, and she is fast.
+# Her speed is real skill and not a trick.
+#
+# Time-per-task is measured over the people who do the task. One person does
+# 94% of them. So the tool's ergonomics are recorded through the one operator
+# who has adapted to them completely, and the measurement that would show the
+# tool is hard is taken almost entirely from the person it is no longer hard
+# for.
+#
+# Tasks are counted by operator, with the time each one takes.
+
+# [operator, tasks per month, seconds per task, months of practice]
+[["the expert", 470, 40, 38], ["second operator", 18, 220, 7], ["occasional a", 6, 480, 2], ["occasional b", 4, 520, 1], ["new starter", 2, 900, 0]] => operators
+
+len(operators) => n
+120 => review_threshold_seconds
+
+"operator            tasks/month   seconds/task   months of practice" ^0
+for o in operators:
+    "  " + o[0] + "   " + str(o[1]) + "           " + str(o[2]) + "             " + str(o[3]) ^0
+"" ^0
+
+0 => tasks
+0 => seconds
+for o in operators:
+    tasks + o[1] => tasks
+    seconds + o[1] * o[2] => seconds
+"tasks a month        : " + str(tasks) ^0
+"mean seconds per task, weighted by who does them : " + str(int(seconds / tasks)) ^0
+operators[0] => expert
+"the expert's share   : " + str(int(expert[1] * 100 / tasks)) + "%" ^0
+"" ^0
+
+# ---- the same number computed two ways ----
+
+0 => unweighted
+for o in operators:
+    unweighted + o[2] => unweighted
+"mean seconds per task" ^0
+"  weighted by task volume : " + str(int(seconds / tasks)) ^0
+"  unweighted across operators : " + str(int(unweighted / n)) ^0
+"  ratio : " + str(int(unweighted * tasks / (n * seconds))) + " to 1" ^0
+"  the first is what the dashboard shows and the second is closer to what a" ^0
+"  person newly asked to do this would experience" ^0
+"" ^0
+
+# ---- the rule that would fund the rewrite ----
+
+"the tool is queued for rework when mean task time exceeds " + str(review_threshold_seconds) + " seconds" ^0
+0 => over_weighted
+if int(seconds / tasks) > review_threshold_seconds:
+    1 => over_weighted
+0 => operators_over
+for o in operators:
+    if o[2] > review_threshold_seconds:
+        operators_over + 1 => operators_over
+"  on the weighted mean (" + str(int(seconds / tasks)) + "s) : " + str(over_weighted) ^0
+"  operators for whom a single task exceeds the bar : " + str(operators_over) + " of " + str(n) ^0
+if over_weighted == 0:
+    "  the rule does not fire, and " + str(operators_over) + " of " + str(n) + " people are over the bar every" ^0
+    "  time they touch it" ^0
+"" ^0
+
+# ---- practice against speed ----
+
+"seconds per task against months of practice" ^0
+for o in operators:
+    "  " + str(o[3]) + " months : " + str(o[2]) + "s" ^0
+operators[n - 1] => newest
+"  from " + str(newest[3]) + " months to " + str(expert[3]) + " months : " + str(newest[2]) + "s to " + str(expert[2]) + "s" ^0
+"  a factor of " + str(int(newest[2] / expert[2])) ^0
+"  that gradient is the tool's difficulty, expressed as how long it takes to" ^0
+"  stop being slowed by it" ^0
+"" ^0
+
+# ---- what the tool costs in aggregate ----
+
+int(seconds / 3600) => hours_now
+expert[2] * tasks => if_all_expert
+int(if_all_expert / 3600) => hours_if_all_expert
+"hours a month spent in this tool" ^0
+"  as it is                       : " + str(hours_now) ^0
+"  if everyone were as fast as her : " + str(hours_if_all_expert) ^0
+"  the gap is " + str(hours_now - hours_if_all_expert) + " hours, carried by the " + str(tasks - expert[1]) + " tasks she does not do" ^0
+"" ^0
+
+# ---- the concentration is a consequence, not a coincidence ----
+
+"why she does 94% of them" ^0
+"  a task takes her " + str(expert[2]) + "s and the second operator " + str(operators[1][2]) + "s" ^0
+"  so routing a task to her is " + str(int(operators[1][2] / expert[2])) + " times cheaper, every single time" ^0
+"  each individual routing decision is correct" ^0
+"  and each one adds to her practice and to nobody else's" ^0
+"" ^0
+
+# ---- the control: a tool with no learning curve ----
+#
+# Where the tool is simple, practice buys almost nothing and the recorded mean
+# is the mean anybody would produce.
+
+[["export wizard", 300, 22, 30], ["export wizard", 260, 26, 1]] => flat
+"control - a second tool, an experienced and a new operator" ^0
+for f in flat:
+    "  " + str(f[3]) + " months of practice : " + str(f[2]) + "s per task" ^0
+"  spread : " + str(flat[1][2] - flat[0][2]) + "s, against " + str(newest[2] - expert[2]) + "s for the tool above" ^0
+"  here who is holding the mouse barely moves the number, so the number is" ^0
+"  a measurement of the tool" ^0
+"" ^0
+
+"Her speed is real skill and the tool has never lost data. Task time is" ^0
+"averaged over whoever does the task, she does " + str(int(expert[1] * 100 / tasks)) + "% of them, and the bar" ^0
+"is " + str(review_threshold_seconds) + " seconds against her " + str(expert[2]) + "." ^0

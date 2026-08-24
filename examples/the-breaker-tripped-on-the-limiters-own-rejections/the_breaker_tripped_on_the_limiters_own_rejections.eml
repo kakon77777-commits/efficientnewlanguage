@@ -1,0 +1,156 @@
+# Self-authored for the EML case corpus (no external origin). A rate limiter
+# and a circuit breaker both protect the same downstream service. What each one
+# sees, and what the pair sees, are computed separately below.
+#
+# Both are correct. The rate limiter keeps the downstream inside a contract it
+# actually signed, and it has prevented three overload incidents. The circuit
+# breaker stops a failing dependency from consuming every worker, and it has
+# prevented two cascades. Either one alone is a good control, and the teams
+# that added them added them for measured reasons.
+#
+# The breaker's input is the error rate. The limiter's output, when it rejects,
+# is an error. So the limiter's own protective action is indistinguishable, at
+# the breaker's input, from the downstream failing. The two are wired in
+# series and one of them cannot tell the other's success from a fault.
+#
+# Requests are classified by what actually happened to them.
+
+# [minute, offered requests, limiter cap, downstream real failures per 100 admitted]
+[["t+0", 400, 500, 1], ["t+1", 900, 500, 1], ["t+2", 1400, 500, 1], ["t+3", 1600, 500, 1], ["t+4", 1500, 500, 1], ["t+5", 900, 500, 1]] => minutes
+
+len(minutes) => n
+50 => breaker_threshold
+
+def admitted(offered, cap):
+    if offered < cap:
+        return offered
+    return cap
+
+"minute   offered   admitted   rejected by limiter   downstream failures   breaker sees" ^0
+0 => trips
+for m in minutes:
+    admitted(m[1], m[2]) => adm
+    m[1] - adm => rej
+    int(adm * m[3] / 100) => real_fail
+    int((rej + real_fail) * 100 / m[1]) => seen
+    "" => verdict
+    if seen >= breaker_threshold:
+        "OPEN" => verdict
+        trips + 1 => trips
+    else:
+        "closed" => verdict
+    "  " + m[0] + "     " + str(m[1]) + "      " + str(adm) + "        " + str(rej) + "                  " + str(real_fail) + "                   " + str(seen) + "% " + verdict ^0
+"" ^0
+
+"breaker threshold : " + str(breaker_threshold) + "% error rate" ^0
+"minutes the breaker opened : " + str(trips) + " of " + str(n) ^0
+"" ^0
+
+# ---- what the breaker was actually reacting to ----
+
+0 => total_rej
+0 => total_real
+for m in minutes:
+    admitted(m[1], m[2]) => adm
+    total_rej + (m[1] - adm) => total_rej
+    total_real + int(adm * m[3] / 100) => total_real
+"across the window" ^0
+"  errors from the limiter doing its job : " + str(total_rej) ^0
+"  errors from the downstream failing    : " + str(total_real) ^0
+"  the breaker counts both as one number : " + str(total_rej + total_real) ^0
+if total_rej > total_real:
+    "  " + str(int(total_rej * 100 / (total_rej + total_real))) + "% of what tripped the breaker was the other safeguard working" ^0
+"" ^0
+
+# ---- what happens after the breaker opens ----
+
+"the state the pair reaches" ^0
+"  breaker open  : no traffic reaches the downstream" ^0
+"  limiter sees  : offered load unchanged, it is upstream of the breaker" ^0
+"  downstream    : idle, and healthy, and receiving nothing" ^0
+"  the breaker's close condition is a fall in the error rate, and the error" ^0
+"  rate is now produced entirely by the limiter, which is not affected by" ^0
+"  the breaker being open" ^0
+"" ^0
+
+# ---- how it recovers, and on what ----
+
+"what would close the breaker" ^0
+for m in minutes:
+    if m[1] < m[2]:
+        admitted(m[1], m[2]) => adm
+        int((m[1] - adm + int(adm * m[3] / 100)) * 100 / m[1]) => seen
+        "  " + m[0] + " : offered " + str(m[1]) + " under the cap " + str(m[2]) + ", error rate " + str(seen) + "%" ^0
+"  so it closes when offered load falls below the cap, which is a property" ^0
+"  of the callers rather than of the downstream's health" ^0
+"" ^0
+
+# ---- each safeguard alone ----
+
+"the same six minutes with only the limiter" ^0
+0 => lim_only_served
+for m in minutes:
+    lim_only_served + admitted(m[1], m[2]) => lim_only_served
+"  requests served : " + str(lim_only_served) ^0
+"  downstream load : never above " + str(minutes[0][2]) ^0
+"" ^0
+"the same six minutes with only the breaker" ^0
+0 => brk_only_served
+0 => brk_trips
+for m in minutes:
+    if m[3] >= breaker_threshold:
+        brk_trips + 1 => brk_trips
+    else:
+        brk_only_served + m[1] => brk_only_served
+"  requests served : " + str(brk_only_served) ^0
+"  breaker trips   : " + str(brk_trips) + ", because the real failure rate is " + str(minutes[0][3]) + "%" ^0
+"" ^0
+0 => both_served
+for m in minutes:
+    admitted(m[1], m[2]) => adm
+    int((m[1] - adm + int(adm * m[3] / 100)) * 100 / m[1]) => seen
+    if seen < breaker_threshold:
+        both_served + adm => both_served
+"the two together" ^0
+"  requests served : " + str(both_served) ^0
+"  limiter alone   : " + str(lim_only_served) ^0
+"  breaker alone   : " + str(brk_only_served) ^0
+if both_served < lim_only_served:
+    "  the pair serves " + str(lim_only_served - both_served) + " fewer than the weaker-looking single control" ^0
+"" ^0
+
+# ---- what would separate the two error kinds ----
+
+"what the breaker would need" ^0
+"  a rejection carries : HTTP 429, generated locally, downstream untouched" ^0
+"  a real failure carries : HTTP 5xx, generated downstream" ^0
+"  the two are distinguishable at the point the breaker samples" ^0
+"  sites where the breaker's input filters on that distinction : 0" ^0
+"  the information is present and the control does not read it" ^0
+"" ^0
+
+# ---- the control: a breaker that counts only downstream errors ----
+#
+# Where the breaker's input excludes locally generated rejections, each
+# safeguard reacts only to what it is for.
+
+"control - the same six minutes, breaker counting 5xx only" ^0
+0 => fixed_served
+0 => fixed_trips
+for m in minutes:
+    admitted(m[1], m[2]) => adm
+    if m[3] >= breaker_threshold:
+        fixed_trips + 1 => fixed_trips
+    else:
+        fixed_served + adm => fixed_served
+"  breaker trips   : " + str(fixed_trips) ^0
+"  requests served : " + str(fixed_served) ^0
+"  against " + str(both_served) + " with the shared counter" ^0
+if fixed_served > both_served:
+    "  the same two controls, the same load, " + str(fixed_served - both_served) + " more requests served," ^0
+    "  and the only change is which errors the breaker is allowed to see" ^0
+"" ^0
+
+"Both controls are correct and each has prevented real incidents. They are" ^0
+"wired in series, and the first one's success looks exactly like the second" ^0
+"one's fault at the point where the second one decides." ^0

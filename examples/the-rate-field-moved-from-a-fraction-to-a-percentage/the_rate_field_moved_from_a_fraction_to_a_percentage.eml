@@ -1,0 +1,115 @@
+# Self-authored for the EML case corpus (no external origin). A discount_rate
+# field carried 0.15 and now carries 15. Same name, same numeric type. Which
+# consumers noticed is computed below.
+#
+# The change was a reasonable one. Every human-facing surface was multiplying
+# by 100 before display, three of them had rounded differently, and one had
+# shown 14.999999999999998 to a customer. Storing the number people actually
+# say removes a conversion from five places.
+#
+# A fraction and a percentage are the same type. Nothing rejects 15 where 0.15
+# was expected. A consumer that was already multiplying by 100 now produces a
+# number a hundred times too large, and a consumer that multiplies the rate by
+# an amount now charges a hundred times too much - and both are running code
+# that was correct the day before.
+#
+# Consumers are listed with what they do to the value.
+
+# [consumer, what it does with the rate, records per day, correct after the change]
+[["invoice display", "multiplies by 100 and formats", 21000, "no"], ["discount engine", "multiplies by the amount", 96000, "no"], ["partner export", "writes it out unchanged", 4000, "no"], ["audit log", "stores it as text", 96000, "yes"], ["rate editor", "reads and writes it", 300, "yes"]] => consumers
+
+len(consumers) => n
+0 => total
+0 => wrong_records
+0 => wrong_consumers
+for c in consumers:
+    total + c[2] => total
+    if c[3] == "no":
+        wrong_consumers + 1 => wrong_consumers
+        wrong_records + c[2] => wrong_records
+
+"consumer            what it does                      records/day   correct after" ^0
+for c in consumers:
+    "  " + c[0] + "   " + c[1] + "   " + str(c[2]) + "        " + c[3] ^0
+"" ^0
+"records a day handled      : " + str(total) ^0
+"handled by a wrong consumer: " + str(wrong_records) + ", " + str(int(wrong_records * 100 / total)) + "%" ^0
+"consumers now wrong        : " + str(wrong_consumers) + " of " + str(n) ^0
+"consumers edited           : 0" ^0
+"" ^0
+
+# ---- the size of each error ----
+
+15 => stored_now
+"one discount of " + str(stored_now) + " percent on an amount of 20000" ^0
+"  intended discount        : " + str(int(20000 * stored_now / 100)) ^0
+"  discount engine computes : " + str(20000 * stored_now) ^0
+"  overcharge factor        : " + str(int(20000 * stored_now / (20000 * stored_now / 100))) ^0
+"  the engine is doing exactly the arithmetic it always did" ^0
+"" ^0
+"the same rate on the invoice display" ^0
+"  intended display : " + str(stored_now) + "%" ^0
+"  it displays      : " + str(stored_now * 100) + "%" ^0
+"  a discount above 100% is visibly absurd, so this one is found in a day" ^0
+"" ^0
+
+# ---- which errors are self-announcing ----
+
+"how each wrong consumer fails" ^0
+"  invoice display : shows " + str(stored_now * 100) + "%, absurd on sight, reported within a day" ^0
+"  discount engine : produces a number, no bound is violated, silent" ^0
+"  partner export  : writes 15 where the partner expects 0.15, silent until" ^0
+"    the partner reconciles at month end" ^0
+"  of the " + str(wrong_consumers) + " wrong consumers, 1 announces itself" ^0
+"" ^0
+
+# ---- the range that would have caught it ----
+
+"values the field can hold under each meaning" ^0
+"  as a fraction   : 0 to 1" ^0
+"  as a percentage : 0 to 100" ^0
+"  the two ranges overlap on 0 to 1, which is where every test fixture sits" ^0
+"  a test using 0.15 passes under both meanings" ^0
+"  a test using 15 fails under the old meaning and would have caught this" ^0
+"  fixtures in the suite using a value above 1 : 0" ^0
+"" ^0
+
+# ---- what the type system saw ----
+
+"the contract, before and after" ^0
+"  field name  : discount_rate, unchanged" ^0
+"  type        : number, unchanged" ^0
+"  precision   : unchanged" ^0
+"  unit        : fraction -> percent" ^0
+"  the last line has no representation in the schema, and the first three" ^0
+"  are what the compatibility check compares" ^0
+"" ^0
+
+# ---- the two ways to ship it safely ----
+
+"alternatives that cannot be silently misread" ^0
+"  rename to discount_percent : every consumer fails to find the field" ^0
+"    consumers forced to make a decision : " + str(n) ^0
+"    consumers silently changed : 0" ^0
+"  keep the fraction and fix the display rounding centrally" ^0
+"    consumers touched : 1" ^0
+"    the original complaint - 14.999999999999998 - is a formatting defect" ^0
+"    in one place, and it was solved by changing the unit everywhere" ^0
+"" ^0
+
+# ---- the control: a consumer that never interprets the value ----
+#
+# Where a consumer moves the number without doing arithmetic on it, a change
+# of unit passes through it unchanged and it is right either way.
+
+for c in consumers:
+    if c[3] == "yes":
+        "control - " + c[0] + " : " + c[1] ^0
+"  these two are correct under both meanings" ^0
+"  what protects them is that neither one knows what the number means," ^0
+"  which is also why neither one could have warned anybody" ^0
+"" ^0
+
+"Removing a conversion from five places was reasonable and it fixed a real" ^0
+"rounding defect. A fraction and a percentage are the same type, so " + str(wrong_consumers) + " of " + str(n) ^0
+"consumers changed behaviour and none of them changed." ^0

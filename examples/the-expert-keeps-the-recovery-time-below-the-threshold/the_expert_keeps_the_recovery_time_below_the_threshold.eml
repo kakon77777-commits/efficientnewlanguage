@@ -1,0 +1,119 @@
+# Self-authored for the EML case corpus (no external origin). A module is hard
+# to debug and one engineer is very good at debugging it. What that does to the
+# case for simplifying it is computed below.
+#
+# She is not hoarding anything. She has written notes, she pairs willingly, she
+# has asked twice for time to refactor it, and she answers at 02:00 without
+# complaint. Nothing here is about a person behaving badly.
+#
+# The case for simplification is built from recovery time. Recovery time is
+# measured with her in it, because she is always in it. So the module's cost is
+# recorded at the level one expert can hold it down to, and the number that
+# would justify the work is suppressed by the same thing that makes the work
+# feel unnecessary.
+#
+# Incidents are timed with and without her.
+
+# [incident class, per year, minutes with her, minutes without her, threshold]
+[["parser state desync", 9, 22, 260, 120], ["cache key collision", 4, 15, 190, 120], ["retry storm in adapter", 6, 30, 340, 120], ["schema version skew", 3, 40, 400, 120], ["clock drift handling", 2, 25, 300, 120]] => classes
+
+len(classes) => n
+classes[0][4] => threshold
+
+"incident class          per year   with her   without her   threshold" ^0
+for c in classes:
+    "  " + c[0] + "   " + str(c[1]) + "         " + str(c[2]) + " min     " + str(c[3]) + " min      " + str(c[4]) + " min" ^0
+"" ^0
+
+0 => events
+0 => with_min
+0 => without_min
+for c in classes:
+    events + c[1] => events
+    with_min + c[1] * c[2] => with_min
+    without_min + c[1] * c[3] => without_min
+
+"incidents a year : " + str(events) ^0
+"recovery minutes with her    : " + str(with_min) + ", mean " + str(int(with_min / events)) ^0
+"recovery minutes without her : " + str(without_min) + ", mean " + str(int(without_min / events)) ^0
+"ratio : " + str(int(without_min / with_min)) + " to 1" ^0
+"" ^0
+
+# ---- the rule that decides whether the work happens ----
+
+"the refactor is funded when mean recovery exceeds " + str(threshold) + " minutes" ^0
+0 => over_with
+0 => over_without
+for c in classes:
+    if c[2] > threshold:
+        over_with + 1 => over_with
+    if c[3] > threshold:
+        over_without + 1 => over_without
+"  classes over the threshold, as measured : " + str(over_with) + " of " + str(n) ^0
+"  classes over the threshold, without her : " + str(over_without) + " of " + str(n) ^0
+if over_with == 0:
+    "  so the rule never fires, and it is reading a real measurement" ^0
+"" ^0
+
+# ---- what the measurement contains ----
+
+"what the recorded number is made of" ^0
+"  the module's difficulty : unchanged across the whole period" ^0
+"  the recorded recovery time : " + str(int(with_min / events)) + " minutes" ^0
+"  the same difficulty measured through anyone else : " + str(int(without_min / events)) + " minutes" ^0
+"  the metric is a property of the pair, and only one half of the pair is" ^0
+"  a property of the system" ^0
+"" ^0
+
+# ---- her two requests ----
+
+# [quarter, refactor days requested, granted, mean recovery cited in the decision]
+[["Q1", 12, "no", 26], ["Q3", 8, "no", 26]] => asks
+"the refactor requests" ^0
+for a in asks:
+    "  " + a[0] + " : " + str(a[1]) + " days requested, granted: " + a[2] + ", recovery time cited: " + str(a[3]) + " min" ^0
+"  both decisions used the measured number and both were consistent with it" ^0
+"  neither decision was careless and neither reviewer saw anything wrong" ^0
+"" ^0
+
+# ---- the exposure that is not on any dashboard ----
+
+int(without_min / 60) => bad_hours
+int(with_min / 60) => good_hours
+"the year she is not available" ^0
+"  recovery hours as recorded : " + str(good_hours) ^0
+"  recovery hours without her : " + str(bad_hours) ^0
+"  difference : " + str(bad_hours - good_hours) + " hours" ^0
+"  probability she is unavailable in a given year : not estimated anywhere" ^0
+"  the exposure is a product of a number nobody computes and a number" ^0
+"  nobody has" ^0
+"" ^0
+
+# ---- what would measure the module instead of the pair ----
+
+"measurements that do not include her" ^0
+"  time for a second engineer to resolve, measured : never" ^0
+"  incidents she was deliberately not paged for   : 0" ^0
+"  runbook coverage of the five classes           : notes exist, untested" ^0
+"  the experiment that would produce the other column is one incident" ^0
+"  handled without her on purpose, and it has not been run" ^0
+"" ^0
+
+# ---- the control: a module of equal difficulty and two experts ----
+#
+# Where two people can each resolve it, the recorded time no longer depends on
+# one person's availability, and the same rule reads the same system.
+
+[["ledger reconciler", 11, 95, 110, 120]] => shared
+for s in shared:
+    "control - " + s[0] + ", also difficult, two people know it" ^0
+    "  with the first  : " + str(s[2]) + " min" ^0
+    "  with the second : " + str(s[3]) + " min" ^0
+    "  spread : " + str(s[3] - s[2]) + " min, against " + str(classes[0][3] - classes[0][2]) + " for the first class above" ^0
+    "  the recorded number is close to the number anybody would get, so" ^0
+    "  when it crosses the threshold it crosses for a reason about the code" ^0
+"" ^0
+
+"She has asked twice, pairs willingly and answers at 02:00. The refactor is" ^0
+"funded on recovery time, recovery time is measured with her in it, and she" ^0
+"holds it at " + str(int(with_min / events)) + " minutes against a " + str(threshold) + "-minute bar." ^0

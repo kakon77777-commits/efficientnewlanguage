@@ -1,0 +1,125 @@
+# Self-authored for the EML case corpus (no external origin). A nullable field
+# was backfilled and now always has a value. What that did to the code written
+# for the null case is computed below.
+#
+# Backfilling was right. A third of records had no assigned region, every
+# report had to explain a bucket called unknown, and the backfill used the
+# billing address, which is the same source the field was always supposed to
+# come from. The data is better and the reports are simpler.
+#
+# The null was carrying information: it meant nobody had determined a region
+# yet. Consumers written against that meaning have a branch for it, and after
+# the backfill that branch stops executing. The branch is still there, still
+# compiles, still has its test, and never runs again - so a case that used to
+# be handled is now handled by code that is unreachable.
+#
+# Records are counted before and after, with what each branch did.
+
+# [quarter, records, with a region, null region]
+[["before", 900000, 604000, 296000], ["after", 900000, 900000, 0]] => states
+
+states[0] => before
+states[1] => after
+"state    records   with region   null region" ^0
+for s in states:
+    "  " + s[0] + "   " + str(s[1]) + "     " + str(s[2]) + "       " + str(s[3]) ^0
+"" ^0
+"nulls removed : " + str(before[3]) + ", " + str(int(before[3] * 100 / before[1])) + "% of all records" ^0
+"" ^0
+
+# ---- the branches written for null ----
+
+# [consumer, what its null branch did, was that correct, runs after the backfill]
+[["tax calculator", "applies the default rate and flags for review", "yes", "no"], ["shipping quote", "asks the user to confirm their region", "yes", "no"], ["regional report", "counts it in unknown", "yes", "no"], ["fraud score", "adds risk points for missing data", "yes", "no"], ["export", "writes an empty string", "yes", "no"]] => branches
+
+"consumer           null branch                              still runs" ^0
+0 => dead
+for b in branches:
+    if b[3] == "no":
+        dead + 1 => dead
+    "  " + b[0] + "   " + b[1] + "   " + b[3] ^0
+"  branches that no longer execute : " + str(dead) + " of " + str(len(branches)) ^0
+"  branches deleted : 0" ^0
+"  branches whose tests still pass : " + str(len(branches)) ^0
+"" ^0
+
+# ---- the tests ----
+
+"the test suite after the backfill" ^0
+"  tests covering the null branch : " + str(len(branches)) ^0
+"  those tests construct a record with a null region themselves" ^0
+"  so they pass, and they are the only place a null region now exists" ^0
+"  a test that builds its own input cannot notice that production stopped" ^0
+"  producing that input" ^0
+"" ^0
+
+# ---- what the two states meant ----
+
+"what a region value meant, before and after" ^0
+"  before, a value : somebody or something determined the region" ^0
+"  before, a null  : nobody had determined it yet" ^0
+"  after, a value  : either of the above" ^0
+"  the field lost the ability to say the second thing, and no field gained" ^0
+"  it" ^0
+"" ^0
+
+# ---- the consumer that needed the distinction ----
+
+for b in branches:
+    if b[0] == "fraud score":
+        "the fraud score in detail" ^0
+        "  its null branch : " + b[1] ^0
+        "  records that used to take it : " + str(before[3]) ^0
+        "  records that take it now     : 0" ^0
+        "  a missing region was a weak fraud signal and it was a real one" ^0
+        "  the signal is not wrong now, it is absent, and the score does not" ^0
+        "  distinguish an absent signal from a negative one" ^0
+"" ^0
+
+# ---- how good the backfilled values are ----
+
+# [source used by the backfill, records, accuracy percent]
+[["billing address present", 240000, 99], ["billing address missing, guessed from IP", 44000, 71], ["neither, defaulted to the largest region", 12000, 34]] => filled
+0 => filled_total
+0 => weighted
+for f in filled:
+    filled_total + f[1] => filled_total
+    weighted + f[1] * f[2] => weighted
+"where the backfilled values came from" ^0
+for f in filled:
+    "  " + f[0] + " : " + str(f[1]) + " records, " + str(f[2]) + "% accurate" ^0
+"  backfilled records : " + str(filled_total) ^0
+"  weighted accuracy  : " + str(int(weighted / filled_total)) + "%" ^0
+"  wrong values introduced : " + str(filled_total - int(weighted / 100)) ^0
+"  before the backfill those records said nothing; now some of them say" ^0
+"  something incorrect, and nothing marks which" ^0
+"" ^0
+
+# ---- what would have preserved the distinction ----
+
+"keeping both facts" ^0
+"  region        : the value, backfilled" ^0
+"  region_source : determined, inferred, or defaulted" ^0
+"  cost : one column" ^0
+"  consumers that could then behave as before : " + str(len(branches)) ^0
+"  the fraud score would key on the source rather than on the null, and" ^0
+"  the tax calculator would still flag the defaulted ones for review" ^0
+"" ^0
+
+# ---- the control: a field that was never nullable ----
+#
+# Where the field always had a value, no consumer has a branch for its absence
+# and a backfill of other rows changes nothing about how it is read.
+
+[["currency", 900000, 900000, 0, 0]] => never_null
+for u in never_null:
+    "control - " + u[0] + ", non-null since the first release" ^0
+    "  records : " + str(u[1]) + ", with a value : " + str(u[2]) + ", null : " + str(u[3]) ^0
+    "  consumer branches written for its absence : " + str(u[4]) ^0
+    "  there is nothing here to make unreachable, because nobody ever had to" ^0
+    "  decide what its absence meant" ^0
+"" ^0
+
+"The backfill used the right source and the reports are simpler for it." ^0
+"A null meant nobody had determined the region, " + str(dead) + " consumers had a branch" ^0
+"for that, and all " + str(dead) + " of them still compile and never run." ^0

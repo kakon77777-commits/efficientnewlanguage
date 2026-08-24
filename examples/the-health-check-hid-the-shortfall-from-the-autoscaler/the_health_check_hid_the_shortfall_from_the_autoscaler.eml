@@ -1,0 +1,125 @@
+# Self-authored for the EML case corpus (no external origin). A health check
+# removes unhealthy instances and an autoscaler adds capacity when the fleet is
+# loaded. What each measures is computed below.
+#
+# Both are correct. The health check exists because a half-dead instance
+# serving errors is worse than one fewer instance, and removing it from the
+# load balancer is the standard and right response. The autoscaler exists
+# because manual capacity planning missed two growth curves, and it scales on
+# average CPU across the fleet, which is the usual and reasonable input.
+#
+# The autoscaler averages over the instances in service. The health check's job
+# is to take instances out of service. So an instance failing under load leaves
+# the pool, and leaves the average with it - and the surviving instances, now
+# carrying its share, look no worse than before because the arithmetic dropped
+# the evidence at the same moment it dropped the instance.
+#
+# Instances are listed with their state and load.
+
+# [instance, healthy, cpu percent, requests per second it is carrying]
+[["i-1", "yes", 71, 340], ["i-2", "yes", 74, 350], ["i-3", "yes", 69, 330], ["i-4", "no", 99, 0], ["i-5", "no", 99, 0], ["i-6", "yes", 73, 345], ["i-7", "no", 99, 0], ["i-8", "yes", 70, 335]] => fleet
+
+len(fleet) => n
+80 => scale_up_at
+
+0 => healthy
+0 => unhealthy
+0 => cpu_healthy
+0 => cpu_all
+0 => served
+for f in fleet:
+    cpu_all + f[2] => cpu_all
+    served + f[3] => served
+    if f[1] == "yes":
+        healthy + 1 => healthy
+        cpu_healthy + f[2] => cpu_healthy
+    else:
+        unhealthy + 1 => unhealthy
+
+"instance   healthy   cpu   rps carried" ^0
+for f in fleet:
+    "  " + f[0] + "        " + f[1] + "       " + str(f[2]) + "    " + str(f[3]) ^0
+"" ^0
+
+"instances            : " + str(n) ^0
+"in service           : " + str(healthy) ^0
+"removed by the check : " + str(unhealthy) ^0
+"" ^0
+
+"average cpu, two ways" ^0
+"  over instances in service : " + str(int(cpu_healthy / healthy)) + "%" ^0
+"  over every instance       : " + str(int(cpu_all / n)) + "%" ^0
+"scale-up threshold        : " + str(scale_up_at) + "%" ^0
+"" ^0
+if int(cpu_healthy / healthy) < scale_up_at:
+    "the autoscaler does not scale, because " + str(int(cpu_healthy / healthy)) + " is below " + str(scale_up_at) ^0
+if int(cpu_all / n) >= scale_up_at:
+    "over the whole fleet the same rule would scale, because " + str(int(cpu_all / n)) + " is not" ^0
+"" ^0
+
+# ---- what the removal did to the survivors ----
+
+int(served / healthy) => per_healthy
+int(served / n) => per_all
+"load per instance" ^0
+"  spread across the " + str(healthy) + " in service : " + str(per_healthy) + " rps each" ^0
+"  spread across all " + str(n) + "            : " + str(per_all) + " rps each" ^0
+"  the check moved " + str(per_healthy - per_all) + " rps onto every surviving instance" ^0
+"  and the autoscaler's input fell at the same moment, because the" ^0
+"  instances carrying nothing are the ones it stopped averaging over" ^0
+"" ^0
+
+# ---- the direction the signal moves ----
+
+"what happens as more instances fail" ^0
+[0, 1, 2, 3, 4] => failed
+for k in failed:
+    n - k => alive
+    if alive > 0:
+        "  " + str(k) + " removed : " + str(alive) + " in service, " + str(int(served / alive)) + " rps each, autoscaler sees the average of the healthy" ^0
+"  each removal raises the load on the rest and removes a 99% reading from" ^0
+"  the average, so the input can fall while the situation worsens" ^0
+"" ^0
+
+# ---- what the unhealthy instances were doing ----
+
+"the three removed instances" ^0
+for f in fleet:
+    if f[1] == "no":
+        "  " + f[0] + " : cpu " + str(f[2]) + "%, carrying " + str(f[3]) + " rps" ^0
+"  they are at " + str(fleet[3][2]) + "% cpu and serving nothing, which is what a saturated" ^0
+"  instance looks like after it stops answering" ^0
+"  the check is right to remove them and their cpu reading is the clearest" ^0
+"  evidence the fleet is short of capacity" ^0
+"" ^0
+
+# ---- what the autoscaler would need ----
+
+"inputs available at the moment of the decision" ^0
+"  average cpu over in-service instances : used" ^0
+"  count of instances removed as unhealthy : recorded, not used" ^0
+"  requests per second per in-service instance : recorded, not used" ^0
+"  desired vs actual in-service count : recorded, not used" ^0
+"  three quantities that rise when the fleet is short, and the rule reads" ^0
+"  the one that falls" ^0
+"" ^0
+
+# ---- the control: an unhealthy instance that is not load-related ----
+#
+# Where an instance is removed for a reason unconnected to load, removing it
+# from the average is correct and the autoscaler is right not to react.
+
+[["i-9", "no", 4, 0, "bad deploy, wrong image"]] => unrelated
+for u in unrelated:
+    "control - " + u[0] + " removed because of " + u[4] ^0
+    "  its cpu : " + str(u[2]) + "%" ^0
+    "  including it would pull the average DOWN, not up" ^0
+    "  here the check removes a reading that is genuinely uninformative about" ^0
+    "  capacity, and the autoscaler is better off without it" ^0
+    "  what distinguishes this from the other three is the direction the" ^0
+    "  removed reading would have moved the average" ^0
+"" ^0
+
+"Removing a half-dead instance from the load balancer is correct, and CPU" ^0
+"average is a reasonable autoscaling input. The check removes the instances" ^0
+"whose readings say scale up, so the fleet is " + str(unhealthy) + " short and reads " + str(int(cpu_healthy / healthy)) + "%." ^0

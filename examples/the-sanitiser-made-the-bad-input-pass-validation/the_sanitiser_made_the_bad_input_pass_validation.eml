@@ -1,0 +1,127 @@
+# Self-authored for the EML case corpus (no external origin). A sanitiser and
+# a validator both guard the same intake. What each rejects, and what the pair
+# rejects, are computed separately below.
+#
+# Both are correct. The sanitiser exists because a supplier feed arrives with
+# trailing whitespace, smart quotes and mixed line endings, and rejecting those
+# outright meant a human retyping good data. The validator exists because a
+# malformed record once reached the ledger. Each was added after a real
+# incident and each does what it says.
+#
+# The sanitiser runs first, because you cannot validate a field you cannot
+# parse. So every record the validator sees has already been repaired, and a
+# record that was wrong in a way the sanitiser could repair arrives at the
+# validator looking correct. The validator's rejection count is a measurement
+# taken after the evidence has been cleaned up.
+#
+# Records are classified by what was wrong and by what each stage did.
+
+# [defect, records per day, sanitiser repairs it, validator would reject it, repair is right]
+[["trailing whitespace", 4100, "yes", "yes", "yes"], ["smart quotes", 900, "yes", "yes", "yes"], ["mixed line endings", 2200, "yes", "yes", "yes"], ["empty supplier code", 140, "yes", "yes", "no"], ["date as DD-MM not MM-DD", 60, "yes", "yes", "no"], ["negative quantity", 30, "no", "yes", "no"], ["unknown currency", 12, "no", "yes", "no"]] => defects
+
+len(defects) => n
+
+"defect                    per day   sanitiser   validator   repair correct" ^0
+for d in defects:
+    "  " + d[0] + "   " + str(d[1]) + "      " + d[2] + "         " + d[3] + "         " + d[4] ^0
+"" ^0
+
+0 => total
+0 => repaired
+0 => wrongly_repaired
+0 => reaches_validator
+for d in defects:
+    total + d[1] => total
+    if d[2] == "yes":
+        repaired + d[1] => repaired
+        if d[4] == "no":
+            wrongly_repaired + d[1] => wrongly_repaired
+    else:
+        reaches_validator + d[1] => reaches_validator
+
+"defective records a day        : " + str(total) ^0
+"repaired before validation     : " + str(repaired) ^0
+"still defective at validation  : " + str(reaches_validator) ^0
+"validator rejections a day     : " + str(reaches_validator) ^0
+"" ^0
+
+# ---- what the validator's number means ----
+
+"the validator's own report" ^0
+"  rejections : " + str(reaches_validator) + " a day" ^0
+"  which is " + str(int(reaches_validator * 10000 / total)) + " per 10000 of the defective records that arrived" ^0
+"  (a percentage floors to zero here, so the unit is finer)" ^0
+"  the other " + str(repaired) + " it never saw in a defective state" ^0
+"  the validator is not failing to catch these, it is being handed clean" ^0
+"  copies of them" ^0
+"" ^0
+
+# ---- the repairs that are not repairs ----
+
+"repairs where the original value was not recoverable" ^0
+for d in defects:
+    if d[2] == "yes":
+        if d[4] == "no":
+            "  " + d[0] + " : " + str(d[1]) + " a day" ^0
+"  total : " + str(wrongly_repaired) + " a day" ^0
+"  these are the records where the sanitiser produced a well-formed value" ^0
+"  that is not the value the supplier meant" ^0
+"  validator rejections they cause : 0, because they are well formed" ^0
+"" ^0
+
+# ---- what each stage sees ----
+
+"three counts that look like the same thing" ^0
+"  records that arrived defective     : " + str(total) ^0
+"  records the validator rejected     : " + str(reaches_validator) ^0
+"  records that reached the ledger wrong : " + str(wrongly_repaired) ^0
+"  the middle number is on the dashboard; the other two are not measured" ^0
+"" ^0
+
+# ---- ordering ----
+
+0 => validator_first
+for d in defects:
+    if d[3] == "yes":
+        validator_first + d[1] => validator_first
+"the same two stages in the other order" ^0
+"  validator first, on raw input : " + str(validator_first) + " rejections a day" ^0
+"  sanitiser first, as deployed  : " + str(reaches_validator) + " rejections a day" ^0
+"  ratio : " + str(int(validator_first / reaches_validator)) + " to 1" ^0
+"  the same records, the same two rules, and the order decides how much" ^0
+"  the second one is allowed to know" ^0
+"" ^0
+
+# ---- what a repair should have to do ----
+
+"separating the two kinds of repair" ^0
+0 => safe_repair
+for d in defects:
+    if d[2] == "yes":
+        if d[4] == "yes":
+            safe_repair + d[1] => safe_repair
+"  repairs that cannot change meaning : " + str(safe_repair) + " a day" ^0
+"    whitespace, quote style, line endings - the value is the same value" ^0
+"  repairs that guess at meaning      : " + str(wrongly_repaired) + " a day" ^0
+"    a missing supplier code and an ambiguous date are not typography" ^0
+"  the sanitiser treats both as the same operation, and only the first kind" ^0
+"  is one" ^0
+"" ^0
+
+# ---- the control: a defect the sanitiser cannot touch ----
+#
+# Where the sanitiser has no rule for a defect, the validator sees it as it
+# arrived and the two controls are genuinely in series rather than in conflict.
+
+for d in defects:
+    if d[2] == "no":
+        "control - " + d[0] + ", " + str(d[1]) + " a day" ^0
+        "  sanitiser : no rule, passes through unchanged" ^0
+        "  validator : rejects" ^0
+        "  the record reaching the validator is the record the supplier sent," ^0
+        "  so the rejection means what a rejection is supposed to mean" ^0
+"" ^0
+
+"Both stages were added after real incidents and both do what they say." ^0
+"The sanitiser runs first because it must, so " + str(int(repaired * 100 / total)) + "% of the defects are" ^0
+"already gone when the only stage that counts them starts counting." ^0
