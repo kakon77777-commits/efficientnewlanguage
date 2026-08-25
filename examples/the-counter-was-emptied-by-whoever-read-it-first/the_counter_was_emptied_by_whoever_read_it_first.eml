@@ -1,0 +1,106 @@
+# Self-authored for the EML case corpus (no external origin). A counter that
+# reports events since the last read, and a second collector added during a
+# region migration. What each collector sees afterwards is computed below.
+#
+# A read-and-reset counter is a real design and a defensible one. The endpoint
+# holds a small integer instead of a monotonic total that has to survive
+# restarts, the collector does no subtraction and needs no memory of the
+# previous value, and a missed scrape is visible as a larger number rather than
+# invisible as a gap. Plenty of metrics protocols work exactly this way.
+#
+# Adding a second collector is the safest operation there is. It is a read. It
+# takes no lock anyone can see, it changes no configuration on the instance,
+# and it is how every other metric on the fleet is collected twice for
+# redundancy. The migration runbook lists it under low risk and it belongs
+# there for every metric except this one.
+#
+# A read that mutates is not a read. Two collectors on a normal counter both
+# see the truth; two collectors on this one divide it, because the interval
+# each of them measures is bounded by the other one's last visit rather than by
+# its own.
+
+100 => rate_per_s
+30 => period_s
+80 => alert_threshold
+
+"true event rate    : " + str(rate_per_s) + " per second" ^0
+"collector interval : " + str(period_s) + " seconds" ^0
+"alert threshold    : " + str(alert_threshold) + " per second" ^0
+"" ^0
+
+# ---- the timeline with two collectors, offset by half a period ----
+
+"the timeline, collectors A and B fifteen seconds apart" ^0
+0 => last_read
+for t in [15, 30, 45, 60, 75, 90]:
+    "B" => who
+    if t % period_s == 0:
+        "A" => who
+    (t - last_read) * rate_per_s => drained
+    ("  t=%-4s %s reads, drains %s seconds of events, counter returns %s" % (str(t), who, str(t - last_read), str(drained)))^0
+    t => last_read
+"" ^0
+
+# ---- what each collector reports, for one to four collectors ----
+
+"collectors   seconds each read covers   events per read   reported rate   alert" ^0
+for n in [1, 2, 3, 4]:
+    int(period_s / n) => window
+    window * rate_per_s => per_read
+    int(per_read / period_s) => reported
+    "silent" => fires
+    if reported > alert_threshold:
+        "fires" => fires
+    ("  %-12s %-26s %-17s %-15s %s" % (str(n), str(window), str(per_read), str(reported), fires))^0
+"" ^0
+
+int(int(period_s / 2) * rate_per_s / period_s) => two_reported
+("  with two collectors each reports %s per second against a true %s" % (str(two_reported), str(rate_per_s)))^0
+("  the alert needs %s and the highest number anywhere in the system is %s" % (str(alert_threshold), str(two_reported)))^0
+"" ^0
+
+# ---- the control ----
+#
+# The same endpoint, the same two collectors, the same network. A gauge is
+# read without being reset.
+
+"control - a gauge on the same endpoint, read by the same two collectors" ^0
+"  queue_depth reported by A : 412" ^0
+"  queue_depth reported by B : 412" ^0
+"  they agree, and they are right" ^0
+"  so the endpoint, both collectors and the transport are all correct" ^0
+"" ^0
+
+"control - the same counter before the migration, one collector" ^0
+("  seconds each read covers : %s" % str(period_s))^0
+("  reported rate            : %s" % str(int(period_s * rate_per_s / period_s)))^0
+("  true rate                : %s" % str(rate_per_s))^0
+"  correct, for eleven months" ^0
+"  so the counter is not wrong either, and nothing was edited" ^0
+"" ^0
+
+# ---- the aggregation that would fix it ----
+
+"how to combine two collectors' readings" ^0
+("  take either one    : %s, which is the rule for every other metric" % str(two_reported))^0
+("  take the maximum   : %s, which is the rule for a counter that is not drained" % str(two_reported))^0
+("  add them together  : %s, which is correct here and catastrophic anywhere else" % str(two_reported * 2))^0
+"  the right aggregation for this metric is the one that is a bug for the" ^0
+"  rest of them, and the collector cannot tell which kind it is holding" ^0
+"" ^0
+
+# ---- what the shape of the defect is ----
+
+"why nothing looked broken" ^0
+"  errors raised          : 0" ^0
+"  scrapes failed         : 0" ^0
+"  series missing         : 0" ^0
+"  collectors disagreeing : 0, they both report the same wrong number" ^0
+"  a disagreement would have been noticed within a day" ^0
+"  agreement is what made it survive" ^0
+"" ^0
+
+"A read-and-reset counter is a real design and adding a second collector is" ^0
+"a read. A read that resets is not one: each collector measures the interval" ^0
+("since the other one's visit, so both report %s per second against a true %s," % (str(two_reported), str(rate_per_s)))^0
+("they agree with each other, and the %s threshold is never crossed." % str(alert_threshold))^0

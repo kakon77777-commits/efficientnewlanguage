@@ -1,0 +1,132 @@
+# Self-authored for the EML case corpus (no external origin). The hash was
+# tested for uniformity and passed. The bucket occupancy in production is
+# counted below, from the same hash.
+#
+# Both decisions here are the standard ones. A power-of-two bucket count turns
+# the modulo into a bit mask, which is one instruction instead of a division,
+# and it is what every hash table in every standard library does. Testing the
+# hash by feeding it random keys and checking that the buckets come out level
+# is also right, and the test passes, and it would catch a genuinely bad hash.
+#
+# Uniformity is not a property of a hash function. It is a property of a hash
+# function together with an input distribution, and the test supplies its own
+# input. Random keys are the one distribution the allocator never produces.
+#
+# The order ids come from a legacy allocator that hands out blocks of eight, so
+# every id is a multiple of eight apart from its neighbour. That input is
+# perfectly uniform over its own domain - it is not skewed, no value is hotter
+# than another, and no key repeats. It simply shares a factor with the bucket
+# count, and a modulo cannot separate a value from a multiple of its divisor.
+
+8 => stride
+1000 => first_id
+512 => id_count
+
+# ids as the allocator produces them: first_id, first_id + 8, first_id + 16 ...
+[first_id + stride * i for i in [0:511]] => ids
+
+"ids            : " + str(len(ids)) + ", from " + str(ids[0]) + " to " + str(ids[len(ids) - 1]) ^0
+"allocator step : " + str(stride) ^0
+"distinct ids   : " + str(len(ids)) + ", no key repeats, no key is hotter than another" ^0
+"" ^0
+
+def gcd(a, b):
+    if b == 0:
+        return a
+    return gcd(b, a % b)
+
+def buckets_used(n):
+    "|" => seen
+    0 => used
+    for k in ids:
+        str(k % n) => slot
+        if not ("|" + slot + "|" in seen):
+            seen + slot + "|" => seen
+            used + 1 => used
+    return used
+
+def busiest(n):
+    0 => worst
+    for b in [0:n - 1]:
+        0 => here
+        for k in ids:
+            if k % n == b:
+                here + 1 => here
+        if here > worst:
+            here => worst
+    return worst
+
+# ---- what each bucket count does with these keys ----
+
+"buckets   gcd(step,buckets)   predicted used   counted used   busiest   even share" ^0
+for n in [16, 32, 63, 64, 100, 101, 128]:
+    gcd(stride, n) => g
+    int(n / g) => predicted
+    buckets_used(n) => counted
+    busiest(n) => worst
+    int(len(ids) / n) => fair
+    ("  %-9s %-19s %-16s %-14s %-9s %s" % (str(n), str(g), str(predicted), str(counted), str(worst), str(fair)))^0
+"" ^0
+
+"  the predicted and the counted column are two different methods and agree" ^0
+"  on every row: one divides by the common factor, the other bucket-counts" ^0
+"  all " + str(len(ids)) + " keys" ^0
+"" ^0
+
+# ---- the deployed configuration ----
+
+64 => deployed
+gcd(stride, deployed) => g_dep
+buckets_used(deployed) => used_dep
+busiest(deployed) => worst_dep
+int(len(ids) / deployed) => fair_dep
+
+"the deployed configuration, " + str(deployed) + " buckets" ^0
+("  buckets that receive a key      : %s of %s" % (str(used_dep), str(deployed)))^0
+("  buckets that receive nothing    : %s" % str(deployed - used_dep))^0
+("  keys in the busiest bucket      : %s" % str(worst_dep))^0
+("  keys per bucket if spread even  : %s" % str(fair_dep))^0
+("  the busiest bucket carries      : %sx its share" % str(int(worst_dep / fair_dep)))^0
+"" ^0
+
+# ---- the control ----
+#
+# The same hash, the same keys, the same code path. Only the bucket count
+# changes, from a power of two to a prime, so that it shares no factor with
+# the allocator's step.
+
+101 => prime_buckets
+"control - the same keys with " + str(prime_buckets) + " buckets" ^0
+("  gcd(%s, %s) : %s" % (str(stride), str(prime_buckets), str(gcd(stride, prime_buckets))))^0
+("  buckets used : %s of %s" % (str(buckets_used(prime_buckets)), str(prime_buckets)))^0
+("  busiest      : %s against an even share of %s" % (str(busiest(prime_buckets)), str(int(len(ids) / prime_buckets))))^0
+"  the hash function is not edited, so the hash function was not the fault" ^0
+"" ^0
+
+# ---- the control that the test ran ----
+#
+# Keys with a step of 1 stand in for the random keys the uniformity test uses.
+# Against a step of 1, every bucket count shares no factor worth having.
+
+"control - what the uniformity test measured" ^0
+for s in [1, 3, 8]:
+    gcd(s, deployed) => g2
+    ("  step %-3s -> gcd %-3s -> %s of %s buckets used" % (str(s), str(g2), str(int(deployed / g2)), str(deployed)))^0
+"  a step of 1 uses every bucket, which is what the test saw and reported" ^0
+"  the test was correct about the input it was given" ^0
+"" ^0
+
+# ---- what would have caught it ----
+
+"what each check can and cannot see" ^0
+"  uniformity test with random keys : passes, and would fail a bad hash" ^0
+"  uniformity test with real ids    : fails immediately, and was never run" ^0
+"  a count of empty buckets in production : " + str(deployed - used_dep) + " of " + str(deployed) + ", no such metric" ^0
+"  the bucket count was chosen for the mask, the step was chosen in 2014" ^0
+"  and neither decision is wrong beside the other one on a page" ^0
+"" ^0
+
+"A power-of-two bucket count is a mask instead of a division and the hash" ^0
+"passes a uniformity test on random keys. The allocator's step of " + str(stride) + " shares" ^0
+"that factor: " + str(used_dep) + " of " + str(deployed) + " buckets hold every key, the busiest at " + str(int(worst_dep / fair_dep)) + "x its share," ^0
+"and changing " + str(deployed) + " to " + str(prime_buckets) + " uses " + str(buckets_used(prime_buckets)) + " of them with the same hash." ^0

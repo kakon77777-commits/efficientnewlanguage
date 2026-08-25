@@ -1,0 +1,117 @@
+# Self-authored for the EML case corpus (no external origin). A weekly
+# maintenance job was cancelled after 140 runs that each reported nothing
+# found. When the bill arrived, and who was blamed for it, are computed below.
+#
+# Cancelling it was the correct reading of the evidence. It had run every week
+# for nearly three years, it cost six engineer-hours each time, and its own log
+# line said "0 problems found" on all 140 occasions. Every measure available to
+# the person deciding said the job produced nothing. Keeping work that has
+# never once produced an output is how a team ends up with no time for the work
+# that does.
+#
+# The difficulty is that "0 problems found" is what a job prints when it is
+# working, and also what it prints when it is pointless. The two worlds emit
+# the same log, so the log cannot tell them apart, and the log was the whole
+# case for cancellation.
+#
+# What separates them is what happens afterwards, and afterwards is far away.
+# The consequence accumulates a little each week and crosses the threshold long
+# after the change that caused it has left everyone's memory and, more
+# importantly, left the window the team searches when something breaks.
+
+120 => base_ms
+250 => sla_ms
+12 => frag_points_per_week
+7 => attribution_window_days
+
+140 => runs
+6 => hours_per_run
+
+"the job as the ledger recorded it" ^0
+"  runs            : " + str(runs) ^0
+"  hours per run   : " + str(hours_per_run) ^0
+"  hours spent     : " + str(runs * hours_per_run) ^0
+"  problems found  : 0" ^0
+"  problems found per run : 0" ^0
+"  on this evidence the job returns nothing for " + str(runs * hours_per_run) + " hours" ^0
+"" ^0
+
+# ---- what the two worlds print ----
+
+"world A - the job was unnecessary" ^0
+"  weekly log line : 0 problems found" ^0
+"world B - the job was preventing the problem" ^0
+"  weekly log line : 0 problems found" ^0
+"  the observation does not distinguish them, and it is the only one taken" ^0
+"" ^0
+
+# ---- after it stopped ----
+
+0 => week
+0 => frag
+0 => breach_week
+0 => breach_ms
+"week   fragmentation   query ms   sla" ^0
+for w in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]:
+    w * frag_points_per_week => frag
+    int(base_ms * (100 + frag) / 100) => q
+    if breach_week == 0:
+        if q > sla_ms:
+            w => breach_week
+            q => breach_ms
+    "  w" + str(w) + "     " + str(frag) + "              " + str(q) + "        " + str(sla_ms) ^0
+"" ^0
+
+breach_week * 7 => lag_days
+"  breach at week  : " + str(breach_week) + ", query time " + str(breach_ms) + " ms against a " + str(sla_ms) + " ms limit" ^0
+"  days since the cancellation : " + str(lag_days) ^0
+"  attribution window          : " + str(attribution_window_days) + " days" ^0
+"  the cause is outside the window by a factor of " + str(int(lag_days / attribution_window_days)) ^0
+"" ^0
+
+# ---- what was inside the window ----
+
+# [change, days before the incident, related to the cause]
+[["checkout copy edit", 1, "no"], ["dependency bump", 2, "no"], ["new dashboard panel", 4, "no"], ["log format change", 6, "no"]] => candidates
+
+"changes inside the " + str(attribution_window_days) + "-day window" ^0
+0 => related
+for c in candidates:
+    if c[2] == "yes":
+        related + 1 => related
+    "  " + c[0] + ", " + str(c[1]) + " days before, related: " + c[2] ^0
+"  candidates examined : " + str(len(candidates)) ^0
+"  candidates related to the cause : " + str(related) ^0
+"  the window was searched correctly and completely, and contained nothing" ^0
+"" ^0
+
+# ---- the control ----
+#
+# A second job was cancelled in the same week. Its effect is immediate rather
+# than cumulative, and the same team using the same process diagnosed it in a
+# day. The process is not the weakness.
+
+1 => control_lag_days
+"control - the other job cancelled that week" ^0
+"  job              : cache warmer, also cancelled, also 0 problems found" ^0
+"  effect appears after : " + str(control_lag_days) + " day" ^0
+"  inside the " + str(attribution_window_days) + "-day window : yes" ^0
+"  correctly diagnosed  : yes, next morning, restored the same day" ^0
+"  the difference between the two cases is not the team and not the" ^0
+"  reasoning, it is " + str(lag_days) + " days against " + str(control_lag_days) ^0
+"" ^0
+
+# ---- the two bills ----
+
+40 => incident_hours
+"what each choice cost" ^0
+"  keeping the job    : " + str(runs * hours_per_run) + " hours, visible, on a line item, every week" ^0
+"  cancelling the job : " + str(incident_hours) + " hours of incident plus " + str(lag_days) + " days of degradation" ^0
+"  cancelling looks cheaper on any report that covers " + str(attribution_window_days) + " days" ^0
+"  and on any report that covers less than " + str(lag_days) ^0
+"" ^0
+
+"Cancelling was the right reading of the evidence: " + str(runs) + " runs, 0 findings," ^0
+str(runs * hours_per_run) + " hours. A preventive job prints the same line whether it is working" ^0
+"or useless, and the bill arrived " + str(lag_days) + " days later, " + str(int(lag_days / attribution_window_days)) + " windows outside the" ^0
+"search. The " + str(len(candidates)) + " changes that were examined were all innocent." ^0

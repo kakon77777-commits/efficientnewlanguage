@@ -1,0 +1,128 @@
+# Self-authored for the EML case corpus (no external origin). The rate limiter
+# allows 100 requests a minute per client, and it has never allowed a bucket to
+# exceed 100. What it allowed in total is computed below.
+#
+# Limiting per client rather than in total is the right design. A single global
+# limit means one heavy caller starves everyone else, and that is the failure
+# the per-key limiter was built to prevent. It prevents it. Every bucket is
+# under its limit, on every minute, and that is not a rounding of the truth.
+#
+# The key comes from a header the caller sends, which is also reasonable on its
+# face: it is the only identifier available before authentication runs, it lets
+# one account separate its own workloads, and partners asked for exactly that
+# so their batch jobs would not throttle their interactive traffic.
+#
+# A limit is only a limit if the thing being counted is outside the counted
+# party's control. When the caller chooses the key, the caller chooses how many
+# buckets to be, and the limiter enforces every one of them perfectly.
+
+100 => per_key_limit
+60 => bucket_ttl_minutes
+
+# [client, distinct keys presented, requests sent per minute]
+[["web app", 1, 90], ["mobile app", 1, 100], ["partner batch", 1, 340], ["indexing bot", 40, 4000]] => clients
+
+def allowed_by_key(c):
+    c[1] * per_key_limit => cap
+    if c[2] < cap:
+        return c[2]
+    return cap
+
+def allowed_by_account(c):
+    if c[2] < per_key_limit:
+        return c[2]
+    return per_key_limit
+
+("limit : %s requests per minute per key" % str(per_key_limit))^0
+"key   : the X-Client-Id header, chosen by the caller" ^0
+"" ^0
+
+"client           keys   sent    allowed   rejected   buckets over limit" ^0
+0 => sent_total
+0 => allowed_total
+0 => keys_total
+for c in clients:
+    allowed_by_key(c) => allowed
+    sent_total + c[2] => sent_total
+    allowed_total + allowed => allowed_total
+    keys_total + c[1] => keys_total
+    ("  %-16s %-6s %-7s %-9s %-10s %s" % (c[0], str(c[1]), str(c[2]), str(allowed), str(c[2] - allowed), "0"))^0
+"" ^0
+
+("  requests sent     : %s per minute" % str(sent_total))^0
+("  requests allowed  : %s per minute" % str(allowed_total))^0
+("  buckets over their limit : 0, on every minute since the limiter shipped" )^0
+"" ^0
+
+# ---- what one client took ----
+
+clients[3] => bot
+("the largest caller" )^0
+("  keys presented        : %s" % str(bot[1]))^0
+("  effective limit       : %s per minute" % str(bot[1] * per_key_limit))^0
+("  times the stated limit : %s" % str(bot[1]))^0
+("  share of all allowed traffic : %s percent" % str(int(allowed_by_key(bot) * 100 / allowed_total)))^0
+"  it is one of four clients and it is not breaking any rule the limiter" ^0
+"  is able to express" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The same four clients, the same limiter, the same limit. The key is derived
+# from the authenticated account instead of from the request.
+
+0 => acct_allowed
+for c in clients:
+    acct_allowed + allowed_by_account(c) => acct_allowed
+
+"control - the same limiter keyed on the authenticated account" ^0
+"client           sent    allowed   rejected" ^0
+for c in clients:
+    allowed_by_account(c) => allowed
+    ("  %-16s %-7s %-9s %s" % (c[0], str(c[2]), str(allowed), str(c[2] - allowed)))^0
+("  requests allowed : %s, against %s" % (str(acct_allowed), str(allowed_total)))^0
+("  difference       : %s per minute" % str(allowed_total - acct_allowed))^0
+"  the limiter code is not edited, only where the key comes from" ^0
+"" ^0
+
+# ---- the control that made it invisible ----
+
+"control - the three clients that present one key" ^0
+0 => honest_sent
+0 => honest_allowed
+for c in clients:
+    if c[1] == 1:
+        honest_sent + c[2] => honest_sent
+        honest_allowed + allowed_by_key(c) => honest_allowed
+("  sent    : %s" % str(honest_sent))^0
+("  allowed : %s" % str(honest_allowed))^0
+("  the partner batch is throttled from %s to %s, correctly" % (str(clients[2][2]), str(allowed_by_key(clients[2]))))^0
+"  the limiter is exactly right for every caller that does not rotate" ^0
+"  which is every caller anyone tested it with" ^0
+"" ^0
+
+# ---- the second cost ----
+
+bot[1] * bucket_ttl_minutes => live_buckets
+"what the keys cost besides the limit" ^0
+("  new keys per minute from one client : %s" % str(bot[1]))^0
+("  bucket lifetime                     : %s minutes" % str(bucket_ttl_minutes))^0
+("  live buckets from that client       : %s" % str(live_buckets))^0
+("  live buckets from the other three   : %s" % str(len(clients) - 1))^0
+"  the table is keyed by a value the caller invents, so its size is also" ^0
+"  chosen by the caller" ^0
+"" ^0
+
+# ---- what the limiter can and cannot see ----
+
+"what the limiter measures" ^0
+"  requests per key      : correct, always" ^0
+"  keys per account      : not measured, no such counter" ^0
+"  requests per account  : not measured, the account is resolved later" ^0
+"  the quantity the limit is meant to bound is the one with no counter" ^0
+"" ^0
+
+"Per-key limiting stops one caller starving the rest, and no bucket has ever" ^0
+("exceeded %s. The key is a header the caller sends, so the caller chooses how" % str(per_key_limit))^0
+("many buckets to be: %s keys buy %s requests a minute, and keying on the" % (str(bot[1]), str(allowed_by_key(bot))))^0
+("account instead allows %s across all four clients rather than %s." % (str(acct_allowed), str(allowed_total)))^0

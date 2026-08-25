@@ -1,0 +1,198 @@
+# Self-authored for the EML case corpus (no external origin). Seventeen people
+# rank three proposals. One proposal wins under none of the three counting
+# rules. What happens to the result when it is taken off the ballot is computed
+# below.
+#
+# Putting the third proposal on the ballot was right. Four people rank it
+# first, it is a real option that a real constituency wants, and removing an
+# option because of what its presence does to the arithmetic is choosing the
+# outcome and calling it a procedure. The whole argument for asking people to
+# rank rather than to pick is that their actual preferences should be recorded.
+#
+# Counting the first choices is also right, or at least defensible. It is the
+# rule everyone already understands, it can be audited by hand in a room, and
+# it needs no explanation to the losing side.
+#
+# The two together produce a result that neither of them contains. A tally is a
+# function of the SET of options as well as of the preferences, so an option
+# that cannot win can still decide who does. Nobody has to be strategic,
+# nobody has to be confused, and nobody has to change their mind.
+#
+# Whether any voter changed their mind is not assumed here. It is the control
+# at the end, and it is a tally rather than a claim.
+
+# [voters, first, second, third]
+[[8, "A", "B", "C"], [5, "B", "C", "A"], [4, "C", "B", "A"]] => groups
+["A", "B", "C"] => options
+
+0 => electorate
+for g in groups:
+    electorate + g[0] => electorate
+
+"the ballots" ^0
+for g in groups:
+    "  " + str(g[0]) + " voters : " + g[1] + " > " + g[2] + " > " + g[3] ^0
+"  electorate : " + str(electorate) ^0
+"" ^0
+
+def rank_of(g, name):
+    if g[1] == name:
+        return 1
+    if g[2] == name:
+        return 2
+    return 3
+
+def prefers(g, x, y):
+    if rank_of(g, x) < rank_of(g, y):
+        return 1
+    return 0
+
+def pairwise(x, y):
+    0 => total
+    for g in groups:
+        total + g[0] * prefers(g, x, y) => total
+    return total
+
+def first_place(name):
+    0 => total
+    for g in groups:
+        if g[1] == name:
+            total + g[0] => total
+    return total
+
+def borda(name):
+    0 => total
+    for g in groups:
+        total + g[0] * (3 - rank_of(g, name)) => total
+    return total
+
+# ---- the three rules, all three options on the ballot ----
+
+"rule 1 - count first choices" ^0
+"" => plurality_all
+0 => best
+for o in options:
+    first_place(o) => votes
+    if votes > best:
+        votes => best
+        o => plurality_all
+    "  " + o + " : " + str(votes) ^0
+"  winner : " + plurality_all ^0
+"" ^0
+
+"rule 2 - eliminate the fewest first choices, then recount" ^0
+"" => weakest
+electorate + 1 => fewest
+for o in options:
+    if first_place(o) < fewest:
+        first_place(o) => fewest
+        o => weakest
+"  eliminated first : " + weakest + " with " + str(fewest) + " first choices" ^0
+
+# with one option gone, every ballot moves to whichever of the two survivors
+# it ranked higher, which is the head-to-head tally between them
+[o for o in options if o != weakest] => survivors
+survivors[0] => s0
+survivors[1] => s1
+pairwise(s0, s1) => s0_after
+pairwise(s1, s0) => s1_after
+"  " + s0 + " after the transfer : " + str(s0_after) ^0
+"  " + s1 + " after the transfer : " + str(s1_after) ^0
+"" => irv_winner
+if s0_after > s1_after:
+    s0 => irv_winner
+if s1_after > s0_after:
+    s1 => irv_winner
+"  winner : " + irv_winner ^0
+"" ^0
+
+"rule 3 - points by rank, 2 for first, 1 for second, 0 for third" ^0
+"" => borda_winner
+0 => borda_best
+for o in options:
+    borda(o) => pts
+    if pts > borda_best:
+        pts => borda_best
+        o => borda_winner
+    "  " + o + " : " + str(pts) ^0
+"  winner : " + borda_winner ^0
+"" ^0
+
+"C wins under rule 1 : " + str(first_place("C") == best) ^0
+"C wins under rule 2 : " + str(weakest != "C") ^0
+"C wins under rule 3 : " + str(borda("C") == borda_best) ^0
+"  C is the option that cannot win, under every rule on the table" ^0
+"" ^0
+
+# ---- every head-to-head contest ----
+#
+# C is not a universal loser. It beats one of the two, which is exactly why it
+# is on the ballot at all and why removing it is not obviously harmless.
+
+"every head-to-head contest" ^0
+for x in options:
+    for y in options:
+        if x < y:
+            pairwise(x, y) => xy
+            pairwise(y, x) => yx
+            if xy > yx:
+                "  " + x + " beats " + y + ", " + str(xy) + " to " + str(yx) ^0
+            if yx > xy:
+                "  " + y + " beats " + x + ", " + str(yx) + " to " + str(xy) ^0
+"" ^0
+
+# ---- rule 1 again, with C removed ----
+#
+# With two options left, a voter's first choice is whichever of the two they
+# ranked higher, which is the head-to-head tally.
+
+"rule 1 - count first choices, C removed from the ballot" ^0
+pairwise("A", "B") => a_two
+pairwise("B", "A") => b_two
+"  A : " + str(a_two) ^0
+"  B : " + str(b_two) ^0
+"" => plurality_two
+if a_two > b_two:
+    "A" => plurality_two
+if b_two > a_two:
+    "B" => plurality_two
+"  winner : " + plurality_two ^0
+"" ^0
+
+"  this is the same arithmetic as rule 2's final round, which is why rule 2" ^0
+"  already elected " + irv_winner + " without anybody removing anything" ^0
+"" ^0
+
+"the same rule, the same voters, the same ballots" ^0
+"  winner with C on the ballot  : " + plurality_all ^0
+"  winner with C off the ballot : " + plurality_two ^0
+"" ^0
+
+# ---- the control ----
+#
+# If removing C had changed anybody's opinion of A against B, the flip would be
+# a fact about the voters rather than about the count. This is the tally that
+# decides which it is, and it is computed twice from the same ballots.
+
+"control - the A against B tally, with C present and with C removed" ^0
+"  with C    : A " + str(pairwise("A", "B")) + ", B " + str(pairwise("B", "A")) ^0
+"  without C : A " + str(a_two) + ", B " + str(b_two) ^0
+"  identical : " + str(pairwise("A", "B") == a_two) ^0
+"  voters who changed their A-against-B preference : " + str(pairwise("A", "B") - a_two) ^0
+"  so the flip is not in anyone's opinion, it is in the aggregation" ^0
+"" ^0
+
+# ---- where the majority went ----
+
+"what the first-choice rule did with the " + str(b_two) + " voters who prefer B to A" ^0
+"  B is preferred to A by " + str(b_two) + " of " + str(electorate) + ", a majority" ^0
+"  under rule 1 with C present, B is credited with " + str(first_place("B")) ^0
+"  the missing " + str(b_two - first_place("B")) + " ranked C first and B second" ^0
+"  rule 1 reads a ranking's first entry and discards the rest, and the" ^0
+"  discarded part is where the majority was written down" ^0
+"" ^0
+
+str(first_place("C")) + " people rank C first, so C belongs on the ballot, and counting first" ^0
+"choices is the rule everyone can audit. C wins under none of the three rules" ^0
+"and still decides the outcome: " + plurality_all + " wins with C present and " + plurality_two + " without, while" ^0
+str(b_two) + " of " + str(electorate) + " voters prefer B to A in both counts." ^0

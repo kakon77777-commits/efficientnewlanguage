@@ -1,0 +1,156 @@
+# Self-authored for the EML case corpus (no external origin). Customer names
+# and email local parts are masked in the application log, one asterisk per
+# character. How many customers the masked log still identifies uniquely is
+# counted below.
+#
+# Masking character by character was a considered choice, not an oversight. It
+# keeps log lines aligned so the columns stay readable, it lets an engineer see
+# at a glance that a field was present rather than empty, and it makes a
+# truncation or an encoding fault visible in the log without exposing anything.
+# Replacing the value with a fixed token throws all of that away, and the
+# people who asked for the per-character mask were right that they would lose
+# it.
+#
+# The review asked whether any log line contains a customer's name. It does
+# not, on any line, and that check is run on every build and passes.
+#
+# What the check cannot ask is whether the masked rendering is a function of
+# the value, because that is not a question about the characters present. A
+# mask that is one asterisk per character is exactly such a function: it
+# publishes the length. Length is a small number of bits, and small numbers of
+# bits add up across fields.
+
+# [surname, email local part, city - city is not classed as personal data]
+[["Kowalski", "j.kowalski", "Leeds"], ["Ng", "png", "Perth"], ["Fernandez", "m.fernandez", "Cork"], ["Oyelaran", "t.oyelaran", "Leeds"], ["Li", "wli", "Tampa"], ["Abramowitz", "s.abramowitz", "Ghent"], ["Sato", "ksato", "Perth"], ["Okonkwo", "c.okonkwo", "Cork"], ["Vasquez", "r.vasquez", "Leeds"], ["Brandt", "hbrandt", "Tampa"], ["Nakamura", "y.nakamura", "Ghent"], ["Ferreira", "a.ferreira", "Perth"], ["Adeyemi", "b.adeyemi", "Cork"], ["Kaur", "nkaur", "Leeds"], ["Marchetti", "g.marchetti", "Tampa"], ["Haddad", "zhaddad", "Ghent"], ["Nowak", "pnowak", "Perth"], ["Bianchi", "l.bianchi", "Cork"], ["Suzuki", "msuzuki", "Leeds"], ["Petrov", "dpetrov", "Tampa"]] => records
+
+len(records) => population
+8 => fixed_width
+[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] => mask_widths
+len(mask_widths) => mask_table
+
+
+"customers in the log : " + str(population) ^0
+
+0 => longest
+for r in records:
+    if len(r[0]) > longest:
+        len(r[0]) => longest
+    if len(r[1]) > longest:
+        len(r[1]) => longest
+
+# distinct cities, counted from the records with a delimited membership test
+# so that one city name being a substring of another cannot merge them
+"|" => seen
+0 => city_count
+for r in records:
+    if not ("|" + r[2] + "|" in seen):
+        seen + r[2] + "|" => seen
+        city_count + 1 => city_count
+
+"distinct cities logged in the clear : " + str(city_count) ^0
+"longest masked field in this data   : " + str(longest) + " characters" ^0
+"mask table covers                   : " + str(mask_table) + " characters" ^0
+"  headroom : " + str(mask_table - longest) + ", so no length is silently truncated" ^0
+"" ^0
+
+def stars(n):
+    "" => out
+    for i in mask_widths:
+        if i <= n:
+            out + "*" => out
+    return out
+
+def per_char_line(r):
+    return stars(len(r[0])) + "  " + stars(len(r[1])) + "  " + r[2]
+
+def fixed_line(r):
+    return stars(fixed_width) + "  " + stars(fixed_width) + "  " + r[2]
+
+def per_char_key(r):
+    return str(len(r[0])) + "-" + str(len(r[1])) + "-" + r[2]
+
+def fixed_key(r):
+    return str(fixed_width) + "-" + str(fixed_width) + "-" + r[2]
+
+# ---- what a reader sees ----
+
+"the log, as a reviewer reads it" ^0
+for r in [records[0], records[1], records[5]]:
+    "  per character : " + per_char_line(r) ^0
+    "  fixed width   : " + fixed_line(r) ^0
+"  neither rendering contains a character of any name" ^0
+"  raw surnames found in the log by the build check : 0, under both masks" ^0
+"" ^0
+
+# ---- how many people each rendering distinguishes ----
+
+def group_size_per_char(r):
+    0 => n
+    for other in records:
+        if per_char_key(other) == per_char_key(r):
+            n + 1 => n
+    return n
+
+def group_size_fixed(r):
+    0 => n
+    for other in records:
+        if fixed_key(other) == fixed_key(r):
+            n + 1 => n
+    return n
+
+0 => unique_per_char
+0 => unique_fixed
+0 => worst_per_char
+0 => worst_fixed
+for r in records:
+    group_size_per_char(r) => gp
+    group_size_fixed(r) => gf
+    if gp == 1:
+        unique_per_char + 1 => unique_per_char
+    if gf == 1:
+        unique_fixed + 1 => unique_fixed
+    if gp > worst_per_char:
+        gp => worst_per_char
+    if gf > worst_fixed:
+        gf => worst_fixed
+
+"per-character mask" ^0
+"  customers identified uniquely : " + str(unique_per_char) + " of " + str(population) ^0
+"  largest group anyone hides in : " + str(worst_per_char) ^0
+"" ^0
+
+# ---- the control ----
+#
+# The same twenty customers, the same log, the same city field in the clear.
+# The only difference is that the mask stops being a function of the value.
+
+"control - fixed-width mask, same data" ^0
+"  customers identified uniquely : " + str(unique_fixed) + " of " + str(population) ^0
+"  largest group anyone hides in : " + str(worst_fixed) ^0
+"  difference in unique identifications : " + str(unique_per_char - unique_fixed) ^0
+"  difference in what the reviewer sees : none, both render every name as" ^0
+"  asterisks and both pass the raw-name check" ^0
+"" ^0
+
+# ---- where the bits come from ----
+
+"what each field contributes when the mask follows the value" ^0
+"  city, logged in the clear : " + str(city_count) + " distinct values" ^0
+"  surname length            : a number, published exactly" ^0
+"  local part length         : a number, published exactly" ^0
+"  the two lengths are not personal data on their own, which is why" ^0
+"  neither was reviewed, and the review is per field" ^0
+"" ^0
+
+"the identification, one customer at a time" ^0
+for r in [records[5], records[2], records[1]]:
+    "  " + r[2] + ", surname " + str(len(r[0])) + " characters, local part " + str(len(r[1])) + " characters" ^0
+    "    customers matching that description : " + str(group_size_per_char(r)) ^0
+    "    under a fixed-width mask            : " + str(group_size_fixed(r)) ^0
+"" ^0
+
+"One asterisk per character keeps the columns aligned and shows a field was" ^0
+"present, which is why it was chosen, and no log line contains a name under" ^0
+"either mask. A mask that follows the value publishes the value's length:" ^0
+str(unique_per_char) + " of " + str(population) + " customers are singled out by it, against " + str(unique_fixed) + " when the" ^0
+"mask is a constant." ^0

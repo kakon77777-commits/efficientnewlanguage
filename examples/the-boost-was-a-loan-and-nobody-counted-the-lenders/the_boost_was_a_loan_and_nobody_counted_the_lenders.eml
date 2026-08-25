@@ -1,0 +1,129 @@
+# Self-authored for the EML case corpus (no external origin). A low-priority
+# task held a lock that a high-priority task needed, and medium-priority work
+# ran ahead of both. Priority inheritance fixed it. What the fix cost over the
+# following twelve weeks is computed below.
+#
+# Priority inheritance is the correct fix and it was applied correctly. When a
+# task blocks on a lock, the holder is raised to the waiter's priority so it
+# can finish and release. This is the textbook answer, it is what the
+# literature recommends, and here it worked: the inversion was measured before
+# and after, and afterwards there were none. That measurement is real and it
+# stays true for every week below.
+#
+# A boost is a loan. It is taken out on behalf of a particular waiter and it is
+# owed back when that waiter is gone. Giving it back means knowing when the
+# last waiter has left, and knowing that means keeping a count. The
+# implementation kept a flag, because a flag answers the question the acquire
+# path asks - is this task boosted - and it was the acquire path that was being
+# written.
+#
+# A flag can say boosted. It cannot say boosted on behalf of how many, so there
+# is no moment at which it can say: not any more.
+
+300 => tasks
+6 => genuinely_high
+18 => boosted_per_week
+4 => service_ms
+3 => medium_tasks_ahead
+40 => medium_service_ms
+
+medium_tasks_ahead * medium_service_ms => inversion_cost_ms
+
+"the system" ^0
+"  tasks                          : " + str(tasks) ^0
+"  genuinely high priority        : " + str(genuinely_high) ^0
+"  cost of the original inversion : " + str(inversion_cost_ms) + " ms, " + str(medium_tasks_ahead) + " medium tasks at " + str(medium_service_ms) + " ms" ^0
+"" ^0
+
+def boosted_after(week):
+    week * boosted_per_week => n
+    if n > tasks - genuinely_high:
+        return tasks - genuinely_high
+    return n
+
+def top_priority_after(week):
+    return genuinely_high + boosted_after(week)
+
+def high_wait_after(week):
+    return int((top_priority_after(week) - 1) / 2) * service_ms
+
+# ---- twelve weeks after the fix ----
+
+"week   permanently boosted   at top priority   high-priority wait ms   inversions" ^0
+0 => crossover
+for w in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]:
+    high_wait_after(w) => wait
+    if crossover == 0:
+        if wait > inversion_cost_ms:
+            w => crossover
+    "  w" + str(w) + "     " + str(boosted_after(w)) + "                  " + str(top_priority_after(w)) + "               " + str(wait) + "                    0" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The inversion counter is the measurement that justified the fix, and it is
+# the measurement the team kept watching. It is correct. There are no
+# inversions, in week 1 and in week 12, because the holder is always boosted.
+
+"control - the metric the fix was judged by" ^0
+"  priority inversions before the fix : " + str(medium_tasks_ahead) + " per contended acquire" ^0
+"  priority inversions in week 1      : 0" ^0
+"  priority inversions in week 12     : 0" ^0
+"  the fix works, and it goes on working while everything below happens" ^0
+"" ^0
+
+# ---- the second control ----
+#
+# If priorities were drifting for some general reason, a task that never
+# touches a contended lock would drift too.
+
+"control - a task that never takes a contended lock" ^0
+"  priority in week 1  : low" ^0
+"  priority in week 12 : low" ^0
+"  so this is not drift, it is the lock path and only the lock path" ^0
+"" ^0
+
+# ---- what happened to the high-priority tasks ----
+
+high_wait_after(1) => wait_first
+high_wait_after(12) => wait_last
+
+"the tasks the priority system exists for" ^0
+"  wait before the fix : " + str(inversion_cost_ms) + " ms" ^0
+"  wait in week 1      : " + str(wait_first) + " ms" ^0
+"  wait in week 12     : " + str(wait_last) + " ms" ^0
+"  the fix was better than the inversion until week " + str(crossover) ^0
+"  after week " + str(crossover) + " it is worse than the problem it removed" ^0
+"  and it is worse by " + str(wait_last - inversion_cost_ms) + " ms by week 12" ^0
+"" ^0
+
+"what priority means at each end" ^0
+"  week 1  : " + str(top_priority_after(1)) + " of " + str(tasks) + " tasks at top priority, " + str(int(top_priority_after(1) * 100 / tasks)) + " percent" ^0
+"  week 12 : " + str(top_priority_after(12)) + " of " + str(tasks) + " tasks at top priority, " + str(int(top_priority_after(12) * 100 / tasks)) + " percent" ^0
+"  a priority that " + str(int(top_priority_after(12) * 100 / tasks)) + " percent of tasks hold does not order anything," ^0
+"  so the scheduler is running arrival order with extra steps" ^0
+"" ^0
+
+# ---- what a count would have cost ----
+
+"flag against count" ^0
+"  flag  : one bit, answers is this task boosted, which is what acquire asks" ^0
+"  count : one integer, answers how many waiters, which is what release asks" ^0
+"  the release path was written second and reused the field it found" ^0
+"  tasks that would be at top priority in week 12 with a count : " + str(genuinely_high) ^0
+"  tasks at top priority in week 12 with a flag                : " + str(top_priority_after(12)) ^0
+"" ^0
+
+# ---- what nobody was watching ----
+
+"quantities on the dashboard" ^0
+"  priority inversions per hour : yes, and it reads 0" ^0
+"  lock wait time               : yes, and it improved" ^0
+"  tasks currently boosted      : no such metric exists" ^0
+"  the number that was rising is the one the system had no name for" ^0
+"" ^0
+
+"Priority inheritance is the right fix, it was applied correctly, and the" ^0
+"inversion count has been 0 every week since. A boost is owed back to a" ^0
+"specific waiter, and a flag cannot say how many, so " + str(boosted_after(12)) + " tasks now hold a" ^0
+"priority they borrowed: high-priority work waits " + str(wait_last) + " ms against " + str(inversion_cost_ms) + " ms before." ^0

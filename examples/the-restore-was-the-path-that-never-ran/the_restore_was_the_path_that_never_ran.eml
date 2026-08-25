@@ -1,0 +1,104 @@
+# Self-authored for the EML case corpus (no external origin). The backup has
+# succeeded 412 nights in a row. How much of the restore path that number
+# covers is computed below.
+#
+# The backup is genuinely well built. It has a verification step rather than
+# trusting the exit code, it alerts on failure, it has caught three real
+# defects in its own life and each was fixed, and 412 consecutive successes is
+# not a lucky streak, it is a mature piece of code. Nothing below is a
+# criticism of it.
+#
+# Backup and restore are two programs. They share a file format and nothing
+# else: different code, different libraries, different failure modes, different
+# authors in two of the three cases. A backup that succeeds says the writer
+# worked. It says nothing about the reader, which has run once.
+#
+# The reason is not carelessness. Code gets tested in proportion to how often
+# it runs, and the paths that only run in an emergency are by construction the
+# paths that have run least. The backup is well tested because it executes
+# every night, which is the same fact from the other side.
+
+412 => backup_runs
+3 => backup_defects_found
+31 => backup_commits
+1 => restore_runs
+23 => restore_commits
+14 => months_since_drill
+
+"executions and change, per path" ^0
+("  backup  : %s runs, %s commits, %s runs per commit" % (str(backup_runs), str(backup_commits), str(int(backup_runs / backup_commits))))^0
+("  restore : %s run, %s commits, %s runs per commit" % (str(restore_runs), str(restore_commits), str(int(restore_runs / restore_commits))))^0
+("  restore commits never executed even once : %s of %s" % (str(restore_commits - restore_runs), str(restore_commits)))^0
+"" ^0
+
+("  defects found in the backup path  : %s in %s runs" % (str(backup_defects_found), str(backup_runs)))^0
+("  defects found in the restore path : 0 in %s run" % str(restore_runs))^0
+"  the second zero is not a measurement, it is the absence of one" ^0
+"" ^0
+
+# ---- what the nightly verification checks ----
+
+# [failure mode, caught by the backup's own verification]
+[["output file is empty", "yes"], ["write truncated by a full disk", "no"], ["encrypted with a key since rotated", "no"], ["schema is newer than the dump", "no"], ["referenced blobs expired by a lifecycle rule", "no"], ["compression codec changed version", "no"]] => modes
+
+"restore failure modes and what the nightly check sees" ^0
+0 => caught
+for m in modes:
+    if m[1] == "yes":
+        caught + 1 => caught
+    ("  %-46s %s" % (m[0], m[1]))^0
+("  modes the verification can detect : %s of %s" % (str(caught), str(len(modes))))^0
+"  the check confirms a file was written, which is the question the backup" ^0
+"  is able to ask about itself" ^0
+"" ^0
+
+# ---- the evidence that does exist ----
+
+23 => commits_since_drill
+"the one restore that was run" ^0
+("  when                          : %s months ago, in a drill" % str(months_since_drill))^0
+"  result                        : passed" ^0
+("  commits to the restore path since : %s" % str(commits_since_drill))^0
+("  that evidence covers          : the restore path as it was %s months ago" % str(months_since_drill))^0
+"  a passing drill is real evidence and it has an age, and nothing in the" ^0
+"  dashboard shows the age" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The backup path, under exactly the same review standards, by the same team.
+
+"control - the path that runs every night" ^0
+("  executions          : %s" % str(backup_runs))^0
+("  defects found       : %s, all in production, all fixed" % str(backup_defects_found))^0
+("  defects per 1000 runs : %s" % str(int(backup_defects_found * 1000 / backup_runs)))^0
+"  reviewed no more carefully than the restore path, and written by the" ^0
+"  same people, so review is not what separates them" ^0
+"  exposure is what separates them" ^0
+"" ^0
+
+# ---- the same asymmetry elsewhere ----
+
+# [path, executions per year, how it is discovered to be broken]
+[["backup writer", 365, "the nightly alert"], ["restore reader", 1, "an outage"], ["failover to standby", 0, "an outage"], ["certificate renewal", 4, "an outage"], ["request handler", 400000000, "immediately"]] => paths
+
+"paths ranked by how often they run" ^0
+for p in paths:
+    ("  %-22s %-14s found broken by: %s" % (p[0], str(p[1]), p[2]))^0
+"  the column on the right is a function of the column on its left" ^0
+"" ^0
+
+# ---- what would make the restore path ordinary ----
+
+"how to give a path exposure it does not have naturally" ^0
+"  restore into a scratch database nightly and diff the row counts" ^0
+("    executions per year would become %s instead of %s" % (str(365), str(restore_runs)))^0
+"  the cost is one scratch database and the time of one restore" ^0
+"  the current cost is that the first execution in production is also" ^0
+"  the first one that matters" ^0
+"" ^0
+
+"The backup is mature: 412 consecutive successes and three defects found and" ^0
+("fixed in its own life. It is the writer. The reader has run %s time, %s" % (str(restore_runs), str(months_since_drill)))^0
+("months and %s commits ago, and the nightly verification covers %s of %s" % (str(restore_commits), str(caught), str(len(modes))))^0
+"restore failure modes." ^0

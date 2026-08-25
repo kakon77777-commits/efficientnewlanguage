@@ -1,0 +1,134 @@
+# Self-authored for the EML case corpus (no external origin). Customer names
+# are escaped when they arrive and escaped again when they are rendered. What
+# each output route shows is computed below.
+#
+# Both escapes are right, individually and by the same rule. The template
+# engine escapes on output, which is the thing that stops a name from becoming
+# markup, and turning it off is how sites get attacked. The ingress escape was
+# added after an incident in which a value reached a consumer that did no
+# escaping of its own, and defence in depth is the standard response to that.
+# Two people applied the same correct rule at the two places the rule names.
+#
+# Escaping is not idempotent. Applying it twice is not the same as applying it
+# once, because the escape sequence it produces is itself made of characters
+# that the escape wants to encode. Validation composes: check twice and you
+# have checked. Normalisation composes. Escaping does not, and the rule "escape
+# at the boundary" is only safe when a boundary can be named and counted.
+#
+# There is no place in the code where anyone can see two of them at once. The
+# ingress layer and the template are different files owned by different teams,
+# and each is correct when read on its own.
+
+def escape(text):
+    "" => out
+    for i in [0:len(text) - 1]:
+        text[i:i + 1] => c
+        c => piece
+        if c == "&":
+            "&amp;" => piece
+        if c == "<":
+            "&lt;" => piece
+        if c == ">":
+            "&gt;" => piece
+        if c == "'":
+            "&#39;" => piece
+        out + piece => out
+    return out
+
+def escape_n(text, n):
+    text => out
+    for i in [1:n]:
+        escape(out) => out
+    return out
+
+"Ben & Jerry's" => raw
+
+"the stored value" ^0
+("  as typed by the customer : %s" % raw)^0
+("  length                   : %s" % str(len(raw)))^0
+("  after the ingress escape : %s" % escape(raw))^0
+("  length                   : %s" % str(len(escape(raw))))^0
+"" ^0
+
+# ---- what each additional layer does ----
+
+"escaping applied n times to the same value" ^0
+for n in [0, 1, 2, 3]:
+    escape_n(raw, n) => v
+    ("  n=%-3s length %-5s %s" % (str(n), str(len(v)), v))^0
+"" ^0
+
+len(escape_n(raw, 2)) - len(escape_n(raw, 1)) => growth
+("  each extra layer adds %s characters, so the layer count is recoverable" % str(growth))^0
+("  from the length alone, which is how this was eventually found" )^0
+"" ^0
+
+# ---- the routes ----
+
+# [route, escapes applied after storage, escapes this route actually needs]
+[["web page", 1, 1], ["json api", 0, 0], ["csv export", 0, 0], ["transactional email", 2, 1], ["pdf invoice", 0, 0]] => routes
+
+"route                  total escapes   needs   renders as" ^0
+0 => wrong
+for r in routes:
+    1 + r[1] => applied
+    if applied != r[2]:
+        wrong + 1 => wrong
+    ("  %-22s %-15s %-7s %s" % (r[0], str(applied), str(r[2]), escape_n(raw, applied)))^0
+"" ^0
+("  routes rendering the customer's name correctly : %s of %s" % (str(len(routes) - wrong), str(len(routes))))^0
+"  every route applies exactly the number of escapes its own code says," ^0
+"  and the stored value already carries one that none of them can see" ^0
+"" ^0
+
+# ---- the control ----
+#
+# A value written by an internal job, which does not pass through the ingress
+# layer. Same template, same escape function, same routes.
+
+"Ben & Jerry's" => internal_raw
+"control - the same value written by a job that skips the ingress layer" ^0
+for r in [routes[0], routes[1]]:
+    ("  %-22s renders %s" % (r[0], escape_n(internal_raw, r[1])))^0
+"  correct on the html route and correct on the json route" ^0
+"  so the escape function is right and the templates are right" ^0
+"" ^0
+
+# ---- the control that hid it ----
+#
+# Escaping is idempotent on any value containing none of the characters it
+# encodes, which is most names.
+
+["Ben & Jerry's", "Alice Chen", "Marks & Spencer", "Jose Ramirez", "O'Brien", "Yuki Tanaka", "Procter & Gamble", "Sam Nowak", "Ada Lovelace", "Dun & Bradstreet"] => customers
+
+0 => affected
+for c in customers:
+    if escape(c) != c:
+        affected + 1 => affected
+("control - customers whose rendering changes at all" )^0
+("  customers            : %s" % str(len(customers)))^0
+("  containing an escapable character : %s" % str(affected))^0
+("  unaffected                        : %s" % str(len(customers) - affected))^0
+"  for those, one escape and three escapes give the same string, so a" ^0
+"  test written with any of them passes under every layer count" ^0
+"" ^0
+
+"which names a test would be written with" ^0
+for c in [customers[1], customers[0]]:
+    ("  %-20s n=1 %-24s n=3 %s" % (c, escape_n(c, 1), escape_n(c, 3)))^0
+"" ^0
+
+# ---- what composes and what does not ----
+
+"operations at a boundary, and whether two of them are worse than one" ^0
+"  validate  : idempotent, two checks are one check" ^0
+"  normalise : idempotent by definition, that is what it means" ^0
+"  escape    : not idempotent, its output is made of the characters it" ^0
+"              encodes, so it has nothing to be idempotent about" ^0
+"  the rule that was followed does not distinguish these three" ^0
+"" ^0
+
+"Escaping on output stops a name becoming markup and escaping on ingress was" ^0
+"added after a real incident. Escaping is not idempotent, so the two correct" ^0
+("rules give %s of %s routes a wrong rendering, and %s of %s customers have a name" % (str(wrong), str(len(routes)), str(len(customers) - affected), str(len(customers))))^0
+"that looks identical however many times it is escaped." ^0

@@ -1,0 +1,105 @@
+# Self-authored for the EML case corpus (no external origin). The new internal
+# tool reports 96 percent adoption in its fourth quarter. What the number is
+# measuring is computed below.
+#
+# Measuring adoption is the right thing to do and this team did it honestly.
+# The number is not inflated, nobody is counting a login as usage, and the
+# denominator is every employee rather than a flattering subset. It rose every
+# quarter, which is what a tool that is working should do, and it was reported
+# without adjustment.
+#
+# It was also the quarter in which the old tool was switched off for the last
+# large group of users. Adoption counts the people using the tool, and a person
+# with no alternative is counted the same as a person who chose it. The two are
+# not distinguishable inside the number, and only one of them is evidence.
+#
+# The population that can produce evidence is the population that still has a
+# choice, and switching the old tool off is the act of shrinking it. The better
+# the rollout goes, the fewer people remain who could tell you anything, so the
+# number becomes most confident exactly as it becomes least informative.
+
+1200 => employees
+50 => still_have_a_choice
+6 => choosers_who_adopted
+
+employees - still_have_a_choice => no_alternative
+no_alternative + choosers_who_adopted => users
+
+"the reported number" ^0
+("  employees                    : %s" % str(employees))^0
+("  using the new tool           : %s" % str(users))^0
+("  adoption                     : %s percent" % str(int(users * 100 / employees)))^0
+"" ^0
+
+"the same people, split by whether they had a choice" ^0
+("  no alternative               : %s, of whom %s use it, %s percent" % (str(no_alternative), str(no_alternative), str(100)))^0
+("  still have the old tool      : %s, of whom %s use it, %s percent" % (str(still_have_a_choice), str(choosers_who_adopted), str(int(choosers_who_adopted * 100 / still_have_a_choice))))^0
+("  population that can disagree : %s, which is %s percent of the company" % (str(still_have_a_choice), str(int(still_have_a_choice * 100 / employees))))^0
+"" ^0
+
+# ---- the curve, against a model with one parameter ----
+#
+# If everyone without a choice is counted and everyone with a choice adopts at
+# the rate the choosers actually show, adoption is determined by the switch-off
+# schedule alone.
+
+int(choosers_who_adopted * 100 / still_have_a_choice) => chooser_rate
+
+# [quarter, percent of employees cut off from the old tool, reported adoption]
+[["Q1", 0, 9], ["Q2", 60, 62], ["Q3", 90, 91], ["Q4", 96, 96]] => quarters
+
+("model: adoption = cut off + (remainder x %s percent), one free parameter" % str(chooser_rate))^0
+"" ^0
+"quarter   cut off   predicted   reported   difference" ^0
+0 => worst
+for q in quarters:
+    q[1] + int((100 - q[1]) * chooser_rate / 100) => predicted
+    predicted - q[2] => diff
+    if abs(diff) > worst:
+        abs(diff) => worst
+    ("  %-9s %-9s %-11s %-10s %s" % (q[0], str(q[1]), str(predicted), str(q[2]), str(diff)))^0
+"" ^0
+("  largest error across four quarters : %s points" % str(worst))^0
+"  the switch-off schedule predicts the adoption curve, so the curve is" ^0
+"  evidence about the schedule and not about the tool" ^0
+"" ^0
+
+# ---- the control ----
+#
+# A second internal tool shipped the same quarter by the same team, with the
+# same survey and the same reporting. Nothing was switched off for it.
+
+852 => optional_users
+"control - an optional tool, same quarter, same team, same measurement" ^0
+("  employees with a choice : %s" % str(employees))^0
+("  adopted                 : %s, %s percent" % (str(optional_users), str(int(optional_users * 100 / employees))))^0
+("  population that can disagree : %s, %s percent of the company" % (str(employees), str(100)))^0
+"  a lower number carrying more information than the higher one" ^0
+"  the measurement method is not the problem, it is the same method" ^0
+"" ^0
+
+# ---- what the number would be if everyone could choose ----
+
+int(chooser_rate * employees / 100) => projected
+"the two readings of the same quarter" ^0
+("  adoption as reported                 : %s percent" % str(int(users * 100 / employees)))^0
+("  adoption among people who could leave : %s percent" % str(chooser_rate))^0
+("  employees that projects to            : %s of %s" % (str(projected), str(employees)))^0
+("  the reported figure and the projection differ by %s points and are" % str(int(users * 100 / employees) - chooser_rate))^0
+"  computed from the same four numbers" ^0
+"" ^0
+
+# ---- the survey ----
+
+"the satisfaction survey attached to the rollout" ^0
+"  sent to     : users of the new tool" ^0
+("  that is     : %s people, %s of whom have no alternative" % (str(users), str(no_alternative)))^0
+"  asks        : how well the tool meets your needs" ^0
+"  cannot ask  : whether you would use it if the old one existed" ^0
+"  the one group that can answer that is the group being switched off next" ^0
+"" ^0
+
+"Adoption was measured honestly, on the whole company, and it rose every" ^0
+("quarter. It counts a person with no alternative the same as a person who" )^0
+("chose: %s percent overall, %s percent among the %s who still have a choice," % (str(int(users * 100 / employees)), str(chooser_rate), str(still_have_a_choice)))^0
+("and the switch-off schedule predicts all four quarters within %s points." % str(worst))^0

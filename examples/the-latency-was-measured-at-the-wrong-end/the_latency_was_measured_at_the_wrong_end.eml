@@ -1,0 +1,129 @@
+# Self-authored for the EML case corpus (no external origin). Three endpoints
+# were changed to stream their results instead of building the whole response
+# first. The latency dashboard recorded the best week it had ever seen. What
+# the clients saw is computed below.
+#
+# Streaming was the right change and it did what it was supposed to do. A
+# report that takes two seconds to assemble should not make the caller wait two
+# seconds staring at nothing, memory no longer holds the whole body, and the
+# first rows arrive while the rest are still being computed. Every argument for
+# it is sound and every one of them is still true at the end of this file.
+#
+# The latency metric is recorded when the response begins, which is where a
+# handler naturally has something to record: the moment it hands the first
+# bytes to the socket. For an endpoint that writes its whole body at once, that
+# instant is also the end, so the metric has been exactly right for years, on
+# every endpoint, which is why nobody thought about which end it measured.
+#
+# Streaming is the change that moves those two instants apart. It improves the
+# quantity being recorded and it is free to make the other one worse, and the
+# other one is the one the caller is waiting for.
+
+1200 => client_timeout_ms
+
+# [endpoint, streams now, first byte before, complete before, first byte after, complete after, requests per minute]
+[["report/summary", "yes", 800, 800, 40, 1400, 120], ["report/detail", "yes", 1250, 1250, 55, 2100, 40], ["export/csv", "yes", 2900, 2900, 30, 3400, 15], ["account/get", "no", 60, 60, 60, 60, 900], ["account/list", "no", 110, 110, 110, 110, 300], ["search", "no", 180, 180, 180, 180, 600], ["cart/add", "no", 45, 45, 45, 45, 750], ["health", "no", 5, 5, 5, 5, 200]] => endpoints
+
+0 => rpm_total
+for e in endpoints:
+    rpm_total + e[6] => rpm_total
+
+def weighted(idx):
+    0 => total
+    for e in endpoints:
+        total + e[idx] * e[6] => total
+    return int(total / rpm_total)
+
+def timeouts(idx):
+    0 => total
+    for e in endpoints:
+        if e[idx] > client_timeout_ms:
+            total + e[6] => total
+    return total
+
+"requests per minute across the fleet : " + str(rpm_total) ^0
+"client timeout                       : " + str(client_timeout_ms) + " ms" ^0
+"" ^0
+
+# ---- per endpoint ----
+
+"endpoint         streams   first byte           complete" ^0
+"                           before   after       before   after" ^0
+for e in endpoints:
+    ("  %-16s %-9s %-8s %-11s %-8s %s" % (e[0], e[1], str(e[2]), str(e[4]), str(e[3]), str(e[5])))^0
+"" ^0
+
+# ---- the two fleet numbers ----
+
+weighted(2) => first_before
+weighted(4) => first_after
+weighted(3) => complete_before
+weighted(5) => complete_after
+
+"the number on the dashboard, weighted by traffic" ^0
+("  first byte, before : %s ms" % str(first_before))^0
+("  first byte, after  : %s ms" % str(first_after))^0
+("  reported change    : %s percent" % str(int((first_before - first_after) * 100 / first_before)))^0
+"" ^0
+
+"the number the caller waits for" ^0
+("  complete, before : %s ms" % str(complete_before))^0
+("  complete, after  : %s ms" % str(complete_after))^0
+("  actual change    : %s percent worse" % str(int((complete_after - complete_before) * 100 / complete_before)))^0
+"" ^0
+
+# ---- what the clients did about it ----
+
+timeouts(3) => to_before
+timeouts(5) => to_after
+
+"requests that exceed the client timeout" ^0
+("  before : %s per minute" % str(to_before))^0
+("  after  : %s per minute" % str(to_after))^0
+("  change : %s more per minute" % str(to_after - to_before))^0
+"  these are recorded by the client as failures and by the server as" ^0
+"  successes, because the server did respond, promptly" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The five endpoints that were not changed. For each of them the first byte
+# and the completion are the same instant, so the metric is exact.
+
+"control - the endpoints that do not stream" ^0
+0 => gap_unstreamed
+0 => n_unstreamed
+for e in endpoints:
+    if e[1] == "no":
+        n_unstreamed + 1 => n_unstreamed
+        gap_unstreamed + (e[5] - e[4]) => gap_unstreamed
+("  endpoints          : %s" % str(n_unstreamed))^0
+("  total gap between first byte and completion : %s ms" % str(gap_unstreamed))^0
+"  on these the metric is not approximately right, it is the same number" ^0
+"  which is why it was never questioned, and it is still true today" ^0
+"" ^0
+
+"control - the same three endpoints before they streamed" ^0
+0 => gap_before
+for e in endpoints:
+    if e[1] == "yes":
+        gap_before + (e[3] - e[2]) => gap_before
+("  gap between first byte and completion, before : %s ms" % str(gap_before))^0
+"  so the gap is not a property of these endpoints either" ^0
+"  it is a property of streaming, and it opened on the day of the change" ^0
+"" ^0
+
+# ---- where the extra time went ----
+
+"why completion got worse and not just later" ^0
+"  before : one query, one serialisation, one write" ^0
+"  after  : one query per page, one write per page, and the client parses" ^0
+"           each page before the next arrives" ^0
+"  the work did not move, it was divided, and division has a per-piece cost" ^0
+("  report/summary : %s ms to %s ms complete, %s ms to first byte" % (str(endpoints[0][3]), str(endpoints[0][5]), str(endpoints[0][4])))^0
+"" ^0
+
+"Streaming was right: the first rows now arrive in " + str(endpoints[0][4]) + " ms instead of " + str(endpoints[0][2]) + "." ^0
+"The metric records the instant the response begins, which was the same" ^0
+("instant as the end on every endpoint until three of them streamed: the" )^0
+("dashboard improved %s percent while timeouts went from %s to %s per minute." % (str(int((first_before - first_after) * 100 / first_before)), str(to_before), str(to_after)))^0
