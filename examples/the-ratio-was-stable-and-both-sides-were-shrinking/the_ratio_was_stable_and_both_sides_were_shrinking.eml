@@ -1,0 +1,131 @@
+# Self-authored for the EML case corpus (no external origin). Conversion rate
+# held at 3.0 percent for twelve months. What held it there is computed below.
+#
+# Conversion rate is the right primary metric for the team that owns the funnel,
+# and it was chosen for good reasons. It is scale-free, so it is comparable
+# across a quiet January and a busy November without anyone arguing about
+# seasonality. It isolates the funnel from acquisition, which the funnel team
+# does not control and should not be judged on. And it cannot be improved by
+# buying traffic, which is exactly the gaming a raw purchase count invites.
+#
+# A ratio holds when its two terms move together. It holds when both grow, and
+# it holds when both shrink, and it reports the same number in both cases. What
+# it cannot report is which of those happened.
+#
+# The funnel team's metric was flat and correct for twelve months. Acquisition
+# was a different team's metric, on a different dashboard, and it is not that
+# either team was negligent - it is that no one owned the product of the two.
+
+50 => revenue_per_purchase
+
+# [month, visits, purchases]
+[[1, 200000, 6000], [4, 173000, 5190], [8, 143000, 4290], [12, 120000, 3600]] => months
+
+"month    visits    purchases   conversion   revenue" ^0
+0 => first_revenue
+0 => last_revenue
+0 => first_visits
+0 => last_visits
+for m in months:
+    int(m[2] * 1000 / m[1]) => conv_per_mille
+    m[2] * revenue_per_purchase => revenue
+    if m[0] == 1:
+        revenue => first_revenue
+        m[1] => first_visits
+    revenue => last_revenue
+    m[1] => last_visits
+    "  " + str(m[0]) + "       " + str(m[1]) + "    " + str(m[2]) + "        " + str(conv_per_mille) + " per mille   " + str(revenue) ^0
+"" ^0
+
+"  conversion in month 1  : 30 per mille" ^0
+"  conversion in month 12 : 30 per mille" ^0
+"  change                 : 0 per mille, across twelve consecutive months" ^0
+"" ^0
+
+# ---- the two terms ----
+
+first_visits - last_visits => visits_lost
+first_revenue - last_revenue => revenue_lost
+
+"visits  : " + str(first_visits) + " -> " + str(last_visits) + ", down " + str(int(visits_lost * 100 / first_visits)) + " percent" ^0
+"revenue : " + str(first_revenue) + " -> " + str(last_revenue) + ", down " + str(int(revenue_lost * 100 / first_revenue)) + " percent" ^0
+"ratio   : unchanged" ^0
+"" ^0
+"the ratio was not lagging or noisy or slow to react" ^0
+"it was reporting, correctly, that the funnel converted as well as it ever did" ^0
+"" ^0
+
+# ---- what a stable ratio is consistent with ----
+#
+# Four different worlds produce the same 30 per mille. Only one of them is the
+# one everybody pictures.
+
+"worlds consistent with a flat conversion rate" ^0
+"  visits up, purchases up      growth" ^0
+"  visits flat, purchases flat  steady state" ^0
+"  visits down, purchases down  this one" ^0
+"  visits halved, purchases halved  the same reading again" ^0
+"  the dashboard cannot separate these, and it was never able to" ^0
+"" ^0
+
+# ---- the fix is not a better ratio ----
+
+"  a ratio needs one of its terms shown beside it" ^0
+"  either term will do; the pair determines the third" ^0
+"  the funnel dashboard showed the ratio and the funnel stages" ^0
+"  every stage was also a ratio" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The absolute counts. They are on a different dashboard, owned by a different
+# team, and they moved every month. Nothing was hidden; the two halves were
+# never put on one page.
+
+"control - the absolute counts, which no ratio can hold flat" ^0
+0 => months_with_decline
+0 => prev_visits
+for m in months:
+    if prev_visits > 0:
+        if m[1] < prev_visits:
+            months_with_decline + 1 => months_with_decline
+    m[1] => prev_visits
+"  measurement points      : 4" ^0
+"  points where visits fell: " + str(months_with_decline) + " of 3 transitions" ^0
+"  visits lost             : " + str(visits_lost) ^0
+"  revenue lost            : " + str(revenue_lost) ^0
+"  the decline is visible in every single reading of the raw count" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same ratio, over a period where the numerator alone moves. The ratio
+# catches it immediately. A conversion rate is not a bad metric; it is blind to
+# exactly one direction of failure, and that direction is the one that happened.
+
+"null control - the same metric when only the numerator moves" ^0
+200000 => nc_visits
+6000 => nc_purchases_before
+4200 => nc_purchases_after
+"  visits              : " + str(nc_visits) + ", unchanged" ^0
+"  purchases           : " + str(nc_purchases_before) + " -> " + str(nc_purchases_after) ^0
+"  conversion          : " + str(int(nc_purchases_before * 1000 / nc_visits)) + " -> " + str(int(nc_purchases_after * 1000 / nc_visits)) + " per mille" ^0
+"  the ratio moved " + str(int(nc_purchases_before * 1000 / nc_visits) - int(nc_purchases_after * 1000 / nc_visits)) + " per mille and would have paged" ^0
+"  so the metric works; it is blind only when both terms move together" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a scale-free metric gives up in exchange for being scale-free" ^0
+"  comparable across seasons        gained" ^0
+"  cannot be gamed by buying traffic gained" ^0
+"  isolates the team from acquisition gained" ^0
+"  detects a change in scale         given up, by construction" ^0
+"  the property that makes it fair is the property that makes it blind" ^0
+"" ^0
+
+"Conversion rate is scale-free on purpose: it is comparable across seasons, it" ^0
+"cannot be improved by buying traffic, and it does not judge the funnel team on" ^0
+"acquisition. Being scale-free means a halving of both terms reads identically" ^0
+"to no change at all. Visits fell " + str(int(visits_lost * 100 / first_visits)) + " percent, revenue fell " + str(int(revenue_lost * 100 / first_revenue)) + " percent, and" ^0
+"the number the funnel team was accountable for did not move once." ^0

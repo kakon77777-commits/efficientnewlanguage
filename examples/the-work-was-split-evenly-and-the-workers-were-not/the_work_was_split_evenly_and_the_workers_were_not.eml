@@ -1,0 +1,146 @@
+# Self-authored for the EML case corpus (no external origin). A batch of 2400
+# documents is split across 8 workers. Every worker gets exactly 300. How long
+# the batch takes, and how long the report says it takes, are computed below.
+#
+# An equal split is the right default and was chosen deliberately. It is the
+# only allocation that needs no information about the workers, so it cannot go
+# stale when a machine is replaced, it cannot be gamed, it is one line of code,
+# and it is defensible to anyone who asks why they got the share they got. Every
+# scheduler that has to run before it knows anything starts here.
+#
+# The fleet is not uniform. Four machines are current generation, two are a
+# generation behind, one is the old box nobody has decommissioned, and one is a
+# VM on shared hardware. Nobody chose this; it accumulated.
+#
+# A batch is not finished when the average worker is finished. It is finished
+# when the last worker is finished. An equal split across unequal workers
+# maximises the gap between those two numbers, because it gives the slowest
+# machine exactly as much work as the fastest.
+
+2400 => documents
+8 => workers
+
+# [worker, documents per minute]
+[["w0", 100], ["w1", 100], ["w2", 100], ["w3", 100], ["w4", 60], ["w5", 60], ["w6", 40], ["w7", 25]] => fleet
+
+int(documents / workers) => each
+
+"documents: " + str(documents) + " split " + str(workers) + " ways = " + str(each) + " each" ^0
+"" ^0
+
+"worker   rate/min   assigned   seconds to finish" ^0
+0 => makespan
+0 => total_seconds
+0 => capacity
+for w in fleet:
+    int(each * 60 / w[1]) => secs
+    total_seconds + secs => total_seconds
+    capacity + w[1] => capacity
+    if secs > makespan:
+        secs => makespan
+    "  " + w[0] + "        " + str(w[1]) + "         " + str(each) + "         " + str(secs) ^0
+"" ^0
+
+int(total_seconds / workers) => mean_seconds
+
+"  batch finishes when the LAST worker finishes : " + str(makespan) + " seconds" ^0
+"  mean worker completion time                  : " + str(mean_seconds) + " seconds" ^0
+"  the status page reported the mean" ^0
+"" ^0
+
+# ---- what the fleet could have done ----
+#
+# Allocation proportional to rate finishes every worker at the same moment,
+# which is the shortest possible makespan for a fixed total.
+
+int(documents * 60 / capacity) => ideal_seconds
+
+"  fleet capacity                     : " + str(capacity) + " documents per minute" ^0
+"  shortest possible batch time       : " + str(ideal_seconds) + " seconds" ^0
+"  actual batch time                  : " + str(makespan) + " seconds" ^0
+"  cost of the equal split            : " + str(makespan - ideal_seconds) + " seconds" ^0
+"  that is " + str(int((makespan - ideal_seconds) * 100 / makespan)) + " percent of the wall clock" ^0
+"" ^0
+
+# ---- where the fleet was during those seconds ----
+
+workers * makespan => worker_seconds_paid
+worker_seconds_paid - total_seconds => idle_seconds
+
+"  worker-seconds paid for   : " + str(worker_seconds_paid) ^0
+"  worker-seconds working    : " + str(total_seconds) ^0
+"  worker-seconds idle       : " + str(idle_seconds) ^0
+"  utilisation               : " + str(int(total_seconds * 100 / worker_seconds_paid)) + " percent" ^0
+"" ^0
+"  the four fastest machines finished in " + str(int(each * 60 / 100)) + " seconds and waited " + str(makespan - int(each * 60 / 100)) + " more" ^0
+"" ^0
+
+# ---- the shape of the error ----
+
+"quantity                      does the split shape it" ^0
+"  documents processed         no, it is a sum" ^0
+"  documents per worker        no, that is what was equalised" ^0
+"  total worker-seconds        no, work is conserved" ^0
+"  batch completion time       YES, it is a maximum" ^0
+"  utilisation                 YES, it is a ratio against a maximum" ^0
+"  the dashboard showed the first three" ^0
+"" ^0
+"a maximum is the only statistic an equal split gets wrong, and it is the" ^0
+"only statistic the customer experiences" ^0
+"" ^0
+
+# ---- the control ----
+#
+# If the equal split were harming throughput, total documents would drop. It
+# does not: every document is processed exactly once under any allocation. The
+# allocation moves WHEN the work happens, never HOW MUCH. This is why the
+# throughput graph looked fine for a year.
+
+"control - a quantity no allocation can move" ^0
+0 => done_equal
+0 => shares_truncated
+for w in fleet:
+    done_equal + each => done_equal
+    int(documents * w[1] / capacity) => share
+    shares_truncated + share => shares_truncated
+documents - shares_truncated => leftover
+shares_truncated + leftover => done_proportional
+"  documents completed, equal split      : " + str(done_equal) ^0
+"  proportional shares before remainder  : " + str(shares_truncated) ^0
+"  documents lost to truncation          : " + str(leftover) ^0
+"  a real scheduler assigns the remainder, so it must hand out those " + str(leftover) ^0
+"  documents completed, proportional     : " + str(done_proportional) ^0
+"  difference                            : " + str(done_equal - done_proportional) ^0
+"  work is conserved, so this cannot detect the problem" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# A uniform fleet. Same equal split, same code path, and now the split is
+# optimal. The split was never the defect on its own.
+
+[["u0", 73], ["u1", 73], ["u2", 73], ["u3", 73], ["u4", 73], ["u5", 73], ["u6", 73], ["u7", 73]] => uniform_fleet
+
+"null control - the same equal split across a uniform fleet" ^0
+0 => u_makespan
+0 => u_total
+0 => u_capacity
+for u in uniform_fleet:
+    int(each * 60 / u[1]) => usecs
+    u_total + usecs => u_total
+    u_capacity + u[1] => u_capacity
+    if usecs > u_makespan:
+        usecs => u_makespan
+"  batch time            : " + str(u_makespan) + " seconds" ^0
+"  shortest possible     : " + str(int(documents * 60 / u_capacity)) + " seconds" ^0
+"  cost of the split     : " + str(u_makespan - int(documents * 60 / u_capacity)) + " seconds" ^0
+"  utilisation           : " + str(int(u_total * 100 / (workers * u_makespan))) + " percent" ^0
+"  the same allocation is optimal here, so the rule is not 'equal is wrong'" ^0
+"  it is 'equal is wrong exactly as far as the fleet is unequal'" ^0
+"" ^0
+
+"An equal split needs no information about the workers, which is what makes it" ^0
+"safe to write and impossible to get stale. It is also what makes it assign the" ^0
+"25-a-minute box the same 300 documents as the 100-a-minute box. The batch took" ^0
+str(makespan) + " seconds against a possible " + str(ideal_seconds) + ", the fleet was idle for " + str(idle_seconds) ^0
+"worker-seconds of the " + str(worker_seconds_paid) + " paid for, and every document was processed." ^0

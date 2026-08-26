@@ -1,0 +1,159 @@
+# Self-authored for the EML case corpus (no external origin). An audit sampled
+# 500 of 50000 accounts and found a defect rate of 4 per thousand. What that
+# rate is a rate of is computed below.
+#
+# The sample size was chosen properly, from a table, for a stated confidence
+# level, and 500 is genuinely enough for a population of 50000. The auditor
+# checked that. The sampling query was written to be fast because the audit runs
+# nightly and a full scan would lock the table during the batch window - a real
+# operational constraint, raised by the DBA, and respected. The query reads from
+# the account cache, which is what every other read path in the system uses.
+#
+# The cache holds accounts touched in the last 90 days. That is 12000 of the
+# 50000. The other 38000 are dormant, and dormant is not a neutral property: an
+# account is dormant because nobody has touched it, and nobody touching it is
+# also why its address, its tax code and its consent flags were never migrated
+# when the schema changed.
+#
+# The sample is unbiased with respect to everything except the one attribute
+# that determines whether a record is in the frame at all - and that attribute
+# is correlated with the defect.
+
+50000 => accounts
+12000 => active
+500 => sample_size
+
+accounts - active => dormant
+
+# defects per thousand, by stratum
+4 => rate_active
+60 => rate_dormant
+
+"accounts            : " + str(accounts) ^0
+"  in cache, active  : " + str(active) ^0
+"  dormant           : " + str(dormant) ^0
+"sample size         : " + str(sample_size) + ", drawn from the cache" ^0
+"" ^0
+
+# ---- what the audit saw ----
+
+int(sample_size * rate_active / 1000) => observed_defects
+int(observed_defects * 1000 / sample_size) => observed_rate
+int(accounts * observed_defects / sample_size) => extrapolated
+
+"the audit" ^0
+"  defects found in the sample : " + str(observed_defects) + " of " + str(sample_size) ^0
+"  observed rate               : " + str(observed_rate) + " per thousand" ^0
+"  extrapolated to " + str(accounts) + "    : " + str(extrapolated) + " defective accounts" ^0
+"" ^0
+
+# ---- what is there ----
+
+int(active * rate_active / 1000) => defects_active
+int(dormant * rate_dormant / 1000) => defects_dormant
+defects_active + defects_dormant => defects_true
+
+"stratum    accounts   rate per thousand   defects   in the sampling frame" ^0
+"  active     " + str(active) + "        " + str(rate_active) + "                  " + str(defects_active) + "       yes" ^0
+"  dormant    " + str(dormant) + "        " + str(rate_dormant) + "                 " + str(defects_dormant) + "     no" ^0
+"  total      " + str(accounts) + "                            " + str(defects_true) ^0
+"" ^0
+
+"  audit reported : " + str(extrapolated) ^0
+"  actually there : " + str(defects_true) ^0
+"  understated by a factor of " + str(int(defects_true / extrapolated)) ^0
+"" ^0
+
+# ---- the rate was correct ----
+#
+# 4 per thousand is the true rate of the population the sample was drawn from.
+# The sample is a good estimate of the cache. The report labelled it "accounts".
+
+"the estimate, judged against the population it actually sampled" ^0
+"  estimated rate in cache : " + str(observed_rate) + " per thousand" ^0
+"  true rate in cache      : " + str(rate_active) + " per thousand" ^0
+"  error                   : " + str(observed_rate - rate_active) + " per thousand" ^0
+"  the sampling was correct; every step of it was correct" ^0
+"" ^0
+"  what was wrong is one word in the sentence that reported it" ^0
+"  'we sampled accounts' should have read 'we sampled cached accounts'" ^0
+"" ^0
+
+# ---- why convenience is not neutral here ----
+#
+# A convenience sample is harmless when convenience is unrelated to the thing
+# being measured. Here the mechanism that puts a record in the cache is the
+# same mechanism that would have fixed it.
+
+"the causal chain that makes the frame biased" ^0
+"  an account is cached because it was touched recently" ^0
+"  an account was migrated because someone touched it" ^0
+"  so cached implies touched implies migrated implies not defective" ^0
+"  the frame and the defect share a cause, which is the definition of a" ^0
+"  biased frame, and no sample size fixes it" ^0
+"" ^0
+"  a larger sample from the same frame" ^0
+5000 => bigger_sample
+int(bigger_sample * rate_active / 1000) => bigger_defects
+"    sample " + str(bigger_sample) + " instead of " + str(sample_size) + " : " + str(int(accounts * bigger_defects / bigger_sample)) + " extrapolated" ^0
+"    ten times the work, the same wrong answer, with tighter confidence bounds" ^0
+"" ^0
+
+# ---- the control ----
+#
+# Draw the sample from the whole table instead of the cache, keeping every
+# other choice identical - same size, same confidence level, same checks. This
+# is the measurement that separates "the sample was too small" from "the sample
+# came from the wrong place".
+
+int(sample_size * active / accounts) => frame_active
+sample_size - frame_active => frame_dormant
+int(frame_active * rate_active / 1000) + int(frame_dormant * rate_dormant / 1000) => frame_defects
+
+"control - the same sample size drawn from the whole table" ^0
+"  sampled from active  : " + str(frame_active) ^0
+"  sampled from dormant : " + str(frame_dormant) ^0
+"  defects found        : " + str(frame_defects) ^0
+"  extrapolated         : " + str(int(accounts * frame_defects / sample_size)) ^0
+"  actually there       : " + str(defects_true) ^0
+int(accounts * frame_defects / sample_size) => frame_extrapolated
+"  cache-only frame was low by  : " + str(int((defects_true - extrapolated) * 100 / defects_true)) + " percent" ^0
+"  whole-table frame is low by  : " + str(int((defects_true - frame_extrapolated) * 100 / defects_true)) + " percent" ^0
+"  the same 500 records of effort, and the frame is the only thing that changed" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same convenient frame, against a table where both strata have the same
+# defect rate. The convenience sample is then unbiased, because convenience is
+# no longer correlated with the defect. Sampling from the cache is not the
+# defect on its own.
+
+"null control - the same cache-only frame, uniform defect rate across strata" ^0
+int(active * rate_active / 1000) + int(dormant * rate_active / 1000) => uniform_true
+"  rate in both strata : " + str(rate_active) + " per thousand" ^0
+"  extrapolated from cache sample : " + str(extrapolated) ^0
+"  actually there                 : " + str(uniform_true) ^0
+"  difference                     : " + str(uniform_true - extrapolated) ^0
+"  the same query, the same frame, and now it is a fine estimate" ^0
+"  so the rule is not 'do not sample from a cache'" ^0
+"  it is 'a frame is biased exactly as far as belonging to it predicts the" ^0
+"  answer'" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a sample size protects against" ^0
+"  random variation in the estimate      yes" ^0
+"  a frame that excludes part of the population   no" ^0
+"  a frame whose membership predicts the answer   no, and it makes it worse" ^0
+"  the confidence interval is computed from the sample size" ^0
+"  so a biased frame reports a tight interval around the wrong number" ^0
+"" ^0
+
+"500 of 50000 is a correct sample size, the confidence level was chosen from a" ^0
+"table, and reading from the cache avoided locking the table during the batch" ^0
+"window - which the DBA had asked for. The rate that came back, " + str(observed_rate) + " per" ^0
+"thousand, is the true rate of cached accounts. " + str(defects_true) + " accounts are defective," ^0
+"the audit reported " + str(extrapolated) + ", and " + str(defects_dormant) + " of the defects were in records the query" ^0
+"was written never to read." ^0

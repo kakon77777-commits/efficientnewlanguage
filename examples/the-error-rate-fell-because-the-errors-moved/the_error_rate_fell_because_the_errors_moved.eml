@@ -1,0 +1,158 @@
+# Self-authored for the EML case corpus (no external origin). Service A's error
+# rate went from 3 percent to 0.2 percent after one change. Where the errors
+# went is computed below.
+#
+# The change was right and was argued for well. Service A was rejecting records
+# on rules it had no business owning: it knew the wire format but not the
+# domain, so it was guessing at what "valid" meant and getting it wrong in both
+# directions. Records that were fine were being bounced because A's copy of the
+# rules was six months behind B's, and support was fielding those. Moving
+# validation to B, which owns the rules, removed a duplicate implementation and
+# put the decision where the knowledge is. This is textbook, and it is correct.
+#
+# A rejected record and a failed record are both one bad record. What separates
+# them is where in the pipeline the badness is discovered, and therefore how
+# much work has already been done that must now be undone. A rejects before
+# anything is written. B fails after a partial write, which means a rollback, an
+# orphaned row somewhere, and a support ticket.
+#
+# The error rate on A's dashboard measures A. The change moved the errors out of
+# A. The dashboard did exactly what it was built to do.
+
+10000 => records
+300 => bad_records
+
+# after the change, A still rejects the genuinely malformed - it owns the wire
+# format - and passes everything else through
+20 => still_rejected_by_a
+
+bad_records - still_rejected_by_a => passed_to_b
+
+"records per batch : " + str(records) ^0
+"bad records       : " + str(bad_records) ^0
+"" ^0
+
+# ---- before ----
+
+"before the change" ^0
+"  A rejects            : " + str(bad_records) ^0
+"  A error rate         : " + str(int(bad_records * 1000 / records)) + " per mille" ^0
+"  B receives           : " + str(records - bad_records) ^0
+"  B errors             : 0" ^0
+"  B error rate         : 0 per mille" ^0
+"" ^0
+
+# ---- after ----
+
+records - still_rejected_by_a => b_receives
+
+"after the change" ^0
+"  A rejects            : " + str(still_rejected_by_a) ^0
+"  A error rate         : " + str(int(still_rejected_by_a * 1000 / records)) + " per mille" ^0
+"  B receives           : " + str(b_receives) ^0
+"  B errors             : " + str(passed_to_b) ^0
+"  B error rate         : " + str(int(passed_to_b * 1000 / b_receives)) + " per mille" ^0
+"" ^0
+
+"  A improved from " + str(int(bad_records * 1000 / records)) + " to " + str(int(still_rejected_by_a * 1000 / records)) + " per mille, a factor of " + str(int(bad_records / still_rejected_by_a)) ^0
+"  the dashboard tracked A" ^0
+"" ^0
+
+# ---- the conserved quantity ----
+
+still_rejected_by_a + passed_to_b => total_after
+
+"bad records before : " + str(bad_records) ^0
+"bad records after  : " + str(total_after) ^0
+"difference         : " + str(total_after - bad_records) ^0
+"nothing was fixed, and nothing was broken; the same records are still bad" ^0
+"" ^0
+
+# ---- what changed is where they are found ----
+#
+# Cost per bad record, in units of support-minutes. A rejection at the edge is
+# a 400 response. A failure inside B is a partial write: rollback, an orphaned
+# row, a ticket, and a human reading a log.
+
+1 => cost_at_a
+12 => cost_at_b
+
+bad_records * cost_at_a => cost_before
+(still_rejected_by_a * cost_at_a) + (passed_to_b * cost_at_b) => cost_after
+
+"cost of a bad record" ^0
+"  caught at A : " + str(cost_at_a) + " unit  - a 400 response, nothing written" ^0
+"  caught at B : " + str(cost_at_b) + " units - partial write, rollback, orphan row, ticket" ^0
+"" ^0
+"  total cost before : " + str(cost_before) + " units" ^0
+"  total cost after  : " + str(cost_after) + " units" ^0
+"  change            : " + str(int(cost_after * 100 / cost_before)) + " hundredths of what it was" ^0
+"" ^0
+"  the tracked error rate fell " + str(int(bad_records * 100 / still_rejected_by_a)) + " hundredths" ^0
+"  the total cost rose " + str(int(cost_after * 100 / cost_before)) + " hundredths" ^0
+"  both numbers describe the same change and neither is wrong" ^0
+"" ^0
+
+# ---- why moving a check downstream costs more ----
+#
+# Work done before a failure is work that must be undone. The further down the
+# pipeline a check sits, the more has been done.
+
+"stage at which a bad record is caught, and what is already done" ^0
+"  at the edge        nothing written                    " + str(cost_at_a) + " unit" ^0
+"  after parse        buffer allocated                   2 units" ^0
+"  after enrichment   two upstream calls made            5 units" ^0
+"  inside the write   partial row, rollback, orphan     " + str(cost_at_b) + " units" ^0
+"  the rules did belong to B; the check did not have to run where they live" ^0
+"" ^0
+
+# ---- the control ----
+#
+# If the change had genuinely improved data quality, the count of bad records
+# would have fallen. It is identical, because a validation rule does not make
+# records good - it decides where they stop.
+
+"control - a count no relocation can move" ^0
+bad_records => before_count
+total_after => after_count
+"  bad records, before : " + str(before_count) ^0
+"  bad records, after  : " + str(after_count) ^0
+"  difference          : " + str(after_count - before_count) ^0
+"  this is the number that would move if quality had changed" ^0
+"  it did not move, so quality did not change" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same relocation, to a stage that costs the SAME as the edge. The tracked
+# rate on A falls by exactly as much, and total cost does not move at all. So
+# the defect is not "the check moved" - it is "the check moved to a more
+# expensive place, and only the cheap place was instrumented".
+
+1 => cost_at_cheap_b
+(still_rejected_by_a * cost_at_a) + (passed_to_b * cost_at_cheap_b) => cost_cheap
+
+"null control - the same move, to a stage that costs the same as the edge" ^0
+"  A error rate after  : " + str(int(still_rejected_by_a * 1000 / records)) + " per mille, identical to the real case" ^0
+"  total cost before   : " + str(cost_before) + " units" ^0
+"  total cost after    : " + str(cost_cheap) + " units" ^0
+"  difference          : " + str(cost_cheap - cost_before) + " units" ^0
+"  the same dashboard improvement, and this time it is free" ^0
+"  so the dashboard cannot tell these two cases apart, and they are not the same" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a per-service error rate can and cannot see" ^0
+"  errors inside the service        yes" ^0
+"  errors this service caused elsewhere   no" ^0
+"  errors this service stopped catching   no, they leave the numerator" ^0
+"  total errors in the pipeline     no, there is no such dashboard" ^0
+"  every service can improve its own rate by declining to look" ^0
+"" ^0
+
+"Moving validation to the service that owns the rules removed a duplicate" ^0
+"implementation and stopped bouncing good records against a six-month-old copy" ^0
+"of the rules. It was the right change. " + str(bad_records) + " records were bad before and" ^0
+str(total_after) + " are bad after. A's error rate fell from " + str(int(bad_records * 1000 / records)) + " to " + str(int(still_rejected_by_a * 1000 / records)) + " per mille and the cost of" ^0
+"handling those records went from " + str(cost_before) + " to " + str(cost_after) + " units." ^0

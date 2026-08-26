@@ -1,0 +1,149 @@
+# Self-authored for the EML case corpus (no external origin). 120 features were
+# committed for the quarter. The quarter closed at 79 percent complete. What
+# 79 percent counted is computed below.
+#
+# The definition of done was narrowed on purpose, in a meeting, with the reason
+# minuted, and the reason was a good one. Documentation was being written for
+# features that later changed, so it was written twice. Deployment was gated on
+# a release train that ran fortnightly, so a feature finished on a Monday sat
+# unfinished for eleven days through no fault of the team. Counting those as
+# incomplete made the burndown measure the release train instead of the work.
+# Narrowing "done" to "merged" made the chart measure what the team controlled.
+#
+# Every number the burndown reported was correct on the day it was drawn. The
+# early numbers counted four stages and the later ones counted one. Nothing was
+# restated, because each was accurate under the definition in force.
+#
+# A percentage is a ratio of two counts. Changing what the numerator counts,
+# while the denominator and the label stay put, moves the percentage without
+# moving anything it describes.
+
+120 => committed
+
+# [stage, features that reached it]
+[["merged", 95], ["tested", 68], ["documented", 51], ["deployed", 47]] => stages
+
+"committed for the quarter: " + str(committed) + " features" ^0
+"" ^0
+
+"stage         reached   percent of commitment" ^0
+0 => narrowest
+for s in stages:
+    int(s[1] * 100 / committed) => pct
+    "  " + s[0] + "        " + str(s[1]) + "        " + str(pct) + " pct" ^0
+    s[1] => narrowest
+"" ^0
+
+95 => done_new
+narrowest => done_old
+
+"done under the definition in force at close  : " + str(done_new) + " of " + str(committed) + " = " + str(int(done_new * 100 / committed)) + " pct" ^0
+"done under the definition in force at start  : " + str(done_old) + " of " + str(committed) + " = " + str(int(done_old * 100 / committed)) + " pct" ^0
+"the same quarter, the same work, two true numbers" ^0
+"" ^0
+
+# ---- what moved between the two numbers ----
+
+done_new - done_old => carried
+
+"features counted done that still owe work: " + str(carried) ^0
+"" ^0
+"stage still owed by those " + str(carried) + " features" ^0
+for s in stages:
+    if s[1] < done_new:
+        "  " + s[0] + ": " + str(done_new - s[1]) + " features have not reached it" ^0
+"" ^0
+"  the work did not disappear; it left the denominator of this quarter" ^0
+"  and entered the next quarter without appearing in its commitment" ^0
+"" ^0
+
+# ---- next quarter's arithmetic ----
+#
+# The next quarter commits 120 more, and starts with the carried work already
+# owed. Its own burndown will use the narrowed definition too.
+
+120 => next_committed
+next_committed + carried => next_real_load
+
+"next quarter" ^0
+"  new features committed     : " + str(next_committed) ^0
+"  carried, not in the commitment: " + str(carried) ^0
+"  actual work in the quarter : " + str(next_real_load) ^0
+"  the commitment is " + str(int(next_committed * 100 / next_real_load)) + " pct of the work" ^0
+"  a team hitting 100 pct of that commitment finishes " + str(int(next_committed * 100 / next_real_load)) + " pct of the quarter" ^0
+"" ^0
+
+# ---- the control ----
+#
+# Stage counts are raw tallies that no definition can touch, so they are the
+# one place the redefinition cannot reach. They say something the reported
+# percentage cannot: merged went up and every stage behind it went down. That
+# is a pipeline filling faster than it drains, which is a real condition and
+# the opposite of the one the chart implied.
+
+[["merged", 88], ["tested", 71], ["documented", 55], ["deployed", 52]] => previous_quarter
+
+"control - raw stage counts, which no definition can move" ^0
+"stage         previous   this quarter   change" ^0
+0 => stages_down
+for s in stages:
+    for p in previous_quarter:
+        if p[0] == s[0]:
+            "  " + s[0] + "        " + str(p[1]) + "         " + str(s[1]) + "          " + str(s[1] - p[1]) ^0
+            if s[1] < p[1]:
+                stages_down + 1 => stages_down
+"  stages that went down: " + str(stages_down) + " of 4" ^0
+"  merged rose; the three stages behind it all fell" ^0
+"  that is the signature of a pipeline filling faster than it drains" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# Apply each definition to BOTH quarters. Held constant, either definition
+# gives an honest comparison - and the two honest comparisons point in opposite
+# directions, because they measure opposite ends of the same pipeline. Neither
+# is the number that was reported. The narrowing is not wrong; comparing across
+# it is.
+
+"null control - both quarters under the same narrowed definition" ^0
+0 => prev_merged
+for p in previous_quarter:
+    if p[0] == "merged":
+        p[1] => prev_merged
+"  previous quarter, narrow definition : " + str(prev_merged) + " of " + str(committed) + " = " + str(int(prev_merged * 100 / committed)) + " pct" ^0
+"  this quarter, narrow definition     : " + str(done_new) + " of " + str(committed) + " = " + str(int(done_new * 100 / committed)) + " pct" ^0
+"  difference                          : " + str(int(done_new * 100 / committed) - int(prev_merged * 100 / committed)) + " points" ^0
+"" ^0
+0 => prev_deployed
+for p in previous_quarter:
+    if p[0] == "deployed":
+        p[1] => prev_deployed
+"  previous quarter, wide definition   : " + str(prev_deployed) + " of " + str(committed) + " = " + str(int(prev_deployed * 100 / committed)) + " pct" ^0
+"  this quarter, wide definition       : " + str(done_old) + " of " + str(committed) + " = " + str(int(done_old * 100 / committed)) + " pct" ^0
+"  difference                          : " + str(int(done_old * 100 / committed) - int(prev_deployed * 100 / committed)) + " points" ^0
+"" ^0
+"  held to the narrow definition the quarter improved, and that is real:" ^0
+"  the team merged more than it merged last quarter" ^0
+"  held to the wide definition the quarter declined, and that is real too" ^0
+"  the front of the pipeline sped up while the back of it fell behind" ^0
+"  the narrowed definition reports the front and is silent on the back" ^0
+"  the reported jump was neither of these: it compared a wide 43 to a narrow 79" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a redefinition does to a time series" ^0
+"  the new points are correct" ^0
+"  the old points are correct" ^0
+"  every comparison that spans the change is not" ^0
+"  and nothing in the chart marks where the change is" ^0
+"" ^0
+"a restatement is the expensive, visible, honest option" ^0
+"the cheap option is to leave both halves standing and let the reader join them" ^0
+"" ^0
+
+"Narrowing done to merged made the burndown measure the team instead of the" ^0
+"release train, which is what a burndown is for, and the reason was minuted." ^0
+"The quarter closed at " + str(int(done_new * 100 / committed)) + " pct. Under the definition it opened with it closed at" ^0
+str(int(done_old * 100 / committed)) + " pct, three of four stage counts fell against the previous quarter, and" ^0
+str(carried) + " features entered the next quarter owing work that no commitment counts." ^0
