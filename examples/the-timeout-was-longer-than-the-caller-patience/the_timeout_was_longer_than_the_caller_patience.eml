@@ -1,0 +1,145 @@
+# Self-authored for the EML case corpus (no external origin). The service
+# times out a request after 30 seconds. The client library gives up after 5.
+# What the server is doing between those two numbers is computed below.
+#
+# 30 seconds was chosen carefully and for a reason that is still true. The
+# report generator legitimately takes 20 to 25 seconds on a large account, and
+# a shorter server timeout would kill those reports halfway through, leaving a
+# partial file and a customer with nothing. The number came from measuring the
+# slowest legitimate request and adding headroom, which is the correct method.
+#
+# The client timeout is 5 seconds. It is the library default, it was never
+# changed, and there is nothing wrong with it either - 5 seconds is a
+# reasonable thing to wait for an API call.
+#
+# Neither number is wrong on its own. What nobody owns is the relationship
+# between them: for 25 seconds the server holds a connection, a worker and a
+# database transaction for a request whose caller has already gone.
+
+100 => requests_per_second
+8 => slow_percent
+30 => server_timeout_s
+5 => client_timeout_s
+256 => connection_pool
+
+int(requests_per_second * slow_percent / 100) => slow_per_second
+server_timeout_s - client_timeout_s => ownerless_seconds
+
+"request rate       : " + str(requests_per_second) + " per second" ^0
+"slow requests      : " + str(slow_percent) + " percent = " + str(slow_per_second) + " per second" ^0
+"server timeout     : " + str(server_timeout_s) + " seconds" ^0
+"client timeout     : " + str(client_timeout_s) + " seconds" ^0
+"connection pool    : " + str(connection_pool) ^0
+"" ^0
+
+# ---- the window nobody owns ----
+
+slow_per_second * ownerless_seconds => ownerless_in_flight
+
+"each slow request keeps working for " + str(ownerless_seconds) + " seconds after its caller gave up" ^0
+"" ^0
+"  slow requests entering per second        : " + str(slow_per_second) ^0
+"  seconds each spends unowned              : " + str(ownerless_seconds) ^0
+"  unowned requests in flight at any moment : " + str(ownerless_in_flight) ^0
+"" ^0
+
+"  connections held by unowned work : " + str(ownerless_in_flight) + " of " + str(connection_pool) ^0
+"  that is " + str(int(ownerless_in_flight * 100 / connection_pool)) + " percent of the pool" ^0
+"" ^0
+
+# ---- what the pool has left ----
+
+connection_pool - ownerless_in_flight => pool_available
+
+"  connections available to callers still waiting : " + str(pool_available) ^0
+"  requests per second those can serve at " + str(client_timeout_s) + "s each : " + str(int(pool_available / client_timeout_s)) ^0
+"  offered load                                   : " + str(requests_per_second) ^0
+"" ^0
+
+# ---- the loop this closes ----
+#
+# A caller that times out retries. The retry needs a connection. The pool is
+# full of work for callers who already left. So the retry waits, times out,
+# and retries again, and each attempt adds another 25 unowned seconds.
+
+"what a client does at " + str(client_timeout_s) + " seconds" ^0
+"  it gives up and retries" ^0
+"  the original request keeps running for another " + str(ownerless_seconds) + " seconds" ^0
+"  the retry is a NEW request that also needs a connection" ^0
+"" ^0
+"attempt   unowned seconds added   cumulative unowned per slow request" ^0
+0 => cumulative
+for a in [1:4]:
+    cumulative + ownerless_seconds => cumulative
+    "  " + str(a) + "         " + str(ownerless_seconds) + "                      " + str(cumulative) ^0
+"" ^0
+"  three attempts by one caller occupy " + str(cumulative) + " connection-seconds" ^0
+"  and the caller has been gone for " + str(cumulative - ownerless_seconds) + " of them" ^0
+"" ^0
+
+# ---- which number to change ----
+#
+# Raising the client timeout to the server's would keep the caller present for
+# the whole 30 seconds, which is what the 30 was designed for. Lowering the
+# server timeout to the client's would kill the legitimate 25-second reports.
+# The third option costs nothing on either axis.
+
+"three options" ^0
+"  raise the client timeout to " + str(server_timeout_s) + "s" ^0
+"    unowned seconds per slow request : 0" ^0
+"    cost : a caller may wait " + str(server_timeout_s) + "s, which the " + str(server_timeout_s) + "s was chosen for" ^0
+"  lower the server timeout to " + str(client_timeout_s) + "s" ^0
+"    unowned seconds per slow request : 0" ^0
+"    cost : every legitimate 25-second report is killed" ^0
+"  cancel server work when the connection closes" ^0
+"    unowned seconds per slow request : 0" ^0
+"    cost : none on either axis; the server stops when nobody is listening" ^0
+"" ^0
+
+# ---- the control ----
+#
+# Both timeouts are individually correct and both were chosen by measurement.
+# Reviewing either one alone finds nothing, because neither one is wrong.
+
+"control - is either number wrong on its own" ^0
+"  slowest legitimate request     : 25 seconds" ^0
+"  server timeout                 : " + str(server_timeout_s) + " seconds, which is above it" ^0
+"  is the server timeout too long : no, it is measured plus headroom" ^0
+"  is the client timeout too short: no, 5 seconds is a reasonable API wait" ^0
+"  both reviews pass, and the defect is in neither number" ^0
+"" ^0
+"  it is in the difference, and a difference has no owner" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same two numbers with no slow requests. Everything finishes inside the
+# client timeout, the gap is never entered, and the configuration is exactly
+# right. The pair only misbehaves on the requests that reach into the gap.
+
+0 => nc_slow_per_second
+
+"null control - the same timeouts when nothing is slow" ^0
+"  slow requests per second      : " + str(nc_slow_per_second) ^0
+"  unowned requests in flight    : " + str(nc_slow_per_second * ownerless_seconds) ^0
+"  pool used by unowned work     : 0 of " + str(connection_pool) ^0
+"  same 30 and same 5, and the gap costs nothing" ^0
+"  the gap is only entered by requests that outlive the client timeout," ^0
+"  which is " + str(slow_percent) + " percent of them here and 0 percent in a healthy hour" ^0
+"" ^0
+
+# ---- the rule ----
+
+"a timeout pair, read as a pair" ^0
+"  client shorter than server   the server works for nobody in the gap" ^0
+"  client longer than server    the caller waits for an answer already killed" ^0
+"  equal                        neither, and no headroom for the network" ^0
+"  the only stable arrangement is one where the server notices the caller left" ^0
+"  every review that reads one number at a time approves all three" ^0
+"" ^0
+
+"The " + str(server_timeout_s) + " seconds came from measuring the slowest legitimate request and adding" ^0
+"headroom, and the " + str(client_timeout_s) + " is a sensible default nobody should have to justify. Between" ^0
+"them sits a " + str(ownerless_seconds) + "-second window in which the server holds a connection, a worker" ^0
+"and a transaction for a caller who has gone: " + str(ownerless_in_flight) + " of the " + str(connection_pool) + " pool, " + str(int(ownerless_in_flight * 100 / connection_pool)) + " percent," ^0
+"spent on work whose result nobody will read." ^0

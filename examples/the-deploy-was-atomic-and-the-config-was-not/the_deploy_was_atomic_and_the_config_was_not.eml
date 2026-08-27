@@ -1,0 +1,148 @@
+# Self-authored for the EML case corpus (no external origin). Code is deployed
+# blue-green, so every instance switches at once. Configuration is polled every
+# 60 seconds. What runs during those 60 seconds is computed below.
+#
+# Both mechanisms are right and each was chosen against the failure the other
+# does not have. Blue-green exists precisely so the fleet is never serving two
+# versions at once: a half-deployed fleet is the thing that makes an incident
+# unreproducible, and switching all 48 instances together removes it.
+# Configuration is polled rather than pushed because a push to 48 instances is
+# a fan-out that can partially fail, and a partial push leaves some instances
+# permanently stale with nothing to correct them. A poll is self-healing: an
+# instance that misses one poll gets the next.
+#
+# Atomic and eventually-consistent are both correct properties. They are
+# different properties, and the code and the config are two halves of one
+# behaviour.
+#
+# Every deploy opens a window in which new code reads old configuration. The
+# window is not a failure of either mechanism; it is the difference between
+# their convergence times.
+
+48 => instances
+60 => config_poll_seconds
+800 => requests_per_second
+12 => deploys_per_month
+
+"instances                : " + str(instances) ^0
+"code deploy              : blue-green, all instances at once" ^0
+"config propagation       : poll every " + str(config_poll_seconds) + " seconds" ^0
+"request rate             : " + str(requests_per_second) + " per second" ^0
+"" ^0
+
+# ---- the window ----
+
+int(config_poll_seconds / 2) => mean_lag
+config_poll_seconds => worst_lag
+
+"convergence time" ^0
+"  code   : 0 seconds, by construction" ^0
+"  config : " + str(mean_lag) + " seconds on average, " + str(worst_lag) + " seconds worst case" ^0
+"  window in which they disagree : up to " + str(worst_lag) + " seconds per deploy" ^0
+"" ^0
+
+worst_lag * requests_per_second => requests_per_deploy
+requests_per_deploy * deploys_per_month => requests_per_month
+
+"  requests served in that window, per deploy : " + str(requests_per_deploy) ^0
+"  deploys per month                          : " + str(deploys_per_month) ^0
+"  requests served with mismatched halves     : " + str(requests_per_month) + " per month" ^0
+"" ^0
+
+# ---- what an instance looks like during the window ----
+
+"during the window, every instance is in the same state" ^0
+"  code version   : new, on all " + str(instances) ^0
+"  config version : old, on all " + str(instances) + " until each one polls" ^0
+"  instances disagreeing with each other : 0" ^0
+"  instances disagreeing with themselves : " + str(instances) ^0
+"" ^0
+"  blue-green delivered exactly what it promised: no two instances differ" ^0
+"  the difference is inside each one" ^0
+"" ^0
+
+# ---- the poll makes it worse before it makes it better ----
+#
+# Instances poll on their own schedule, so they cross over at different
+# moments. For the length of one poll interval the fleet is split, which is the
+# state blue-green was adopted to eliminate.
+
+"seconds after the deploy   instances on new config   fleet split" ^0
+[0, 15, 30, 45, 60] => marks
+for t in marks:
+    int(instances * t / config_poll_seconds) => converged
+    if converged == 0:
+        "  " + str(t) + "                         " + str(converged) + "                        no, all old" ^0
+    elif converged == instances:
+        "  " + str(t) + "                        " + str(converged) + "                       no, all new" ^0
+    else:
+        "  " + str(t) + "                        " + str(converged) + "                       YES" ^0
+"" ^0
+"  the fleet is split for " + str(config_poll_seconds) + " seconds, in the half of the behaviour that" ^0
+"  blue-green does not cover" ^0
+"" ^0
+
+# ---- the control ----
+#
+# Each mechanism, measured against its own convergence guarantee. Both converge
+# and both are correct. Neither has ever failed to reach a consistent state.
+
+"control - does either mechanism fail to converge" ^0
+"  code    : all " + str(instances) + " instances on the new version, immediately" ^0
+"  config  : all " + str(instances) + " instances on the new value within " + str(worst_lag) + " seconds" ^0
+"  mechanisms that fail to converge : 0 of 2" ^0
+"  and after " + str(worst_lag) + " seconds the fleet is fully consistent again" ^0
+"" ^0
+"  the inconsistency is not in either end state" ^0
+"  it is in the interval, and neither mechanism has an interval in its spec" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same two mechanisms on a deploy that does not change configuration. The
+# window opens and nothing is inside it. The pairing costs exactly as much as
+# the deploys that touch both halves, which is most of the time nothing.
+
+0 => nc_config_changed
+
+"null control - a deploy that changes no configuration" ^0
+"  config values changed          : " + str(nc_config_changed) ^0
+"  window length                  : " + str(worst_lag) + " seconds, unchanged" ^0
+"  requests served in the window  : " + str(requests_per_deploy) ^0
+"  requests that see a mismatch   : " + str(nc_config_changed) ^0
+"  same deploy mechanism, same poll, same window" ^0
+"  the window is always open and it only costs something when both halves" ^0
+"  of one behaviour change together" ^0
+"" ^0
+
+# ---- what closes it ----
+
+"three ways to close the window" ^0
+"  poll faster        : window falls to the new interval, never to zero" ^0
+"  push config first, wait one interval, then deploy code" ^0
+"                     : window closes, at the cost of an ordering rule" ^0
+"                       somebody has to remember" ^0
+"  ship the config value INSIDE the artifact" ^0
+"                     : window closes, because there is only one thing" ^0
+"                       to switch and it switches atomically" ^0
+"" ^0
+
+# ---- the rule ----
+
+"two mechanisms, each correct, that change one behaviour" ^0
+"  is each one atomic or convergent   yes, that is what was reviewed" ^0
+"  do they converge at the same rate  this is the question" ^0
+"  and a difference in rate is a window, not a failure" ^0
+"  so it appears in no error budget and on no dashboard" ^0
+"" ^0
+"a behaviour split across two delivery mechanisms is only as atomic as the" ^0
+"slower one, and blue-green makes the faster one instantaneous, which widens" ^0
+"the gap rather than closing it" ^0
+"" ^0
+
+"Blue-green exists so the fleet never serves two versions at once, and polling" ^0
+"exists so a partial push cannot leave an instance permanently stale. Both are" ^0
+"the right answer to the failure they were chosen for. Together they give every" ^0
+"deploy a " + str(worst_lag) + "-second window in which all " + str(instances) + " instances run new code against old" ^0
+"configuration - " + str(requests_per_deploy) + " requests each time, " + str(requests_per_month) + " a month, and a fleet that" ^0
+"is split for exactly as long as the poll interval." ^0

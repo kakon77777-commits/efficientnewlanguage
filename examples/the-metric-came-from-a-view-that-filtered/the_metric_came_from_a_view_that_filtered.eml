@@ -1,0 +1,147 @@
+# Self-authored for the EML case corpus (no external origin). Three metrics are
+# computed from one view. The view excludes cancelled orders. What each metric
+# becomes is computed below.
+#
+# The view is right and the exclusion is deliberate. `orders_v` was created for
+# revenue reporting, where a cancelled order is not revenue and counting it
+# would overstate every figure on the page. The definition is in the view's
+# comment, it has been there for two years, and the revenue numbers it produces
+# have reconciled to the ledger every month since.
+#
+# Two more metrics were later added to the same dashboard and pointed at the
+# same view, which is exactly what a view is for: one definition, many readers,
+# no chance of two teams filtering differently.
+#
+# A filter that is correct for one metric is a modification of the population
+# for every other. The three metrics do not share a question, so they do not
+# share a denominator, and only one of them wanted this one.
+
+45000 => orders_placed
+6300 => orders_cancelled
+# Revenue in HUNDREDTHS. In whole hundreds the two averages truncate to 9 and
+# 8 and the difference reads as 1, which is rounding rather than the effect.
+382500000 => revenue_hundredths
+
+orders_placed - orders_cancelled => orders_in_view
+
+"orders placed        : " + str(orders_placed) ^0
+"orders cancelled     : " + str(orders_cancelled) + " (" + str(int(orders_cancelled * 100 / orders_placed)) + " percent)" ^0
+"rows visible in orders_v : " + str(orders_in_view) ^0
+"" ^0
+
+# ---- metric 1: the one the view was built for ----
+
+int(revenue_hundredths / orders_in_view) => aov_from_view
+int(revenue_hundredths / orders_placed) => aov_from_table
+
+"average order value" ^0
+"  from orders_v    : " + str(aov_from_view) + " hundredths" ^0
+"  from the raw table : " + str(aov_from_table) + " hundredths" ^0
+"  which is correct : the view" ^0
+"  a cancelled order contributed no revenue, so including it in the" ^0
+"  denominator would understate the average by " + str(aov_from_view - aov_from_table) + " hundredths" ^0
+"" ^0
+
+# ---- metric 2: undercounted ----
+
+"total orders" ^0
+"  from orders_v    : " + str(orders_in_view) ^0
+"  truth            : " + str(orders_placed) ^0
+"  understated by   : " + str(orders_cancelled) + ", which is " + str(int(orders_cancelled * 100 / orders_placed)) + " percent" ^0
+"  a cancelled order IS an order placed; that is what the metric counts" ^0
+"" ^0
+
+# ---- metric 3: identically zero ----
+#
+# The cancellation rate is cancelled divided by placed. The view has already
+# removed every cancelled row, so the numerator is zero whatever the truth is.
+
+0 => cancelled_visible_in_view
+
+"cancellation rate" ^0
+"  cancelled rows visible in orders_v : " + str(cancelled_visible_in_view) ^0
+"  rows in orders_v                   : " + str(orders_in_view) ^0
+"  computed rate                      : " + str(cancelled_visible_in_view) + " percent" ^0
+"  true rate                          : " + str(int(orders_cancelled * 100 / orders_placed)) + " percent" ^0
+"" ^0
+"  this metric is not merely wrong; it cannot take another value" ^0
+"  if cancellations tripled it would still read " + str(cancelled_visible_in_view) ^0
+"  if they stopped entirely it would still read " + str(cancelled_visible_in_view) ^0
+"  it has one possible output and it has been on the dashboard for a year" ^0
+"" ^0
+
+# ---- the three metrics, side by side ----
+
+"metric                what the filter does to it" ^0
+"  average order value   required, this is why the view exists" ^0
+"  total orders          understates by the cancelled count" ^0
+"  cancellation rate     pins it to zero, permanently" ^0
+"" ^0
+"  one filter, one view, three different consequences" ^0
+"  and the filter is documented, correct, and doing what it says" ^0
+"" ^0
+
+# ---- what a green dashboard looks like ----
+
+"why nothing looked wrong" ^0
+"  revenue reconciles to the ledger    : yes, every month" ^0
+"  average order value is plausible    : yes, and it is exactly right" ^0
+"  total orders trends smoothly        : yes, it is " + str(100 - int(orders_cancelled * 100 / orders_placed)) + " percent of the truth" ^0
+"  cancellation rate is stable         : yes, it is a constant" ^0
+"  a stable metric reads as a healthy one" ^0
+"" ^0
+
+# ---- the control ----
+#
+# Is the view wrong. Run it against its own stated purpose and it is exactly
+# right, which is why it has never been changed and why every review of it
+# passes.
+
+"control - the view against the question it was written for" ^0
+"  revenue from orders_v vs the ledger : reconciles exactly" ^0
+"  rows excluded that should be there  : 0, for a revenue question" ^0
+"  the view is correct and the comment above it is accurate" ^0
+"" ^0
+"  every reader inherits a filter chosen for a question they are not asking" ^0
+"  and inheriting it is the reason the view was reused" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same three metrics against a period with no cancellations. All three are
+# correct, including the one that is structurally pinned, because zero is also
+# the true answer. A metric with one possible output agrees with reality
+# whenever reality happens to be that output.
+
+0 => nc_cancelled
+orders_placed - nc_cancelled => nc_in_view
+
+"null control - the same view over a period with no cancellations" ^0
+"  orders placed     : " + str(orders_placed) ^0
+"  cancelled         : " + str(nc_cancelled) ^0
+"  rows in the view  : " + str(nc_in_view) ^0
+"  total orders      : " + str(nc_in_view) + ", understated by " + str(orders_placed - nc_in_view) ^0
+"  cancellation rate : " + str(cancelled_visible_in_view) + " percent, and now it is also true" ^0
+"  the pinned metric agrees with reality, which is the worst way for a" ^0
+"  constant to be tested" ^0
+"" ^0
+
+# ---- the rule ----
+
+"a shared view, read by metrics that do not share a question" ^0
+"  one definition, many readers      the reason to use a view" ^0
+"  one filter, many populations      the cost of using a view" ^0
+"  a metric about the excluded rows  cannot be computed there at all" ^0
+"  and returns a constant rather than an error" ^0
+"" ^0
+"the test for this is not 'is the number right'" ^0
+"it is 'can this number take another value', and it costs one query to ask" ^0
+"" ^0
+
+"orders_v excludes cancelled orders because a cancelled order is not revenue," ^0
+"the definition is in its comment, and the revenue it produces has reconciled" ^0
+"every month for two years. Two later metrics were pointed at it, which is what" ^0
+"a view is for. Total orders now reads " + str(orders_in_view) + " instead of " + str(orders_placed) + ", and the" ^0
+"cancellation rate reads " + str(cancelled_visible_in_view) + " percent - not because cancellations stopped, but" ^0
+"because the only rows that could make it non-zero are the rows the view" ^0
+"removes." ^0

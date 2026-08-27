@@ -1,0 +1,151 @@
+# Self-authored for the EML case corpus (no external origin). The API returns
+# at most 20 rows per call and the rate limiter counts calls. What one call
+# costs the database is computed below.
+#
+# Both limits are sensible and each was set against a real constraint. Twenty
+# rows keeps the response small enough to render and small enough to send over
+# a slow connection, which is why the page size exists. Counting calls is the
+# only unit the gateway can see: it sits in front of the service, it does not
+# parse the query, and metering what it can observe is the correct thing for a
+# gateway to do.
+#
+# LIMIT bounds the rows that come back. OFFSET does not bound anything - the
+# database must produce and discard every row before the window in order to
+# know where the window starts. So the response size is constant and the work
+# is proportional to how far in the caller has walked.
+#
+# One number is what the caller pays. The other is what the database does.
+
+400000 => rows_in_table
+20 => page_size
+
+int(rows_in_table / page_size) => total_pages
+
+"rows in the table : " + str(rows_in_table) ^0
+"page size         : " + str(page_size) ^0
+"pages to walk it  : " + str(total_pages) ^0
+"" ^0
+
+# ---- one page, at four depths ----
+
+"page    offset    rows produced   rows returned   produced per returned" ^0
+[1, 100, 1000, 5000, 20000] => sample_pages
+for pg in sample_pages:
+    (pg - 1) * page_size => offset
+    offset + page_size => produced
+    "  " + str(pg) + "      " + str(offset) + "      " + str(produced) + "        " + str(page_size) + "              " + str(int(produced / page_size)) ^0
+"" ^0
+
+"  the response column never changes" ^0
+"  the rate limiter meters the response column" ^0
+"" ^0
+
+# ---- walking the whole table ----
+#
+# The cost of a full walk is the sum of the offsets plus the rows returned. For
+# P pages of L rows that is L times P times P plus one, over two.
+
+total_pages * (total_pages + 1) => pages_term
+int(page_size * pages_term / 2) => rows_produced_full_walk
+
+"reading every row, " + str(page_size) + " at a time, by offset" ^0
+"  rows returned  : " + str(rows_in_table) ^0
+"  rows produced  : " + str(rows_produced_full_walk) ^0
+"  ratio          : " + str(int(rows_produced_full_walk / rows_in_table)) + " to 1" ^0
+"  api calls made : " + str(total_pages) ^0
+"  quota consumed : " + str(total_pages) + ", the same as any other " + str(total_pages) + " calls" ^0
+"" ^0
+
+# ---- two callers, identical bills ----
+#
+# One reads the first page twenty thousand times. The other walks the table.
+# The gateway cannot tell them apart and neither can the bill.
+
+total_pages * page_size => shallow_produced
+
+"caller A: page 1, " + str(total_pages) + " times" ^0
+"  rows produced : " + str(shallow_produced) ^0
+"  api calls     : " + str(total_pages) ^0
+"caller B: pages 1 to " + str(total_pages) + ", once each" ^0
+"  rows produced : " + str(rows_produced_full_walk) ^0
+"  api calls     : " + str(total_pages) ^0
+"" ^0
+"  ratio of database work : " + str(int(rows_produced_full_walk / shallow_produced)) + " to 1" ^0
+"  ratio of quota consumed : 1 to 1" ^0
+"  ratio of bytes returned : 1 to 1" ^0
+"" ^0
+
+# ---- what the gateway can and cannot see ----
+
+"what the gateway observes" ^0
+"  number of calls          yes, it counts them" ^0
+"  size of each response    yes, it forwards the bytes" ^0
+"  offset in the query      no, it does not parse the query" ^0
+"  rows the database read   no, that is on the other side of the service" ^0
+"  metering what it can see is right; it just does not correlate with cost" ^0
+"" ^0
+
+# ---- the same page, read by key ----
+#
+# Passing the last key seen instead of an offset makes the database seek rather
+# than count. The response is identical and the produced column becomes flat.
+
+"keyset pagination: pass the last key instead of an offset" ^0
+"page    rows produced   rows returned" ^0
+for pg in sample_pages:
+    "  " + str(pg) + "      " + str(page_size) + "              " + str(page_size) ^0
+"" ^0
+"  full walk, rows produced : " + str(rows_in_table) ^0
+"  against " + str(rows_produced_full_walk) + " by offset" ^0
+"  saving                   : " + str(int(rows_produced_full_walk / rows_in_table)) + " times" ^0
+"  the response is byte-identical and the page size is unchanged" ^0
+"" ^0
+
+# ---- the control ----
+#
+# Both limits, judged against what each was set for. Neither is wrong and
+# neither would be set differently.
+
+"control - is either limit wrong for its own purpose" ^0
+"  page size 20: response small enough to render and to send : yes" ^0
+"  rate limit per call: meters what the gateway can observe   : yes" ^0
+"  incorrect limits : 0 of 2" ^0
+"  the response really is bounded, on every call, at every depth" ^0
+"" ^0
+"  the unbounded quantity is on neither side of either limit" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same API, same page size, same rate limit, used only for the first page -
+# which is what a user interface does. Cost and quota track each other exactly
+# and the design is sound.
+
+1 => nc_pages
+nc_pages * page_size => nc_produced
+
+"null control - the same API used only for page 1" ^0
+"  pages requested : " + str(nc_pages) ^0
+"  rows produced   : " + str(nc_produced) ^0
+"  rows returned   : " + str(page_size) ^0
+"  produced per returned : " + str(int(nc_produced / page_size)) ^0
+"  same limits, same gateway, and cost tracks quota exactly" ^0
+"  the divergence is the offset, and a user interface never sends a large one" ^0
+"" ^0
+
+# ---- the rule ----
+
+"a limit bounds what it names" ^0
+"  LIMIT bounds rows returned         yes" ^0
+"  LIMIT bounds rows examined         no" ^0
+"  OFFSET bounds nothing              it is work, spelled like a coordinate" ^0
+"  a meter on the response is a meter on the bounded quantity" ^0
+"  the unbounded one has no meter, because nothing in the path can see it" ^0
+"" ^0
+
+"Twenty rows keeps a response renderable and metering calls is the only unit a" ^0
+"gateway can observe without parsing the query - both correct. OFFSET is not a" ^0
+"coordinate the database can jump to; it is rows it must produce and throw" ^0
+"away. Walking " + str(rows_in_table) + " rows " + str(page_size) + " at a time produces " + str(rows_produced_full_walk) + " rows, which is" ^0
+str(int(rows_produced_full_walk / rows_in_table)) + " times the table, for exactly the same " + str(total_pages) + " calls of quota as reading the" ^0
+"first page " + str(total_pages) + " times." ^0

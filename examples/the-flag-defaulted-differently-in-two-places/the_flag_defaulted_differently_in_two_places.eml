@@ -1,0 +1,129 @@
+# Self-authored for the EML case corpus (no external origin). One feature flag,
+# read by the server and by the browser. Each side has a default for when the
+# flag service cannot be reached. What the two defaults do together is computed
+# below.
+#
+# Both defaults were chosen deliberately and both are the safe choice in their
+# own frame. The server defaults ON, because the new code path is now the
+# tested one and the old branch has not run in production for a month; failing
+# to a branch nobody exercises is how you turn an outage into two. The browser
+# defaults OFF, because the old interface is the one that certainly renders,
+# and a blank page is the worst thing a client can do. Each side reasoned about
+# its own failure, correctly, and reached the opposite answer.
+#
+# A flag is not a property of a service. It is a property of a request that two
+# services must agree on. Neither default is wrong; the pair is, and a pair has
+# no owner.
+
+999 => flag_service_availability_permille
+525600 => minutes_per_year
+6000 => requests_per_minute
+
+"one flag, two readers, two defaults" ^0
+"  server default : ON" ^0
+"  browser default: OFF" ^0
+"" ^0
+
+# ---- the four combinations ----
+
+"server   browser   agree   what the request does" ^0
+"  ON       ON        yes    new format sent, new format parsed" ^0
+"  OFF      OFF       yes    old format sent, old format parsed" ^0
+"  ON       OFF       no     new format sent, old parser reads it" ^0
+"  OFF      ON        no     old format sent, browser wants the new field" ^0
+"" ^0
+
+4 => combinations
+2 => broken_combinations
+
+"  combinations           : " + str(combinations) ^0
+"  combinations that break: " + str(broken_combinations) ^0
+"  two sides choosing independently land on a broken pair with probability " + str(int(broken_combinations * 100 / combinations)) + " percent" ^0
+"  and this pair is one of the two" ^0
+"" ^0
+
+# ---- how often the defaults are consulted ----
+
+minutes_per_year - int(minutes_per_year * flag_service_availability_permille / 1000) => unreachable_minutes
+unreachable_minutes * requests_per_minute => mismatched_requests
+
+"the flag service is measured at " + str(flag_service_availability_permille) + " per mille available" ^0
+"  minutes per year it cannot be reached : " + str(unreachable_minutes) ^0
+"  requests per minute                   : " + str(requests_per_minute) ^0
+"  requests that fall back to the defaults: " + str(mismatched_requests) + " per year" ^0
+"  of those, requests where the two sides disagree: " + str(mismatched_requests) ^0
+"" ^0
+"  the disagreement is not probabilistic" ^0
+"  when the flag service is down, EVERY request takes the broken pair," ^0
+"  because both defaults are constants" ^0
+"" ^0
+
+# ---- why each side tested green ----
+#
+# Each team tested its own fallback by making the flag service unreachable from
+# its own side. Neither test could produce the mismatch, because the mismatch
+# needs both sides to fall back at once.
+
+"what each team tested" ^0
+"  server team : flag service unreachable from the server" ^0
+"                server falls back to ON, browser still reads the flag" ^0
+"                browser gets ON, both sides ON, request works" ^0
+"  browser team: flag service unreachable from the browser" ^0
+"                browser falls back to OFF, server still reads the flag" ^0
+"                server reads OFF, both sides OFF, request works" ^0
+"" ^0
+"  both fallback tests pass" ^0
+"  the failure needs ONE outage visible to BOTH, which is the actual outage" ^0
+"  and is the case neither test constructed" ^0
+"" ^0
+
+# ---- the control ----
+#
+# Each default, judged against the failure it was chosen for. Both are correct
+# and would be chosen again.
+
+"control - is either default wrong for its own failure mode" ^0
+"  server ON  : avoids running a branch that has not executed in a month" ^0
+"               correct, and the alternative is worse" ^0
+"  browser OFF: avoids rendering an interface that may not have its data" ^0
+"               correct, and the alternative is a blank page" ^0
+"  defaults that are wrong on their own : 0 of 2" ^0
+"" ^0
+"  a review of either side approves it" ^0
+"  there is no review whose scope is 'the pair'" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same two readers with the same fallback mechanism and the SAME default.
+# The flag service goes down exactly as often and nothing breaks, because the
+# two sides agree on which way to be wrong.
+
+"null control - the same outage, both sides defaulting OFF" ^0
+"  server default : OFF" ^0
+"  browser default: OFF" ^0
+"  minutes per year unreachable   : " + str(unreachable_minutes) ^0
+"  requests hitting the defaults  : " + str(mismatched_requests) ^0
+"  requests that break            : 0" ^0
+"  same outage, same duration, same fallback code" ^0
+"  agreeing on the wrong answer costs nothing; disagreeing costs everything" ^0
+"" ^0
+
+# ---- the rule ----
+
+"a flag read in more than one place" ^0
+"  each reader needs a default            true" ^0
+"  each default should be locally safe    true" ^0
+"  the defaults must be the SAME value    this is the one nobody owns" ^0
+"  because it is not a property of either reader" ^0
+"" ^0
+"the fix is not a better default on either side" ^0
+"it is one default, written once, that both sides read" ^0
+"" ^0
+
+"Defaulting the server ON avoids falling into a branch that has not run in a" ^0
+"month. Defaulting the browser OFF avoids rendering an interface without its" ^0
+"data. Both are right about the failure each team considered. Together they are" ^0
+"one of the " + str(broken_combinations) + " combinations of " + str(combinations) + " that cannot serve a request, and for the" ^0
+str(unreachable_minutes) + " minutes a year the flag service is unreachable, every one of the" ^0
+str(mismatched_requests) + " requests in that window takes it." ^0

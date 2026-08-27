@@ -1,0 +1,145 @@
+# Self-authored for the EML case corpus (no external origin). A validation rule
+# was added to the write path eighteen months ago. Every row written since
+# satisfies it. What fraction of the table satisfies it is computed below.
+#
+# Enforcing at the write path was the right decision and the alternative was
+# considered properly. Adding the constraint to the database would have
+# required a full table rewrite with an exclusive lock, on a table serving
+# production traffic, and the backfill needed to make the existing rows pass
+# was estimated at four days of engineer time that nobody had. Enforcing at the
+# write path costs nothing, takes effect immediately, and guarantees that the
+# problem stops growing. All of that is true and all of it happened.
+#
+# "The problem stops growing" and "the problem goes away" are different
+# statements. A write-path rule makes the count of violations constant. It does
+# not make it smaller, because nothing in a write path ever touches a row that
+# is not being written.
+#
+# What falls is the PROPORTION, and it falls only as fast as the table grows.
+
+2400000 => rows_at_the_time
+1900000 => rows_predating_the_rule
+600 => violation_rate_of_old_rows_per_ten_thousand
+3000 => new_rows_per_day
+365 => days_per_year
+
+int(rows_predating_the_rule * violation_rate_of_old_rows_per_ten_thousand / 10000) => violating_rows
+
+"rows in the table            : " + str(rows_at_the_time) ^0
+"rows written before the rule : " + str(rows_predating_the_rule) ^0
+"of those, violating          : " + str(violation_rate_of_old_rows_per_ten_thousand) + " per ten thousand = " + str(violating_rows) + " rows" ^0
+"rows written since the rule  : " + str(rows_at_the_time - rows_predating_the_rule) + ", all compliant" ^0
+"" ^0
+
+int(violating_rows * 10000 / rows_at_the_time) => current_rate
+
+"violating rows in the whole table : " + str(violating_rows) ^0
+"as a share of the table           : " + str(current_rate) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the rule changed ----
+
+"before the rule   violations grew with every non-compliant write" ^0
+"after the rule    violations are constant at " + str(violating_rows) ^0
+"  rows removed from the violating set by the rule : 0" ^0
+"  the rule cannot reach them; it only sees rows being written" ^0
+"" ^0
+
+# ---- dilution, which is the only thing that happens now ----
+
+"years   rows in table   violating   share per ten thousand" ^0
+for y in [0:8]:
+    rows_at_the_time + (new_rows_per_day * days_per_year * y) => rows_then
+    int(violating_rows * 10000 / rows_then) => share
+    if y % 2 == 0:
+        "  " + str(y) + "       " + str(rows_then) + "        " + str(violating_rows) + "       " + str(share) ^0
+"" ^0
+
+"  the violating column never moves" ^0
+"  the share falls because the denominator grows, at " + str(new_rows_per_day) + " rows a day" ^0
+"" ^0
+
+# ---- how long until the invariant is nearly true ----
+
+int(violating_rows * 10000 / 100) => rows_needed_for_1pct
+int(violating_rows * 10000 / 10) => rows_needed_for_tenth
+
+"to reach 100 per ten thousand (1 percent)" ^0
+"  rows needed  : " + str(rows_needed_for_1pct) ^0
+"  rows to add  : " + str(rows_needed_for_1pct - rows_at_the_time) ^0
+"  days         : " + str(int((rows_needed_for_1pct - rows_at_the_time) / new_rows_per_day)) ^0
+"  years        : " + str(int((rows_needed_for_1pct - rows_at_the_time) / (new_rows_per_day * days_per_year))) ^0
+"" ^0
+"to reach 10 per ten thousand (0.1 percent)" ^0
+"  rows needed  : " + str(rows_needed_for_tenth) ^0
+"  years        : " + str(int((rows_needed_for_tenth - rows_at_the_time) / (new_rows_per_day * days_per_year))) ^0
+"" ^0
+"  and at no point does it reach zero" ^0
+"" ^0
+
+# ---- what reads the table ----
+#
+# Code written after the rule may assume the invariant, because the invariant
+# is documented and true of everything the author has ever seen written.
+
+"a function written today that assumes the field is well-formed" ^0
+"  rows it handles correctly : " + str(rows_at_the_time - violating_rows) ^0
+"  rows it fails on          : " + str(violating_rows) ^0
+"  failure rate              : " + str(current_rate) + " per ten thousand" ^0
+"  and the author is right that every row THEY have written is fine" ^0
+"" ^0
+"  a test fixture built by inserting rows will never contain one" ^0
+"  because inserting rows goes through the write path" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The rule works. Every write since it landed is compliant, with no exceptions,
+# and that is exactly what it promised. Checking the rule finds nothing wrong.
+
+"control - does the rule do what it says" ^0
+"  rows written since it landed   : " + str(rows_at_the_time - rows_predating_the_rule) ^0
+"  of those, violating            : 0" ^0
+"  rows it has rejected           : every non-compliant write attempted" ^0
+"  the rule is correct, complete and has never been bypassed" ^0
+"" ^0
+"  it promised that the problem stops growing, and the problem stopped growing" ^0
+"  the promise a reader hears is that the field is well-formed" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same rule on a table that was EMPTY when it landed. Every row in the
+# table went through the write path, the invariant holds everywhere, and code
+# may assume it safely. The rule is identical; the history is not.
+
+0 => empty_at_the_time
+int(empty_at_the_time * violation_rate_of_old_rows_per_ten_thousand / 10000) => empty_violations
+
+"null control - the same rule added to an empty table" ^0
+"  rows predating the rule : " + str(empty_at_the_time) ^0
+"  violating rows          : " + str(empty_violations) ^0
+"  share of the table      : 0 per ten thousand, permanently" ^0
+"  same rule, same write path, same documentation" ^0
+"  the invariant holds because there was no history for it to miss" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a write-path rule guarantees, and what it does not" ^0
+"  new rows comply                    guaranteed, immediately" ^0
+"  the violation count stops growing  guaranteed" ^0
+"  the violation count falls          no, nothing removes a row" ^0
+"  the invariant holds for readers    no, and this is what gets assumed" ^0
+"  the gap closes                     only by dilution, over years" ^0
+"" ^0
+"a constraint added to a table is a statement about the table" ^0
+"a check added to a write path is a statement about future writes" ^0
+"they are documented in the same sentence and they are not the same claim" ^0
+"" ^0
+
+"Enforcing at the write path avoided an exclusive lock on a production table" ^0
+"and a four-day backfill nobody had time for, it took effect immediately, and" ^0
+"every one of the " + str(rows_at_the_time - rows_predating_the_rule) + " rows written since is compliant. The " + str(violating_rows) + " rows that" ^0
+"predate it are still there, no write path will ever touch them, and their" ^0
+"share falls from " + str(current_rate) + " to 100 per ten thousand only after " + str(int((rows_needed_for_1pct - rows_at_the_time) / (new_rows_per_day * days_per_year))) + " years of growth." ^0

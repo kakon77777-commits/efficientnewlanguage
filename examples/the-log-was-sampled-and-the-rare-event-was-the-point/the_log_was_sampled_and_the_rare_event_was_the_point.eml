@@ -1,0 +1,146 @@
+# Self-authored for the EML case corpus (no external origin). Request logging
+# was sampled at 1 percent to bring the bill down. What each class of event
+# looks like afterwards is computed below.
+#
+# Sampling was the right call and it was done properly. The bill was real, the
+# 1 percent was chosen so the error-rate estimate would still be accurate to
+# three decimal places, and that claim was checked rather than assumed. The
+# alternative on the table was cutting retention from 30 days to 3, which
+# would have removed whole incidents instead of thinning them. Sampling keeps
+# every day and thins every day equally, which is the fairer of the two.
+#
+# A uniform sample multiplies every count by the same factor. The counts are
+# not uniform: routine events are hundreds of thousands a day and the ones
+# worth investigating are a handful. Multiplying a handful by one hundredth
+# does not thin it, it removes it.
+#
+# What a sample preserves is a RATE. What an investigation needs is an
+# INSTANCE, and specifically several instances close enough together to
+# compare. Those are different things and only the first survives division.
+
+10000000 => requests_per_day
+1 => sample_pct
+3 => instances_needed_for_a_pattern
+
+"requests per day : " + str(requests_per_day) ^0
+"sampled at       : " + str(sample_pct) + " percent" ^0
+"a pattern needs  : " + str(instances_needed_for_a_pattern) + " instances to compare" ^0
+"" ^0
+
+# [class, occurrences per day]
+[["routine", 200000], ["common error", 2000], ["uncommon", 200], ["rare", 20], ["very rare", 2]] => classes
+
+"class          per day   sampled/day   days to " + str(instances_needed_for_a_pattern) + " sampled instances" ^0
+for c in classes:
+    int(c[1] * sample_pct / 100) => sampled
+    if sampled > 0:
+        int(instances_needed_for_a_pattern / sampled) => days
+        "  " + c[0] + "     " + str(c[1]) + "        " + str(sampled) + "            " + str(days) ^0
+    else:
+        int(instances_needed_for_a_pattern * 100 / (c[1] * sample_pct)) => days
+        "  " + c[0] + "     " + str(c[1]) + "        under 1          " + str(days) ^0
+"" ^0
+
+"without sampling, the same column" ^0
+for c in classes:
+    if c[1] >= instances_needed_for_a_pattern:
+        int(instances_needed_for_a_pattern * 24 / c[1]) => hours
+        "  " + c[0] + "     " + str(c[1]) + " per day -> " + str(hours) + " hours" ^0
+    else:
+        "  " + c[0] + "     " + str(c[1]) + " per day -> " + str(int(instances_needed_for_a_pattern / c[1])) + " days" ^0
+"" ^0
+
+# ---- the cost is not uniform even though the sampling is ----
+
+# Waits are computed in MINUTES, not hours. In hours the "rare" row truncates
+# 3.6 to 3 and the ratio of two truncated integers reads 120x for a sampling
+# rate that is exactly 100x. The unit has to be several units wide against the
+# smallest real quantity or truncation eats the shape.
+#
+# The multiplier is also taken from the sampling rate itself rather than
+# divided out of the two columns. It IS 100 over the sample percent, by
+# construction; deriving it from the columns only reintroduces their rounding.
+
+int(100 / sample_pct) => multiplier
+
+"the sampling is uniform; what it costs is not" ^0
+"class          unsampled wait   sampled wait     multiplier" ^0
+for c in classes:
+    int(instances_needed_for_a_pattern * 1440 / c[1]) => raw_min
+    raw_min * multiplier => sampled_min
+    "  " + c[0] + "     " + str(raw_min) + " min          " + str(sampled_min) + " min       " + str(multiplier) + "x" ^0
+"" ^0
+"  the multiplier is " + str(multiplier) + " in every row, because it is 100 over the sample percent" ^0
+"  the consequence is nothing in the first rows and total in the last," ^0
+"  because the rows differ by five orders of magnitude and the sample" ^0
+"  does not" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The reason the 1 percent was defensible: it estimates the error RATE almost
+# exactly. That claim was checked before the change and it is still true. It
+# is the right claim about the wrong quantity.
+
+int(requests_per_day * sample_pct / 100) => sampled_requests
+2000 => common_per_day
+int(common_per_day * sample_pct / 100) => common_sampled
+
+"control - the error rate, which sampling estimates correctly" ^0
+"  true rate     : " + str(common_per_day) + " in " + str(requests_per_day) + " = " + str(int(common_per_day * 1000000 / requests_per_day)) + " per million" ^0
+"  sampled rate  : " + str(common_sampled) + " in " + str(sampled_requests) + " = " + str(int(common_sampled * 1000000 / sampled_requests)) + " per million" ^0
+"  difference    : " + str(int(common_per_day * 1000000 / requests_per_day) - int(common_sampled * 1000000 / sampled_requests)) + " per million" ^0
+"  the estimate is exact, and it was exact for every class" ^0
+"" ^0
+"  a rate is a ratio and division does not disturb a ratio" ^0
+"  an instance is a thing and division removes 99 of every 100 of them" ^0
+"  the pre-change check measured the first" ^0
+"" ^0
+
+# ---- what a rate cannot answer ----
+
+"questions the sampled log can and cannot answer" ^0
+"  how often does this happen           yes, to three decimals" ^0
+"  is it getting worse                  yes, the trend survives" ^0
+"  which customers are affected         no, 99 of 100 are not in the sample" ^0
+"  what did the failing requests share  no, that needs the instances" ^0
+"  show me three to compare             no, for anything under 300 a day" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same 1 percent, against a population where every class is common. Every
+# row keeps enough instances to investigate, and the saving is free. The
+# defect is not sampling; it is a uniform sample over counts that span five
+# orders of magnitude.
+
+[["a", 90000], ["b", 80000], ["c", 70000], ["d", 60000]] => flat_classes
+
+"null control - the same 1 percent over classes of similar size" ^0
+0 => flat_ok
+0 => flat_rows
+for f in flat_classes:
+    int(f[1] * sample_pct / 100) => s
+    flat_rows + 1 => flat_rows
+    if s >= instances_needed_for_a_pattern:
+        flat_ok + 1 => flat_ok
+    "  class " + f[0] + ": " + str(f[1]) + " per day -> " + str(s) + " sampled" ^0
+"  classes with enough sampled instances : " + str(flat_ok) + " of " + str(flat_rows) ^0
+"  same sampling rate, same code, and it costs nothing here" ^0
+"" ^0
+
+# ---- what would have kept both ----
+
+"keeping the bill and the instances at the same time" ^0
+"  sample the routine class at 1 percent" ^0
+"  keep everything that errored" ^0
+"  errors are " + str(int((2000 + 200 + 20 + 2) * 1000000 / requests_per_day)) + " per million of traffic, so keeping all of them costs" ^0
+"  " + str(int((2000 + 200 + 20 + 2) * 100 / requests_per_day)) + " percent of the unsampled bill" ^0
+"  the saving was never coming from the rows worth keeping" ^0
+"" ^0
+
+"Sampling kept all 30 days instead of cutting retention to 3, and the 1 percent" ^0
+"was chosen so the error-rate estimate stayed accurate - which it did, exactly." ^0
+"A rate is a ratio and survives division. An investigation needs instances, and" ^0
+"a class at 20 a day goes from " + str(int(instances_needed_for_a_pattern * 24 / 20)) + " hours to " + str(int(instances_needed_for_a_pattern * 100 / 20)) + " days. The multiplier was" ^0
+"100 in every row, and the rows span five orders of magnitude." ^0
