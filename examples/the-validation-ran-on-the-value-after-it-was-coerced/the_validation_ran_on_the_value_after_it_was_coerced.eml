@@ -1,0 +1,160 @@
+# Self-authored for the EML case corpus (no external origin). Quantity must be
+# an integer between 1 and 999. The validator has never accepted a value
+# outside that range. How many orders ship a quantity the customer did not
+# choose is computed below.
+#
+# Coercing before validating is the right order and it is what makes the
+# validator simple. A form submits strings; a database column holds an integer.
+# Something has to turn one into the other, and doing it once at the edge means
+# the validator, the business rules and every later reader all work with a
+# number instead of each re-parsing a string and disagreeing about how.
+# Normalising early is standard advice and it is good advice.
+#
+# The coercion also has a default, because a parse that can fail needs an
+# answer for the failing case, and returning 1 for a missing quantity is
+# friendlier than an error page. Quantity 1 is the most common value on the
+# form, so it is also the best guess.
+#
+# The validator sees what the coercion produced. It never sees a missing field,
+# because a missing field is not what reaches it - a 1 does. The rule is
+# enforced perfectly against a population the coercion has already made legal.
+
+12000 => orders_per_day
+30 => empty_field_per_thousand
+90 => days_per_quarter
+
+# [raw input, what coercion produces, does the validator accept it, was it chosen]
+[["42", "42", 1, 1], ["0042", "42", 1, 1], ["abc", "parse error", 0, 0], ["0", "0", 0, 0], ["(empty)", "1", 1, 0], ["(absent)", "1", 1, 0]] => inputs
+
+"rule : quantity must be an integer from 1 to 999" ^0
+"coercion : parse to integer, and use 1 when there is nothing to parse" ^0
+"" ^0
+
+"raw input    coercion gives   validator   customer chose it" ^0
+0 => accepted
+0 => accepted_unchosen
+for i in inputs:
+    if i[2] == 1:
+        accepted + 1 => accepted
+        if i[3] == 1:
+            "  " + i[0] + "        " + i[1] + "              accepts     yes" ^0
+        else:
+            accepted_unchosen + 1 => accepted_unchosen
+            "  " + i[0] + "    " + i[1] + "               accepts     NO" ^0
+    else:
+        "  " + i[0] + "        " + i[1] + "     rejects     -" ^0
+"" ^0
+
+"  values the validator accepts        : " + str(accepted) ^0
+"  of those, values nobody chose       : " + str(accepted_unchosen) ^0
+"  values outside 1..999 that got through : 0" ^0
+"" ^0
+
+# ---- what the validator is right about ----
+
+"the validator's own record" ^0
+"  values it has seen outside 1..999 : 0" ^0
+"  values it has wrongly accepted    : 0" ^0
+"  values it has wrongly rejected    : 0" ^0
+"  its accuracy against its input    : 100 percent" ^0
+"" ^0
+"  it is a correct rule about integers" ^0
+"  the thing that decides what integer arrives is upstream of it" ^0
+"" ^0
+
+# ---- how often the default fires ----
+
+int(orders_per_day * empty_field_per_thousand / 1000) => defaulted_per_day
+defaulted_per_day * days_per_quarter => defaulted_per_quarter
+
+"orders per day                 : " + str(orders_per_day) ^0
+"quantity field left empty      : " + str(empty_field_per_thousand) + " per thousand" ^0
+"orders defaulted to 1 per day  : " + str(defaulted_per_day) ^0
+"orders defaulted per quarter   : " + str(defaulted_per_quarter) ^0
+"" ^0
+"  every one of them is a valid order for one unit" ^0
+"  none of them is an order the customer placed for one unit" ^0
+"" ^0
+
+# ---- what each layer sees ----
+
+"layer                what it receives          can it tell the difference" ^0
+"  form                 empty field               yes, it is empty" ^0
+"  coercion             empty field               yes, that is why it defaults" ^0
+"  validator            the integer 1             no" ^0
+"  business rules       the integer 1             no" ^0
+"  warehouse            the integer 1             no" ^0
+"  customer             one item                  yes, on arrival" ^0
+"" ^0
+"  the information exists at exactly two points and neither of them is" ^0
+"  a place where anything is decided" ^0
+"" ^0
+
+# ---- the same coercion with no default ----
+#
+# Failing the parse instead of guessing sends the empty case to the validator
+# as an absence, which the validator can then refuse. The rule does not change;
+# what reaches it does.
+
+"coercion that fails instead of defaulting" ^0
+"  empty field           -> parse error -> rejected" ^0
+"  absent field          -> parse error -> rejected" ^0
+"  orders defaulted per quarter : 0" ^0
+"  orders rejected per quarter  : " + str(defaulted_per_quarter) ^0
+"  and each rejection is a form the customer can correct" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The validator's rule, against every value that has ever reached it. It is
+# right on all of them, and it would be right on any value anyone could
+# construct. There is no test that finds a defect in it.
+
+"control - is the rule itself correct" ^0
+"  lower bound  : 1, correct" ^0
+"  upper bound  : 999, correct" ^0
+"  integer check: correct" ^0
+"  off-by-one   : none, both bounds tested" ^0
+"  defects in the rule : 0" ^0
+"" ^0
+"  a test suite for a validator supplies values TO it" ^0
+"  and every value it can supply has already been through the coercion" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same coercion and the same validator, on a field with no default. Nothing
+# is invented, the validator sees absence as absence, and the ordering is
+# harmless. It is not 'coerce then validate' that is wrong; it is coercing with
+# a value the validator will accept.
+
+0 => nc_default_fires
+
+"null control - the same order of operations, coercion with no default" ^0
+"  coercion runs first        : yes, unchanged" ^0
+"  validation runs second     : yes, unchanged" ^0
+"  values invented by coercion: " + str(nc_default_fires) ^0
+"  orders defaulted           : " + str(nc_default_fires) ^0
+"  same two steps in the same order, and nothing gets through" ^0
+"  the defect is not the order; it is that one step produces values the" ^0
+"  next step is designed to approve" ^0
+"" ^0
+
+# ---- the rule ----
+
+"a normalising step in front of a check" ^0
+"  makes the check simpler        yes, and that is why it is there" ^0
+"  narrows what the check sees    yes, necessarily" ^0
+"  can it manufacture a value the check accepts   this is the question" ^0
+"  and a default is exactly such a manufacture" ^0
+"" ^0
+"the test for it is not a value; it is an ABSENCE" ^0
+"feed the pipeline a missing field and ask which layer first sees a number" ^0
+"" ^0
+
+"Parsing once at the edge is why the validator can be three lines instead of" ^0
+"thirty, and defaulting a missing quantity to 1 is friendlier than an error" ^0
+"page for the most common value on the form. The validator has never accepted" ^0
+"anything outside 1 to 999 and never will. " + str(defaulted_per_quarter) + " orders a quarter ship a" ^0
+"quantity of one that the customer never entered, and the validator was right" ^0
+"about every one of them." ^0

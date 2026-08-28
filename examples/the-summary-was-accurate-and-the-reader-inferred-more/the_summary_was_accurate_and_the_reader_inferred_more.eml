@@ -1,0 +1,149 @@
+# Self-authored for the EML case corpus (no external origin). A security review
+# is summarised in one line: reviewed the authentication flow, found three
+# issues, all fixed. Every word of that is true. What a reader takes from it is
+# computed below.
+#
+# The summary is honest and it was written carefully. Three issues were found,
+# they were real, all three were fixed and the fixes were verified. The reviewer
+# did not overstate the depth, did not claim completeness, and did not pad the
+# finding count. Compared with most such summaries it is unusually plain.
+#
+# A summary is a compression, and compression works by dropping what a reader
+# can reconstruct. What was NOT examined has no natural place in it: a finding
+# has a sentence and a non-finding has nothing, so the space that was not
+# looked at leaves no trace of its own size.
+#
+# The reader's inference is not careless either. Given "reviewed X, found three
+# issues", the ordinary reading is that X was reviewed. That inference is what
+# makes summaries useful, and it is wrong here only because a number the summary
+# does not contain is much larger than the one it does.
+
+52000 => endpoints_total
+400 => endpoints_sampled
+3 => issues_found
+
+"endpoints in the service : " + str(endpoints_total) ^0
+"endpoints examined       : " + str(endpoints_sampled) ^0
+"issues found             : " + str(issues_found) ^0
+"issues fixed             : " + str(issues_found) ^0
+"" ^0
+
+int(endpoints_sampled * 1000 / endpoints_total) => coverage_per_mille
+endpoints_total - endpoints_sampled => not_examined
+
+"  coverage        : " + str(coverage_per_mille) + " per mille" ^0
+"  not examined    : " + str(not_examined) ^0
+"" ^0
+
+# ---- every claim, checked ----
+
+"claim in the summary                    true" ^0
+"  the authentication flow was reviewed    yes" ^0
+"  three issues were found                 yes" ^0
+"  all three were fixed                    yes" ^0
+"  the fixes were verified                 yes" ^0
+"  false claims : 0 of 4" ^0
+"" ^0
+
+"what a reader takes from it" ^0
+"  the authentication flow has been reviewed   inferred" ^0
+"  the flow now has three fewer issues         inferred, and true" ^0
+"  the flow has been checked for this class    inferred, and not established" ^0
+"  remaining issues of this class              inferred as low; not measured" ^0
+"" ^0
+
+# ---- what the same finding rate implies about the rest ----
+#
+# Three issues in 400 endpoints is a rate. Applied to the endpoints nobody
+# looked at, it is an estimate the summary neither makes nor refutes.
+
+int(not_examined * issues_found / endpoints_sampled) => expected_remaining
+
+"  issue rate in the sample : " + str(issues_found) + " in " + str(endpoints_sampled) ^0
+"  endpoints not examined   : " + str(not_examined) ^0
+"  issues expected there    : " + str(expected_remaining) ^0
+"  issues reported          : " + str(issues_found) ^0
+"  issues fixed             : " + str(issues_found) ^0
+"" ^0
+"  the summary is a complete account of " + str(issues_found) + " and silent about " + str(expected_remaining) ^0
+"  and the silence is not evasion; it is what a summary IS" ^0
+"" ^0
+
+# ---- the sentence that would have carried it ----
+#
+# One clause. It costs nothing, it makes no additional claim, and it removes
+# the inference entirely.
+
+"the same summary with its denominator" ^0
+"  reviewed " + str(endpoints_sampled) + " of " + str(endpoints_total) + " endpoints in the authentication flow," ^0
+"  found " + str(issues_found) + " issues, all fixed" ^0
+"" ^0
+"  words added        : six" ^0
+"  claims added       : none" ^0
+"  inferences removed : the one that mattered" ^0
+"" ^0
+
+# ---- what makes this hard to notice ----
+
+"why nobody asked for the denominator" ^0
+"  the finding count is specific        : " + str(issues_found) + ", not 'several'" ^0
+"  each finding has a fix and a verifier: yes" ^0
+"  the summary avoids the word complete : yes" ^0
+"  precision on the findings reads as precision about the review" ^0
+"  and the more careful the finding list, the stronger that reading" ^0
+"" ^0
+"  a vaguer summary would have been questioned" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The review itself. It sampled properly, examined each endpoint carefully,
+# found real issues and fixed them. There is no defect in the work and none in
+# the report of it.
+
+"control - was the review done well" ^0
+"  endpoints examined thoroughly : yes, all " + str(endpoints_sampled) ^0
+"  false findings                : 0" ^0
+"  findings missed within the sample : none known" ^0
+"  fixes verified                : " + str(issues_found) + " of " + str(issues_found) ^0
+"  defects in the review or the summary : 0" ^0
+"" ^0
+"  the review is correct, the summary is correct, and the sentence a" ^0
+"  reader forms from the summary is not" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same summary after a review that covered everything. Identical wording,
+# and now the reader's inference is exactly right. The words did not change;
+# the number they omit did.
+
+52000 => nc_sampled
+
+"null control - the same sentence after a complete review" ^0
+"  endpoints examined : " + str(nc_sampled) + " of " + str(endpoints_total) ^0
+"  coverage           : " + str(int(nc_sampled * 1000 / endpoints_total)) + " per mille" ^0
+"  summary wording    : identical" ^0
+"  reader's inference : identical, and now correct" ^0
+"  the summary cannot distinguish the two cases, and neither can the reader" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a summary drops, and what that costs" ^0
+"  findings        kept, they are what a summary is for" ^0
+"  the population  dropped, an absence has no sentence" ^0
+"  a reader supplies the missing population from context" ^0
+"  and context suggests 'all of it', because that is the usual case" ^0
+"" ^0
+"the fix is not more caution in the wording" ^0
+"it is one number: what was examined, out of what" ^0
+"a finding count with no denominator is not an incomplete summary," ^0
+"it is a summary of a different quantity" ^0
+"" ^0
+
+"The reviewer found " + str(issues_found) + " real issues, fixed all " + str(issues_found) + ", verified the fixes, and" ^0
+"claimed nothing beyond that - which is more restraint than most such summaries" ^0
+"show. " + str(endpoints_sampled) + " of " + str(endpoints_total) + " endpoints were examined, " + str(coverage_per_mille) + " per mille, and the same" ^0
+"finding rate over the " + str(not_examined) + " nobody opened is about " + str(expected_remaining) + " more. Six words would" ^0
+"have carried that, and they would have added no claim at all." ^0

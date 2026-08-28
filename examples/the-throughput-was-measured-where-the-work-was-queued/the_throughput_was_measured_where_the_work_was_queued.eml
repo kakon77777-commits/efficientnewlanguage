@@ -1,0 +1,141 @@
+# Self-authored for the EML case corpus (no external origin). The throughput
+# graph has read a steady 1200 per second all shift. What the system finished in
+# that shift is computed below.
+#
+# Instrumenting at the ingress is the right place to start and the reasons are
+# good. It is one point in the code rather than one per worker, it cannot be
+# skipped by a worker that crashes before reporting, it needs no coordination
+# between processes, and it is the only place where a request is guaranteed to
+# exist exactly once. Everything about the counter's placement is defensible.
+#
+# What it counts is arrivals. A request that is accepted has not been done; it
+# has been promised. When the consumer keeps up, the two rates are equal and
+# the distinction has no consequence, which is why it survived design review.
+#
+# The distinction becomes the entire story exactly when the consumer stops
+# keeping up, which is the situation the graph exists to reveal.
+
+1200 => accepted_per_second
+900 => completed_per_second
+8 => shift_hours
+
+accepted_per_second - completed_per_second => backlog_per_second
+shift_hours * 3600 => shift_seconds
+
+"accepted per second  : " + str(accepted_per_second) + "   <- this is the throughput graph" ^0
+"completed per second : " + str(completed_per_second) ^0
+"backlog per second   : " + str(backlog_per_second) ^0
+"" ^0
+
+shift_seconds * accepted_per_second => accepted_total
+shift_seconds * completed_per_second => completed_total
+shift_seconds * backlog_per_second => backlog_total
+
+"over one " + str(shift_hours) + "-hour shift" ^0
+"  accepted  : " + str(accepted_total) ^0
+"  completed : " + str(completed_total) ^0
+"  waiting   : " + str(backlog_total) ^0
+"" ^0
+"  the graph is flat at " + str(accepted_per_second) + " for the whole shift" ^0
+"  it is flat because arrivals are steady, which they are" ^0
+"" ^0
+
+# ---- what the graph would look like if it counted completions ----
+
+"hour   accepted   completed   backlog after" ^0
+0 => running_backlog
+for h in [1:8]:
+    3600 * accepted_per_second => acc_h
+    3600 * completed_per_second => done_h
+    running_backlog + (acc_h - done_h) => running_backlog
+    if h % 2 == 0:
+        "  " + str(h) + "      " + str(acc_h) + "    " + str(done_h) + "     " + str(running_backlog) ^0
+"" ^0
+"  the accepted column is constant and the backlog column is not" ^0
+"  only one of them is on a dashboard" ^0
+"" ^0
+
+# ---- how long the backlog takes to clear ----
+#
+# It clears only while arrivals are below capacity. At the shift's own rate it
+# never clears, and the queue depth at the end of the shift is the debt carried
+# into the next one.
+
+500 => overnight_arrival_rate
+
+completed_per_second - overnight_arrival_rate => drain_per_second
+int(backlog_total / drain_per_second) => seconds_to_drain
+
+"clearing the backlog after the shift" ^0
+"  overnight arrival rate : " + str(overnight_arrival_rate) + " per second" ^0
+"  drain rate             : " + str(drain_per_second) + " per second" ^0
+"  backlog to clear       : " + str(backlog_total) ^0
+"  seconds to clear       : " + str(seconds_to_drain) ^0
+"  hours to clear         : " + str(int(seconds_to_drain / 3600)) ^0
+"  the next shift starts before it finishes" ^0
+"" ^0
+
+# ---- what each placement can and cannot see ----
+
+"counter placement   what it measures   what it misses" ^0
+"  at ingress          arrivals           whether the work was done" ^0
+"  at egress           completions        requests that never reach a worker" ^0
+"  both                everything         nothing, and the difference IS the" ^0
+"                                         quantity that matters" ^0
+"" ^0
+"  the difference needs two counters and one subtraction" ^0
+"  neither counter alone can produce it, which is why one counter was enough" ^0
+"  for as long as the two were equal" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The ingress counter, judged against arrivals. It has never missed a request,
+# never double-counted, and never gone stale. It is a correct measurement of
+# exactly what it names.
+
+"control - is the ingress counter accurate" ^0
+"  requests that arrived : " + str(accepted_total) ^0
+"  requests it counted   : " + str(accepted_total) ^0
+"  missed                : 0" ^0
+"  double-counted        : 0" ^0
+"  errors in the counter : 0" ^0
+"  it measures arrivals exactly, and its label says throughput" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same counter in the same place when the consumer keeps up. Arrivals equal
+# completions, the graph is a true throughput graph, and its placement costs
+# nothing. The design is right for the regime it was designed in.
+
+1200 => nc_completed_per_second
+
+"null control - the same counter when the consumer keeps up" ^0
+"  accepted per second  : " + str(accepted_per_second) ^0
+"  completed per second : " + str(nc_completed_per_second) ^0
+"  backlog per second   : " + str(accepted_per_second - nc_completed_per_second) ^0
+"  graph reads          : " + str(accepted_per_second) + ", and it is true" ^0
+"  same counter, same placement, same label" ^0
+"  the label becomes false exactly when the two rates separate, which is" ^0
+"  the only time anyone reads the graph carefully" ^0
+"" ^0
+
+# ---- the rule ----
+
+"a rate measured at the front of a pipeline" ^0
+"  equals the completion rate      while nothing accumulates" ^0
+"  exceeds it                      while something does" ^0
+"  never falls below it            over any interval" ^0
+"  so it is an upper bound reported as a measurement" ^0
+"  and it is highest exactly when the system is worst" ^0
+"" ^0
+"a queue depth graph beside it would have told the whole story," ^0
+"and a queue depth is not a rate, so it did not belong to the same panel" ^0
+"" ^0
+
+"Counting at the ingress needs one instrumentation point instead of one per" ^0
+"worker, cannot be skipped by a worker that dies, and sees every request exactly" ^0
+"once - all true. It counts arrivals. Over one shift " + str(accepted_total) + " arrived and" ^0
+str(completed_total) + " finished, leaving " + str(backlog_total) + " waiting and " + str(int(seconds_to_drain / 3600)) + " hours of drain that the" ^0
+"next shift starts on top of, while the graph held flat at " + str(accepted_per_second) + " throughout." ^0

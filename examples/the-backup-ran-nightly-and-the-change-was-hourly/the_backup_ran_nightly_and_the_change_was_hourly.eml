@@ -1,0 +1,134 @@
+# Self-authored for the EML case corpus (no external origin). The backup has
+# succeeded every night for four hundred nights. The recovery point objective
+# is one hour. What is actually recoverable is computed below.
+#
+# A nightly full backup at 02:00 is the right shape for this system and was
+# chosen carefully. It runs in the quiet window, it does not contend with the
+# day's traffic, it produces a single self-contained artifact that can be
+# restored without replaying anything, and its integrity is verified by a
+# checksum every morning. Four hundred consecutive successes is a real number
+# and it was earned.
+#
+# The RPO is a separate promise, written in a different document, by people who
+# were describing what the business could tolerate rather than what the backup
+# schedule provides. Nobody compared the two numbers, because they live in two
+# documents and neither one mentions the other.
+#
+# A backup's success rate measures whether the artifact was produced. The
+# recovery point measures how old that artifact is when it is needed, and the
+# schedule alone decides that.
+
+2 => backup_hour
+4200 => changes_per_hour
+1 => rpo_promised_hours
+400 => consecutive_successes
+
+"backup runs at        : " + str(backup_hour) + ":00, nightly, full" ^0
+"consecutive successes : " + str(consecutive_successes) ^0
+"changes per hour      : " + str(changes_per_hour) ^0
+"RPO promised          : " + str(rpo_promised_hours) + " hour" ^0
+"" ^0
+
+# ---- what is lost, by hour of failure ----
+
+"failure at   hours since backup   changes lost   within the " + str(rpo_promised_hours) + "-hour RPO" ^0
+0 => worst_lost
+0 => hours_within_rpo
+0 => hours_measured
+for h in [3:23]:
+    h - backup_hour => age
+    age * changes_per_hour => lost
+    hours_measured + 1 => hours_measured
+    if age <= rpo_promised_hours:
+        hours_within_rpo + 1 => hours_within_rpo
+    if lost > worst_lost:
+        lost => worst_lost
+    if h % 4 == 0:
+        if age <= rpo_promised_hours:
+            "  " + str(h) + ":00        " + str(age) + "                  " + str(lost) + "          yes" ^0
+        else:
+            "  " + str(h) + ":00        " + str(age) + "                  " + str(lost) + "          no" ^0
+"" ^0
+
+"  hours in the day measured        : " + str(hours_measured) ^0
+"  hours that meet the RPO          : " + str(hours_within_rpo) ^0
+"  worst case, a failure just before the next backup : " + str(worst_lost) + " changes" ^0
+"" ^0
+
+# ---- the promise and the schedule ----
+
+"to meet a " + str(rpo_promised_hours) + "-hour RPO the backup must run every " + str(rpo_promised_hours) + " hour" ^0
+"  backups per day required : " + str(int(24 / rpo_promised_hours)) ^0
+"  backups per day scheduled: 1" ^0
+"  the schedule is short by a factor of " + str(int(24 / rpo_promised_hours)) ^0
+"" ^0
+"  no amount of backup SUCCESS closes that gap" ^0
+"  a backup that never fails still cannot be newer than its schedule" ^0
+"" ^0
+
+# ---- what the success rate can and cannot see ----
+
+"what " + str(consecutive_successes) + " consecutive successes establishes" ^0
+"  the job runs                    yes" ^0
+"  the artifact is complete        yes, checksummed" ^0
+"  the artifact can be restored    only if a restore was actually run" ^0
+"  the artifact is recent enough   no, and this is not a property of the job" ^0
+"" ^0
+"  the first two are about the backup" ^0
+"  the fourth is about the SCHEDULE, which cannot fail and therefore cannot" ^0
+"  appear in a success rate at all" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The backup itself, judged against everything it claims. It has never failed,
+# never produced a corrupt artifact, and never missed its window. Every review
+# of the backup passes.
+
+"control - is the backup doing what it says" ^0
+"  nights run          : " + str(consecutive_successes) ^0
+"  nights succeeded    : " + str(consecutive_successes) ^0
+"  corrupt artifacts   : 0" ^0
+"  missed windows      : 0" ^0
+"  failures found      : 0 of " + str(consecutive_successes) ^0
+"  the backup is excellent and the number above is real" ^0
+"" ^0
+"  it answers 'did we take a copy', and the RPO asks 'how old is it'" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same nightly backup over a system that changes once a week. The gap is
+# the same twenty-two hours and it costs nothing, because almost nothing
+# happens inside it. The schedule is not wrong in itself; it is wrong against
+# a change rate, and nobody put the two on one page.
+
+1 => nc_changes_per_week
+
+"null control - the same nightly backup over a weekly-changing system" ^0
+"  changes per week        : " + str(nc_changes_per_week) ^0
+"  worst-case changes lost : " + str(nc_changes_per_week) ^0
+"  RPO of 1 hour           : met on most days by accident" ^0
+"  same schedule, same job, same success rate" ^0
+"  the exposure is the change rate times the interval, and only one of" ^0
+"  those two numbers is in the backup's documentation" ^0
+"" ^0
+
+# ---- the rule ----
+
+"two numbers that describe a backup, and where each lives" ^0
+"  success rate      in the job's monitoring, and it is 400 of 400" ^0
+"  recovery point    in the SCHEDULE, and nothing monitors a schedule" ^0
+"  the first is measured continuously" ^0
+"  the second is decided once and never observed again" ^0
+"  a green backup dashboard is consistent with any RPO whatsoever" ^0
+"" ^0
+"the measurement that would have found this is one subtraction:" ^0
+"interval between backups, against the interval the RPO promises" ^0
+"" ^0
+
+"A nightly full at " + str(backup_hour) + ":00 runs in the quiet window, produces one self-contained" ^0
+"artifact, and has succeeded " + str(consecutive_successes) + " nights running with a verified checksum every" ^0
+"morning. A failure at 21:00 loses " + str(19 * changes_per_hour) + " changes against an RPO of " + str(rpo_promised_hours) + " hour, and" ^0
+"the worst hour of the day loses " + str(worst_lost) + ". The success rate cannot move in response to" ^0
+"any of that, because the schedule is not something the job can fail at." ^0

@@ -1,0 +1,140 @@
+# Self-authored for the EML case corpus (no external origin). A report joins
+# orders to their line items so it can break revenue down by product category.
+# Three numbers on the same report are computed below.
+#
+# The join is necessary and correct. Category lives on the line item, revenue
+# lives on the order, and a report that shows revenue by category has to bring
+# them together - there is no other way to write it. The join condition is
+# right, the foreign key is enforced, and no row is invented or lost: every
+# output row corresponds to exactly one real line item on one real order.
+#
+# A join to a one-to-many side multiplies the parent rows. That is not a defect;
+# it is what the join is for. Every aggregate computed afterwards is computed
+# over the multiplied set, and an aggregate over the multiplied set answers a
+# different question from the same SQL keyword.
+#
+# COUNT(DISTINCT order_id) survives it. COUNT(*) and SUM(order_total) do not,
+# and all three sit on one report under headings that read the same.
+
+8400 => orders
+35 => items_per_order_tenths
+2100000 => true_revenue
+
+int(orders * items_per_order_tenths / 10) => joined_rows
+
+"orders                 : " + str(orders) ^0
+"line items per order   : " + str(items_per_order_tenths) + " tenths" ^0
+"rows after the join    : " + str(joined_rows) ^0
+"true revenue           : " + str(true_revenue) ^0
+"" ^0
+
+# ---- the three numbers ----
+
+int(true_revenue * items_per_order_tenths / 10) => summed_after_join
+
+"metric                     value        correct" ^0
+"  COUNT(DISTINCT order_id)   " + str(orders) + "         yes" ^0
+"  COUNT(*)                   " + str(joined_rows) + "        no, that is line items" ^0
+"  SUM(order_total)           " + str(summed_after_join) + "      no, each order counted " + str(items_per_order_tenths) + " tenths of a time" ^0
+"" ^0
+
+"  revenue overstated by : " + str(summed_after_join - true_revenue) ^0
+"  which is " + str(int(summed_after_join * 100 / true_revenue)) + " percent of the true figure" ^0
+"" ^0
+
+# ---- why every row is real ----
+#
+# Nothing is fabricated. The multiplication is the join doing its job, and each
+# repeated order_total belongs to a genuine line item.
+
+"where the extra revenue comes from" ^0
+"  rows invented by the join     : 0" ^0
+"  orders that do not exist      : 0" ^0
+"  line items that do not exist  : 0" ^0
+"  order_total values that are wrong : 0" ^0
+"  every row is real, and " + str(joined_rows - orders) + " of them repeat a total already counted" ^0
+"" ^0
+"  a data-quality check on this table finds nothing, because there is" ^0
+"  nothing wrong with the data" ^0
+"" ^0
+
+# ---- which aggregates survive a fan-out ----
+
+"aggregate                  survives a one-to-many join" ^0
+"  COUNT(DISTINCT parent)     yes, DISTINCT undoes the multiplication" ^0
+"  MIN / MAX of a parent col  yes, repetition does not move an extremum" ^0
+"  COUNT(*)                   no, it counts the multiplied set" ^0
+"  SUM of a parent column     no, each value appears once per child" ^0
+"  AVG of a parent column     yes, numerator and denominator scale together" ^0
+"  SUM of a CHILD column      yes, that is what the fan-out is for" ^0
+"" ^0
+"  the report used three of these and only checked the first" ^0
+"" ^0
+
+# ---- how the error scales ----
+#
+# The overstatement is exactly the average fan-out. A report over a category
+# with few items per order is nearly right; one with many is wildly wrong, and
+# both appear on the same page.
+
+"category   items per order   revenue reported vs true" ^0
+[["books", 12], ["grocery", 84], ["single", 10], ["mixed", 35]] => categories
+for c in categories:
+    "  " + c[0] + "     " + str(c[1]) + " tenths          " + str(int(c[1] * 100 / 10)) + " percent" ^0
+"" ^0
+"  the single-item category is exactly right" ^0
+"  and its correctness is what makes the page look checked" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The join itself, and the row count it produces. Both are exactly what the
+# schema implies, and a reviewer verifying the join finds it correct.
+
+"control - is the join correct" ^0
+"  expected rows from the schema : " + str(joined_rows) ^0
+"  actual rows                   : " + str(joined_rows) ^0
+"  orphan line items             : 0, the foreign key is enforced" ^0
+"  orders lost by the join       : 0, it is an inner join over a mandatory key" ^0
+"  defects in the join           : 0" ^0
+"" ^0
+"  the join is right and the aggregate above it is asking the wrong set" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same query against orders that have exactly one line item each. No
+# fan-out, so SUM and COUNT(*) are both correct and the report is right in
+# every cell. The defect is the multiplicity, not the SQL.
+
+10 => nc_items_per_order_tenths
+int(orders * nc_items_per_order_tenths / 10) => nc_rows
+
+"null control - the same report where every order has one line item" ^0
+"  rows after the join : " + str(nc_rows) ^0
+"  COUNT(*)            : " + str(nc_rows) + ", and it equals the order count" ^0
+"  SUM(order_total)    : " + str(int(true_revenue * nc_items_per_order_tenths / 10)) ^0
+"  true revenue        : " + str(true_revenue) ^0
+"  difference          : " + str(int(true_revenue * nc_items_per_order_tenths / 10) - true_revenue) ^0
+"  same query, same joins, same aggregates, and every number correct" ^0
+"  the test fixture had one item per order" ^0
+"" ^0
+
+# ---- the rule ----
+
+"an aggregate after a join" ^0
+"  is the join correct              usually yes, and it is what gets reviewed" ^0
+"  is the aggregate correct         only for aggregates that ignore repetition" ^0
+"  which side does the column live on   this decides it, and it is not in" ^0
+"                                       the aggregate's own text" ^0
+"  SUM(a.total) and SUM(b.amount) look identical and differ completely" ^0
+"" ^0
+"the check is one query: compare the aggregate against the same aggregate" ^0
+"computed before the join, and a difference is the fan-out, exactly" ^0
+"" ^0
+
+"Category lives on the line item and revenue lives on the order, so the report" ^0
+"has to join them; the join is correct, the key is enforced, and not one row is" ^0
+"invented or lost. " + str(joined_rows - orders) + " of the " + str(joined_rows) + " output rows repeat an order total that was" ^0
+"already counted, so revenue reads " + str(summed_after_join) + " against a true " + str(true_revenue) + ", while" ^0
+"COUNT(DISTINCT order_id) on the same page reads " + str(orders) + " and is exactly right." ^0

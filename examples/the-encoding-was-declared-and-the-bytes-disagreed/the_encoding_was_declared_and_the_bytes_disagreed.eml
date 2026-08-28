@@ -1,0 +1,149 @@
+# Self-authored for the EML case corpus (no external origin). Every uploaded
+# file declares its encoding, the importer honours the declaration, and the
+# encoding validator passes 100 percent of records. How many names arrive
+# correctly is computed below.
+#
+# Trusting the declared encoding is the right thing to do and guessing is the
+# wrong one. Charset detection is a heuristic that is confidently wrong on short
+# strings, it makes the import non-deterministic for identical bytes, and it
+# gives a partner no way to state what they actually sent. Honouring the
+# declaration is the interoperable choice, it is what the specification says,
+# and it makes the partner responsible for a fact only the partner knows.
+#
+# The validator that runs afterwards asks whether the decoded text is valid
+# UTF-8. It is a real check and it has caught real truncation bugs.
+#
+# Decoding cp1252 bytes as UTF-8 does not produce invalid UTF-8. It produces
+# replacement characters, and a replacement character is a perfectly valid
+# UTF-8 code point. The validator is asking a question whose answer is yes for
+# both the correct case and this one.
+
+48000 => records_imported
+30 => mislabeled_per_thousand
+
+int(records_imported * mislabeled_per_thousand / 1000) => mislabeled
+records_imported - mislabeled => correctly_labeled
+
+"records imported          : " + str(records_imported) ^0
+"declared utf-8, actually cp1252 : " + str(mislabeled) + " (" + str(mislabeled_per_thousand) + " per thousand)" ^0
+"correctly labelled        : " + str(correctly_labeled) ^0
+"" ^0
+
+"  decode errors raised   : 0" ^0
+"  validator pass rate    : " + str(records_imported) + " of " + str(records_imported) ^0
+"  records with a corrupted name : " + str(mislabeled) ^0
+"" ^0
+
+# ---- why the validator cannot see it ----
+
+"what the validator asks, and what each case answers" ^0
+"  correct utf-8 input     -> is the result valid utf-8 : yes" ^0
+"  cp1252 read as utf-8    -> is the result valid utf-8 : yes" ^0
+"  truncated mid-sequence  -> is the result valid utf-8 : no, and it catches it" ^0
+"" ^0
+"  the check discriminates the third case and not the second" ^0
+"  a replacement character is a valid code point, so a validity check" ^0
+"  cannot report it - it is not an invalidity" ^0
+"" ^0
+
+# ---- what the corrupted records do downstream ----
+#
+# They are not broken data in any way a system notices. They are well-formed
+# strings that spell the name wrong.
+
+"a corrupted name, downstream" ^0
+"  stored in the database    : yes, it is a valid string" ^0
+"  indexed for search        : yes" ^0
+"  returned by an exact-match lookup on the CORRECT spelling : no" ^0
+"  printed on a shipping label : yes, with the wrong characters" ^0
+"  flagged by any check       : no" ^0
+"  the only detector is a person who knows how their own name is spelled" ^0
+"" ^0
+
+# ---- which records are affected ----
+#
+# Only names containing bytes outside ASCII. So the corruption is concentrated
+# exactly on the customers whose names are already most often handled badly.
+
+72 => accented_names_per_thousand
+
+int(mislabeled * accented_names_per_thousand / 1000) => visibly_corrupted
+
+"  mislabeled records                       : " + str(mislabeled) ^0
+"  of those, names with a non-ascii character : " + str(visibly_corrupted) ^0
+"  records where the corruption is visible    : " + str(visibly_corrupted) ^0
+"  records where it is invisible              : " + str(mislabeled - visibly_corrupted) ^0
+"" ^0
+"  the invisible ones are pure ascii and decode identically under both" ^0
+"  encodings, so they are correct by coincidence rather than by check" ^0
+"" ^0
+
+# ---- the check that would find it ----
+#
+# Not a validity check. A comparison: decode the same bytes under the declared
+# encoding and under the most likely alternative, and report the records where
+# the two disagree.
+
+"a check that can distinguish the two cases" ^0
+"  decode under the declared encoding" ^0
+"  decode under cp1252" ^0
+"  compare" ^0
+"  identical   -> pure ascii, no information either way" ^0
+"  different   -> exactly one of them is what the partner meant" ^0
+"  records this flags : " + str(visibly_corrupted) ^0
+"  and it flags them without needing to know which is right" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The validator against what it was written for. It catches truncated
+# multi-byte sequences, and it has caught real ones. It is a good check.
+
+"control - is the validator working" ^0
+"  truncated sequences it has caught : real, in production" ^0
+"  false positives                   : 0" ^0
+"  false negatives on INVALID utf-8  : 0" ^0
+"  the check is correct and complete for invalidity" ^0
+"" ^0
+"  and this corruption is not an invalidity" ^0
+"  it is a valid encoding of the wrong characters" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same importer, the same validator, on a partner whose declaration is
+# accurate. Everything decodes correctly, the validator passes, and the passing
+# means what it looks like it means. The check is unchanged; only the input's
+# honesty differs.
+
+0 => nc_mislabeled
+
+"null control - the same import from a partner whose declaration is right" ^0
+"  records mislabeled     : " + str(nc_mislabeled) ^0
+"  decode errors          : 0" ^0
+"  validator pass rate    : " + str(records_imported) + " of " + str(records_imported) ^0
+"  corrupted names        : " + str(nc_mislabeled) ^0
+"  the validator's output is byte-identical in both cases" ^0
+"  it passes 100 percent when everything is right and 100 percent when" ^0
+"  " + str(mislabeled) + " records are wrong" ^0
+"" ^0
+
+# ---- the rule ----
+
+"a check placed after a lossy transformation" ^0
+"  can it see the input          no, the transformation already ran" ^0
+"  can it see the loss           only if the loss leaves an invalid result" ^0
+"  a substitution leaves a VALID result, by design" ^0
+"  that is what a replacement character is for" ^0
+"" ^0
+"the question is not 'is the output well-formed'" ^0
+"it is 'could this output have come from something else', and answering it" ^0
+"needs the input, which is why the check has to sit beside the decode" ^0
+"" ^0
+
+"Honouring the declared encoding is correct and guessing is not: detection is" ^0
+"a heuristic, it makes identical bytes decode differently on different days, and" ^0
+"only the partner knows what they sent. " + str(mislabeled) + " records declare utf-8 and are" ^0
+"cp1252. No decode error is raised, because cp1252 bytes read as utf-8 produce" ^0
+"replacement characters, and " + str(records_imported) + " of " + str(records_imported) + " records pass a validity check that" ^0
+"is structurally unable to report them." ^0
