@@ -92,11 +92,19 @@ export function emitCppExpression(expr: Expression): string {
         throw new CppEmitError('C⁺⁺⁺ `%` requires integer operands (a non-integer literal was used) — C++ modulo does not support floating-point types.');
       }
       const prec = expr.op === '+' || expr.op === '-' ? 6 : 7;
-      const nonAssoc = expr.op === '-' || expr.op === '/' || expr.op === '%';
+      // Same policy as the Python emitter (EMLP-AUDIT-003 / 024): floating
+      // point addition and multiplication are non-associative, so an
+      // equal-precedence right operand is always parenthesized.
+      const nonAssoc = true;
       return `${child(expr.left, prec)} ${expr.op} ${child(expr.right, prec, nonAssoc)}`;
     }
     case 'Comparison':
-      return `${child(expr.left, 5)} ${expr.op} ${child(expr.right, 5)}`;
+      // C++ splits comparison across TWO precedence tiers - relational `<`
+      // binds tighter than equality `!=` - while this table gives both 5. So
+      // `((1 != 2) < 1)` emitted bare becomes `1 != 2 < 1`, which C++ reads as
+      // `1 != (2 < 1)`: a different value. Parenthesizing any nested
+      // comparison is correct under either tier (EMLP-AUDIT-024).
+      return `${child(expr.left, 5, true)} ${expr.op} ${child(expr.right, 5, true)}`;
     case 'Logical': {
       // C++ && / || always yield bool; Python's and/or yield an OPERAND
       // (short-circuit value). This is a real, deliberate narrowing for this

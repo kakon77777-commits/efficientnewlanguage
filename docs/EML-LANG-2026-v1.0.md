@@ -395,8 +395,10 @@ builtin call like `list(1)` is preserved).
 integers; a non-integer literal bound is `E_RANGE_NONINT`. Emitter precedence (tightest → loosest,
 as of Phase 9): power(8) > mul/div/mod(7) > add/sub(6) > comparison/membership(5) > not(4) > and(3) >
 or(2) > conditional(1). The emitter parenthesizes minimally and exactly to preserve grouping; `**` is
-right-associative (its base is parenthesized), `-`/`/`/`%` are non-associative (an equal-precedence
-right operand is parenthesized — `a % (b % c)` keeps its parens, unlike `a + (b + c)`), and `and`/`or`
+right-associative (its base is parenthesized), **no binary operator is re-associated** (an
+equal-precedence right operand is always parenthesized — `a % (b % c)` keeps its parens, and so does
+`a + (b + c)`, because floating-point addition and multiplication are non-associative under
+IEEE-754), and `and`/`or`
 are associative in value (so an equal-precedence child is never force-parenthesized) but `and` binds
 tighter than `or`, matching Python exactly. **`not` binds tighter than `and`/`or` but looser than
 comparison** — `not x > 5` stays bare (means `not (x > 5)`, comparison binds tighter), `not (a or b)`

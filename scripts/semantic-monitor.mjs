@@ -284,11 +284,27 @@ const SEMANTIC_FILES = [
     // analyzer's. The two listed before it both exercise the reverse path one
     // construct at a time, which is why neither could see it: the disagreement
     // only shows when ONE NAME is assigned in TWO scopes.
+    // `grouping-round-trip` was added 2026-08-27 after EMLP-AUDIT-023: the
+    // forward emitter was taught to keep a paren the AST requires and this
+    // file was still removing it, so Python -> EML -> Python stopped being a
+    // fixpoint. None of the three above could see it - each exercises the
+    // reverse path for what it can EXPRESS, and this was about what it
+    // silently REGROUPS.
     [
       'tests/reverse-regression.test.ts',
       'tests/reverse-blocks.test.ts',
       'tests/rebinding-across-scopes.test.ts',
+      'tests/grouping-round-trip.test.ts',
     ],
+  ],
+  // Added 2026-08-27. This file was tracked by NOTHING, and it decides what a
+  // program means once compiled - EMLP-AUDIT-024 shipped a grouping bug that
+  // real MSVC computed differently from the interpreter, with the monitor
+  // silent the whole time. The C++ back end is non-normative per spec §11,
+  // which is a reason for a smaller blast radius, not for no drift check.
+  [
+    'packages/transpiler-cpp/src/emitter.ts',
+    ['tests/transpiler-cpp.test.ts', 'tests/grouping-round-trip.test.ts'],
   ],
   ['packages/transpiler-eml/src/py-parser.ts', ['tests/reverse-regression.test.ts', 'tests/reverse-blocks.test.ts']],
   ['packages/transpiler-eml/src/py-lexer.ts', ['tests/reverse-regression.test.ts', 'tests/reverse-blocks.test.ts']],

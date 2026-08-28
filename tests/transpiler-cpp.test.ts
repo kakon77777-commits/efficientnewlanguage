@@ -179,6 +179,11 @@ const expectedStdout: Record<string, string> = {
   sum_squares: '338350',
   square_sum_fn: '338350',
   conditional: '1\n1',
+  // EMLP-AUDIT-024: the AST is ((1 != 2) < 1) + 0. Interpreter and real
+  // CPython both give 0. Before the grouping fix the C++ emitter dropped
+  // the parens and real MSVC printed 1, because C++ binds `<` tighter
+  // than `!=`.
+  grouping_comparison: '0',
 };
 
 describe.skipIf(!toolchain)(`Phase 4 — C++ compiles + runs (via ${toolchain?.kind ?? 'no compiler'})`, () => {

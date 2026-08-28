@@ -105,11 +105,18 @@ export function emitEmlExpression(expr: Expression): string {
       return `${child(expr.base, 8, true)}^${emitEmlExpression(expr.exponent)}`;
     case 'Binary': {
       const prec = expr.op === '+' || expr.op === '-' ? 6 : 7;
-      const nonAssoc = expr.op === '-' || expr.op === '/' || expr.op === '%';
+      // Same policy as the forward emitter (EMLP-AUDIT-003): NO binary operator
+      // is safe to re-associate. `+` and `*` are non-associative in IEEE-754,
+      // so an equal-precedence right operand is always parenthesized. The
+      // reverse path must match, or Python -> EML -> Python stops being a
+      // fixpoint for the supported subset (EMLP-AUDIT-023).
+      const nonAssoc = true;
       return `${child(expr.left, prec)} ${expr.op} ${child(expr.right, prec, nonAssoc)}`;
     }
     case 'Comparison':
-      return `${child(expr.left, 5)} ${expr.op} ${child(expr.right, 5)}`;
+      // EML does not chain comparisons, so a comparison in either operand
+      // position must keep its parentheses - hence orEqual on both sides.
+      return `${child(expr.left, 5, true)} ${expr.op} ${child(expr.right, 5, true)}`;
     case 'Logical': {
       const prec = expr.op === 'or' ? 2 : 3;
       return `${child(expr.left, prec)} ${expr.op} ${child(expr.right, prec)}`;
@@ -123,7 +130,10 @@ export function emitEmlExpression(expr: Expression): string {
     case 'Sum':
       return `Σ(${emitEmlExpression(expr.expr)}, ${expr.iterator.name} in ${emitEmlExpression(expr.range)})`;
     case 'Membership':
-      return `${emitEmlExpression(expr.element)} in ${emitEmlExpression(expr.collection)}`;
+      // This previously called emitEmlExpression directly, applying no
+      // precedence rule at all: `(not 0) in []` came back as `not 0 in []`,
+      // which parses as `not (0 in [])` and is a different program.
+      return `${child(expr.element, 5, true)} in ${child(expr.collection, 5, true)}`;
     case 'Call':
       if (expr.callee.type !== 'Identifier' && expr.callee.type !== 'Attribute') {
         throw new EmlEmitError('Reverse Python->EML does not yet support this call form.');
