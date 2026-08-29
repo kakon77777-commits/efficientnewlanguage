@@ -1,0 +1,136 @@
+# Self-authored for the EML case corpus (no external origin). A rewritten
+# pricing path sits behind a feature flag. The flag has defaulted off since the
+# day it was added. What the branch's readiness has actually been measured
+# against is computed below.
+#
+# Defaulting off was the right call and it was made deliberately. A flag that
+# defaults on ships an unexercised path to everyone the moment it merges, and
+# the whole reason for the flag was to decide when the branch runs rather than
+# let the deploy decide. The branch has unit tests, it passed review, and every
+# one of its tests has passed on every build since.
+#
+# A unit test exercises a branch against the world as its author imagined it.
+# Production exercises it against the world. The flag has held those two apart
+# for the branch's entire life, and only the first one has ever run.
+#
+# The tests call the pricing helper through a fixture, because that is what a
+# unit test does. So the number of times this branch has met the real helper
+# has two sources, and both of them are zero, for two unrelated reasons.
+
+400 => days_since_flag_added
+96 => deploys_since_flag_added
+34 => unit_tests_on_the_branch
+2400000 => requests_per_day
+0 => flag_enabled_pct
+
+"days since the flag was added : " + str(days_since_flag_added) ^0
+"deploys since then            : " + str(deploys_since_flag_added) ^0
+"unit tests on the branch      : " + str(unit_tests_on_the_branch) ^0
+"of those tests, passing       : " + str(unit_tests_on_the_branch) ^0
+"flag enabled for              : " + str(flag_enabled_pct) + " percent of traffic" ^0
+"" ^0
+
+days_since_flag_added * requests_per_day => requests_in_that_time
+int(requests_in_that_time * flag_enabled_pct / 100) => branch_executions_in_production
+
+"requests served in that time  : " + str(requests_in_that_time) ^0
+"of those, through the branch  : " + str(branch_executions_in_production) ^0
+"" ^0
+
+# ---- the two places the branch could have met the real helper ----
+
+0 => tests_calling_the_real_helper
+
+"where the branch could meet the real pricing helper" ^0
+"  in its unit tests   : " + str(tests_calling_the_real_helper) + " of " + str(unit_tests_on_the_branch) + ", the rest use a fixture" ^0
+"  in production       : " + str(branch_executions_in_production) ^0
+"  total               : " + str(tests_calling_the_real_helper + branch_executions_in_production) ^0
+"" ^0
+"  two independent-looking sources of confidence, both zero," ^0
+"  and zero for two reasons that have nothing to do with each other" ^0
+"" ^0
+
+# ---- what the dashboards say ----
+
+"what is reported about this branch" ^0
+"  line coverage         : 100 percent, all " + str(unit_tests_on_the_branch) + " tests reach it" ^0
+"  test failures         : 0" ^0
+"  production errors     : 0" ^0
+"  production executions : " + str(branch_executions_in_production) ^0
+"" ^0
+"  the error count and the execution count are the same number," ^0
+"  and only one of them is being read" ^0
+"" ^0
+
+# ---- drift, one deploy at a time ----
+#
+# Each deploy is an opportunity for the real helper to move. The old branch
+# finds out immediately, because it runs. This branch finds out from its
+# fixture, which does not move.
+
+11 => deploys_touching_the_helper
+
+"deploys since the flag was added        : " + str(deploys_since_flag_added) ^0
+"of those, touching the pricing helper   : " + str(deploys_touching_the_helper) ^0
+"caught by the old path, which runs      : " + str(deploys_touching_the_helper) ^0
+"caught by the new path, which does not  : 0" ^0
+"" ^0
+
+"deploy   helper changed   old path notices   new path notices" ^0
+for d in [1:5]:
+    d * 8 => deploy_no
+    "  " + str(deploy_no) + "        yes              yes                no" ^0
+"" ^0
+"  the new path's tests pass at every row, because the fixture" ^0
+"  is the one thing in the system that cannot drift" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The flag mechanism, against what it was asked to do. It was asked to keep an
+# unexercised path away from users until somebody decides otherwise, and it has
+# done that without a single exception for the whole period.
+
+"control - did the flag do its job" ^0
+"  users exposed to the untested path : " + str(branch_executions_in_production) ^0
+"  incidents caused by the branch     : 0" ^0
+"  times the flag failed open         : 0" ^0
+"  defects in the flag                : 0" ^0
+"" ^0
+"  the flag is perfect, and being perfect is the whole mechanism" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same branch, same tests, same fixture, with the flag at one percent. The
+# code did not change. What changed is that the branch now has a second source
+# of information about itself, and it is not the fixture.
+
+1 => nc_flag_enabled_pct
+int(requests_in_that_time * nc_flag_enabled_pct / 100) => nc_branch_executions
+
+"null control - the same branch at " + str(nc_flag_enabled_pct) + " percent" ^0
+"  branch executions in production : " + str(nc_branch_executions) ^0
+"  deploys that would have been caught : " + str(deploys_touching_the_helper) ^0
+"  tests, fixture, review, coverage    : identical" ^0
+"  the branch is the same branch; it now runs" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a green test suite reports about an unrun branch" ^0
+"  the branch is correct against the fixture   : measured, and true" ^0
+"  the branch is correct against the helper    : not measured" ^0
+"  the helper has not moved                    : not measured" ^0
+"  and none of those three has a red state to enter" ^0
+"" ^0
+"a branch that has never run in production has been tested" ^0
+"against one thing, and the thing it was tested against is the" ^0
+"one component of the system that is guaranteed not to change" ^0
+"" ^0
+
+"The flag defaulted off for " + str(days_since_flag_added) + " days and protected every one of the" ^0
+str(requests_in_that_time) + " requests served in that time, which is exactly what it was for." ^0
+"Across " + str(deploys_since_flag_added) + " deploys, " + str(deploys_touching_the_helper) + " touched the pricing helper; the running path" ^0
+"noticed all " + str(deploys_touching_the_helper) + " and the flagged path noticed 0, because its " + str(unit_tests_on_the_branch) + " tests reach" ^0
+"it through a fixture and its production executions number " + str(branch_executions_in_production) + "." ^0

@@ -1,0 +1,168 @@
+# Self-authored for the EML case corpus (no external origin). An invoice total
+# was off by the tax amount. Two teams found it and each shipped a correct fix.
+# What the invoice does now is computed below.
+#
+# Both fixes are right and both were done properly. The billing team found that
+# the line-item subtotal was being sent without tax and added the tax before
+# sending, which is correct: the field is documented as tax-inclusive. The
+# ledger team found that the field it received was documented as tax-inclusive
+# but arrived without tax, and added the tax on receipt, which is also correct
+# against the same document. Each team wrote a test that pins its own fix, and
+# both tests pass.
+#
+# A correction is relative to a state. Two corrections applied to one value are
+# only both right if each was written against the state the other leaves.
+#
+# Neither team was wrong about the defect. They were each right about a system
+# that no longer existed by the time both changes had shipped.
+
+10000 => subtotal_cents
+875 => tax_rate_per_myriad
+
+int(subtotal_cents * tax_rate_per_myriad / 10000) => tax_cents
+subtotal_cents + tax_cents => correct_total
+
+"subtotal      : " + str(subtotal_cents) + " cents" ^0
+"tax rate      : " + str(tax_rate_per_myriad) + " per ten thousand" ^0
+"tax           : " + str(tax_cents) + " cents" ^0
+"correct total : " + str(correct_total) + " cents" ^0
+"" ^0
+
+# ---- the three states ----
+
+subtotal_cents => original_sent
+correct_total => after_billing_fix
+after_billing_fix + tax_cents => after_both_fixes
+
+"state                        value sent   value recorded" ^0
+"  before either fix            " + str(original_sent) + "        " + str(original_sent) ^0
+"  after the billing fix        " + str(after_billing_fix) + "        " + str(after_billing_fix) ^0
+"  after the ledger fix too     " + str(after_billing_fix) + "        " + str(after_both_fixes) ^0
+"" ^0
+after_both_fixes - correct_total => overcharge_cents
+"  correct value : " + str(correct_total) ^0
+"  recorded now  : " + str(after_both_fixes) ^0
+"  error         : " + str(overcharge_cents) + " cents over, which is exactly the tax" ^0
+"" ^0
+
+# ---- the size of the error, before and after ----
+
+correct_total - original_sent => error_before
+after_both_fixes - correct_total => error_after
+
+"  error before any fix : " + str(error_before) + " cents, under" ^0
+"  error after both     : " + str(error_after) + " cents, over" ^0
+"  magnitude            : identical" ^0
+"  sign                 : reversed" ^0
+"" ^0
+"  the same number of complaints, from the other direction," ^0
+"  and now the ones complaining have been overcharged" ^0
+"" ^0
+
+# ---- what each team's test asserts ----
+
+"the billing team's test" ^0
+"  given a subtotal of " + str(subtotal_cents) + ", the message carries " + str(after_billing_fix) ^0
+"  status : passes, and it is the right assertion" ^0
+"" ^0
+"the ledger team's test" ^0
+"  given a message carrying " + str(subtotal_cents) + ", the ledger records " + str(correct_total) ^0
+"  status : passes, and it is the right assertion" ^0
+"" ^0
+"  the two tests share no fixture" ^0
+"  the second one's input is a value the first one no longer produces" ^0
+"" ^0
+
+# ---- the fixture that would have caught it ----
+
+"an end-to-end fixture" ^0
+"  input     : a subtotal of " + str(subtotal_cents) ^0
+"  expected  : a ledger entry of " + str(correct_total) ^0
+"  actual    : " + str(after_both_fixes) ^0
+"  would fail : yes" ^0
+"  exists    : no, the boundary is where the two teams meet" ^0
+"" ^0
+
+# ---- the invoices ----
+
+24000 => invoices_per_day
+9 => days_both_fixes_live
+
+invoices_per_day * days_both_fixes_live => invoices_affected
+invoices_affected * overcharge_cents => total_overcharged_cents
+
+"invoices per day          : " + str(invoices_per_day) ^0
+"days with both fixes live : " + str(days_both_fixes_live) ^0
+"invoices affected         : " + str(invoices_affected) ^0
+"overcharged, in cents     : " + str(total_overcharged_cents) ^0
+"" ^0
+
+"day   invoices   cents over that day   cumulative" ^0
+0 => running
+for d in [1:4]:
+    running + (invoices_per_day * overcharge_cents) => running
+    "  " + str(d) + "     " + str(invoices_per_day) + "      " + str(invoices_per_day * overcharge_cents) + "               " + str(running) ^0
+"" ^0
+
+# ---- what the monitoring saw ----
+
+"the discrepancy alert on total mismatch" ^0
+"  before either fix : firing, " + str(error_before) + " cents per invoice" ^0
+"  after one fix     : silent" ^0
+"  after both fixes  : firing, " + str(error_after) + " cents per invoice" ^0
+"" ^0
+"  the alert went quiet and then came back with the same" ^0
+"  magnitude, and the second firing was read as a regression" ^0
+"  of a fix that had shipped, rather than a second one" ^0
+"" ^0
+
+# ---- the control ----
+#
+# Each fix, against the defect it was written for. Applied on its own to the
+# system as its author found it, each one produces the correct total.
+
+"control - is either fix wrong" ^0
+"  billing fix alone : " + str(after_billing_fix) + ", correct" ^0
+"  ledger fix alone  : " + str(correct_total) + ", correct" ^0
+"  tests passing     : both" ^0
+"  reviews           : both approved, correctly" ^0
+"  defects in either change : 0" ^0
+"" ^0
+"  reverting either one restores the correct total," ^0
+"  which is why each team's first instinct is to defend theirs" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same two teams finding the same defect and shipping the same two changes,
+# where the field is documented as tax-exclusive. Now only one of the two is a
+# fix, review catches the other, and one change ships.
+
+"null control - the same two teams with an unambiguous contract" ^0
+"  fixes proposed  : 2" ^0
+"  fixes that match the contract : 1" ^0
+"  fixes shipped   : 1" ^0
+"  final total     : " + str(correct_total) ^0
+"  same defect, same teams, same speed" ^0
+"  what changed is that the document had one reading" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a correct fix is correct relative to" ^0
+"  the behaviour its author observed : yes, and that was measured" ^0
+"  the behaviour after another change : not addressed" ^0
+"  and a fix carries no record of the state it assumed" ^0
+"" ^0
+"two teams looking at one boundary from opposite sides will" ^0
+"describe the same defect in opposite words, and the test that" ^0
+"separates them is the one whose input and output are on" ^0
+"different sides of the boundary" ^0
+"" ^0
+
+"Both fixes are correct against the document and against the system each team" ^0
+"observed: applied alone they produce " + str(after_billing_fix) + " and " + str(correct_total) + " cents, both right, with 0" ^0
+"defects in either change and both tests passing. Applied together they produce" ^0
+str(after_both_fixes) + " against a correct total of " + str(correct_total) + " - " + str(overcharge_cents) + " cents over, the same" ^0
+"magnitude as the original error with the sign reversed - across " + str(invoices_affected) + " invoices" ^0
+"in " + str(days_both_fixes_live) + " days, and the alert that fired again was read as a regression." ^0

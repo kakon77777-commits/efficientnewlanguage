@@ -1,0 +1,160 @@
+# Self-authored for the EML case corpus (no external origin). Two services
+# report a timestamp in seconds. The units match, the types match, and a
+# comparison between them type-checks. What the two numbers are counted from is
+# computed below.
+#
+# Agreeing on the unit is the hard part of an interface and both sides did it.
+# The field is documented as seconds, both sides are integers, neither is
+# milliseconds pretending to be seconds, and there is no floating point in the
+# path. A whole class of interface bug is absent here, deliberately, because
+# somebody thought about it.
+#
+# A measurement is a magnitude and an origin. The unit fixes the magnitude. The
+# origin is the other half, and nothing in the field name, the type, or the
+# schema records it.
+#
+# One side counts from the epoch. The other counts from when its process
+# started. Both are seconds, and subtracting one from the other produces a
+# number in seconds that means nothing.
+
+1756425600 => wall_seconds_now
+4830 => process_uptime_seconds
+300 => alert_threshold_seconds
+
+"service A reports : " + str(wall_seconds_now) + " seconds" ^0
+"service B reports : " + str(process_uptime_seconds) + " seconds" ^0
+"both fields typed : integer seconds" ^0
+"" ^0
+
+# ---- what agrees ----
+
+"the interface, checked" ^0
+"  unit on both sides       : seconds" ^0
+"  type on both sides       : integer" ^0
+"  schema validation        : passes" ^0
+"  millisecond confusion    : none" ^0
+"  floating point in path   : none" ^0
+"  unit mismatches found    : 0" ^0
+"" ^0
+
+# ---- what the comparison computes ----
+
+wall_seconds_now - process_uptime_seconds => difference
+
+"the freshness check" ^0
+"  written  : A minus B, compared against " + str(alert_threshold_seconds) ^0
+"  computes : " + str(wall_seconds_now) + " minus " + str(process_uptime_seconds) ^0
+"  result   : " + str(difference) + " seconds" ^0
+"  verdict  : stale, by a very large margin" ^0
+"" ^0
+int(difference / 31536000) => difference_years
+"  the result in years : about " + str(difference_years) ^0
+"" ^0
+
+# ---- what the number would have to be to pass ----
+
+wall_seconds_now - alert_threshold_seconds => passing_floor
+
+"for the check to pass, B would have to report" ^0
+"  at least : " + str(passing_floor) ^0
+"  B's largest possible value is its uptime, which after a year" ^0
+"    of running would be about " + str(31536000) ^0
+"  so the check cannot pass, ever, for any uptime" ^0
+"" ^0
+"  a comparison that cannot return true is not obviously broken;" ^0
+"  it is a comparison that is always firing, and an always-firing" ^0
+"  alert is indistinguishable from a real problem the first time" ^0
+"" ^0
+
+# ---- the same two numbers, converted correctly ----
+#
+# B's origin is its process start. Given the start time on the wall clock, B
+# becomes comparable, and the units were never the obstacle.
+
+# B's start is a fact about B, not one derived from A. Deriving it from A
+# would make b_as_wall_seconds equal wall_seconds_now by construction and the
+# answer would be 0 for arithmetic reasons rather than measured ones - a
+# conversion that cannot come out any other way demonstrates nothing.
+
+12 => b_reading_age_seconds
+wall_seconds_now - b_reading_age_seconds - process_uptime_seconds => b_process_start_wall
+b_process_start_wall + process_uptime_seconds => b_as_wall_seconds
+wall_seconds_now - b_as_wall_seconds => correct_difference
+
+"B, expressed against the same origin" ^0
+"  B's process started at   : " + str(b_process_start_wall) + " on the wall clock" ^0
+"  B's reading, as wall time: " + str(b_as_wall_seconds) ^0
+"  A minus B                : " + str(correct_difference) + " seconds" ^0
+"  verdict                  : fresh" ^0
+"" ^0
+"  the conversion is one addition, and the number it needs" ^0
+"  is not in either message" ^0
+"" ^0
+
+# ---- how far the wrong value travels ----
+
+"where the units are checked" ^0
+"  the schema           : units match, accepted" ^0
+"  the type system      : both integers, accepted" ^0
+"  the linter           : nothing to say about it" ^0
+"  a unit-aware library : would accept, both are seconds" ^0
+"  the subtraction      : well typed, seconds minus seconds" ^0
+"" ^0
+"  every layer that could object is asking about the unit," ^0
+"  and the unit is correct at every one of them" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The unit agreement, against what it prevents. It prevents the whole family of
+# errors where one side sends milliseconds and the other reads seconds, and
+# that family does not occur here.
+
+"control - did the unit agreement do its job" ^0
+"  fields where units disagree      : 0" ^0
+"  values off by a factor of 1000   : 0" ^0
+"  values off by a factor of 60     : 0" ^0
+"  schema rejections                : 0" ^0
+"  defects in the unit contract     : 0" ^0
+"" ^0
+"  the contract is exactly as strong as it was written to be" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same two services when both report wall-clock seconds. Same unit, same
+# type, same subtraction, same threshold. Now the origins coincide and the
+# check answers the question it was written to ask.
+
+wall_seconds_now - b_reading_age_seconds => nc_b_reading
+wall_seconds_now - nc_b_reading => nc_difference
+
+"null control - the same check when both count from the epoch" ^0
+"  A reports  : " + str(wall_seconds_now) ^0
+"  B reports  : " + str(nc_b_reading) ^0
+"  difference : " + str(nc_difference) + " seconds" ^0
+"  threshold  : " + str(alert_threshold_seconds) ^0
+"  verdict    : fresh" ^0
+"  same unit, same type, same arithmetic" ^0
+"  what changed is a fact neither message carries" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a shared unit establishes" ^0
+"  the two magnitudes are on the same scale : yes" ^0
+"  they are measured from the same point    : not addressed" ^0
+"  their difference is meaningful           : only given both" ^0
+"  and a subtraction requires the second one to be true" ^0
+"" ^0
+"the field name says what is being counted; the thing to write" ^0
+"down beside it is what it is counted from, because a comparison" ^0
+"of two magnitudes is really a comparison of two origins" ^0
+"" ^0
+
+"Both services report integer seconds, 0 fields disagree on units, 0 values are" ^0
+"off by a factor of 1000, and the subtraction is well typed on both sides. A" ^0
+"reports " + str(wall_seconds_now) + " counted from the epoch and B reports " + str(process_uptime_seconds) + " counted from its" ^0
+"own start, so the freshness check computes " + str(difference) + " seconds - roughly " + str(difference_years) ^0
+"years - where the answer is " + str(correct_difference) + ", and no layer in the path has a place to" ^0
+"record which point either number is counted from." ^0

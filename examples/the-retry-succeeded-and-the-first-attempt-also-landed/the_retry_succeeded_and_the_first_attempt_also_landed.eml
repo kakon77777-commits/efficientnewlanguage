@@ -1,0 +1,144 @@
+# Self-authored for the EML case corpus (no external origin). A client times
+# out at two seconds and retries. The server is slower than that for a small
+# share of requests, and it finishes them. What each party records is computed
+# below.
+#
+# The retry is correct and it is why the client-visible error rate is zero. A
+# request that has not answered in two seconds is, from the caller's side,
+# indistinguishable from one that never will, and waiting longer converts a
+# recoverable blip into a user-visible failure. The timeout was set from a
+# measured latency distribution and the retry count is one, not five.
+#
+# A timeout tells the caller that no answer arrived. It does not tell the
+# caller whether the work happened. Those are different facts and only one of
+# them crosses the wire.
+#
+# So the first attempt completes, the retry completes, and every party's own
+# numbers are correct. The defect is not in either party's record; it is that
+# nobody holds both.
+
+1200000 => requests_per_day
+2000 => client_timeout_ms
+31 => slower_than_timeout_per_thousand
+1 => retries_per_timeout
+
+int(requests_per_day * slower_than_timeout_per_thousand / 1000) => timed_out
+timed_out * retries_per_timeout => retries_sent
+
+"requests per day            : " + str(requests_per_day) ^0
+"client timeout              : " + str(client_timeout_ms) + " ms" ^0
+"slower than the timeout     : " + str(slower_than_timeout_per_thousand) + " per thousand" ^0
+"requests that timed out     : " + str(timed_out) ^0
+"retries sent                : " + str(retries_sent) ^0
+"" ^0
+
+# ---- what each side records ----
+
+timed_out + retries_sent => attempts_for_those_requests
+timed_out => duplicate_effects
+
+"the client's record" ^0
+"  requests issued        : " + str(requests_per_day) ^0
+"  errors returned to user: 0" ^0
+"  success rate           : 100 percent" ^0
+"  retries, all successful: " + str(retries_sent) ^0
+"" ^0
+"the server's record" ^0
+"  attempts received for those requests : " + str(attempts_for_those_requests) ^0
+"  attempts that failed                 : 0" ^0
+"  success rate                         : 100 percent" ^0
+"" ^0
+"the ledger" ^0
+"  intended effects : " + str(timed_out) ^0
+"  recorded effects : " + str(attempts_for_those_requests) ^0
+"  duplicates       : " + str(duplicate_effects) ^0
+"" ^0
+"  both parties report 100 percent and neither is wrong" ^0
+"" ^0
+
+# ---- the timeline of one request ----
+
+2400 => this_request_ms
+
+"one request, in milliseconds" ^0
+"  0     client sends" ^0
+"  " + str(client_timeout_ms) + "  client gives up, records a timeout" ^0
+"  " + str(client_timeout_ms) + "  client sends the retry" ^0
+"  " + str(this_request_ms) + "  first attempt COMMITS" ^0
+"  " + str(this_request_ms + 900) + "  retry COMMITS" ^0
+"" ^0
+"  the client saw one failure and one success" ^0
+"  the server saw two successes" ^0
+"  the account was debited " + str(1 + retries_per_timeout) + " times" ^0
+"" ^0
+
+# ---- where the timeout sits relative to the work ----
+
+"what the two-second mark separates" ^0
+"  answers that arrived in time  : left of the line" ^0
+"  answers that arrived late     : right of the line" ^0
+"  work that did not happen      : right of the line" ^0
+"  work that did happen          : right of the line" ^0
+"" ^0
+"  the last two are the same side, and the status code is the same" ^0
+"" ^0
+
+# ---- the cost, at the same rate, over a month ----
+
+"day    timed out   duplicates   cumulative" ^0
+0 => cumulative
+for d in [1:5]:
+    cumulative + duplicate_effects => cumulative
+    "  " + str(d) + "      " + str(timed_out) + "        " + str(duplicate_effects) + "        " + str(cumulative) ^0
+"" ^0
+"  nothing in that table is an error condition anywhere" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The retry policy, against what it was chosen to do. Without it those
+# requests are user-visible failures; with it they are not, and it does not
+# amplify - one retry, not a cascade.
+
+"control - is the retry doing its job" ^0
+"  user-visible failures without it : " + str(timed_out) ^0
+"  user-visible failures with it    : 0" ^0
+"  retry storms                     : 0, the count is " + str(retries_per_timeout) ^0
+"  defects in the retry policy      : 0" ^0
+"" ^0
+"  removing the retry removes the duplicates and returns " + str(timed_out) ^0
+"  failures to users, which is a worse trade, not a better one" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same timeout, the same retry, the same slow tail, on a read. Every one of
+# the duplicates still happens and none of them costs anything, because the
+# second execution of a read leaves the same world behind as the first.
+
+"null control - the identical retry on an idempotent call" ^0
+"  requests that timed out : " + str(timed_out) ^0
+"  retries sent            : " + str(retries_sent) ^0
+"  duplicate executions    : " + str(duplicate_effects) ^0
+"  duplicate EFFECTS       : 0" ^0
+"  the retry did not change; what it was retrying did" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a timeout is evidence of" ^0
+"  no answer arrived within the window : yes, that is measured" ^0
+"  the work did not run                : not measured, not implied" ^0
+"  the work will not run               : not measured, not implied" ^0
+"  and the caller must decide using only the first" ^0
+"" ^0
+"the fix is not a longer timeout, which moves the line without" ^0
+"removing it; it is a key the second attempt can present so the" ^0
+"server can recognise it as the same intent" ^0
+"" ^0
+
+"The timeout is correctly set and the retry is why " + str(timed_out) + " users saw a" ^0
+"success instead of an error. Both parties report a 100 percent success rate" ^0
+"and both are telling the truth: the client counts " + str(requests_per_day) + " requests with 0" ^0
+"errors, the server counts " + str(attempts_for_those_requests) + " attempts with 0 failures, and the " + str(duplicate_effects) ^0
+"duplicate effects appear in neither record because neither party holds both." ^0

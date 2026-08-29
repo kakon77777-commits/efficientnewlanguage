@@ -1,0 +1,155 @@
+# Self-authored for the EML case corpus (no external origin). Mean response
+# time this quarter is within a hundredth of a millisecond of last quarter. Two
+# groups of users make up that mean. What happened to each of them is computed
+# below.
+#
+# Tracking the mean is correct and it was chosen over the alternatives for
+# reasons that hold. It is the one latency statistic that composes: total time
+# divided by total requests, comparable across any two periods, with no
+# assumption about the shape. It cannot be gamed by moving a threshold and it
+# does not need a histogram to compute. The number is exact.
+#
+# A mean over two groups is a weighted average, and it has two inputs: what
+# each group experiences, and how many are in each group. Only one of those is
+# about performance.
+#
+# So the mean is stable, correctly, while both of its inputs move.
+
+# ---- last quarter ----
+
+8000 => before_cached_requests
+2000 => before_uncached_requests
+20 => before_cached_ms
+200 => before_uncached_ms
+
+before_cached_requests + before_uncached_requests => before_requests
+before_cached_requests * before_cached_ms => before_cached_total
+before_uncached_requests * before_uncached_ms => before_uncached_total
+before_cached_total + before_uncached_total => before_total_ms
+int(before_total_ms * 100 / before_requests) => before_mean_hundredths
+
+"last quarter" ^0
+"  cached   : " + str(before_cached_requests) + " requests at " + str(before_cached_ms) + " ms" ^0
+"  uncached : " + str(before_uncached_requests) + " requests at " + str(before_uncached_ms) + " ms" ^0
+"  total    : " + str(before_requests) + " requests, " + str(before_total_ms) + " ms" ^0
+"  mean     : " + str(int(before_mean_hundredths / 100)) + " point " + str(before_mean_hundredths % 100) + " ms" ^0
+"" ^0
+
+# ---- this quarter ----
+
+8518 => after_cached_requests
+1482 => after_uncached_requests
+24 => after_cached_ms
+240 => after_uncached_ms
+
+after_cached_requests + after_uncached_requests => after_requests
+after_cached_requests * after_cached_ms => after_cached_total
+after_uncached_requests * after_uncached_ms => after_uncached_total
+after_cached_total + after_uncached_total => after_total_ms
+int(after_total_ms * 100 / after_requests) => after_mean_hundredths
+
+"this quarter" ^0
+"  cached   : " + str(after_cached_requests) + " requests at " + str(after_cached_ms) + " ms" ^0
+"  uncached : " + str(after_uncached_requests) + " requests at " + str(after_uncached_ms) + " ms" ^0
+"  total    : " + str(after_requests) + " requests, " + str(after_total_ms) + " ms" ^0
+"  mean     : " + str(int(after_mean_hundredths / 100)) + " point " + str(after_mean_hundredths % 100) + " ms" ^0
+"" ^0
+
+after_mean_hundredths - before_mean_hundredths => mean_change_hundredths
+
+"  change in the mean, in hundredths of a millisecond : " + str(mean_change_hundredths) ^0
+"" ^0
+
+# ---- the same two quarters, per group ----
+
+int((after_cached_ms - before_cached_ms) * 100 / before_cached_ms) => cached_worse_pct
+int((after_uncached_ms - before_uncached_ms) * 100 / before_uncached_ms) => uncached_worse_pct
+
+"group      before   after   change" ^0
+"  cached     " + str(before_cached_ms) + " ms   " + str(after_cached_ms) + " ms   " + str(cached_worse_pct) + " percent slower" ^0
+"  uncached   " + str(before_uncached_ms) + " ms  " + str(after_uncached_ms) + " ms  " + str(uncached_worse_pct) + " percent slower" ^0
+"  overall    " + str(int(before_mean_hundredths / 100)) + " ms   " + str(int(after_mean_hundredths / 100)) + " ms   slower by " + str(mean_change_hundredths) + " in hundredths" ^0
+"" ^0
+"  there is no group in that table whose experience improved" ^0
+"  and no group whose experience is described by the third row" ^0
+"" ^0
+
+# ---- what moved the weights ----
+
+int(before_cached_requests * 1000 / before_requests) => before_cached_share
+int(after_cached_requests * 1000 / after_requests) => after_cached_share
+
+"share of requests served from cache" ^0
+"  last quarter : " + str(before_cached_share) + " per mille" ^0
+"  this quarter : " + str(after_cached_share) + " per mille" ^0
+"  shift        : " + str(after_cached_share - before_cached_share) + " per mille toward the fast group" ^0
+"" ^0
+"  the cache hit rate went up, which is a real improvement" ^0
+"  and it is the entire reason the third row holds still" ^0
+"" ^0
+
+# ---- what the mean would have been without the shift ----
+#
+# Same per-group latencies as this quarter, last quarter's mix. This isolates
+# the performance change from the composition change.
+
+before_cached_requests * after_cached_ms => cf_cached_total
+before_uncached_requests * after_uncached_ms => cf_uncached_total
+cf_cached_total + cf_uncached_total => cf_total_ms
+int(cf_total_ms * 100 / before_requests) => cf_mean_hundredths
+
+"this quarter's latencies, last quarter's mix" ^0
+"  mean : " + str(int(cf_mean_hundredths / 100)) + " point " + str(cf_mean_hundredths % 100) + " ms" ^0
+"  against the reported mean of " + str(int(after_mean_hundredths / 100)) + " point " + str(after_mean_hundredths % 100) ^0
+"  the mix is worth " + str(int((cf_mean_hundredths - after_mean_hundredths) / 100)) + " ms of apparent improvement" ^0
+"" ^0
+"  which is very close to the " + str(int((cf_mean_hundredths - before_mean_hundredths) / 100)) + " ms the slowdown cost" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The mean, against what it claims. It claims to be total time over total
+# requests and it is, to the millisecond, in both quarters. Nothing in its
+# computation is approximate and nothing about it was chosen to flatter.
+
+"control - is the mean correct" ^0
+"  last quarter, recomputed : " + str(before_total_ms) + " over " + str(before_requests) ^0
+"  this quarter, recomputed : " + str(after_total_ms) + " over " + str(after_requests) ^0
+"  rounding applied         : none, these are exact totals" ^0
+"  defects in the statistic : 0" ^0
+"" ^0
+"  every user's time is in those totals exactly once" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same two quarters with the mix held fixed. Same latencies, same groups,
+# same statistic. Now the mean moves by exactly what the users felt.
+
+"null control - the same mean when the mix does not move" ^0
+"  cached share, both quarters : " + str(before_cached_share) + " per mille" ^0
+"  mean, last quarter : " + str(int(before_mean_hundredths / 100)) + " point " + str(before_mean_hundredths % 100) + " ms" ^0
+"  mean, this quarter : " + str(int(cf_mean_hundredths / 100)) + " point " + str(cf_mean_hundredths % 100) + " ms" ^0
+"  change, in hundredths : " + str(cf_mean_hundredths - before_mean_hundredths) + ", and every group is slower" ^0
+"  the statistic did not change; one of its two inputs stopped moving" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a stable aggregate is evidence of" ^0
+"  the aggregate did not move       : yes, exactly" ^0
+"  the parts did not move           : not implied" ^0
+"  the parts moved in opposite ways : not implied either" ^0
+"  a weighted mean has two inputs and reports their product" ^0
+"" ^0
+"the fix is not a different statistic; the mean is the right one" ^0
+"it is to publish the weights beside it, so a flat line has to" ^0
+"say whether the experience or the population held still" ^0
+"" ^0
+
+"The mean is exact in both quarters - " + str(before_total_ms) + " ms over " + str(before_requests) + " requests and" ^0
+str(after_total_ms) + " over " + str(after_requests) + " - and the change between them, in" ^0
+"hundredths of a millisecond, is " + str(mean_change_hundredths) + "." ^0
+"Cached requests got " + str(cached_worse_pct) + " percent slower, uncached " + str(uncached_worse_pct) + " percent slower, and the" ^0
+"cache share rose " + str(after_cached_share - before_cached_share) + " per mille, which is worth " + str(int((cf_mean_hundredths - after_mean_hundredths) / 100)) + " ms of apparent improvement" ^0
+"against a slowdown that cost " + str(int((cf_mean_hundredths - before_mean_hundredths) / 100)) + " ms." ^0

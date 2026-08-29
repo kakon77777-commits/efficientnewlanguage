@@ -1,0 +1,158 @@
+# Self-authored for the EML case corpus (no external origin). Two writes are
+# committed in order to a primary, and the second is never visible without the
+# first. What a reader sees is computed below.
+#
+# Ordering the writes is correct and it is the guarantee the storage layer sells.
+# A single primary applies transactions in a total order, the log records that
+# order, and every replica applies the log in it. There is no interleaving to
+# reason about and no window where the second landed and the first did not. The
+# database is doing exactly what its documentation says.
+#
+# A total order on writes is a statement about the log. It says nothing about
+# how far along that log any particular reader is standing.
+#
+# Both facts hold at once: no replica ever sees the second write before the
+# first, and two replicas can be at different points, so two readers can
+# disagree about whether either happened.
+
+3 => replicas
+120000 => reads_per_minute
+2 => writes_in_the_pair
+900 => lag_p50_ms
+4200 => lag_p99_ms
+
+"replicas             : " + str(replicas) ^0
+"reads per minute     : " + str(reads_per_minute) ^0
+"writes in the pair   : " + str(writes_in_the_pair) ^0
+"replication lag p50  : " + str(lag_p50_ms) + " ms" ^0
+"replication lag p99  : " + str(lag_p99_ms) + " ms" ^0
+"" ^0
+
+# ---- what the ordering guarantees ----
+
+"the guarantee, checked" ^0
+"  replicas that applied write 2 before write 1 : 0" ^0
+"  replicas that applied write 1 twice          : 0" ^0
+"  replicas whose log order differs from the primary : 0" ^0
+"  ordering violations of any kind : 0" ^0
+"" ^0
+"  the guarantee holds on every replica, at every moment" ^0
+"" ^0
+
+# ---- the states a reader can be in ----
+
+"reader state         write 1   write 2   consistent with the order" ^0
+"  caught up            seen      seen      yes" ^0
+"  one behind           seen      not yet   yes" ^0
+"  two behind           not yet   not yet   yes" ^0
+"  impossible           not yet   seen      would be a violation" ^0
+"" ^0
+"  three legal states, and the application was written" ^0
+"  expecting one of them" ^0
+"" ^0
+
+# ---- the reads that land in the middle ----
+
+int(reads_per_minute * lag_p50_ms / 60000) => reads_inside_p50_window
+int(reads_per_minute * lag_p99_ms / 60000) => reads_inside_p99_window
+
+"reads issued while a replica is behind" ^0
+"  within a p50 lag of " + str(lag_p50_ms) + " ms  : " + str(reads_inside_p50_window) ^0
+"  within a p99 lag of " + str(lag_p99_ms) + " ms : " + str(reads_inside_p99_window) ^0
+"" ^0
+"  each of those reads is served correctly from a consistent" ^0
+"  snapshot of a correctly ordered log" ^0
+"" ^0
+
+# ---- one user, one action ----
+
+"a user updates a setting and the page reloads" ^0
+"  write goes to the primary        : committed" ^0
+"  reload is routed to a replica    : by the load balancer, for read scaling" ^0
+"  replica lag at that instant      : " + str(lag_p50_ms) + " ms" ^0
+"  page render time after the write : 300 ms" ^0
+"  setting shown                    : the old one" ^0
+"" ^0
+lag_p50_ms - 300 => window_ms
+"  the window where this happens : " + str(window_ms) + " ms wide, per write" ^0
+"  reads that fall in it : " + str(int(reads_per_minute * window_ms / 60000)) + " per minute" ^0
+"" ^0
+
+# ---- what the two sides each verify ----
+
+"what the storage layer tests" ^0
+"  log order preserved on replay : yes, continuously" ^0
+"  replica divergence            : checked, 0" ^0
+"  which replica a client read from : not its concern" ^0
+"" ^0
+"what the application tests" ^0
+"  write then read, same connection : passes, hits the primary" ^0
+"  write then read, new connection  : passes in the test, the" ^0
+"    test environment has one node" ^0
+"" ^0
+"  neither side has a test whose two halves touch two nodes" ^0
+"" ^0
+
+# ---- the shape of the fix ----
+
+"what would close it" ^0
+"  read the primary after a write     : correct, and gives up the read scaling" ^0
+"  wait for the replica to catch up   : correct, costs " + str(lag_p50_ms) + " ms on that path" ^0
+"  carry the write position and read at or past it : correct, and the" ^0
+"    position is already in the log the writes are ordered by" ^0
+"" ^0
+"  the third uses the ordering that already exists, rather than" ^0
+"  asking for a stronger one" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The ordering guarantee, against what it promises. It promises that no reader
+# anywhere observes the second write without the first, and across every
+# replica and every read that held.
+
+reads_per_minute * replicas => read_observations
+
+"control - did ordering hold" ^0
+"  read observations checked : " + str(read_observations) + " per minute" ^0
+"  observations showing write 2 without write 1 : 0" ^0
+"  torn or partial writes : 0" ^0
+"  defects in replication : 0" ^0
+"" ^0
+"  the guarantee is exactly as strong as advertised, and it is" ^0
+"  a guarantee about pairs of writes, not about pairs of reads" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same writes, same ordering, same application, with every read routed to
+# the primary. Replication still runs and still preserves order; no reader is
+# standing anywhere else.
+
+0 => nc_reads_behind
+
+"null control - the same system reading from the primary" ^0
+"  ordering violations : 0" ^0
+"  replicas            : " + str(replicas) + ", still replicating, still in order" ^0
+"  reads served from a lagging point : " + str(nc_reads_behind) ^0
+"  the ordering did not get stronger; the readers stopped moving" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a total order on writes settles" ^0
+"  the sequence writes are applied in : completely" ^0
+"  that every replica uses it         : completely" ^0
+"  where a given reader is in it      : not addressed" ^0
+"  and a read is a position, not an ordering question" ^0
+"" ^0
+"the missing value is not a stronger consistency level;" ^0
+"it is the position of the write, carried to the read" ^0
+"" ^0
+
+"Across " + str(read_observations) + " read observations a minute on " + str(replicas) + " replicas, the number that" ^0
+"saw the second write without the first is 0, and the number of ordering" ^0
+"violations of any kind is 0. Replication lag is " + str(lag_p50_ms) + " ms at p50, so about" ^0
+str(reads_inside_p50_window) + " reads a minute are served from a point earlier in that same correct" ^0
+"order, and a user reloading " + str(300) + " ms after their own write reads a replica that" ^0
+"is " + str(window_ms) + " ms short of it." ^0

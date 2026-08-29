@@ -1,0 +1,140 @@
+# Self-authored for the EML case corpus (no external origin). A computed page
+# is cached with a sixty second expiry. The hit rate is above ninety-nine
+# percent and mean latency is a few milliseconds. Who pays the recompute is
+# computed below.
+#
+# The cache is correct and the design is the standard one. A sixty second entry
+# keeps the page fresh enough for what it shows, single-flight means one
+# recompute rather than a stampede, and the backend sees a tiny fraction of the
+# load it would otherwise. Every number the cache reports about itself is true
+# and every one of them is good.
+#
+# A hit rate is a statement about requests. Latency spent is a statement about
+# whoever was holding the request. The cache averages the first and assigns the
+# second, and averaging and assigning are not the same operation.
+#
+# The recompute does not get cheaper because it is rare. It gets rarer.
+
+5000 => requests_per_minute
+60 => ttl_seconds
+1 => recomputes_per_expiry
+4 => hit_ms
+3200 => miss_ms
+
+requests_per_minute - recomputes_per_expiry => hits_per_minute
+
+"requests per minute   : " + str(requests_per_minute) ^0
+"entry lifetime        : " + str(ttl_seconds) + " seconds" ^0
+"recomputes per minute : " + str(recomputes_per_expiry) + ", single-flight" ^0
+"a hit costs           : " + str(hit_ms) + " ms" ^0
+"a miss costs          : " + str(miss_ms) + " ms" ^0
+"" ^0
+
+# ---- what the cache reports ----
+
+int(hits_per_minute * 10000 / requests_per_minute) => hit_rate_per_myriad
+hits_per_minute * hit_ms => hit_ms_total
+recomputes_per_expiry * miss_ms => miss_ms_total
+hit_ms_total + miss_ms_total => total_ms
+int(total_ms * 100 / requests_per_minute) => mean_ms_hundredths
+
+"the cache's own numbers" ^0
+"  hits per minute  : " + str(hits_per_minute) ^0
+"  misses           : " + str(recomputes_per_expiry) ^0
+"  hit rate         : " + str(hit_rate_per_myriad) + " per ten thousand" ^0
+"  mean latency     : " + str(int(mean_ms_hundredths / 100)) + " point " + str(mean_ms_hundredths % 100) + " ms" ^0
+"  backend load     : " + str(recomputes_per_expiry) + " of " + str(requests_per_minute) ^0
+"" ^0
+"  every one of those is true and every one is good" ^0
+"" ^0
+
+# ---- the request that paid ----
+
+int(miss_ms / hit_ms) => victim_ratio
+
+"the one request that missed" ^0
+"  its latency          : " + str(miss_ms) + " ms" ^0
+"  a hit's latency      : " + str(hit_ms) + " ms" ^0
+"  ratio                : " + str(victim_ratio) + " times" ^0
+"  ratio to the mean    : " + str(int(miss_ms * 100 / mean_ms_hundredths)) + " times" ^0
+"" ^0
+
+60 * 24 => minutes_per_day
+minutes_per_day * recomputes_per_expiry => victims_per_day
+
+"  victims per hour : " + str(60 * recomputes_per_expiry) ^0
+"  victims per day  : " + str(victims_per_day) ^0
+"  each of them a real person waiting " + str(miss_ms) + " ms" ^0
+"" ^0
+
+# ---- the same minute, from two directions ----
+
+"minute   requests   hits   misses   ms spent on hits   ms spent on the miss" ^0
+for m in [1:4]:
+    "  " + str(m) + "        " + str(requests_per_minute) + "      " + str(hits_per_minute) + "      " + str(recomputes_per_expiry) + "         " + str(hit_ms_total) + "              " + str(miss_ms_total) ^0
+"" ^0
+int(miss_ms_total * 1000 / total_ms) => miss_share_per_mille
+"  share of all latency spent by " + str(recomputes_per_expiry) + " request of " + str(requests_per_minute) + " : " + str(miss_share_per_mille) + " per mille" ^0
+"" ^0
+
+# ---- what the percentiles say ----
+
+"where the victim lands in the distribution" ^0
+"  p50 : " + str(hit_ms) + " ms" ^0
+"  p95 : " + str(hit_ms) + " ms" ^0
+"  p99 : " + str(hit_ms) + " ms" ^0
+"  max : " + str(miss_ms) + " ms" ^0
+"  the miss is " + str(int(recomputes_per_expiry * 10000 / requests_per_minute)) + " per ten thousand of requests, so no percentile" ^0
+"  below the very top can contain it" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The cache, against what it was put there to do. It was put there to keep the
+# backend from computing the page five thousand times a minute, and it has
+# reduced that to one.
+
+int(requests_per_minute / recomputes_per_expiry) => backend_reduction
+
+"control - is the cache doing its job" ^0
+"  backend computations without it : " + str(requests_per_minute) + " per minute" ^0
+"  backend computations with it    : " + str(recomputes_per_expiry) + " per minute" ^0
+"  reduction                       : " + str(backend_reduction) + " times" ^0
+"  stampedes                       : 0, single-flight holds" ^0
+"  defects in the cache            : 0" ^0
+"" ^0
+"  removing the cache makes every request a " + str(miss_ms) + " ms request" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same cache, same TTL, same hit rate, refreshed in the background just
+# before the entry expires. Nothing about the caching changes. The recompute
+# still happens once a minute; it is no longer inside anybody's request.
+
+0 => nc_victims_per_day
+
+"null control - the same cache refreshed ahead of expiry" ^0
+"  recomputes per minute : " + str(recomputes_per_expiry) ^0
+"  hit rate              : " + str(hit_rate_per_myriad) + " per ten thousand, unchanged" ^0
+"  backend load          : unchanged" ^0
+"  requests waiting " + str(miss_ms) + " ms : " + str(nc_victims_per_day) + " per day" ^0
+"  the work did not move or shrink; it left the request path" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a hit rate averages and what it does not" ^0
+"  cost across requests : averaged, and the average is honest" ^0
+"  cost to a request    : assigned, in full, to one of them" ^0
+"  and the assignment has no term in the hit rate" ^0
+"" ^0
+"a rare expensive path is not a small cost spread thin" ^0
+"it is a full cost handed to somebody, on a schedule" ^0
+"" ^0
+
+"The cache turns " + str(requests_per_minute) + " backend computations a minute into " + str(recomputes_per_expiry) + ", a factor of" ^0
+str(backend_reduction) + ", with 0 stampedes and a hit rate of " + str(hit_rate_per_myriad) + " per ten thousand. Mean" ^0
+"latency reads " + str(int(mean_ms_hundredths / 100)) + " point " + str(mean_ms_hundredths % 100) + " ms because " + str(miss_share_per_mille) + " per mille of all latency is spent" ^0
+"by " + str(recomputes_per_expiry) + " request in " + str(requests_per_minute) + ", and that request waits " + str(miss_ms) + " ms - " + str(victim_ratio) + " times a hit -" ^0
+str(victims_per_day) + " times a day." ^0

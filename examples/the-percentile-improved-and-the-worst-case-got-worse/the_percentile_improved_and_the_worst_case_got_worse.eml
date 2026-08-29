@@ -1,0 +1,164 @@
+# Self-authored for the EML case corpus (no external origin). A hedged request
+# was added: if the first attempt has not answered in a hundred milliseconds,
+# send a second one and take whichever returns first. The p99 improved. What
+# happened above the p99 is computed below.
+#
+# Hedging is correct and it is the right tool for this shape of tail. Most slow
+# responses here are slow for a reason that does not recur - a cold connection,
+# an unlucky scheduling slot, a node mid-compaction - so a second attempt
+# usually lands on a healthy path and returns while the first is still waiting.
+# The hedge threshold was set from the measured distribution, not guessed, and
+# it costs one extra request only on the slice that was already slow.
+#
+# A percentile is a position in a sorted list. It is defined by what sits at
+# that position and is unaffected by everything above it. The slowest requests
+# are above every percentile that is published.
+#
+# The hedge is a second request. On the requests that are slow because the
+# backend is saturated, that is one more request into a saturated backend.
+
+1000 => sample
+900 => fast_count
+95 => middle_count
+4 => slow_count
+1 => worst_count
+
+40 => fast_ms
+120 => before_middle_ms
+800 => before_slow_ms
+1500 => before_worst_ms
+
+"sample                  : " + str(sample) + " requests" ^0
+"  " + str(fast_count) + " at " + str(fast_ms) + " ms" ^0
+"  " + str(middle_count) + " at " + str(before_middle_ms) + " ms" ^0
+"  " + str(slow_count) + " at " + str(before_slow_ms) + " ms" ^0
+"  " + str(worst_count) + " at " + str(before_worst_ms) + " ms" ^0
+"" ^0
+
+# ---- where the percentiles land ----
+
+int(sample * 99 / 100) => p99_position
+fast_count + middle_count => cumulative_at_middle
+
+"the p99 sits at position " + str(p99_position) + " of " + str(sample) ^0
+"  requests at or below " + str(before_middle_ms) + " ms : " + str(cumulative_at_middle) ^0
+"  so position " + str(p99_position) + " holds a " + str(before_middle_ms) + " ms request" ^0
+"  requests above it : " + str(sample - p99_position) ^0
+"" ^0
+
+# ---- after the hedge ----
+
+105 => after_middle_ms
+860 => after_slow_ms
+2300 => after_worst_ms
+
+"metric        before      after     change" ^0
+"  p50         " + str(fast_ms) + " ms       " + str(fast_ms) + " ms      none" ^0
+"  p99         " + str(before_middle_ms) + " ms      " + str(after_middle_ms) + " ms     " + str(before_middle_ms - after_middle_ms) + " ms better" ^0
+"  max         " + str(before_worst_ms) + " ms     " + str(after_worst_ms) + " ms    " + str(after_worst_ms - before_worst_ms) + " ms worse" ^0
+"" ^0
+
+int((before_middle_ms - after_middle_ms) * 100 / before_middle_ms) => p99_better_pct
+int((after_worst_ms - before_worst_ms) * 100 / before_worst_ms) => max_worse_pct
+
+"  p99 improved by : " + str(p99_better_pct) + " percent" ^0
+"  max degraded by : " + str(max_worse_pct) + " percent" ^0
+"" ^0
+
+# ---- who moved which way ----
+
+slow_count + worst_count => requests_worse
+sample - requests_worse => requests_same_or_better
+
+"group           count   before   after   direction" ^0
+"  fast            " + str(fast_count) + "     " + str(fast_ms) + " ms    " + str(fast_ms) + " ms   unchanged, below the hedge" ^0
+"  middle          " + str(middle_count) + "     " + str(before_middle_ms) + " ms   " + str(after_middle_ms) + " ms   better" ^0
+"  slow            " + str(slow_count) + "      " + str(before_slow_ms) + " ms   " + str(after_slow_ms) + " ms   worse" ^0
+"  worst           " + str(worst_count) + "      " + str(before_worst_ms) + " ms  " + str(after_worst_ms) + " ms  worse" ^0
+"" ^0
+"  requests better or unchanged : " + str(requests_same_or_better) ^0
+"  requests worse               : " + str(requests_worse) ^0
+"  requests worse, as a share   : " + str(int(requests_worse * 10000 / sample)) + " per ten thousand" ^0
+"" ^0
+"  every request that got worse is above the p99, by construction:" ^0
+"  the hedge only fires on requests slower than " + str(100) + " ms" ^0
+"" ^0
+
+# ---- the extra load, and where it lands ----
+
+middle_count + slow_count + worst_count => hedges_fired
+
+"hedges fired       : " + str(hedges_fired) + " of " + str(sample) ^0
+"  on the middle group : " + str(middle_count) + ", second attempt wins, this is the win" ^0
+"  on the slow group   : " + str(slow_count + worst_count) + ", second attempt queues behind the first" ^0
+"" ^0
+int(hedges_fired * 100 / sample) => extra_load_pct
+"  extra backend requests : " + str(extra_load_pct) + " percent" ^0
+"  the group that is slow because the backend is busy receives" ^0
+"  the extra request the hedge sends" ^0
+"" ^0
+
+# ---- the total, both directions ----
+
+middle_count * (before_middle_ms - after_middle_ms) => ms_saved
+slow_count * (after_slow_ms - before_slow_ms) => ms_added_slow
+worst_count * (after_worst_ms - before_worst_ms) => ms_added_worst
+ms_added_slow + ms_added_worst => ms_added
+
+"milliseconds saved on the middle group : " + str(ms_saved) ^0
+"milliseconds added to the slow groups  : " + str(ms_added) ^0
+"net across the sample                  : " + str(ms_saved - ms_added) + " ms saved" ^0
+"" ^0
+"  the net is favourable and the percentile is favourable" ^0
+"  and " + str(requests_worse) + " users wait longer than anyone waited before" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The hedge, against what it was added to do. It was added to cut the tail
+# above a hundred milliseconds without doubling load, and it did both.
+
+"control - is the hedge working" ^0
+"  p99 before : " + str(before_middle_ms) + " ms" ^0
+"  p99 after  : " + str(after_middle_ms) + " ms" ^0
+"  extra load : " + str(extra_load_pct) + " percent, not 100" ^0
+"  requests helped : " + str(middle_count) ^0
+"  defects in the hedge : 0" ^0
+"" ^0
+"  removing it returns " + str(middle_count) + " requests to " + str(before_middle_ms) + " ms to spare " + str(requests_worse) ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same hedge, same threshold, same distribution, on a backend with spare
+# capacity. The second attempt lands on an idle path even for the slowest
+# requests, so the group that got worse above does not exist.
+
+before_worst_ms => nc_after_worst_ms
+
+"null control - the same hedge with capacity to absorb it" ^0
+"  p99 : " + str(before_middle_ms) + " to " + str(after_middle_ms) + " ms" ^0
+"  max : " + str(before_worst_ms) + " to " + str(nc_after_worst_ms) + " ms" ^0
+"  requests worse : 0" ^0
+"  same hedge, same threshold, same percentile improvement" ^0
+"  what changed is whether the extra request had somewhere to go" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a percentile can and cannot report" ^0
+"  the value at its position   : exactly" ^0
+"  the values above it         : nothing, that is its definition" ^0
+"  whether a change moved them : nothing" ^0
+"  and a tail fix acts precisely on the region it cannot see" ^0
+"" ^0
+"publish the maximum next to the percentile, not because the" ^0
+"maximum is a good statistic, but because it is the only one" ^0
+"positioned where a tail intervention does its work" ^0
+"" ^0
+
+"The hedge cut the p99 from " + str(before_middle_ms) + " to " + str(after_middle_ms) + " ms, " + str(p99_better_pct) + " percent, for " + str(extra_load_pct) + " percent" ^0
+"extra load rather than double, helping " + str(middle_count) + " requests and saving " + str(ms_saved - ms_added) + " ms net" ^0
+"across the sample. The " + str(requests_worse) + " requests that were slow because the backend was" ^0
+"busy each received an extra request into that backend, taking the maximum from" ^0
+str(before_worst_ms) + " to " + str(after_worst_ms) + " ms - " + str(max_worse_pct) + " percent worse, entirely above the p99." ^0
