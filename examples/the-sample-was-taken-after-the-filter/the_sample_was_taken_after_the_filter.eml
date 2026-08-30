@@ -1,0 +1,146 @@
+# Self-authored for the EML case corpus (no external origin). A quality audit
+# draws five hundred records at random from the processed table and finds a
+# defect rate of two per thousand. What that table contains is computed below.
+#
+# The sampling is correct and it was done properly. The draw is uniform, the
+# sample size was chosen from the width of the interval the audit needed, the
+# records were pulled without replacement, and nobody chose which ones. Within
+# its frame the estimate is unbiased and the confidence interval is real.
+#
+# A sample estimates the population it is DRAWN FROM. The processed table is
+# not the population the audit is reporting on; it is what survived ingestion,
+# and ingestion drops what it cannot parse.
+#
+# The records that failed are the ones the question is about, and they were
+# removed before the sampling frame existed.
+
+240000 => submitted
+800 => rejected_per_myriad
+500 => sample_size
+20 => defects_per_myriad_in_sample
+
+int(submitted * rejected_per_myriad / 10000) => rejected_at_ingest
+submitted - rejected_at_ingest => reached_the_table
+
+"records submitted        : " + str(submitted) ^0
+"rejected at ingestion    : " + str(rejected_at_ingest) ^0
+"reached the table        : " + str(reached_the_table) ^0
+"sample drawn from        : the table" ^0
+"sample size              : " + str(sample_size) ^0
+"" ^0
+
+# ---- the audit's finding ----
+
+"what the audit reports" ^0
+"  defect rate in the sample : " + str(defects_per_myriad_in_sample) + " per ten thousand" ^0
+"  drawn uniformly           : yes" ^0
+"  chosen by a person        : no" ^0
+"  replacement               : none" ^0
+"  the estimate is unbiased for the table" ^0
+"" ^0
+
+# ---- what the table is ----
+
+int(defects_per_myriad_in_sample * reached_the_table / 10000) => defects_in_table
+
+"the frame the estimate describes" ^0
+"  records in the table      : " + str(reached_the_table) ^0
+"  estimated defects there   : " + str(defects_in_table) ^0
+"  records NOT in the table  : " + str(rejected_at_ingest) ^0
+"  defects among those       : " + str(rejected_at_ingest) + ", by definition" ^0
+"" ^0
+"  a record is in the second group BECAUSE it was malformed," ^0
+"  so that group's defect rate is not estimated, it is known," ^0
+"  and it is total" ^0
+"" ^0
+
+# ---- the rate over what was submitted ----
+
+defects_in_table + rejected_at_ingest => defects_over_submitted
+int(defects_over_submitted * 10000 / submitted) => true_rate_per_myriad
+
+"defect rate, two frames" ^0
+"  over the table     : " + str(defects_per_myriad_in_sample) + " per ten thousand" ^0
+"  over what was sent : " + str(true_rate_per_myriad) + " per ten thousand" ^0
+"  ratio              : " + str(int(true_rate_per_myriad / defects_per_myriad_in_sample)) + " times" ^0
+"" ^0
+"  both numbers are correct about their own denominator" ^0
+"  the report names neither denominator" ^0
+"" ^0
+
+# ---- where the filter sits ----
+
+"the pipeline, in order" ^0
+"  1  records are submitted            " + str(submitted) ^0
+"  2  ingestion parses and drops       " + str(rejected_at_ingest) + " removed" ^0
+"  3  the table receives               " + str(reached_the_table) ^0
+"  4  the audit samples                " + str(sample_size) + " from step 3" ^0
+"" ^0
+"  the audit is asking about step 1 and drawing from step 3" ^0
+"  and steps 1 and 3 differ by exactly the records that failed" ^0
+"" ^0
+
+# ---- what a larger sample would do ----
+#
+# The obvious response to a surprising rate is more data. Every extra record
+# comes from the same table.
+
+5000 => bigger_sample
+
+"a sample ten times larger" ^0
+"  sample size           : " + str(bigger_sample) ^0
+"  drawn from            : the table, still" ^0
+"  interval width        : narrower" ^0
+"  estimate              : " + str(defects_per_myriad_in_sample) + " per ten thousand, more precisely" ^0
+"  rejected records included : 0" ^0
+"" ^0
+"  precision improves and the frame does not move" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The sampling method, on its own terms. It is unbiased within its frame and it
+# is the reason the number is trusted at all.
+
+"control - is the sampling correct" ^0
+"  selection bias within the table : none" ^0
+"  sample size adequate            : yes, for the stated interval" ^0
+"  records excluded by the sampler : 0" ^0
+"  defects in the method           : 0" ^0
+"" ^0
+"  nothing about the draw needs fixing; what needs stating is" ^0
+"  the sentence 'of the records that reached the table'" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same method, same size, same auditor, drawing from the submission log
+# instead of the table. The technique did not change; the frame became the one
+# the question was about.
+
+"null control - the same sample drawn from the submission log" ^0
+"  frame              : " + str(submitted) + " submitted records" ^0
+"  sample size        : " + str(sample_size) + ", unchanged" ^0
+"  method             : unchanged" ^0
+"  estimated rate     : " + str(true_rate_per_myriad) + " per ten thousand" ^0
+"  the sampler did not improve; it was pointed at the population" ^0
+"  the report was already describing" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a sample is evidence about" ^0
+"  the frame it was drawn from : exactly, and with an interval" ^0
+"  the population upstream of a filter : nothing at all" ^0
+"  and a filter that removes failures makes the two differ by" ^0
+"  precisely the thing being measured" ^0
+"" ^0
+"the question to ask of any rate is not how many were sampled," ^0
+"it is what had to happen to a record for it to be eligible" ^0
+"" ^0
+
+"The draw is uniform, unbiased and adequately sized, and " + str(defects_per_myriad_in_sample) + " per ten thousand is" ^0
+"a correct estimate for the " + str(reached_the_table) + " records in the table. Ingestion dropped " + str(rejected_at_ingest) ^0
+"records for being malformed, which is the defect the audit exists to count, so" ^0
+"over the " + str(submitted) + " actually submitted the rate is " + str(true_rate_per_myriad) + " per ten thousand - " + str(int(true_rate_per_myriad / defects_per_myriad_in_sample)) + " times" ^0
+"the reported one - and a larger sample moves the interval, not the frame." ^0

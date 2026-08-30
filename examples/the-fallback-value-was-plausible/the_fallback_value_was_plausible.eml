@@ -1,0 +1,154 @@
+# Self-authored for the EML case corpus (no external origin). When a sensor
+# does not answer, the reader returns the last known value. The dashboard shows
+# a steady line. What a steady line means here is computed below.
+#
+# Returning the last value is correct and it was chosen against the
+# alternatives. Returning an error propagates a transient network blip into a
+# page that will not render; returning zero puts a number into the average that
+# is not a temperature; returning null makes every consumer handle absence, and
+# they will handle it differently. Last-known is the least wrong of four
+# options and somebody thought about all four.
+#
+# A fallback is a value with a different provenance and the same type. The one
+# thing this fallback lacks is any way to be recognised as one, because it is a
+# reading that was true, only not now.
+#
+# So a dead sensor and a stable one produce the same output, and the more
+# stable the process being measured, the less anybody can tell.
+
+96 => sensors
+2880 => readings_per_sensor_per_day
+7 => dead_sensors
+41 => hours_dead
+
+sensors * readings_per_sensor_per_day => readings_per_day
+# Two windows, kept apart. A dead sensor substitutes every one of its
+# readings, so the DAILY figure is its full daily count; the 41-hour
+# figure is the running total since they went silent. Dividing the second
+# by a one-day denominator compares 41 hours against 24 and inflates the
+# share by the ratio of the windows.
+readings_per_sensor_per_day * dead_sensors => substituted_readings
+int(readings_per_sensor_per_day * hours_dead / 24) * dead_sensors => substituted_since_silent
+
+"sensors                    : " + str(sensors) ^0
+"readings per sensor per day: " + str(readings_per_sensor_per_day) ^0
+"readings per day           : " + str(readings_per_day) ^0
+"sensors not responding     : " + str(dead_sensors) ^0
+"hours they have been dead  : " + str(hours_dead) ^0
+"" ^0
+
+# ---- what is on the dashboard ----
+
+"the readings" ^0
+"  measured                 : " + str(readings_per_day - substituted_readings) ^0
+"  substituted, per day     : " + str(substituted_readings) ^0
+"  substituted since silent : " + str(substituted_since_silent) + " over " + str(hours_dead) + " hours" ^0
+"  marked as substituted    : 0" ^0
+"  distinguishable by type  : no, both are integers" ^0
+"  distinguishable by range : no, the last value was in range" ^0
+"" ^0
+int(substituted_readings * 10000 / readings_per_day) => substituted_per_myriad
+"  share substituted : " + str(substituted_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what a dead sensor looks like ----
+
+"sensor state      what the dashboard shows" ^0
+"  healthy, stable   a flat line" ^0
+"  dead              a flat line" ^0
+"  healthy, drifting a moving line" ^0
+"" ^0
+"  the first two rows are the same picture, and the difference" ^0
+"  between them is the whole question" ^0
+"" ^0
+
+# ---- the alert that watches for a stuck sensor ----
+#
+# There is one, and it is the right idea: a reading that has not moved for a
+# long time is suspicious. It compares consecutive values.
+
+"the stuck-value alert" ^0
+"  compares consecutive readings : yes" ^0
+"  fires when they are identical for a threshold : yes" ^0
+"  fired for these " + str(dead_sensors) + " sensors : 0" ^0
+"" ^0
+"  it did not fire because the fallback is the last value," ^0
+"  so consecutive readings ARE identical - which is the" ^0
+"  condition, and the alert is looking at the substitution" ^0
+"  rather than through it" ^0
+"" ^0
+
+# ---- what the aggregate does with them ----
+
+int(readings_per_day * 100 / (readings_per_day - substituted_readings)) => weight_shift
+
+"the fleet average" ^0
+"  readings entering it     : " + str(readings_per_day) ^0
+"  that reflect a measurement now : " + str(readings_per_day - substituted_readings) ^0
+"  the " + str(dead_sensors) + " dead sensors contribute a value each time" ^0
+"  and contribute the SAME value each time" ^0
+"" ^0
+"  a stuck contributor does not widen the variance, it narrows" ^0
+"  it, so the average looks more trustworthy the longer a" ^0
+"  sensor has been dead" ^0
+"" ^0
+
+# ---- how long this can hold ----
+
+"hour   dead sensors   substituted readings   alerts" ^0
+for h in [1:4]:
+    h * 12 => hr
+    int(readings_per_sensor_per_day * hr / 24) * dead_sensors => sub
+    "  " + str(hr) + "     " + str(dead_sensors) + "              " + str(sub) + "                  0" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The fallback, against the alternatives it was chosen over. Each of those
+# fails in a way this one does not, and the choice was correct.
+
+"control - is last-known the right fallback" ^0
+"  pages that fail to render : 0, an error would have broken them" ^0
+"  non-temperatures in the average : 0, a zero would have been one" ^0
+"  consumers handling absence inconsistently : 0" ^0
+"  defects in the fallback choice : 0" ^0
+"" ^0
+"  every alternative is worse, and the problem is not which" ^0
+"  value was chosen" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same fallback, same value, returned alongside a flag that says where it
+# came from. The number did not change and neither did the choice.
+
+0 => nc_unmarked
+
+"null control - the same value carrying its provenance" ^0
+"  value returned        : the last known one, unchanged" ^0
+"  substituted readings  : " + str(substituted_readings) + ", unchanged" ^0
+"  unmarked              : " + str(nc_unmarked) ^0
+"  excluded from the average : the caller can now decide" ^0
+"  stuck-value alert     : fires, it has something to compare" ^0
+"  the fallback did not become better; it became visible" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what makes a fallback dangerous" ^0
+"  being wrong        : no, a wrong value gets noticed" ^0
+"  being implausible  : no, that gets noticed fastest" ^0
+"  being plausible    : yes, because nothing downstream has a" ^0
+"    reason to look at it twice" ^0
+"" ^0
+"the fix is not a better value; there is no value that carries" ^0
+"its own provenance. It is a second field, and the cost of" ^0
+"omitting it is paid by whichever consumer needed to know" ^0
+"" ^0
+
+"Last-known is the least wrong of the four options and the other three each" ^0
+"break something: 0 pages fail to render, 0 non-temperatures enter the average," ^0
+"0 consumers handle absence inconsistently. " + str(dead_sensors) + " sensors have been silent for " + str(hours_dead) ^0
+"hours, contributing " + str(substituted_readings) + " readings a day - " + str(substituted_per_myriad) + " per ten thousand - none" ^0
+"marked, and the stuck-value alert that would catch it has fired 0 times," ^0
+"because the substitution satisfies the condition it is watching for." ^0

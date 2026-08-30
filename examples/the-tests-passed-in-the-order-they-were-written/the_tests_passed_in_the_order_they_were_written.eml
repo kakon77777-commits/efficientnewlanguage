@@ -1,0 +1,152 @@
+# Self-authored for the EML case corpus (no external origin). A suite of one
+# thousand four hundred tests passes on every run. It has passed on every run
+# for eleven months. What it passes in is computed below.
+#
+# Running tests in a stable order is correct and it was chosen deliberately.
+# A deterministic order makes a failure reproducible from the report alone,
+# makes bisecting meaningful, and keeps the run time predictable because the
+# expensive fixtures are built once in a known sequence. A randomised order
+# trades all three away, and the team gave up randomisation after it produced
+# a failure nobody could reproduce for two days.
+#
+# A stable order is also a stable set of preconditions. A test that reads state
+# some earlier test left behind passes for that reason, and it will keep
+# passing for exactly as long as the earlier test keeps running before it.
+#
+# Every test in the suite passes. Some of them are not tests of what they name.
+
+1400 => tests
+11 => months_green
+64 => tests_touching_shared_fixtures
+9 => tests_that_depend_on_a_predecessor
+
+"tests in the suite            : " + str(tests) ^0
+"consecutive green months      : " + str(months_green) ^0
+"tests touching shared fixtures: " + str(tests_touching_shared_fixtures) ^0
+"" ^0
+
+# ---- what the suite reports ----
+
+"the suite" ^0
+"  tests passing        : " + str(tests) + " of " + str(tests) ^0
+"  flaky failures       : 0" ^0
+"  order                : fixed, by file then by line" ^0
+"  reproducible failures: yes, every one so far" ^0
+"" ^0
+"  the last row is what the fixed order was chosen to buy" ^0
+"" ^0
+
+# ---- what a passing test establishes ----
+
+tests - tests_that_depend_on_a_predecessor => tests_that_stand_alone
+
+"tests, by what makes them pass" ^0
+"  pass because the code is correct      : " + str(tests_that_stand_alone) ^0
+"  pass because a predecessor ran first  : " + str(tests_that_depend_on_a_predecessor) ^0
+"  report the difference                 : 0" ^0
+"" ^0
+int(tests_that_depend_on_a_predecessor * 10000 / tests) => dependent_per_myriad
+"  share depending on order : " + str(dependent_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what those nine actually assert ----
+
+"one of the nine, in detail" ^0
+"  name                : rejects an expired token" ^0
+"  what it does        : calls the validator and expects a rejection" ^0
+"  why it passes       : the clock fixture is still advanced from" ^0
+"                        the test above it, so every token is expired" ^0
+"  passes if the code stops checking expiry : yes" ^0
+"  passes if run alone : no" ^0
+"" ^0
+"  it is green, it has always been green, and it does not" ^0
+"  test expiry" ^0
+"" ^0
+
+# ---- the two ways to find out ----
+
+"what would separate them" ^0
+"  running the suite again        : no, same order" ^0
+"  running it on another machine  : no, same order" ^0
+"  running one test alone         : yes, for that one test" ^0
+"  running the suite shuffled     : yes, for all of them at once" ^0
+"" ^0
+"  the first two are what continuous integration does " + str(months_green * 30) + " times" ^0
+"  a month, and neither can reach it" ^0
+"" ^0
+
+# ---- what a shuffle would report ----
+
+tests_that_depend_on_a_predecessor => would_fail_shuffled
+
+"the same suite in a random order" ^0
+"  tests failing      : " + str(would_fail_shuffled) ^0
+"  defects in the code they name : unknown until each is read" ^0
+"  defects in the tests          : " + str(would_fail_shuffled) + ", at minimum" ^0
+"" ^0
+"  a red run is the first information this suite has produced" ^0
+"  about those nine in " + str(months_green) + " months" ^0
+"" ^0
+
+# ---- the run history ----
+
+"month   runs   failures   tests that would fail shuffled" ^0
+for m in [1:4]:
+    m * 3 => mo
+    "  " + str(mo) + "       " + str(mo * 30) + "    0          " + str(would_fail_shuffled) ^0
+"" ^0
+"  the third column is constant and the second is what gets read" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The fixed order, against what it was chosen for. It was chosen so a failure
+# could be reproduced from the report, and every failure in eleven months has
+# been reproduced on the first attempt.
+
+"control - is the fixed order earning its place" ^0
+"  failures reproduced from the report alone : all of them" ^0
+"  unreproducible failures                   : 0" ^0
+"  fixture rebuilds avoided by the ordering  : " + str(tests_touching_shared_fixtures) ^0
+"  defects in the ordering decision          : 0" ^0
+"" ^0
+"  randomising everything costs all three and the team has" ^0
+"  already paid that once" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same suite, same order, where each test builds its own fixture. The order
+# is unchanged and so is the reproducibility; there is simply nothing left for
+# a predecessor to leave behind.
+
+0 => nc_order_dependent
+
+"null control - the same fixed order over isolated fixtures" ^0
+"  order                       : fixed, unchanged" ^0
+"  failures reproducible       : yes, unchanged" ^0
+"  tests depending on a predecessor : " + str(nc_order_dependent) ^0
+"  tests that would fail shuffled   : " + str(nc_order_dependent) ^0
+"  the order was never the defect; the shared state was" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a green suite in a fixed order is evidence of" ^0
+"  every test passes in THAT order : exactly" ^0
+"  every test passes on its own    : not asked" ^0
+"  each test asserts what it names : not asked" ^0
+"  and a suite that has only ever run one order has one" ^0
+"  observation, repeated" ^0
+"" ^0
+"the cheap check is not randomising the suite, which gives up" ^0
+"what the order was for; it is running each test alone, once," ^0
+"and keeping the list of the ones that stop passing" ^0
+"" ^0
+
+"The suite passes " + str(tests) + " of " + str(tests) + " on every run and has for " + str(months_green) + " months, and the" ^0
+"fixed order it runs in is why every failure so far was reproducible from the" ^0
+"report alone, with 0 unreproducible failures. " + str(tests_that_depend_on_a_predecessor) + " of them - " + str(dependent_per_myriad) + " per ten" ^0
+"thousand - pass because an earlier test left state behind, so they would fail" ^0
+"shuffled and pass if the code they name stopped working, and " + str(months_green * 30) + " runs a month" ^0
+"in the same order cannot distinguish that from correctness." ^0

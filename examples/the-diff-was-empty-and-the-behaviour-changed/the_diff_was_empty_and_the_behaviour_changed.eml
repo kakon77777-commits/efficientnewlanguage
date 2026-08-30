@@ -1,0 +1,146 @@
+# Self-authored for the EML case corpus (no external origin). Two builds of the
+# same commit behave differently. The diff between them is empty. What was not
+# in the diff is computed below.
+#
+# The version control is correct and the check that was run is the right one.
+# Comparing the two deploys by commit is exactly how you rule out a code change,
+# it takes seconds, and it answered truthfully: the tree hashes match, so
+# nothing anybody wrote is responsible. That conclusion was reached properly.
+#
+# A commit fixes the source this repository holds. It does not fix what the
+# source RESOLVES TO, and every dependency specified as a range is resolved at
+# build time from a registry that changes without asking.
+#
+# So the build is reproducible with respect to everything it records, and the
+# thing that moved is the thing it does not record.
+
+214 => dependencies_total
+6 => unpinned_direct
+41 => unpinned_transitive
+2 => released_between_builds
+
+unpinned_direct + unpinned_transitive => unpinned_total
+
+"dependencies resolved at build : " + str(dependencies_total) ^0
+"specified as a range, direct   : " + str(unpinned_direct) ^0
+"specified as a range, indirect : " + str(unpinned_transitive) ^0
+"" ^0
+
+# ---- what the comparison established ----
+
+"the check that was run" ^0
+"  commit, build A          : identical" ^0
+"  commit, build B          : identical" ^0
+"  tree hash                : identical" ^0
+"  lines changed            : 0" ^0
+"  files changed            : 0" ^0
+"  conclusion               : no code change" ^0
+"" ^0
+"  every one of those is true, and the conclusion follows" ^0
+"  from them correctly" ^0
+"" ^0
+
+# ---- what the comparison could not reach ----
+
+int(unpinned_total * 10000 / dependencies_total) => unpinned_per_myriad
+
+"what the two builds do not share" ^0
+"  dependencies free to differ  : " + str(unpinned_total) ^0
+"  share of the tree            : " + str(unpinned_per_myriad) + " per ten thousand" ^0
+"  that actually differ         : " + str(released_between_builds) ^0
+"  recorded anywhere in the repo: 0" ^0
+"" ^0
+"  the diff is empty because the diff is over the repository," ^0
+"  and " + str(unpinned_total) + " of the inputs are not in the repository" ^0
+"" ^0
+
+# ---- the two builds, listed by what each fixes ----
+
+dependencies_total - unpinned_total => pinned_total
+
+"input                          fixed by the commit" ^0
+"  source files                 yes" ^0
+"  " + str(pinned_total) + " pinned dependencies        yes" ^0
+"  " + str(unpinned_total) + " ranged dependencies         no" ^0
+"  compiler version             no" ^0
+"  base image                   no" ^0
+"  build-time environment       no" ^0
+"" ^0
+"  a commit is a statement about the first two rows" ^0
+"" ^0
+
+# ---- how long the answer stays true ----
+#
+# The check said the code is the same, and it will keep saying so. The two
+# builds continue to diverge as more ranged dependencies publish.
+
+"month   ranged deps that published   builds still identical" ^0
+0 => drifted
+for m in [1:4]:
+    drifted + released_between_builds => drifted
+    "  " + str(m) + "       " + str(drifted) + "                            no" ^0
+"" ^0
+"  the diff is empty at every row" ^0
+"" ^0
+
+# ---- what would have found it ----
+
+"what each available check can distinguish" ^0
+"  git diff between the deploys      : source only" ^0
+"  comparing the built artefacts     : yes, byte for byte" ^0
+"  a lockfile covering transitives   : yes, before the build" ^0
+"  rerunning the tests               : only if a test reaches it" ^0
+"" ^0
+"  the first is the fastest and the only one that was run," ^0
+"  which is a reasonable order to try them in and not a" ^0
+"  reasonable place to stop" ^0
+"" ^0
+
+# ---- the control ----
+#
+# Version control, on the question it was asked. It was asked whether anybody
+# changed the code, and it answered no, correctly and in seconds.
+
+"control - was the check wrong" ^0
+"  commits compared correctly     : yes" ^0
+"  false 'no change' verdicts      : 0" ^0
+"  source changes missed           : 0" ^0
+"  defects in version control      : 0" ^0
+"" ^0
+"  the tool answered its question exactly; the question was" ^0
+"  narrower than the one being investigated" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same repository with a lockfile covering every transitive dependency.
+# Same commit, same builds, same comparison.
+
+0 => nc_free_to_differ
+
+"null control - the same commit with a full lockfile" ^0
+"  dependencies free to differ : " + str(nc_free_to_differ) ^0
+"  builds identical            : yes, byte for byte" ^0
+"  git diff                    : empty, as before" ^0
+"  the diff did not become more informative" ^0
+"  it became true of everything that matters" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what an empty diff rules out" ^0
+"  a change to the tracked source : completely" ^0
+"  a change to the build's inputs : only the tracked ones" ^0
+"  and the untracked inputs are untracked precisely because" ^0
+"  somebody decided they were not worth recording" ^0
+"" ^0
+"the comparison that answers 'why did this change' is between" ^0
+"the artefacts, not between the commits; the commits are what" ^0
+"you compare to find out WHO changed it" ^0
+"" ^0
+
+"The commits are identical, the tree hashes match, 0 files and 0 lines differ," ^0
+"and version control answered that correctly in seconds. Of " + str(dependencies_total) + " dependencies" ^0
+str(unpinned_total) + " are specified as ranges - " + str(unpinned_per_myriad) + " per ten thousand of the tree - and " + str(released_between_builds) ^0
+"published new versions between the two builds, none of it recorded in the" ^0
+"repository, so the diff stays empty for as long as anyone keeps asking it." ^0

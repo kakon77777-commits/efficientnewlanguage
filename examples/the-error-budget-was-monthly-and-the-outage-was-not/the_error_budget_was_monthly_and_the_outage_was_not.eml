@@ -1,0 +1,153 @@
+# Self-authored for the EML case corpus (no external origin). Two months
+# consume the same error budget to the tenth of a minute. What each one did to
+# users is computed below.
+#
+# A monthly error budget is the right instrument and it was chosen over the
+# alternatives deliberately. It converts an availability target into a quantity
+# that can be spent, which lets a team trade risk against velocity without
+# arguing about it each time; it is comparable across services; and it cannot
+# be gamed by moving a threshold, because the threshold IS the target.
+#
+# A budget is an integral. It sums unavailable time and discards when that time
+# occurred, how it was distributed, and how many distinct people met it. Two
+# very different months integrate to the same number.
+#
+# Both months below stay inside the budget. Neither triggers anything.
+
+43200 => minutes_in_month
+999 => target_per_thousand
+12000 => active_users
+
+int(minutes_in_month * (1000 - target_per_thousand) * 10 / 1000) => budget_tenths
+
+"minutes in the month     : " + str(minutes_in_month) ^0
+"availability target      : " + str(target_per_thousand) + " per thousand" ^0
+"error budget             : " + str(int(budget_tenths / 10)) + " point " + str(budget_tenths % 10) + " minutes" ^0
+"active users at any time : " + str(active_users) ^0
+"" ^0
+
+# ---- month A: one outage ----
+
+# 420 rather than the full 432: the premise of this case is that the two
+# months consume the SAME total to the tenth of a minute, and 432 does not
+# divide by 30 incidents. Leaving it summed month B to 420 and made the
+# closing sentence contradict the table directly above it.
+420 => a_outage_tenths
+1 => a_incidents
+
+"month A - one incident" ^0
+"  incidents           : " + str(a_incidents) ^0
+"  downtime            : " + str(int(a_outage_tenths / 10)) + " point " + str(a_outage_tenths % 10) + " minutes" ^0
+"  budget consumed     : " + str(int(a_outage_tenths * 1000 / budget_tenths)) + " per thousand" ^0
+"" ^0
+
+# ---- month B: the same total, spread ----
+
+30 => b_incidents
+int(a_outage_tenths / b_incidents) => b_each_tenths
+b_each_tenths * b_incidents => b_outage_tenths
+
+"month B - one incident a day" ^0
+"  incidents           : " + str(b_incidents) ^0
+"  each lasting        : " + str(int(b_each_tenths / 10)) + " point " + str(b_each_tenths % 10) + " minutes" ^0
+"  downtime            : " + str(int(b_outage_tenths / 10)) + " point " + str(b_outage_tenths % 10) + " minutes" ^0
+"  budget consumed     : " + str(int(b_outage_tenths * 1000 / budget_tenths)) + " per thousand" ^0
+"" ^0
+"  difference in budget consumed : " + str(a_outage_tenths - b_outage_tenths) + " tenths of a minute" ^0
+"" ^0
+
+# ---- what each month did to people ----
+#
+# One outage interrupts whoever is active in that window. Thirty outages
+# interrupt whoever is active in thirty windows, and the sets barely overlap
+# because the people online differ by day and by hour.
+
+active_users => a_sessions_broken
+
+35 => b_active_share_per_hundred
+int(active_users * b_active_share_per_hundred / 100) => b_each_broken
+b_each_broken * b_incidents => b_sessions_broken
+
+"sessions interrupted" ^0
+"  month A : " + str(a_sessions_broken) + " - everyone active during the one window" ^0
+"  month B : " + str(b_sessions_broken) + " - " + str(b_each_broken) + " a day for " + str(b_incidents) + " days" ^0
+int(b_sessions_broken * 10 / a_sessions_broken) => ratio_tenths
+"  ratio   : " + str(int(ratio_tenths / 10)) + " point " + str(ratio_tenths % 10) + " times month A" ^0
+"" ^0
+
+# ---- the users who met it more than once ----
+
+int(b_incidents * b_active_share_per_hundred / 100) => times_a_daily_user_is_hit
+
+"a user who is active every day" ^0
+"  interruptions in month A : 1, at most" ^0
+"  interruptions in month B : about " + str(times_a_daily_user_is_hit) ^0
+"  and the budget cannot express the difference, because it" ^0
+"  sums minutes and a person is not a minute" ^0
+"" ^0
+
+# ---- what the SLO reports for each ----
+
+"metric                     month A        month B" ^0
+"  downtime, minutes        " + str(int(a_outage_tenths / 10)) + " point " + str(a_outage_tenths % 10) + "           " + str(int(b_outage_tenths / 10)) + " point " + str(b_outage_tenths % 10) ^0
+"  budget consumed          " + str(int(a_outage_tenths * 1000 / budget_tenths)) + " per mille    " + str(int(b_outage_tenths * 1000 / budget_tenths)) + " per mille" ^0
+"  budget exceeded          no             no" ^0
+"  alerts fired             1              " + str(b_incidents) ^0
+"  sessions interrupted     " + str(a_sessions_broken) + "          " + str(b_sessions_broken) ^0
+"" ^0
+"  the first four rows are what the SLO reports" ^0
+"  the fifth is not one of them" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The budget, against what it was defined to do. It was defined to bound total
+# unavailability against a stated target, and it bounds it exactly, in both
+# months, with no rounding and no room to argue.
+
+"control - is the error budget correct" ^0
+"  target                     : " + str(target_per_thousand) + " per thousand" ^0
+"  budget, recomputed         : " + str(int(budget_tenths / 10)) + " point " + str(budget_tenths % 10) + " minutes" ^0
+"  month A within budget      : yes" ^0
+"  month B within budget      : yes" ^0
+"  months misclassified       : 0" ^0
+"  defects in the budget      : 0" ^0
+"" ^0
+"  every minute of downtime is in those totals exactly once" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same budget over two months whose outages have the SAME shape and differ
+# only in length. Now the budget ranks them, correctly, and by the same amount
+# users would.
+
+216 => nc_short_tenths
+
+"null control - two months of the same shape" ^0
+"  month C : 1 incident, " + str(int(nc_short_tenths / 10)) + " point " + str(nc_short_tenths % 10) + " minutes" ^0
+"  month A : 1 incident, " + str(int(a_outage_tenths / 10)) + " point " + str(a_outage_tenths % 10) + " minutes" ^0
+"  budget consumed : " + str(int(nc_short_tenths * 1000 / budget_tenths)) + " vs " + str(int(a_outage_tenths * 1000 / budget_tenths)) + " per mille" ^0
+"  sessions        : " + str(int(active_users / 2)) + " vs " + str(a_sessions_broken) ^0
+"  the budget and the users agree on the ordering" ^0
+"  the statistic did not improve; the two months became comparable" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a budget over a window measures" ^0
+"  total unavailable time : exactly, and that is its definition" ^0
+"  how it was distributed : discarded by the summation" ^0
+"  how many people met it : never entered the arithmetic" ^0
+"" ^0
+"the missing number is not a tighter target, which would fail" ^0
+"both months together; it is a second budget with a different" ^0
+"denominator - distinct users interrupted, or incidents - so" ^0
+"that a shape the sum cannot see has somewhere to show" ^0
+"" ^0
+
+"Both months consume " + str(int(a_outage_tenths * 1000 / budget_tenths)) + " per thousand of a " + str(int(budget_tenths / 10)) + " point " + str(budget_tenths % 10) + " minute budget, differ by" ^0
+str(a_outage_tenths - b_outage_tenths) + " tenths of a minute, and neither exceeds anything. Month A interrupts" ^0
+str(a_sessions_broken) + " sessions once; month B interrupts " + str(b_sessions_broken) + " - " + str(int(ratio_tenths / 10)) + " point " + str(ratio_tenths % 10) + " times - and a daily" ^0
+"user meets it about " + str(times_a_daily_user_is_hit) + " times, which is a fact about people that a sum of" ^0
+"minutes has no term for." ^0

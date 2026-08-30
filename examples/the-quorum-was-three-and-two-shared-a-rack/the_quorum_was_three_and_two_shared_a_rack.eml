@@ -1,0 +1,141 @@
+# Self-authored for the EML case corpus (no external origin). Every shard has
+# three replicas on three distinct nodes and needs two to serve. The placement
+# check passes on all of them. What a single rack failure removes is computed
+# below.
+#
+# Three replicas with a quorum of two is the right configuration and the
+# placement rule is enforced, not aspirational: the scheduler refuses to put
+# two replicas of a shard on one node, and a background auditor re-checks every
+# shard continuously. Distinct nodes is a real property and it is real here.
+#
+# A quorum tolerates failures that are independent. Nodes in one rack share a
+# power feed and a switch, so they do not fail independently — they fail
+# together, and "together" is exactly the case a quorum is sized against.
+#
+# The placement rule counts nodes. Failures arrive by rack.
+
+4096 => shards
+3 => replicas_per_shard
+2 => quorum
+48 => racks
+1180 => shards_with_two_in_one_rack
+
+"shards                   : " + str(shards) ^0
+"replicas per shard       : " + str(replicas_per_shard) ^0
+"quorum                   : " + str(quorum) ^0
+"racks                    : " + str(racks) ^0
+"" ^0
+
+# ---- what the placement rule enforces ----
+
+"the placement rule, checked on every shard" ^0
+"  shards with " + str(replicas_per_shard) + " replicas          : " + str(shards) + " of " + str(shards) ^0
+"  shards with two on one node   : 0" ^0
+"  scheduler violations          : 0" ^0
+"  auditor findings              : 0" ^0
+"  defects in the placement rule : 0" ^0
+"" ^0
+"  distinct NODES is true of every shard in the cluster" ^0
+"" ^0
+
+# ---- the property nothing checks ----
+
+shards - shards_with_two_in_one_rack => shards_across_three_racks
+int(shards_with_two_in_one_rack * 10000 / shards) => exposed_per_myriad
+
+"the same shards, counted by rack" ^0
+"  spread across three racks     : " + str(shards_across_three_racks) ^0
+"  two replicas in one rack      : " + str(shards_with_two_in_one_rack) ^0
+"  share                         : " + str(exposed_per_myriad) + " per ten thousand" ^0
+"" ^0
+"  no rule was broken to produce that column" ^0
+"  it was never a rule" ^0
+"" ^0
+
+# ---- one rack goes ----
+
+int(shards_with_two_in_one_rack / racks) => shards_losing_quorum
+int(shards_across_three_racks / racks) => shards_losing_one_replica
+
+"one rack fails" ^0
+"  shards losing one replica  : " + str(shards_losing_one_replica) + ", still have " + str(quorum) + ", still serving" ^0
+"  shards losing two replicas : " + str(shards_losing_quorum) + ", below quorum, unavailable" ^0
+"" ^0
+"  the second row is the one the configuration was chosen to" ^0
+"  make empty, and it is the one the placement rule cannot see" ^0
+"" ^0
+
+# ---- what each layer reports before the failure ----
+
+"instrument                 reads" ^0
+"  replica count            " + str(replicas_per_shard) + " on every shard" ^0
+"  distinct nodes           enforced, 0 violations" ^0
+"  under-replicated shards  0" ^0
+"  shards below quorum      0" ^0
+"  shards that WOULD be, per rack   not measured" ^0
+"" ^0
+"  the first four are green and each of them is true" ^0
+"" ^0
+
+# ---- rack by rack ----
+
+"rack   shards losing 1   shards losing 2   unavailable" ^0
+for r in [1:4]:
+    "  " + str(r) + "      " + str(shards_losing_one_replica) + "               " + str(shards_losing_quorum) + "                yes" ^0
+"" ^0
+"  every rack has the same exposure, because the placement" ^0
+"  was uniform with respect to the property it optimised" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The rule that IS enforced, against what it prevents. Two replicas on one node
+# is a single process losing a shard's quorum, and that has never happened.
+
+"control - is the node rule earning its place" ^0
+"  shards a single NODE could take below quorum : 0" ^0
+"  scheduler placements refused for this reason : enforced continuously" ^0
+"  auditor disagreements with the scheduler     : 0" ^0
+"  defects in the rule                          : 0" ^0
+"" ^0
+"  the rule is correct, enforced, and audited" ^0
+"  it is about the wrong unit of failure" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same three replicas, same quorum, same auditor, with rack as the
+# placement domain instead of node. Nothing about the replication factor or the
+# quorum changes.
+
+0 => nc_shards_with_two_in_one_rack
+
+"null control - the same configuration placed by rack" ^0
+"  replicas per shard        : " + str(replicas_per_shard) + ", unchanged" ^0
+"  quorum                    : " + str(quorum) + ", unchanged" ^0
+"  two replicas in one rack  : " + str(nc_shards_with_two_in_one_rack) ^0
+"  shards below quorum after one rack fails : " + str(nc_shards_with_two_in_one_rack) ^0
+"  the redundancy did not increase" ^0
+"  the domain it is measured over did" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what distinct replicas guarantees" ^0
+"  they are separate copies       : yes" ^0
+"  they fail separately           : only in the domain you named" ^0
+"  and the domain that matters is the one failures arrive in," ^0
+"  which is decided by power, network and cooling rather than" ^0
+"  by the scheduler's data model" ^0
+"" ^0
+"the number to publish is not the replication factor, it is" ^0
+"the count of shards that lose quorum to one failure of each" ^0
+"kind - node, rack, zone - because those are three different" ^0
+"numbers and only the first one is being checked" ^0
+"" ^0
+
+"The scheduler enforces three replicas on three distinct nodes on all " + str(shards) ^0
+"shards, with 0 violations and 0 auditor findings, and no single node can take" ^0
+"any shard below quorum. Counted by rack, " + str(shards_with_two_in_one_rack) + " shards - " + str(exposed_per_myriad) + " per ten" ^0
+"thousand - hold two replicas in one rack, so one rack failure takes " + str(shards_losing_quorum) ^0
+"shards below quorum while every green indicator above stays green." ^0

@@ -1,0 +1,150 @@
+# Self-authored for the EML case corpus (no external origin). Fourteen signing
+# keys were rotated on schedule. Every rotation is recorded as complete. What
+# the old keys can still do is computed below.
+#
+# The overlap is correct and it is why rotation is possible at all. A key
+# cannot be replaced instantaneously across services that deploy on their own
+# cadence: accept both for a window, let each consumer move when it can, then
+# retire the old one. Cutting straight over means an outage for whoever had not
+# redeployed, which is how a security improvement becomes an incident and then
+# becomes something nobody schedules again.
+#
+# The window has two ends. Issuing the new key is a dated event with an owner;
+# retiring the old one is a deletion that breaks whoever has not moved, and it
+# has no deadline that anything enforces.
+#
+# So the first half completes on time, fourteen times, and the second half is
+# the step that gets deferred once and then stops being tracked.
+
+14 => keys_rotated
+7 => intended_overlap_days
+143 => mean_age_of_old_keys_days
+27 => consumers
+24 => consumers_migrated
+
+"keys rotated                   : " + str(keys_rotated) ^0
+"intended overlap               : " + str(intended_overlap_days) + " days" ^0
+"consumers of these keys        : " + str(consumers) ^0
+"" ^0
+
+# ---- what the rotation did ----
+
+"the rotation, against what it promises" ^0
+"  new keys issued              : " + str(keys_rotated) + " of " + str(keys_rotated) ^0
+"  distributed to every consumer: yes" ^0
+"  failed authentications after : 0" ^0
+"  rotations recorded complete  : " + str(keys_rotated) ^0
+"  defects in the rotation      : 0" ^0
+"" ^0
+"  everything on that list is about the NEW key" ^0
+"" ^0
+
+# ---- the other end of the window ----
+
+keys_rotated => old_keys_still_accepted
+mean_age_of_old_keys_days - intended_overlap_days => days_past_the_window
+
+"the old keys" ^0
+"  still accepted          : " + str(old_keys_still_accepted) + " of " + str(keys_rotated) ^0
+"  mean age                : " + str(mean_age_of_old_keys_days) + " days" ^0
+"  intended overlap        : " + str(intended_overlap_days) + " days" ^0
+"  days past the window    : " + str(days_past_the_window) ^0
+"  revocations performed   : 0" ^0
+"" ^0
+int(mean_age_of_old_keys_days * 10 / intended_overlap_days) => overrun_tenths
+"  the overlap is " + str(int(overrun_tenths / 10)) + " point " + str(overrun_tenths % 10) + " times as long as designed" ^0
+"" ^0
+
+# ---- why nobody closes it ----
+
+consumers - consumers_migrated => consumers_not_migrated
+
+"who the deletion would break" ^0
+"  consumers migrated       : " + str(consumers_migrated) + " of " + str(consumers) ^0
+"  consumers not migrated   : " + str(consumers_not_migrated) ^0
+"  services owned by other teams : " + str(consumers_not_migrated) ^0
+"" ^0
+int(consumers_migrated * 100 / consumers) => migrated_share
+"  " + str(migrated_share) + " percent of consumers are ready" ^0
+# 100 minus a truncated share is not the other share: 24 of 27 floors to 88
+# and 3 of 27 floors to 11, so the pair would print 88 and 12 and neither
+# number would be the count. The count is the informative form anyway.
+"  and the retirement is blocked by the other " + str(consumers_not_migrated) + " of " + str(consumers) + "," ^0
+"  none of them owned by the team" ^0
+"  holding the delete button" ^0
+"" ^0
+
+# ---- what rotation was supposed to buy ----
+#
+# The point of rotating is that a key which leaked before the rotation stops
+# working after it. That property is the deletion, not the issuance.
+
+"a key that leaked the day before rotation" ^0
+"  still valid after the new key was issued : yes" ^0
+"  still valid " + str(mean_age_of_old_keys_days) + " days later            : yes" ^0
+"  window during which it is useful         : unbounded" ^0
+"" ^0
+"  the leak is contained by the retirement, and the retirement" ^0
+"  is the half that did not happen" ^0
+"" ^0
+
+# ---- the register ----
+
+"key   rotated   old key retired   status recorded" ^0
+for k in [1:4]:
+    k * 47 => age
+    "  " + str(k) + "     yes       no                complete" ^0
+"" ^0
+"  the status column is reporting the issuance, truthfully" ^0
+"" ^0
+
+# ---- the control ----
+#
+# The overlap, against what it prevents. Without it, every rotation is an
+# outage for whichever consumer had not redeployed, and there are three of
+# those today.
+
+"control - is the overlap earning its place" ^0
+"  consumers that would break on a hard cutover : " + str(consumers_not_migrated) ^0
+"  outages caused by rotation so far            : 0" ^0
+"  rotations abandoned midway                   : 0" ^0
+"  defects in the overlap mechanism             : 0" ^0
+"" ^0
+"  removing the overlap does not retire the old keys," ^0
+"  it breaks " + str(consumers_not_migrated) + " services and stops the next rotation happening" ^0
+"" ^0
+
+# ---- the null control ----
+#
+# The same rotation, same overlap, same consumers, with the old key carrying an
+# expiry set at issuance rather than a deletion scheduled by hand. Nothing about
+# the window changes.
+
+intended_overlap_days => nc_max_age_days
+0 => nc_old_keys_accepted
+
+"null control - the old key given an expiry when the new one is issued" ^0
+"  overlap                  : " + str(nc_max_age_days) + " days, as designed" ^0
+"  old keys still accepted  : " + str(nc_old_keys_accepted) ^0
+"  consumers that break     : " + str(consumers_not_migrated) + ", on day " + str(nc_max_age_days) + ", loudly" ^0
+"  the deadline did not become easier to meet" ^0
+"  it stopped depending on somebody choosing a day to delete" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a completed rotation records" ^0
+"  a new key exists and is trusted   : yes, dated, owned" ^0
+"  the old key no longer works       : a separate act, undated" ^0
+"  and only the second one is the security property" ^0
+"" ^0
+"an overlap with an end date somebody must choose is not an" ^0
+"overlap, it is a permanent second key; the expiry has to be" ^0
+"set by the same event that issues the replacement" ^0
+"" ^0
+
+"All " + str(keys_rotated) + " rotations completed on schedule with 0 failed authentications and 0" ^0
+"outages, which is what the overlap was for: " + str(consumers_not_migrated) + " of " + str(consumers) + " consumers would break on" ^0
+"a hard cutover. All " + str(old_keys_still_accepted) + " old keys are still accepted at a mean age of " + str(mean_age_of_old_keys_days) ^0
+"days - " + str(int(overrun_tenths / 10)) + " point " + str(overrun_tenths % 10) + " times the designed window, " + str(days_past_the_window) + " days past it - and the number of" ^0
+"revocations is 0, because issuing has an owner and deleting has a blocker." ^0
