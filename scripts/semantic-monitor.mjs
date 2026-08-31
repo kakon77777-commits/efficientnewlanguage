@@ -253,6 +253,54 @@ const SEMANTIC_FILES = [
       // parameter-passing cases: parameter binding is a different code path,
       // and the two can be wrong independently.
       'tests/aliasing-visibility.test.ts',
+      // Added 2026-08-29 (EMLP-AUDIT-005). Every test above calls user
+      // functions with the RIGHT number of arguments, because that is what a
+      // test author writes, so none of them could see that the count was never
+      // checked: a missing argument was bound to None and a surplus one was
+      // dropped, and the call then succeeded with a plausible wrong value.
+      // The entry above ends by noting that parameter binding is its own code
+      // path and can be wrong independently — it was, in two places at once.
+      // Deleting either arity check diverges 4 of 8 rows here against real
+      // CPython; before this entry existed, deleting both diverged nothing.
+      'tests/user-function-arity.test.ts',
+      // Added the same day, and separate on purpose. The file above compares
+      // the exception TYPE, which is the bar tests/builtin-shapes.test.ts sets,
+      // and that bar cannot see three things a first fix got wrong: a bound
+      // call delivers the receiver whether or not the method declared one, so a
+      // zero-parameter method was the single shape the guard could not reject;
+      // the label must come from the function object rather than the call site,
+      // so an alias and a nested function were named wrongly; and functools
+      // hashes its arguments before the wrapped signature is checked, so
+      // rejecting arity above the cache turned `unhashable type: 'list'` into
+      // an arity error the baseline had never produced. Deleting any one of the
+      // three reds a distinct group here.
+      'tests/user-function-arity-identity.test.ts',
+      // Added 2026-08-30 (EMLP-RELAY-0073). The two files above record a
+      // qualified name where a `def` executes; a class body's methods never
+      // reach that branch, so a nested class lost its enclosing `<locals>`
+      // prefix and every function defined inside its methods inherited the
+      // truncated one. Three kinds of definition now have to agree, and this
+      // file is the only place the third is checked.
+      'tests/user-function-arity-nesting.test.ts',
+      // Added 2026-08-30 (EMLP-RELAY-0076). instantiateClass has TWO arity
+      // paths and only one goes through the shared arityError composer. The
+      // three entries above were all written against the composer, and the
+      // public suite's stand-in for the other one caught the exception and
+      // printed the word TypeError, discarding the message. Rewriting that
+      // hand-written message to a literal left all fifty of those cells
+      // green. These rows print str(e), and their argument counts vary (1, 3,
+      // 2, 3, 1, 1, 1) because the wrong message interpolated args.length —
+      // an all-one-argument witness set cannot tell removing that count from
+      // hardcoding the value every row happens to use.
+      'tests/user-function-arity-constructor.test.ts',
+      // Added 2026-08-30 (EMLP-RELAY-0079 census). The file above and the
+      // three before it all read the interpreter's OUTPUT. None reads when
+      // the guard fires: runMethodBody is one frame serving bound methods,
+      // explicit __init__, __enter__ and both __exit__ paths, and moving its
+      // guard below the eml:call emission takes the emitted count from 0 to 1
+      // for a call whose body never runs while leaving all 62 cells green.
+      // Only the plain-function case was ever asserted, in one row.
+      'tests/user-function-call-order.test.ts',
     ],
   ],
   [

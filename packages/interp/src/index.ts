@@ -160,6 +160,58 @@ export function interpretProgram(program: Program, opts: InterpOptions = {}): In
   return runProgram(program, emitter, opts, []);
 }
 
+/**
+ * CPython's positional-arity TypeError, message and all, or `undefined` when
+ * the count is right.
+ *
+ * `given` is the number of arguments the call actually delivers, which for a
+ * bound method INCLUDES the receiver the caller never wrote, and `params` is
+ * every declared parameter including the receiver. v1 of this fix instead
+ * passed the receiver separately and derived whether there was one from
+ * `selfParam ? 1 : 0` — from whether the method DECLARED a first parameter.
+ * A bound call always passes the instance, so a method declaring none is
+ * exactly the case that should report 0 taken and 1 given, and v1 reported no
+ * error at all; the same slip undercounted every method message by one.
+ *
+ * Five message details were measured against CPython 3.14 rather than
+ * recalled: the count and the noun pluralise independently; two missing names
+ * join with `and` while three or more take an Oxford comma; the label is the
+ * function's own qualified name; and a method's counts include the receiver.
+ *
+ * An exact length comparison is safe because EML parameters are plain
+ * identifiers — the grammar parses `params` as `Identifier[]` with no
+ * defaults, no `*args` and no `**kwargs` — so no legal call shape can have a
+ * count that differs from its parameter list.
+ */
+function arityError(
+  label: string,
+  params: FunctionDef['params'],
+  given: number,
+): PyError | undefined {
+  if (given === params.length) return undefined;
+  if (given < params.length) {
+    const missing = params.slice(given).map((p) => `'${p.name}'`);
+    const names =
+      missing.length === 1
+        ? missing[0]!
+        : missing.length === 2
+          ? `${missing[0]} and ${missing[1]}`
+          : `${missing.slice(0, -1).join(', ')}, and ${missing[missing.length - 1]}`;
+    return new PyError(
+      'TypeError',
+      `${label}() missing ${missing.length} required positional argument${
+        missing.length === 1 ? '' : 's'
+      }: ${names}`,
+    );
+  }
+  return new PyError(
+    'TypeError',
+    `${label}() takes ${params.length} positional argument${params.length === 1 ? '' : 's'} but ${given} ${
+      given === 1 ? 'was' : 'were'
+    } given`,
+  );
+}
+
 function runProgram(
   program: Program,
   emitter: Emitter,
@@ -185,6 +237,42 @@ function runProgram(
   for (const name of BUILTIN_EXCEPTIONS) module.vars.set(name, EXC_CLASS(name));
   /** functools.cache emulation for @cold (non-async) functions, keyed by repr(args). */
   const coldCache = new Map<string, PyVal>();
+
+  /**
+   * FunctionDef node -> the qualified name CPython would put in an error.
+   *
+   * Filled where the `def` EXECUTES, because that is the only moment the
+   * enclosing function is known: `outer.<locals>.inner` is a fact about where
+   * the definition ran, not about where the call happens. Keyed by the AST node
+   * so re-entering `outer` recomputes the same string, and so no new field has
+   * to be added to the func value in values.ts.
+   *
+   * v1 of this fix used the CALL-SITE identifier instead, which is wrong twice
+   * over: `original => alias; alias()` reported `alias()` where CPython reports
+   * `original()`, and a nested function reported `inner()` where CPython
+   * reports `outer.<locals>.inner()`. Both were published as matching CPython
+   * exactly, on the strength of seven message rows that were all top-level
+   * direct calls.
+   */
+  const qualnames = new Map<FunctionDef, string>();
+  /**
+   * ClassDef node -> its qualified name, recorded the same way and for the
+   * same reason.
+   *
+   * v2 recorded a qualifier only where a `def` executes. A class body's
+   * methods never reach that branch — `ClassDef` binds the class and the
+   * method nodes are looked up later — so `instance.className` stayed the
+   * bare `cls.name` and a nested class lost its enclosing `<locals>` prefix
+   * permanently, taking every function defined inside its methods with it.
+   *
+   * Which is the same shape v1 and v2 were each caught by, one level out: a
+   * fact recorded where ONE kind of definition executes, and a second kind
+   * that never passes through there. v1 read identity off the call site, v2
+   * off the `def`; it has to come from whichever definition actually ran.
+   */
+  const classQualnames = new Map<ClassDef, string>();
+  /** Enclosing function qualnames, innermost last, while a body is running. */
+  const qualStack: string[] = [];
   let steps = 0;
   let depth = 0;
   let error: InterpResult['error'];
@@ -570,6 +658,24 @@ function runProgram(
     const fn = callee.def as FunctionDef;
     if (fn.isAsync) throw new Unsupported('async function', `'${name}' is async (temporal runtime only)`);
 
+    // The label is the function's own qualified name, not the identifier this
+    // call site used — see `qualnames` above.
+    const arity = arityError(qualnames.get(fn) ?? callee.name, fn.params, args.length);
+    // WHERE this is raised depends on @cold, and v1 had it backwards.
+    //
+    // v1 threw here, above the cache, with a comment asserting that CPython
+    // rejects the arity in the call machinery before any cache is consulted.
+    // Measured against CPython 3.14: `@cache def f(x)` called `f(1, [2])`
+    // raises `unhashable type: 'list'`, because functools builds its key from
+    // the arguments FIRST and the wrapped function's signature is only reached
+    // on the miss after it. The same function undecorated raises the arity
+    // error. v1 turned the first into the second — a defect the baseline did
+    // not have, which is why it was caught as a regression rather than a miss.
+    //
+    // So an undecorated or @hot function rejects here, above `eml:call` and
+    // above the body; a @cold one hashes first and rejects below.
+    if (arity && fn.temperature !== 'cold') throw arity;
+
     // @cold non-async functions are emitted with @functools.cache; emulate it so
     // the trace (and any side effects like prints) match Python exactly: a cache
     // hit does NOT re-run the body.
@@ -599,6 +705,11 @@ function runProgram(
         emitter.emit('eml:cache:hit', { fn: name, args: args.map(pyRepr), result: pyRepr(cached) });
         return cached;
       }
+      // The @cold arity rejection, in functools' order: the key was built (so
+      // an unhashable argument has already raised above) and the lookup missed,
+      // which is the point at which the wrapper calls through to the function
+      // and its signature is checked. Still above `eml:call` and the body.
+      if (arity) throw arity;
     }
 
     if (++depth > RECURSION_LIMIT) {
@@ -620,10 +731,15 @@ function runProgram(
     fn.params.forEach((p, i) => local.vars.set(p.name, args[i] ?? NONE));
     let result: PyVal = NONE;
     try {
+      qualStack.push(qualnames.get(fn) ?? callee.name);
       for (const s of fn.body) execStmt(s, local);
+      qualStack.pop();
     } catch (e) {
-      if (e instanceof ReturnSignal) result = e.value;
-      else {
+      if (e instanceof ReturnSignal) {
+        result = e.value;
+        qualStack.pop();
+      } else {
+        qualStack.pop();
         depth--;
         throw e;
       }
@@ -665,7 +781,18 @@ function runProgram(
     if (init) {
       runMethodBody(instance, init, args);
     } else if (args.length > 0) {
-      throw new PyError('TypeError', `${cls.name}() takes no arguments (${args.length} given)`);
+      // CPython's default `object.__init__` reports no count here and no
+      // lexical qualifier, even when the class is nested two functions deep:
+      //     Slate() takes no arguments
+      // That is a DIFFERENT rule from the one `__init__` follows a few lines
+      // above, where the same nested class reports
+      //     mk.<locals>.S.__init__() missing 1 required positional argument: 'x'
+      // so this branch must not reach for `classQualnames`, and must not go
+      // through `arityError` — measured against CPython 3.14 in both
+      // directions. This is the one arity site that does not share the
+      // composer, which is why every message row written against the
+      // composer covered three of the four deciding sites and missed this.
+      throw new PyError('TypeError', `${cls.name}() takes no arguments`);
     }
     return instance;
   };
@@ -692,12 +819,30 @@ function runProgram(
    * reference that function's locals is not modeled faithfully this round.
    */
   const runMethodBody = (instance: Extract<PyVal, { k: 'instance' }>, method: FunctionDef, args: PyVal[]): PyVal => {
+    // A bound call always delivers the instance, whether or not the method
+    // declared a parameter to receive it, so `given` counts it and `params` is
+    // every declared parameter including the receiver. v1 asked instead whether
+    // a first parameter was DECLARED, which made a zero-parameter method the
+    // one shape it could not reject and undercounted every message by one.
+    // This frame is also how __init__, __enter__ and __exit__ are invoked, so
+    // all four are covered by the single comparison.
+    // ONE string, computed once, used by the arity label and by everything
+    // below. The first attempt at this fix changed only the `qualifiedName`
+    // further down — which feeds eml:call, eml:return and qualStack — while the
+    // guard here went on building its own label from the bare class name, so
+    // four of the five rows stayed red and the fifth passed for a reason that
+    // had nothing to do with the label being right.
+    const owner = classQualnames.get(instance.classDef as ClassDef) ?? instance.className;
+    const qualifiedName = `${owner}.${method.name}`;
+    {
+      const arity = arityError(qualifiedName, method.params, args.length + 1);
+      if (arity) throw arity;
+    }
     if (++depth > RECURSION_LIMIT) {
       depth--;
       throw new PyError('RecursionError', 'maximum recursion depth exceeded');
     }
     tick();
-    const qualifiedName = `${instance.className}.${method.name}`;
     emitter.emit('eml:call', { fn: qualifiedName, args: args.map(pyRepr), temperature: 'neutral' });
     const local: Scope = { vars: new Map(), parent: module, locals: localNames(method.body) };
     const [selfParam, ...restParams] = method.params;
@@ -705,10 +850,15 @@ function runProgram(
     restParams.forEach((p, i) => local.vars.set(p.name, args[i] ?? NONE));
     let result: PyVal = NONE;
     try {
+      qualStack.push(qualifiedName);
       for (const s of method.body) execStmt(s, local);
+      qualStack.pop();
     } catch (e) {
-      if (e instanceof ReturnSignal) result = e.value;
-      else {
+      if (e instanceof ReturnSignal) {
+        result = e.value;
+        qualStack.pop();
+      } else {
+        qualStack.pop();
         depth--;
         throw e;
       }
@@ -824,6 +974,10 @@ function runProgram(
       case 'FunctionDef':
         // Bind a first-class function value capturing the DEFINING scope, so it
         // closes over enclosing locals (nested defs) and is callable by name.
+        {
+          const enclosing = qualStack[qualStack.length - 1];
+          qualnames.set(stmt, enclosing === undefined ? stmt.name : `${enclosing}.<locals>.${stmt.name}`);
+        }
         assign(scope, stmt.name, { k: 'func', name: stmt.name, def: stmt, closure: scope });
         emitter.emit('eml:def', {
           fn: stmt.name,
@@ -1054,6 +1208,10 @@ function runProgram(
         const classScope: Scope = { vars: new Map(), parent: scope };
         for (const s of stmt.body) {
           if (s.type !== 'FunctionDef') execStmt(s, classScope);
+        }
+        {
+          const enclosing = qualStack[qualStack.length - 1];
+          classQualnames.set(stmt, enclosing === undefined ? stmt.name : `${enclosing}.<locals>.${stmt.name}`);
         }
         assign(scope, stmt.name, { k: 'class', name: stmt.name, def: stmt, attrs: classScope.vars });
         emitter.emit('eml:classdef', {
