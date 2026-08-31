@@ -1,0 +1,109 @@
+# Self-authored for the EML case corpus (no external origin). The trigger runs
+# inside the transaction, so it is rolled back with everything else. What was
+# rolled back is computed below.
+#
+# Putting the side effect in a trigger is the careful choice. It fires in the
+# same transaction as the row it reacts to, it sees the same snapshot, and if
+# the transaction aborts the trigger's own writes vanish with the row. There is
+# no window where the table says one thing and the trigger's bookkeeping says
+# another. That is exactly what a trigger is for.
+#
+# Rollback is a property of the DATABASE's writes. It restores what the database
+# controls, and the trigger's outbound call is not one of those things: the
+# request left the process, the remote system answered, and the remote system
+# has never heard of this transaction.
+#
+# Nine percent of these transactions abort on a constraint the trigger runs
+# before. Their rows are gone. Their calls are not.
+
+184000 => transactions_per_day
+16560 => aborted_after_the_trigger_fired
+# The trigger fires on the row insert; the constraint that aborts is checked at
+# commit, later.
+3 => remote_systems_called
+
+transactions_per_day - aborted_after_the_trigger_fired => committed
+
+"transactions per day        : " + str(transactions_per_day) ^0
+"committed                   : " + str(committed) ^0
+"aborted after the trigger   : " + str(aborted_after_the_trigger_fired) ^0
+"" ^0
+
+# ---- what rollback restored ----
+
+"the database after an abort" ^0
+"  the inserted row        : gone" ^0
+"  the trigger's audit row : gone" ^0
+"  the counter it bumped   : restored" ^0
+"  orphaned records        : 0" ^0
+"  verdict                 : consistent" ^0
+"" ^0
+"  every line is true, and this is why the logic was put in" ^0
+"  a trigger rather than in the application" ^0
+"" ^0
+
+# ---- what it did not restore ----
+
+aborted_after_the_trigger_fired * remote_systems_called => calls_with_no_row_behind_them
+
+"what left the process before the abort" ^0
+"  remote systems notified per transaction : " + str(remote_systems_called) ^0
+"  notifications sent on aborted work      : " + str(calls_with_no_row_behind_them) ^0
+"  notifications retracted                 : 0" ^0
+"" ^0
+"  the database rolled back its own writes; the request had" ^0
+"  already been answered by a system that does not share" ^0
+"  the transaction" ^0
+"" ^0
+
+int(aborted_after_the_trigger_fired * 10000 / transactions_per_day) => aborted_per_myriad
+"aborted share : " + str(aborted_per_myriad) + " per ten thousand of the day" ^0
+"" ^0
+
+# ---- what the downstream believes ----
+
+# Each remote system now holds a record whose primary key does not exist. They
+# do not agree with each other either, because each one was called at a
+# different point and only some of the three are idempotent on replay.
+"downstream state after one aborted transaction" ^0
+"  search index    : holds a document for a missing row" ^0
+"  billing         : holds a line item for work not done" ^0
+"  email           : delivered; not recallable in any sense" ^0
+"" ^0
+"  the row that would let anyone find these was rolled back," ^0
+"  so the reconciliation job has no key to look them up by" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same trigger, writing to an outbox table inside the transaction, with a
+# separate worker that reads committed rows and makes the calls.
+0 => nc_calls_with_no_row_behind_them
+committed * remote_systems_called => nc_calls_made
+
+"null control - the trigger writes an outbox row instead" ^0
+"  notifications on aborted work : " + str(nc_calls_with_no_row_behind_them) ^0
+"  notifications on committed work : " + str(nc_calls_made) ^0
+"  the trigger did not become more transactional; the" ^0
+"  effect moved inside the thing that already was" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what running inside the transaction guarantees" ^0
+"  the trigger's DATABASE writes abort with it : exactly" ^0
+"  the trigger's other effects abort with it   : not" ^0
+"    addressed; rollback is implemented by the database" ^0
+"    over storage it owns, and an outbound call is not" ^0
+"    storage it owns" ^0
+"" ^0
+"a transaction can only undo what it can see; the useful" ^0
+"question is not where the code runs but whether the effect" ^0
+"is a write to something the transaction controls" ^0
+"" ^0
+
+"The trigger is inside the transaction and the rollback is complete: the row is" ^0
+"gone, the audit row is gone, the counter is restored, 0 orphans. On the " + str(aborted_after_the_trigger_fired) ^0
+"transactions a day that abort - " + str(aborted_per_myriad) + " per ten thousand - it had already made" ^0
+str(calls_with_no_row_behind_them) + " calls to " + str(remote_systems_called) + " systems that never heard of the transaction, and the key" ^0
+"that would let anyone reconcile them was the first thing rolled back." ^0

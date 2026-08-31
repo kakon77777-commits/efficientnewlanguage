@@ -1,0 +1,116 @@
+# Self-authored for the EML case corpus (no external origin). The reload
+# succeeded and the log line saying so is true. When the change reaches the last
+# worker is computed below.
+#
+# The reload works. The parent re-reads the file, validates it, applies it to
+# its own state and logs the version it moved to. It is not a stub, it is not
+# swallowing an error, and if the file were invalid it would refuse and say so.
+# The line "config reloaded, version 41" means the parent is on version 41.
+#
+# Requests are not served by the parent. They are served by pre-forked workers
+# holding the copy they inherited at fork, and a worker's copy changes when the
+# worker is replaced, not when the parent reloads.
+#
+# Workers recycle after a fixed number of requests. Nobody chose that number as
+# a propagation delay, and it is the propagation delay.
+
+48 => workers
+250000 => requests_before_a_worker_recycles
+3100 => requests_per_second_total
+0 => reload_failures
+
+int(requests_per_second_total / workers) => requests_per_second_per_worker
+int(requests_before_a_worker_recycles / requests_per_second_per_worker) => seconds_for_a_worker_to_recycle
+int(seconds_for_a_worker_to_recycle / 60) => minutes_for_a_worker_to_recycle
+# The parent applies it immediately; that is one process and it serves nothing.
+1 => processes_on_the_new_config_at_once
+
+"workers                        : " + str(workers) ^0
+"requests before a worker recycles : " + str(requests_before_a_worker_recycles) ^0
+"requests per second, total     : " + str(requests_per_second_total) ^0
+"per worker                     : " + str(requests_per_second_per_worker) ^0
+"seconds for a worker to recycle: " + str(seconds_for_a_worker_to_recycle) ^0
+"minutes for a worker to recycle: " + str(minutes_for_a_worker_to_recycle) ^0
+"" ^0
+
+# ---- what the reload verified ----
+
+"the reload" ^0
+"  file re-read        : yes" ^0
+"  validated           : yes" ^0
+"  applied to          : the parent" ^0
+"  failures            : " + str(reload_failures) ^0
+"  logged              : config reloaded, version 41" ^0
+"  verdict             : RELOADED" ^0
+"" ^0
+"  the line is true of the process that wrote it" ^0
+"" ^0
+
+# ---- who serves the requests ----
+
+"immediately after the reload" ^0
+"  processes on the new config : " + str(processes_on_the_new_config_at_once) + ", the parent" ^0
+"  processes serving requests  : " + str(workers) ^0
+"  workers on the new config   : 0" ^0
+"  requests served with it     : 0" ^0
+"" ^0
+"  the reload is complete and no request has seen it" ^0
+"" ^0
+
+# ---- during an incident ----
+
+# The change was a timeout reduction pushed as a mitigation at 14:02. The
+# incident timeline records the mitigation at the reload, because that is when
+# something happened that could be timestamped.
+requests_per_second_total * seconds_for_a_worker_to_recycle => requests_served_on_the_old_config
+
+"the mitigation" ^0
+"  logged as applied at   : the reload" ^0
+"  reaches the last worker: " + str(minutes_for_a_worker_to_recycle) + " minutes later" ^0
+"  requests served on the old config in between : " ^0
+"    " + str(requests_served_on_the_old_config) ^0
+"  the graph recovers gradually and reads like the fix" ^0
+"    taking hold, which is what a staged rollout looks like" ^0
+"    and what this is not" ^0
+"" ^0
+
+84 => incident_minutes
+int(minutes_for_a_worker_to_recycle * 10000 / incident_minutes) => propagation_per_myriad
+"incident length, minutes : " + str(incident_minutes) ^0
+"the mitigation was still propagating for : " + str(propagation_per_myriad) + " per ten thousand of it" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same reload, with the parent signalling workers to re-read after finishing
+# the request in flight.
+0 => nc_requests_served_on_the_old_config
+1 => nc_seconds_to_full_propagation
+
+"null control - workers re-read on the parent's signal" ^0
+"  reload failures : " + str(reload_failures) + ", unchanged" ^0
+"  seconds to full propagation : " + str(nc_seconds_to_full_propagation) ^0
+"  requests on the old config  : " + str(nc_requests_served_on_the_old_config) ^0
+"  the reload did not get better; the processes that serve" ^0
+"  requests were included in it" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a successful reload guarantees" ^0
+"  the process that reloaded holds the new config : exactly" ^0
+"  requests are served with it                    : not" ^0
+"    addressed, wherever the serving happens somewhere the" ^0
+"    reload did not reach" ^0
+"" ^0
+"the recycle count is a resource-hygiene number that became a" ^0
+"deployment latency; nobody reviews it in that role because" ^0
+"nothing in the system writes it down as one" ^0
+"" ^0
+
+"The reload succeeded and the log line is true: the file was re-read, validated," ^0
+"applied, " + str(reload_failures) + " failures. The parent serves no requests, so " + str(workers) + " workers keep the" ^0
+"copy they forked with until they recycle after " + str(requests_before_a_worker_recycles) + " requests - " + str(minutes_for_a_worker_to_recycle) + " minutes -" ^0
+"and " + str(requests_served_on_the_old_config) + " requests are served on the old config first - still" ^0
+"propagating for " + str(propagation_per_myriad) + " per ten thousand of the " + str(incident_minutes) + "-minute incident, on a curve" ^0
+"that reads like the mitigation taking hold." ^0

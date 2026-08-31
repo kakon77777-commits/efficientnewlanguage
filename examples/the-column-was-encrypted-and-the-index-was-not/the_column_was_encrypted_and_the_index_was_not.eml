@@ -1,0 +1,121 @@
+# Self-authored for the EML case corpus (no external origin). The column is
+# encrypted and nobody with the disk has the key. How many rows a reader with
+# the index alone can label is computed below.
+#
+# The encryption is done properly. The key lives in a separate service, it is
+# rotated, the ciphertext is authenticated, and a copy of the volume is
+# genuinely opaque. An auditor who takes the disk home learns nothing from the
+# column, and that was the requirement.
+#
+# The column also has to be searchable by equality, so a second value is stored
+# beside it: a deterministic index, where equal plaintexts produce equal
+# entries. That is what makes the lookup work, and it is the whole property.
+#
+# The column has six distinct values with a published population distribution.
+# Sorting six ciphertexts by frequency and lining them up against six known
+# frequencies takes no key at all.
+
+18400000 => rows
+6 => distinct_values
+11040000 => class_1
+3680000 => class_2
+2208000 => class_3
+920000 => class_4
+460000 => class_5
+92000 => class_6
+0 => plaintexts_recoverable_from_the_ciphertext
+
+class_1 + class_2 + class_3 + class_4 + class_5 + class_6 => rows_accounted_for
+
+"rows                    : " + str(rows) ^0
+"distinct values         : " + str(distinct_values) ^0
+"rows accounted for      : " + str(rows_accounted_for) ^0
+"" ^0
+"index entries by frequency" ^0
+"  1 : " + str(class_1) ^0
+"  2 : " + str(class_2) ^0
+"  3 : " + str(class_3) ^0
+"  4 : " + str(class_4) ^0
+"  5 : " + str(class_5) ^0
+"  6 : " + str(class_6) ^0
+"" ^0
+
+# ---- what the encryption verified ----
+
+"the column at rest" ^0
+"  algorithm            : authenticated, key held elsewhere" ^0
+"  key on this volume   : no" ^0
+"  rotation             : quarterly, performed" ^0
+"  plaintexts recoverable from the ciphertext : " + str(plaintexts_recoverable_from_the_ciphertext) ^0
+"  verdict              : ENCRYPTED" ^0
+"" ^0
+"  a stolen volume yields nothing from this column, and" ^0
+"  that is the property that was asked for" ^0
+"" ^0
+
+# ---- what the index is ----
+
+"the equality index beside it" ^0
+"  equal plaintexts        : produce equal entries" ^0
+"  that is the requirement : a lookup needs it" ^0
+"  entries are encrypted   : yes" ^0
+"  entries are distinguishable : also yes, and that is" ^0
+"    the same fact" ^0
+"" ^0
+"  determinism is not a weakness of this index; it is what" ^0
+"  the index is for, and it publishes the partition" ^0
+"" ^0
+
+int(class_1 * 10000 / rows) => largest_class_per_myriad
+"the largest class : " + str(largest_class_per_myriad) + " per ten thousand of the table" ^0
+"" ^0
+
+# ---- what a reader with the volume can do ----
+
+# The population distribution for this field is published by the regulator.
+# Ranking six numbers against six numbers is the whole attack; there is no
+# cryptanalysis in it and the key is never involved.
+"labelling the rows without the key" ^0
+"  distinct entries observed : " + str(distinct_values) ^0
+"  published frequencies to match against : " + str(distinct_values) ^0
+"  rows labelled by rank      : " + str(rows) ^0
+"  key material used          : none" ^0
+"" ^0
+"  the ciphertext of each row is still unread; what was" ^0
+"  recovered is which rows share a value, and then which" ^0
+"  value that is" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same column with a randomised index and equality handled by re-encrypting
+# the search term inside the key service.
+1 => nc_distinct_entries_observed
+0 => nc_rows_labelled_by_rank
+
+"null control - randomised index, equality done in the key service" ^0
+"  column verdict            : ENCRYPTED, unchanged" ^0
+"  distinct entries observed : " + str(nc_distinct_entries_observed) + " per row, all different" ^0
+"  rows labelled by rank     : " + str(nc_rows_labelled_by_rank) ^0
+"  the encryption did not get stronger; the equality moved" ^0
+"  to the side that holds the key" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what an encrypted column guarantees" ^0
+"  the value cannot be read from the bytes : exactly" ^0
+"  the value cannot be inferred            : not addressed;" ^0
+"    an equality index publishes which rows agree, and on a" ^0
+"    low-cardinality column agreeing is nearly the value" ^0
+"" ^0
+"encryption hides content and a deterministic index exposes" ^0
+"equality; the second is the feature and the leak, and the" ^0
+"cardinality decides which one it mostly is" ^0
+"" ^0
+
+"The column is encrypted correctly and a stolen volume yields " + str(plaintexts_recoverable_from_the_ciphertext) + " plaintexts" ^0
+"from it: authenticated, key held elsewhere, rotated quarterly. Beside it sits a" ^0
+"deterministic index over " + str(distinct_values) + " values whose largest class is " + str(largest_class_per_myriad) + " per ten" ^0
+"thousand of the table, so ranking " + str(distinct_values) + " frequencies against a published" ^0
+"distribution labels all " + str(rows) + " rows without touching the key." ^0

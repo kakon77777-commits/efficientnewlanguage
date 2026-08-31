@@ -1,0 +1,115 @@
+# Self-authored for the EML case corpus (no external origin). The leaf
+# certificate is valid by every property a certificate has. Which clients can
+# actually authenticate the server is computed below.
+#
+# "Is the certificate valid" is a question about one object: not expired, the
+# hostname matches, the signature verifies against the issuer named in it. All
+# three hold here, the monitoring check that asks them is green, and the
+# operator who renewed the leaf did the renewal correctly.
+#
+# Authentication is not a property of the leaf. It is a property of a PATH from
+# the leaf to a root the client already trusts, and every link in that path is
+# a separate certificate with its own validity window.
+#
+# The intermediate expired eleven days ago. Clients that already hold it cached
+# from an earlier handshake build the path anyway. Clients that do not, and
+# whose stack does not chase the issuer URL in the leaf, have a valid
+# certificate they cannot chain.
+
+1840000 => handshakes_per_day
+# The server sends leaf + intermediate. Clients that got a complete chain
+# succeed regardless of what they cached.
+1490000 => sent_complete_chain
+11 => days_since_intermediate_expired
+
+handshakes_per_day - sent_complete_chain => needed_to_supply_the_link
+# Of those, the ones holding a cached intermediate from an earlier visit.
+203000 => had_it_cached
+# Of the rest, the ones whose stack fetches the issuer URL from the leaf.
+81000 => fetched_the_issuer_url
+
+needed_to_supply_the_link - had_it_cached - fetched_the_issuer_url => failed
+
+"handshakes per day             : " + str(handshakes_per_day) ^0
+"served a complete chain        : " + str(sent_complete_chain) ^0
+"had to supply the link         : " + str(needed_to_supply_the_link) ^0
+"  held it cached               : " + str(had_it_cached) ^0
+"  fetched the issuer url       : " + str(fetched_the_issuer_url) ^0
+"  could not build a path       : " + str(failed) ^0
+"" ^0
+
+# ---- what the check verified ----
+
+"the certificate check, run every five minutes" ^0
+"  not before   : passed" ^0
+"  not after    : passed, 47 days remaining" ^0
+"  hostname     : passed, exact match" ^0
+"  signature    : passed, verifies against the named issuer" ^0
+"  key size     : passed" ^0
+"  verdict      : VALID" ^0
+"" ^0
+"  every line is true of the leaf, and the leaf is the only" ^0
+"  object the check was given" ^0
+"" ^0
+
+# ---- what the client needs ----
+
+"the path a client must build" ^0
+"  leaf         : valid, 47 days remaining" ^0
+"  intermediate : EXPIRED " + str(days_since_intermediate_expired) + " days ago" ^0
+"  root         : valid, in the trust store" ^0
+"" ^0
+"  the leaf's own validity window says nothing about the" ^0
+"  window of the certificate that signed it" ^0
+"" ^0
+
+int(failed * 10000 / handshakes_per_day) => failed_per_myriad
+"clients that cannot authenticate : " + str(failed) ^0
+"  as a share of handshakes       : " + str(failed_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- why it looks intermittent ----
+
+# A cached intermediate is why the same client succeeds on Tuesday and fails
+# from a fresh machine on Wednesday. The cache is not a fallback anybody
+# configured; it is a side effect of having visited before.
+had_it_cached + fetched_the_issuer_url => rescued_by_something_incidental
+
+"reports say 'works for me'" ^0
+"  succeeded on an incidental mechanism : " + str(rescued_by_something_incidental) ^0
+"    a cached copy from an earlier visit, or a fetch the" ^0
+"    stack does and the specification calls optional" ^0
+"  neither is configuration; neither is guaranteed" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same expiry, with the intermediate renewed and shipped by the server.
+0 => nc_failed
+handshakes_per_day => nc_complete_chain
+
+"null control - the same leaf, intermediate renewed" ^0
+"  leaf verdict            : VALID, unchanged" ^0
+"  served a complete chain : " + str(nc_complete_chain) ^0
+"  could not build a path  : " + str(nc_failed) ^0
+"  the leaf did not change; the path became buildable" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a valid certificate guarantees" ^0
+"  this object is well formed and unexpired : exactly" ^0
+"  a client can build a trusted path to it  : not addressed," ^0
+"    and the check cannot address it, because the rest of" ^0
+"    the path is not in the object it was handed" ^0
+"" ^0
+"a certificate is one link; trust is the whole chain, and the" ^0
+"only monitor that can see the difference is one that builds" ^0
+"the path from a machine holding nothing" ^0
+"" ^0
+
+"The leaf is valid and the five-minute check is right to say so: " + str(days_since_intermediate_expired) + " days" ^0
+"after the intermediate expired, not before, not after, hostname and signature" ^0
+"all still pass. " + str(failed) + " handshakes a day - " + str(failed_per_myriad) + " per ten thousand - reach a" ^0
+"server whose certificate is valid and cannot chain it, while " + str(rescued_by_something_incidental) ^0
+"more succeed on a cached copy nobody configured and nothing renews." ^0

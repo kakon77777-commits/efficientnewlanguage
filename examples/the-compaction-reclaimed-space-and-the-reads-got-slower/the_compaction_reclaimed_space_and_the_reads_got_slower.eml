@@ -1,0 +1,116 @@
+# Self-authored for the EML case corpus (no external origin). Compaction
+# reclaimed thirty-eight percent of the store and the space metric is right.
+# What reads cost afterwards is computed below.
+#
+# The compaction did what it is for. Overwritten versions and tombstones are
+# merged away, the file count drops, the space is genuinely returned to the
+# filesystem and stays returned. The job is not wasteful, it is not a no-op, and
+# deferring it is how the store fills up.
+#
+# Reclaiming space means REWRITING the files. Every byte that survives is
+# written to a new file at a new offset, and the page cache holding the old
+# files is now holding files nobody will read again.
+#
+# The working set was ninety-three percent cached. It is rewritten in twenty
+# minutes and the cache has to be paid for a second time.
+
+4120000000000 => bytes_before
+2554000000000 => bytes_after
+210000000000 => page_cache_bytes
+84000 => reads_per_second
+3 => p99_before_ms
+41 => p99_after_ms
+26 => minutes_to_rewarm
+
+bytes_before - bytes_after => bytes_reclaimed
+int(bytes_reclaimed * 10000 / bytes_before) => reclaimed_per_myriad
+# Every surviving byte is written to a new location, so the cache is displaced
+# by the whole post-compaction store, not by the part that changed.
+int(bytes_after / page_cache_bytes) => times_the_cache_is_overwritten
+
+"bytes before                : " + str(bytes_before) ^0
+"bytes after                 : " + str(bytes_after) ^0
+"bytes reclaimed             : " + str(bytes_reclaimed) ^0
+"share reclaimed             : " + str(reclaimed_per_myriad) + " per ten thousand" ^0
+"" ^0
+"page cache, bytes           : " + str(page_cache_bytes) ^0
+"times it is overwritten     : " + str(times_the_cache_is_overwritten) ^0
+"" ^0
+
+# ---- what the compaction verified ----
+
+"the compaction job's report" ^0
+"  bytes reclaimed   : " + str(bytes_reclaimed) ^0
+"  tombstones merged : all" ^0
+"  files after       : fewer" ^0
+"  data lost         : 0" ^0
+"  verdict           : SUCCESS" ^0
+"" ^0
+"  the space is really back and it stays back; skipping" ^0
+"  this job is how the volume fills" ^0
+"" ^0
+
+# ---- what it cost ----
+
+p99_after_ms - p99_before_ms => p99_added_ms
+reads_per_second * 60 * minutes_to_rewarm => reads_during_the_rewarm
+
+"reads while the cache refills" ^0
+"  p99 before, ms        : " + str(p99_before_ms) ^0
+"  p99 after, ms         : " + str(p99_after_ms) ^0
+"  added per read, ms    : " + str(p99_added_ms) ^0
+"  minutes to rewarm     : " + str(minutes_to_rewarm) ^0
+"  reads in that window  : " + str(reads_during_the_rewarm) ^0
+"" ^0
+
+int(p99_after_ms * 10 / p99_before_ms) => tenths_of_the_old_p99
+"p99 is now " + str(tenths_of_the_old_p99) + " tenths of what it was" ^0
+"" ^0
+
+# ---- why the metric did not show it ----
+
+# Space is a level and latency is a rate. The space chart is watched because it
+# is the one that pages someone at three in the morning; the latency chart
+# recovers before anyone opens it.
+"the two charts" ^0
+"  space used   : falls, stays down, alerts on a threshold" ^0
+"  read p99     : rises, recovers in " + str(minutes_to_rewarm) + " minutes, alerts on a" ^0
+"    five minute average that never clears the threshold" ^0
+"" ^0
+"  the job is scheduled on the first and evaluated on it" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same compaction, rate-limited so the rewrite stays under the cache's
+# refill rate. The space comes back more slowly and the cache is never fully
+# displaced.
+bytes_reclaimed => nc_bytes_reclaimed
+6 => nc_p99_after_ms
+
+"null control - the same compaction, rate limited" ^0
+"  bytes reclaimed : " + str(nc_bytes_reclaimed) + ", unchanged" ^0
+"  p99 after, ms   : " + str(nc_p99_after_ms) ^0
+"  the compaction did not reclaim less; it stopped" ^0
+"  displacing the cache faster than it refills" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what reclaimed space guarantees" ^0
+"  these bytes are available again : exactly" ^0
+"  nothing else got worse          : not addressed; the" ^0
+"    mechanism that returns the bytes is a rewrite, and a" ^0
+"    rewrite is what invalidates every cache above it" ^0
+"" ^0
+"a maintenance job is evaluated on the resource it frees and" ^0
+"paid for in the one it disturbs; the second is usually a rate" ^0
+"and the first is usually a level, which is why only one of" ^0
+"them has an alert" ^0
+"" ^0
+
+"The compaction reclaimed " + str(bytes_reclaimed) + " bytes - " + str(reclaimed_per_myriad) + " per ten thousand of the" ^0
+"store - with 0 data lost, and the space stays back. Rewriting what survives" ^0
+"displaces the page cache " + str(times_the_cache_is_overwritten) + " times over, so read p99 goes from " + str(p99_before_ms) + " ms to " + str(p99_after_ms) + " ms" ^0
+"across " + str(reads_during_the_rewarm) + " reads while it refills, on a chart nobody alerts on because the" ^0
+"job is scheduled against the one that falls." ^0

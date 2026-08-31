@@ -1,0 +1,109 @@
+# Self-authored for the EML case corpus (no external origin). The rollback
+# completed in ninety seconds and every instance is running the previous
+# release. What the table holds afterwards is computed below.
+#
+# The rollback is correct and fast. Instances are immutable, the previous image
+# is still in the registry, traffic shifted cleanly, and the release that caused
+# the errors is gone from every node. This is the thing rollbacks are for and it
+# worked.
+#
+# A rollback reverts the CODE. It does not revert the migration, and it should
+# not: dropping the column would destroy the values the new release wrote, and
+# no automated rollback is allowed to do that. So the schema stays forward and
+# the code goes back.
+#
+# The old release does not know the column. For forty-seven minutes it was
+# written; for the six days since, it has not been, and nothing distinguishes
+# the two kinds of empty.
+
+47 => minutes_the_new_release_was_live
+812000 => rows_written_while_it_was_live
+6340000 => rows_written_since_the_rollback
+90 => rollback_seconds
+0 => instances_still_on_the_new_release
+
+rows_written_while_it_was_live + rows_written_since_the_rollback => rows_in_the_affected_range
+
+"minutes the new release was live : " + str(minutes_the_new_release_was_live) ^0
+"rollback took, seconds           : " + str(rollback_seconds) ^0
+"instances still on it            : " + str(instances_still_on_the_new_release) ^0
+"" ^0
+"rows written while it was live   : " + str(rows_written_while_it_was_live) ^0
+"rows written since the rollback  : " + str(rows_written_since_the_rollback) ^0
+"rows in the affected range       : " + str(rows_in_the_affected_range) ^0
+"" ^0
+
+# ---- what the rollback verified ----
+
+"the rollback's checks" ^0
+"  instances on the previous image : all" ^0
+"  health checks passing           : all" ^0
+"  error rate                      : back to baseline" ^0
+"  time to complete, seconds       : " + str(rollback_seconds) ^0
+"  verdict                         : ROLLED BACK" ^0
+"" ^0
+"  every line is true and the incident was closed on them" ^0
+"" ^0
+
+# ---- what stayed forward ----
+
+"the schema after the rollback" ^0
+"  column added by the migration : still there" ^0
+"  values written into it        : still there, " + str(rows_written_while_it_was_live) ^0
+"  the old code's view of it     : it has none" ^0
+"  reverting the migration       : would destroy those values" ^0
+"" ^0
+"  keeping it is the correct decision, and it is what makes" ^0
+"  the range below ambiguous" ^0
+"" ^0
+
+int(rows_written_while_it_was_live * 10000 / rows_in_the_affected_range) => carried_a_value_per_myriad
+"share of the range carrying a value : " + str(carried_a_value_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- the two kinds of empty ----
+
+# The column is null on every row the old code wrote. It is also null on rows
+# the new code wrote where the value genuinely was not set. Redeploying makes
+# the code read both.
+"when the release ships again" ^0
+"  rows where null means 'not set'    : from the " + str(minutes_the_new_release_was_live) + " minutes" ^0
+"  rows where null means 'never asked': " + str(rows_written_since_the_rollback) ^0
+"  a column recording which           : does not exist" ^0
+"  the code's reading of null         : one meaning, applied" ^0
+"    to both" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same rollback, with the migration written so the old code populates the
+# column too - a default at the database rather than in the new release.
+0 => nc_rows_with_an_ambiguous_null
+rows_in_the_affected_range => nc_rows_with_a_stated_value
+
+"null control - the default set in the schema, not the code" ^0
+"  rollback time, seconds       : " + str(rollback_seconds) + ", unchanged" ^0
+"  rows with an ambiguous null  : " + str(nc_rows_with_an_ambiguous_null) ^0
+"  rows carrying a stated value : " + str(nc_rows_with_a_stated_value) ^0
+"  the rollback did not improve; the writer that survives" ^0
+"  a rollback became the one that fills the column" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a rollback guarantees" ^0
+"  the code running is the previous code : exactly" ^0
+"  the system is in its previous state   : not addressed;" ^0
+"    anything the new code wrote is still written, and the" ^0
+"    schema it needed is still applied" ^0
+"" ^0
+"deploys are reversible and migrations are not, so a release" ^0
+"that pairs them can only be half undone; the half that stays" ^0
+"is the half holding data" ^0
+"" ^0
+
+"The rollback is complete and the incident report is right to close on it:" ^0
+"every instance on the previous image in " + str(rollback_seconds) + " seconds, " + str(instances_still_on_the_new_release) + " left behind, error rate" ^0
+"at baseline. The column stays, correctly, holding values on " + str(rows_written_while_it_was_live) + " rows from " + str(minutes_the_new_release_was_live) ^0
+"minutes - " + str(carried_a_value_per_myriad) + " per ten thousand of the affected range - and null on the" ^0
+str(rows_written_since_the_rollback) + " written since, where null means the writer never had the field." ^0

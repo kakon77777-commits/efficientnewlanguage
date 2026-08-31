@@ -1,0 +1,109 @@
+# Self-authored for the EML case corpus (no external origin). Three years of
+# events are reprocessed through the current pipeline, which is correct. How
+# many recomputed values disagree with what was actually done is computed below.
+#
+# The pipeline is right. It was reviewed, it is covered, and every value it
+# produces today matches what the business rules say today. Running history
+# through it is the obvious way to rebuild a derived table, and the rebuild
+# itself has no bug in it.
+#
+# Correctness is dated. The pipeline implements the rules IN FORCE NOW, and each
+# historical event was decided under the rules in force then. Reprocessing does
+# not recover the old decision; it replaces it with the decision today's rules
+# would have made.
+#
+# Four rules changed in the window. The recomputed table is internally
+# consistent, disagrees with the ledger on twenty-three percent of rows, and the
+# reconciliation report attributes every disagreement to the ledger.
+
+41300000 => events_reprocessed
+4 => rule_changes_in_the_window
+28900000 => events_predating_the_latest_change
+9640000 => recomputed_differs_from_recorded
+# Found by a separate audit that read the rule in force on each event's date.
+12400 => genuinely_wrong_when_recorded
+
+recomputed_differs_from_recorded - genuinely_wrong_when_recorded => differ_only_because_the_rule_changed
+
+"events reprocessed              : " + str(events_reprocessed) ^0
+"rule changes in the window      : " + str(rule_changes_in_the_window) ^0
+"events predating the last change: " + str(events_predating_the_latest_change) ^0
+"recomputed differs from recorded: " + str(recomputed_differs_from_recorded) ^0
+"  wrong when it was recorded    : " + str(genuinely_wrong_when_recorded) ^0
+"  differs because a rule changed: " + str(differ_only_because_the_rule_changed) ^0
+"" ^0
+
+# ---- what the backfill verified ----
+
+"the backfill's own checks" ^0
+"  events read           : " + str(events_reprocessed) ^0
+"  events dropped        : 0" ^0
+"  pipeline exceptions   : 0" ^0
+"  output self-consistent: yes" ^0
+"  verdict               : SUCCESS" ^0
+"" ^0
+"  all true; the pipeline applied one rule set uniformly and" ^0
+"  did not fail on a single row" ^0
+"" ^0
+
+# ---- what uniformity cost ----
+
+"applying one rule set to three years" ^0
+"  rule set applied     : the one in force today" ^0
+"  rule set that decided: whichever was in force that day" ^0
+"  events where those are the same : " + str(events_reprocessed - events_predating_the_latest_change) ^0
+"  events where they are not       : " + str(events_predating_the_latest_change) ^0
+"" ^0
+"  the pipeline has no input for the second one; a rule set" ^0
+"  is not a column on the event" ^0
+"" ^0
+
+int(recomputed_differs_from_recorded * 10000 / events_reprocessed) => differs_per_myriad
+"share disagreeing with the ledger : " + str(differs_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the reconciliation concluded ----
+
+# The report has one column for "expected" and one for "actual", and the
+# recomputed value is in the expected column because it came from the code.
+"the reconciliation report" ^0
+"  expected : the recomputed value" ^0
+"  actual   : the ledger" ^0
+"  rows flagged as ledger errors : " + str(recomputed_differs_from_recorded) ^0
+"  rows that are ledger errors   : " + str(genuinely_wrong_when_recorded) ^0
+"" ^0
+"  the two are not distinguishable from inside the report," ^0
+"  because both sides are values and the thing that separates" ^0
+"  them is a date the report does not carry" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same backfill with the rule set selected per event by its date.
+genuinely_wrong_when_recorded => nc_differs_from_recorded
+
+"null control - the rule set chosen by the event's date" ^0
+"  pipeline exceptions   : 0, unchanged" ^0
+"  differs from recorded : " + str(nc_differs_from_recorded) ^0
+"  the pipeline did not get more correct; it stopped being" ^0
+"  asked a question about today" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a correct pipeline guarantees" ^0
+"  every output follows from the rules it implements : exactly" ^0
+"  every output matches the decision that was made   : not" ^0
+"    addressed, and reprocessing is precisely the operation" ^0
+"    that discards the second one" ^0
+"" ^0
+"a backfill recomputes; it does not recover. If the rules ever" ^0
+"changed, the recomputed value answers a question nobody asked" ^0
+"on that date, and the ledger is the only record that they did" ^0
+"" ^0
+
+"The pipeline is correct and the backfill is right to report success: " + str(events_reprocessed) ^0
+"events read, 0 dropped, 0 exceptions, output self-consistent. It disagrees with" ^0
+"the ledger on " + str(recomputed_differs_from_recorded) + " rows - " + str(differs_per_myriad) + " per ten thousand - of which " + str(genuinely_wrong_when_recorded) ^0
+"were wrong when they were written and " + str(differ_only_because_the_rule_changed) + " differ because one of " + str(rule_changes_in_the_window) ^0
+"rules changed afterwards, and the report files all of them under ledger error." ^0

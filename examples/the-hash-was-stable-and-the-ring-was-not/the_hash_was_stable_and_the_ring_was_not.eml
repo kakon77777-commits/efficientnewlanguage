@@ -1,0 +1,118 @@
+# Self-authored for the EML case corpus (no external origin). The hash is
+# stable and only one thirteenth of keys move when a node is added. How many
+# requests reach the wrong node anyway is computed below.
+#
+# Consistent hashing does what it promises. The hash is deterministic across
+# processes, languages and restarts; adding the thirteenth node moves one
+# thirteenth of the keyspace and leaves the rest where it was. The alternative -
+# hashing modulo the node count - would move almost everything, and this is
+# exactly the property the design was chosen for.
+#
+# The placement is hash AND ring. The hash is one function; the ring is a list
+# of members, and each client builds its own from a registry it polls on its own
+# schedule. Two clients holding different lists compute different owners from
+# the same stable hash.
+#
+# The registry poll is sixty seconds with jitter. For three minutes after the
+# node joins, both rings are in use.
+
+40000000 => keys
+12 => nodes_before
+260000 => requests_per_second
+180 => rollout_seconds
+0 => hash_disagreements
+
+nodes_before + 1 => nodes_after
+int(keys / nodes_after) => keys_that_move
+requests_per_second * rollout_seconds => requests_in_the_window
+int(requests_in_the_window / nodes_after) => requests_for_moved_keys
+# Measured: of those, the ones a client sent to the node its own ring named,
+# which is not the node the moved key now lives on.
+1742000 => served_by_the_other_node
+611000 => served_a_stale_value
+
+"keys                        : " + str(keys) ^0
+"nodes before                : " + str(nodes_before) ^0
+"nodes after                 : " + str(nodes_after) ^0
+"keys that move              : " + str(keys_that_move) ^0
+"" ^0
+"rollout window, seconds     : " + str(rollout_seconds) ^0
+"requests in the window      : " + str(requests_in_the_window) ^0
+"requests for moved keys     : " + str(requests_for_moved_keys) ^0
+"  reached the other node    : " + str(served_by_the_other_node) ^0
+"  read a stale value        : " + str(served_a_stale_value) ^0
+"" ^0
+
+# ---- what the hash guaranteed ----
+
+"the hash function" ^0
+"  same key, same point     : always" ^0
+"  across processes         : identical" ^0
+"  across restarts          : identical" ^0
+"  disagreements observed   : " + str(hash_disagreements) ^0
+"  keys moved by the join   : " + str(keys_that_move) + ", one thirteenth" ^0
+"  verdict                  : STABLE" ^0
+"" ^0
+"  every line holds, and modulo hashing would have moved" ^0
+"  almost all " + str(keys) ^0
+"" ^0
+
+# ---- what decides the owner ----
+
+"placing one key" ^0
+"  hash of the key   : one function, everywhere the same" ^0
+"  ring of members   : a list, per client, polled" ^0
+"  owner             : the first member clockwise of the hash" ^0
+"" ^0
+"  the stable input is combined with an unstable one, and" ^0
+"  the result is only as agreed as the second" ^0
+"" ^0
+
+int(served_by_the_other_node * 10000 / requests_in_the_window) => misrouted_per_myriad
+"share of the window misrouted : " + str(misrouted_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what it looks like afterwards ----
+
+# Both nodes now hold an entry for the same key. The old owner's copy is never
+# invalidated, because invalidation is also routed by the sender's ring.
+"after the window closes" ^0
+"  entries for a moved key : two, on two nodes" ^0
+"  the stale one expires   : at its own ttl, not before" ^0
+"  invalidation reaches it : only from a client whose ring" ^0
+"    still names the old owner" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same join, with the ring version stamped on every request and a node
+# refusing keys it does not own under that version.
+0 => nc_served_a_stale_value
+served_by_the_other_node => nc_requests_refused_and_retried
+
+"null control - the ring version carried on the request" ^0
+"  keys that move        : " + str(keys_that_move) + ", unchanged" ^0
+"  refused and retried   : " + str(nc_requests_refused_and_retried) ^0
+"  read a stale value    : " + str(nc_served_a_stale_value) ^0
+"  the hash did not change and neither did the poll; the" ^0
+"  node stopped answering for keys it does not own" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a stable hash guarantees" ^0
+"  a key maps to the same point everywhere : exactly" ^0
+"  a key maps to the same NODE everywhere  : not addressed;" ^0
+"    the node comes from the point and a membership list," ^0
+"    and only one of those two is a function" ^0
+"" ^0
+"consistent hashing bounds how much moves, not when; the" ^0
+"disagreement window is the propagation delay of the member" ^0
+"list, and nothing in the hash shortens it" ^0
+"" ^0
+
+"The hash is stable and the join moved exactly one thirteenth of the keyspace:" ^0
+str(keys_that_move) + " of " + str(keys) + " keys, " + str(hash_disagreements) + " disagreements about any key's point. During the" ^0
+str(rollout_seconds) + "-second poll window " + str(served_by_the_other_node) + " requests - " + str(misrouted_per_myriad) + " per ten thousand -" ^0
+"reached the node their own client's ring named rather than the one the key had" ^0
+"moved to, " + str(served_a_stale_value) + " of them reading a value the new owner had already replaced." ^0

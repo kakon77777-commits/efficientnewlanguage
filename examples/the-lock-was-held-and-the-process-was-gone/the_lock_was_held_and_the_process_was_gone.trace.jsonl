@@ -1,0 +1,70 @@
+{"stream":"eml","proto":"eml-trace-v1","seq":1,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:start","mono":1,"file":"the_lock_was_held_and_the_process_was_gone.eml","statements":68}
+{"stream":"eml","proto":"eml-trace-v1","seq":2,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":2,"name":"ttl_seconds","value":"900","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":3,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":3,"name":"holder_deaths_per_week","value":"34","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":4,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":4,"name":"mean_seconds_left_on_the_lease","value":"451","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":5,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":5,"name":"double_holder_events","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":6,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":6,"name":"stalled_seconds_per_week","value":"15334","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":7,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":7,"name":"stalled_minutes_per_week","value":"255","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":8,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":8,"text":"lease, seconds                  : 900","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":9,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":9,"text":"holder deaths per week          : 34","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":10,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":10,"text":"mean lease left when it died    : 451","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":11,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":11,"text":"stalled seconds per week        : 15334","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":12,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":12,"text":"stalled minutes per week        : 255","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":13,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":13,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":14,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":14,"text":"the lock's own guarantees","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":15,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":15,"text":"  acquisition        : one conditional write","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":16,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":16,"text":"  two holders at once: 0 ever observed","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":17,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":17,"text":"  wedged forever     : impossible, the lease expires","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18,"text":"  refresh while working : implemented","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":19,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":19,"text":"  verdict            : CORRECT","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":20,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":20,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":21,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":21,"text":"  there is no race here and no amount of review will find","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":22,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":22,"text":"  one; the mutual exclusion is sound","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":23,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":23,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":24,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":24,"text":"the two facts","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":25,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":25,"text":"  a holder acquired this key      : in the store","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":26,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":26,"text":"  the holder is still running     : on another machine","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":27,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":27,"text":"  the store's evidence for the second : the first, plus","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":28,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":28,"text":"    a clock","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":29,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":29,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":30,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":30,"text":"  a lease is a bet that a live holder refreshes faster than","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":31,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":31,"text":"  the clock runs, and a dead one loses that bet slowly","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":32,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":32,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":33,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":33,"name":"wasted_per_myriad","value":"5011","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":34,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":34,"text":"share of a lease spent waiting on nobody : 5011 per ten thousand","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":35,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":35,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":36,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":36,"name":"shorter_ttl_seconds","value":"60","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":37,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":37,"name":"pauses_longer_than_sixty_seconds_per_week","value":"11","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":38,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":38,"text":"the lease at sixty seconds instead","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":39,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":39,"text":"  mean stall per death, seconds : 30","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":40,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":40,"text":"  holder pauses exceeding it    : 11 per week","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":41,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":41,"text":"  each of those is two holders  : yes","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":42,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":42,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":43,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":43,"text":"  the lease length trades a stall against a violation and","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":44,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":44,"text":"  cannot remove either","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":45,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":45,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":46,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":46,"name":"nc_double_holder_writes","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":47,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":47,"name":"nc_deaths_unchanged","value":"34","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":48,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":48,"text":"null control - the same lease, plus a fencing token","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":49,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":49,"text":"  lease behaviour        : unchanged","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":50,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":50,"text":"  holder deaths per week : 34, unchanged","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":51,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":51,"text":"  writes from a second believer : 0","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":52,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":52,"text":"  the lock did not get better; the resource started","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":53,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":53,"text":"  refusing writes that carry a stale token","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":54,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":54,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":55,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":55,"text":"what a correct lock guarantees","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":56,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":56,"text":"  at most one holder acquired this key : exactly","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":57,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":57,"text":"  the holder is alive and working      : not addressed;","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":58,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":58,"text":"    liveness is a property of a process, and the store","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":59,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":59,"text":"    holds a key and a clock","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":60,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":60,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":61,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":61,"text":"a lease converts an unanswerable question into a timer; the","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":62,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":62,"text":"timer is always either too long to wait for or too short to","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":63,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":63,"text":"survive a pause, and the way out is at the resource","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":64,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":64,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":65,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":65,"text":"The lock is correct and there has never been a double holder: one conditional","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":66,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":66,"text":"write, a lease that cannot wedge, refresh while working. Its holder dies 34","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":67,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":67,"text":"times a week with a mean of 451 seconds still on the clock - 5011 per ten","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":68,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":68,"text":"thousand of a lease - so 255 minutes a week are spent waiting for a process","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":69,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":69,"text":"that no longer exists, and halving the lease buys that back with 11 violations.","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":70,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:done","mono":70,"ok":true,"outputs":57,"anomalies":0}

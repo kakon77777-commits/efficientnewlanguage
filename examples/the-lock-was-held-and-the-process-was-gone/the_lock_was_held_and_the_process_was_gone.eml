@@ -1,0 +1,112 @@
+# Self-authored for the EML case corpus (no external origin). The lock is held
+# and the store is right about that. How long the work waits for a holder that
+# no longer exists is computed below.
+#
+# The lock is implemented correctly. Acquisition is a single conditional write,
+# so two holders is impossible; the key carries a time to live, so a crash
+# cannot wedge it forever; and the holder refreshes while it works. Every claim
+# in that sentence is true and the implementation has no race in it.
+#
+# What the key records is that SOMETHING acquired it and the clock has not run
+# out. Whether that something is still running is a different fact, held on a
+# different machine, and the store has no way to observe it.
+#
+# The holder is killed for memory thirty-four times a week. The key survives it
+# every time, and every waiter behaves correctly for the remainder of the lease.
+
+900 => ttl_seconds
+34 => holder_deaths_per_week
+# Measured across those deaths: the lease time still on the clock when the
+# process stopped refreshing it.
+451 => mean_seconds_left_on_the_lease
+0 => double_holder_events
+
+holder_deaths_per_week * mean_seconds_left_on_the_lease => stalled_seconds_per_week
+int(stalled_seconds_per_week / 60) => stalled_minutes_per_week
+
+"lease, seconds                  : " + str(ttl_seconds) ^0
+"holder deaths per week          : " + str(holder_deaths_per_week) ^0
+"mean lease left when it died    : " + str(mean_seconds_left_on_the_lease) ^0
+"stalled seconds per week        : " + str(stalled_seconds_per_week) ^0
+"stalled minutes per week        : " + str(stalled_minutes_per_week) ^0
+"" ^0
+
+# ---- what the lock verified ----
+
+"the lock's own guarantees" ^0
+"  acquisition        : one conditional write" ^0
+"  two holders at once: " + str(double_holder_events) + " ever observed" ^0
+"  wedged forever     : impossible, the lease expires" ^0
+"  refresh while working : implemented" ^0
+"  verdict            : CORRECT" ^0
+"" ^0
+"  there is no race here and no amount of review will find" ^0
+"  one; the mutual exclusion is sound" ^0
+"" ^0
+
+# ---- what it cannot observe ----
+
+"the two facts" ^0
+"  a holder acquired this key      : in the store" ^0
+"  the holder is still running     : on another machine" ^0
+"  the store's evidence for the second : the first, plus" ^0
+"    a clock" ^0
+"" ^0
+"  a lease is a bet that a live holder refreshes faster than" ^0
+"  the clock runs, and a dead one loses that bet slowly" ^0
+"" ^0
+
+int(mean_seconds_left_on_the_lease * 10000 / ttl_seconds) => wasted_per_myriad
+"share of a lease spent waiting on nobody : " + str(wasted_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- why shortening it is not the fix ----
+
+# A shorter lease cuts the stall and moves the failure to the other side: a
+# holder paused longer than the lease loses it while still working, and then
+# two processes each believe they hold it.
+60 => shorter_ttl_seconds
+11 => pauses_longer_than_sixty_seconds_per_week
+
+"the lease at sixty seconds instead" ^0
+"  mean stall per death, seconds : 30" ^0
+"  holder pauses exceeding it    : " + str(pauses_longer_than_sixty_seconds_per_week) + " per week" ^0
+"  each of those is two holders  : yes" ^0
+"" ^0
+"  the lease length trades a stall against a violation and" ^0
+"  cannot remove either" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same lock with a fencing token: the lease still expires, and a resumed
+# holder's writes are rejected because its token is older than the current one.
+0 => nc_double_holder_writes
+holder_deaths_per_week => nc_deaths_unchanged
+
+"null control - the same lease, plus a fencing token" ^0
+"  lease behaviour        : unchanged" ^0
+"  holder deaths per week : " + str(nc_deaths_unchanged) + ", unchanged" ^0
+"  writes from a second believer : " + str(nc_double_holder_writes) ^0
+"  the lock did not get better; the resource started" ^0
+"  refusing writes that carry a stale token" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a correct lock guarantees" ^0
+"  at most one holder acquired this key : exactly" ^0
+"  the holder is alive and working      : not addressed;" ^0
+"    liveness is a property of a process, and the store" ^0
+"    holds a key and a clock" ^0
+"" ^0
+"a lease converts an unanswerable question into a timer; the" ^0
+"timer is always either too long to wait for or too short to" ^0
+"survive a pause, and the way out is at the resource" ^0
+"" ^0
+
+"The lock is correct and there has never been a double holder: one conditional" ^0
+"write, a lease that cannot wedge, refresh while working. Its holder dies " + str(holder_deaths_per_week) ^0
+"times a week with a mean of " + str(mean_seconds_left_on_the_lease) + " seconds still on the clock - " + str(wasted_per_myriad) + " per ten" ^0
+"thousand of a lease - so " + str(stalled_minutes_per_week) + " minutes a week are spent waiting for a process" ^0
+"that no longer exists, and halving the lease buys that back with " + str(pauses_longer_than_sixty_seconds_per_week) + " violations." ^0

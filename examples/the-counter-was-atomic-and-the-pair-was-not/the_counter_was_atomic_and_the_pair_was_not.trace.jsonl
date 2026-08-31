@@ -1,0 +1,70 @@
+{"stream":"eml","proto":"eml-trace-v1","seq":1,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:start","mono":1,"file":"the_counter_was_atomic_and_the_pair_was_not.eml","statements":68}
+{"stream":"eml","proto":"eml-trace-v1","seq":2,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":2,"name":"seat_limit","value":"500","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":3,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":3,"name":"claim_attempts","value":"2400","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":4,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":4,"name":"workers","value":"16","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":5,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":5,"name":"seats_granted","value":"523","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":6,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":6,"name":"increments_lost","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":7,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":7,"name":"seats_beyond_the_limit","value":"23","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":8,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":8,"name":"claims_correctly_refused","value":"1877","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":9,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":9,"text":"seat limit               : 500","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":10,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":10,"text":"claim attempts           : 2400","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":11,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":11,"text":"concurrent workers       : 16","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":12,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":12,"text":"seats granted            : 523","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":13,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":13,"text":"granted beyond the limit : 23","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":14,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":14,"text":"claims refused           : 1877","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":15,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":15,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":16,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":16,"text":"the counter under the stress test","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":17,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":17,"text":"  increments issued : 2400","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18,"text":"  increments lost   : 0","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":19,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":19,"text":"  torn reads        : 0","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":20,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":20,"text":"  final value equals the number issued : yes","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":21,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":21,"text":"  verdict           : ATOMIC","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":22,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":22,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":23,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":23,"text":"  every claim in this test is true, and the counter would","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":24,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":24,"text":"  survive a far harsher one","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":25,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":25,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":26,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":26,"text":"one booking, in operations","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":27,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":27,"text":"  1. read the counter    : atomic","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":28,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":28,"text":"  2. compare to the limit: on the value read in step 1","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":29,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":29,"text":"  3. increment           : atomic","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":30,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":30,"text":"  held across 1 to 3     : nothing","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":31,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":31,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":32,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":32,"text":"  the limit is enforced against a value that was true when","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":33,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":33,"text":"  it was read and need not be true when step 3 runs","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":34,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":34,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":35,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":35,"name":"overshoot_per_myriad","value":"460","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":36,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":36,"text":"overshoot against the limit : 460 per ten thousand","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":37,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":37,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":38,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":38,"text":"the size of the window","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":39,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":39,"text":"  workers that can sit between read and increment : 16","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":40,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":40,"text":"  overshoot observed                              : 23","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":41,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":41,"text":"  overshoot at one worker                         : 0","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":42,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":42,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":43,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":43,"text":"  the bug is a function of the fleet size, so it arrives","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":44,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":44,"text":"  when the service is scaled and not when it is written","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":45,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":45,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":46,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":46,"name":"nc_seats_granted","value":"500","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":47,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":47,"name":"nc_seats_beyond_the_limit","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":48,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":48,"text":"null control - compare-and-swap instead of read then add","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":49,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":49,"text":"  increments lost          : 0, unchanged","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":50,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":50,"text":"  seats granted            : 500","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":51,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":51,"text":"  granted beyond the limit : 0","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":52,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":52,"text":"  the counter did not become more atomic; the check and","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":53,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":53,"text":"  the increment became one operation instead of two","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":54,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":54,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":55,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":55,"text":"what an atomic counter guarantees","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":56,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":56,"text":"  no increment is lost                 : exactly","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":57,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":57,"text":"  a limit tested against it is honoured: not addressed;","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":58,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":58,"text":"    atomicity is a property of one operation and a limit","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":59,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":59,"text":"    is a relation between two","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":60,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":60,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":61,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":61,"text":"composing atomics does not compose their atomicity; the","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":62,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":62,"text":"question is never whether each step is indivisible but","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":63,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":63,"text":"whether anything can change between them","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":64,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":64,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":65,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":65,"text":"The counter is atomic and the stress test is right to say so: 2400 increments","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":66,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":66,"text":"issued, 0 lost, 0 torn reads, final value exact. 523 seats were granted","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":67,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":67,"text":"against a limit of 500 - 23 beyond it, 460 per ten thousand - because","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":68,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":68,"text":"the read, the comparison and the increment are three atomic operations with","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":69,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":69,"text":"nothing held across them, and 16 workers can stand between the first and last.","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":70,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:done","mono":70,"ok":true,"outputs":58,"anomalies":0}

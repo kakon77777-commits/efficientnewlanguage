@@ -1,0 +1,111 @@
+# Self-authored for the EML case corpus (no external origin). The replica has
+# never diverged from the primary by a single row. How many sessions it ends
+# early is computed below.
+#
+# Replication consistency is checked properly here: the replica applies the
+# primary's log in order, a nightly job compares every row of every table by
+# checksum, and it has reported zero divergence for the life of the cluster.
+# There is no stale read, no lost update, no row that says one thing here and
+# another there.
+#
+# Consistency is a statement about the STORED VALUES. Every query that compares
+# a stored value to the current time introduces a second operand the replication
+# stream never carried, and that one comes from whichever machine is answering.
+#
+# The replica's clock is three hundred and forty milliseconds ahead. Tokens are
+# thirty seconds long. For the last three hundred and forty milliseconds of its
+# life, a token is valid on the primary and expired here.
+
+62400000 => validations_per_day
+30000 => token_ttl_ms
+340 => replica_clock_ahead_ms
+0 => rows_diverged
+
+# Arrivals are uniform across the token's life, so the share landing in the
+# disputed window is the share of the life the window occupies.
+int(validations_per_day * replica_clock_ahead_ms / token_ttl_ms) => rejected_while_still_valid
+# Clients that retry land on the primary through the writer endpoint.
+604000 => retried_and_succeeded
+rejected_while_still_valid - retried_and_succeeded => surfaced_to_a_person
+
+"validations per day             : " + str(validations_per_day) ^0
+"token lifetime, ms              : " + str(token_ttl_ms) ^0
+"replica clock ahead by, ms      : " + str(replica_clock_ahead_ms) ^0
+"rejected while still valid      : " + str(rejected_while_still_valid) ^0
+"  recovered by a retry          : " + str(retried_and_succeeded) ^0
+"  reached a person              : " + str(surfaced_to_a_person) ^0
+"" ^0
+
+# ---- what the consistency check verified ----
+
+"the nightly row comparison" ^0
+"  tables compared      : all" ^0
+"  rows compared        : all" ^0
+"  rows diverged        : " + str(rows_diverged) ^0
+"  replication lag, rows: 0" ^0
+"  verdict              : CONSISTENT" ^0
+"" ^0
+"  the check is exhaustive and its answer is correct; the" ^0
+"  replica holds exactly the primary's bytes" ^0
+"" ^0
+
+# ---- what the query compares ----
+
+"validating a token here" ^0
+"  expires_at : replicated, byte-identical to the primary" ^0
+"  now()      : read from this machine's clock" ^0
+"  the comparison mixes a value the log carried with one" ^0
+"  it did not" ^0
+"" ^0
+"  no amount of replication correctness constrains the" ^0
+"  second operand" ^0
+"" ^0
+
+int(rejected_while_still_valid * 10000 / validations_per_day) => rejected_per_myriad
+"share rejected early : " + str(rejected_per_myriad) + " per ten thousand of validations" ^0
+"" ^0
+
+# ---- why it reads as flaky ----
+
+# A retry usually works, because the writer endpoint answers from the primary
+# and the primary's clock says the token is alive. The same token, the same
+# second, two answers.
+"the shape a user sees" ^0
+"  first attempt  : rejected, session ended" ^0
+"  retry          : accepted, same token, same second" ^0
+"  logged as      : transient" ^0
+"  reproduced in staging : no, the staging clock agrees" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same cluster with the replica's clock disciplined to within two
+# milliseconds. The mechanism does not disappear; it shrinks to the accuracy.
+2 => nc_clock_ahead_ms
+int(validations_per_day * nc_clock_ahead_ms / token_ttl_ms) => nc_rejected_while_still_valid
+
+"null control - the same replica, clock within two ms" ^0
+"  rows diverged              : " + str(rows_diverged) + ", unchanged" ^0
+"  rejected while still valid : " + str(nc_rejected_while_still_valid) ^0
+"  it does not reach zero; the window is the clock error," ^0
+"  and disciplining a clock bounds that error rather than" ^0
+"  removing it" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a consistent replica guarantees" ^0
+"  the values here equal the values there : exactly" ^0
+"  a query here answers as it would there : not addressed," ^0
+"    for any query whose operands are not all values" ^0
+"" ^0
+"replication carries data, and a comparison against the" ^0
+"current time is not data; the fix is to compare against a" ^0
+"time the primary stamped, not to replicate harder" ^0
+"" ^0
+
+"The replica is consistent and the nightly comparison is right to say so:" ^0
+"every table, every row, " + str(rows_diverged) + " diverged. Its clock is " + str(replica_clock_ahead_ms) + " ms ahead of a" ^0
+str(token_ttl_ms) + " ms token, so " + str(rejected_while_still_valid) + " validations a day - " + str(rejected_per_myriad) + " per ten thousand -" ^0
+"are rejected while the primary would accept them; " + str(retried_and_succeeded) + " recover on a retry that" ^0
+"reaches the primary, and " + str(surfaced_to_a_person) + " end a session that had not expired." ^0

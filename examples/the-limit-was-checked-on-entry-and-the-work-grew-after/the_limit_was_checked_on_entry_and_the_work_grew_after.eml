@@ -1,0 +1,105 @@
+# Self-authored for the EML case corpus (no external origin). The request body
+# limit is enforced on every request and no oversized body has ever got through.
+# What one accepted body costs is computed below.
+#
+# The limit is real and correctly applied. It is checked before the body is
+# read into memory, it is checked against the actual byte count rather than a
+# declared header, and the rejection is counted. Nothing about its enforcement
+# is sloppy, and it has rejected genuine oversized uploads.
+#
+# What it bounds is the WIRE. The service's cost is not the wire; it is the
+# structure the wire expands into, and between those two sits a factor the
+# admission check has no view of.
+#
+# A body under the limit expands four hundred and twelve times. The concurrency
+# the limit implies and the concurrency the memory allows differ by more than
+# two orders of magnitude.
+
+1048576 => limit_bytes
+918000 => accepted_body_bytes
+412 => expansion_factor
+2147483648 => worker_memory_bytes
+0 => oversized_bodies_admitted
+
+accepted_body_bytes * expansion_factor => expanded_bytes
+# What the limit implies if you size concurrency on the number it bounds.
+int(worker_memory_bytes / accepted_body_bytes) => concurrency_the_limit_implies
+# What actually fits.
+int(worker_memory_bytes / expanded_bytes) => concurrency_that_fits
+
+"limit, bytes                 : " + str(limit_bytes) ^0
+"an accepted body, bytes      : " + str(accepted_body_bytes) ^0
+"what it expands to, bytes    : " + str(expanded_bytes) ^0
+"" ^0
+"worker memory, bytes         : " + str(worker_memory_bytes) ^0
+"concurrency the limit implies: " + str(concurrency_the_limit_implies) ^0
+"concurrency that fits        : " + str(concurrency_that_fits) ^0
+"" ^0
+
+# ---- what the check verified ----
+
+"the admission check" ^0
+"  measured             : actual bytes read, not a header" ^0
+"  checked before       : the body reaches memory" ^0
+"  oversized admitted   : " + str(oversized_bodies_admitted) ^0
+"  genuine oversized uploads rejected this month : 1840" ^0
+"  verdict              : ENFORCED" ^0
+"" ^0
+"  the check is not a formality and it is not bypassable;" ^0
+"  it does exactly what it says" ^0
+"" ^0
+
+# ---- what it did not bound ----
+
+int(accepted_body_bytes * 10000 / limit_bytes) => share_of_limit_used_per_myriad
+"the accepted body" ^0
+"  share of the limit it used : " + str(share_of_limit_used_per_myriad) + " per ten thousand" ^0
+"  under the limit            : yes, comfortably" ^0
+"  expansion factor           : " + str(expansion_factor) ^0
+"" ^0
+"  the factor is a property of the CONTENT - nesting depth" ^0
+"  and repeat counts - and the check reads a length" ^0
+"" ^0
+
+# ---- the gap ----
+
+int(concurrency_the_limit_implies / concurrency_that_fits) => how_far_out_the_estimate_is
+
+"sizing the fleet on the limit" ^0
+"  workers provisioned for     : " + str(concurrency_the_limit_implies) + " concurrent" ^0
+"  workers survive             : " + str(concurrency_that_fits) + " concurrent" ^0
+"  the estimate is out by      : " + str(how_far_out_the_estimate_is) + " times" ^0
+"" ^0
+"  every request in the overshoot is individually legal" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same limit, applied after expansion instead of before.
+int(limit_bytes / expansion_factor) => nc_admissible_body_bytes
+0 => nc_workers_lost
+
+"null control - the limit applied to the expanded form" ^0
+"  body admissible, bytes : " + str(nc_admissible_body_bytes) ^0
+"  workers lost to a legal request : " + str(nc_workers_lost) ^0
+"  the limit did not change; the quantity it is measured" ^0
+"  against became the one that costs something" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what an entry limit guarantees" ^0
+"  no request larger than this arrives : exactly" ^0
+"  no request costs more than this     : not addressed, for" ^0
+"    any input whose processing is not linear in its length" ^0
+"" ^0
+"a limit binds the quantity it is measured against; put it on" ^0
+"the wire and it bounds bandwidth, and the resource that runs" ^0
+"out is whichever one the expansion multiplies" ^0
+"" ^0
+
+"The limit is enforced on every request and " + str(oversized_bodies_admitted) + " oversized bodies have got" ^0
+"through. A body of " + str(accepted_body_bytes) + " bytes - " + str(share_of_limit_used_per_myriad) + " per ten thousand of the limit -" ^0
+"expands " + str(expansion_factor) + " times to " + str(expanded_bytes) + " bytes, so a worker sized on the number the" ^0
+"limit bounds expects " + str(concurrency_the_limit_implies) + " concurrent requests and survives " + str(concurrency_that_fits) + "," ^0
+"an estimate out by " + str(how_far_out_the_estimate_is) + " times made entirely of individually legal requests." ^0

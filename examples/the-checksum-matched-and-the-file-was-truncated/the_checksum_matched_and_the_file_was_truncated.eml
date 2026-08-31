@@ -1,0 +1,113 @@
+# Self-authored for the EML case corpus (no external origin). The stored object
+# passes its integrity check on every pass, and has done for months. How much of
+# the file is there is computed below.
+#
+# The upload is checksummed end to end. The client streams the object, the store
+# computes a digest over the bytes it receives, and every later verification
+# recomputes that digest and compares. It has never disagreed. This is not a
+# weak check: it catches a single flipped bit anywhere in six gigabytes, and it
+# caught two of them last quarter on failing disks.
+#
+# A checksum answers "are these the bytes I already had". It is computed over
+# what ARRIVED, and it is stored beside what arrived. Nothing in that loop knows
+# what was sent.
+#
+# The connection dropped at seventy-two percent. The store had a complete,
+# self-consistent object at that moment, and it wrote the digest of it.
+
+36 => record_bytes
+240000000 => records_at_source
+172600000 => records_stored
+412 => verification_passes_since_upload
+2 => bit_flips_caught_last_quarter
+
+records_at_source * record_bytes => bytes_at_source
+records_stored * record_bytes => bytes_stored
+# Named from the records, not as `bytes_at_source - bytes_stored`. Writing the
+# subtraction makes the missing bytes true by construction, which is the one
+# thing this case is trying not to assume.
+records_at_source - records_stored => records_missing
+records_missing * record_bytes => bytes_missing
+
+"records at the source     : " + str(records_at_source) ^0
+"records in the object     : " + str(records_stored) ^0
+"records not there         : " + str(records_missing) ^0
+"" ^0
+"bytes at the source       : " + str(bytes_at_source) ^0
+"bytes in the object       : " + str(bytes_stored) ^0
+"bytes not there           : " + str(bytes_missing) ^0
+"" ^0
+
+# ---- what the integrity check verified ----
+
+"the integrity check, run nightly" ^0
+"  stored digest    : matches the recomputed digest" ^0
+"  passes so far    : " + str(verification_passes_since_upload) ^0
+"  failures         : 0" ^0
+"  bit flips caught last quarter : " + str(bit_flips_caught_last_quarter) ^0
+"  verdict          : INTACT" ^0
+"" ^0
+"  the check is real; it found two corrupted blocks on" ^0
+"  failing disks and it would find a third" ^0
+"" ^0
+
+# ---- what it compared ----
+
+"the two values the check reads" ^0
+"  digest recomputed over : the stored bytes" ^0
+"  digest on record       : computed over the same stored bytes" ^0
+"  bytes the client sent  : not recorded anywhere" ^0
+"  length the client meant: never declared" ^0
+"" ^0
+"  both operands come from the same side of the transfer," ^0
+"  so agreement is a fact about storage, not about arrival" ^0
+"" ^0
+
+int(records_missing * 10000 / records_at_source) => missing_per_myriad
+"share of the file absent : " + str(missing_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what reads it ----
+
+# The reader stops at end of object. There is no sentinel record, so a short
+# file and a complete file are the same shape to it.
+"the nightly aggregate over this object" ^0
+"  rows read      : " + str(records_stored) ^0
+"  rows expected  : the reader has no expectation" ^0
+"  errors raised  : 0" ^0
+"  the total it reports is a true total of what it read" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same dropped connection, with the client declaring the length up front
+# and the store refusing a short object.
+0 => nc_records_stored
+records_at_source => nc_records_after_retry
+
+"null control - the same drop, with a declared length" ^0
+"  object committed on the short write : no" ^0
+"  records stored at that moment       : " + str(nc_records_stored) ^0
+"  records after the retry             : " + str(nc_records_after_retry) ^0
+"  the digest did not get better; a second value" ^0
+"  arrived for it to disagree with" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a matching checksum guarantees" ^0
+"  these bytes are unchanged since they were stored : exactly" ^0
+"  these bytes are all the bytes there were         : not" ^0
+"    addressed, and cannot be, because the quantity that" ^0
+"    would settle it was never transmitted" ^0
+"" ^0
+"integrity and completeness are different questions; a digest" ^0
+"answers the first, and only a length or a terminator the" ^0
+"sender chose can answer the second" ^0
+"" ^0
+
+"The object is intact and the nightly check is right to say so: " + str(verification_passes_since_upload) + " passes," ^0
+"0 failures, and " + str(bit_flips_caught_last_quarter) + " real corruptions caught last quarter. It holds " + str(records_stored) ^0
+"of " + str(records_at_source) + " records - " + str(missing_per_myriad) + " per ten thousand of the file is absent -" ^0
+"and every aggregate built on it reports a true total of what is there, because" ^0
+"the digest was computed after the connection dropped and agrees with itself." ^0
