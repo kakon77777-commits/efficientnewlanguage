@@ -1,0 +1,84 @@
+{"stream":"eml","proto":"eml-trace-v1","seq":1,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:start","mono":1,"file":"the_index_was_rebuilt_and_the_statistics_were_not.eml","statements":82}
+{"stream":"eml","proto":"eml-trace-v1","seq":2,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":2,"name":"rows_actual","value":"12400000","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":3,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":3,"name":"rows_in_the_statistics","value":"41000","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":4,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":4,"name":"queries_per_hour","value":"84000","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":5,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":5,"name":"dead_space_percent_before","value":"40","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":6,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":6,"name":"index_scans_chosen","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":7,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":7,"name":"estimate_wrong_by","value":"302","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":8,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":8,"name":"rows_the_planner_cannot_see","value":"12359000","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":9,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":9,"text":"rows in the table          : 12400000","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":10,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":10,"text":"rows in the statistics     : 41000","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":11,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":11,"text":"rows the planner cannot see: 12359000","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":12,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":12,"text":"the estimate is out by     : 302 times","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":13,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":13,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":14,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":14,"text":"the rebuild's report","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":15,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":15,"text":"  dead space before, percent : 40","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":16,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":16,"text":"  dead space after, percent  : 0","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":17,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":17,"text":"  tree depth                 : one level shallower","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":18,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":18,"text":"  entries pointing at dead rows : 0","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":19,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":19,"text":"  corruption found           : none","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":20,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":20,"text":"  verdict                    : REBUILT","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":21,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":21,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":22,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":22,"text":"  all true, and the bloat was real; deferring this is how","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":23,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":23,"text":"  an index stops fitting in memory","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":24,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":24,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":25,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":25,"text":"planning one query","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":26,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":26,"text":"  index condition matches    : yes","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":27,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":27,"text":"  index is usable            : yes","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":28,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":28,"text":"  estimated rows to return   : 41000, from the statistics","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":29,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":29,"text":"  at that estimate the cheaper plan is : a sequential scan","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":30,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":30,"text":"  index scans chosen this hour : 0","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":31,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":31,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":32,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":32,"text":"  the planner is not wrong; it is answering correctly from","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":33,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":33,"text":"  a number nobody refreshed","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":34,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":34,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":35,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":35,"name":"mean_ms_before_the_rebuild","value":"940","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":36,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":36,"name":"mean_ms_after_the_rebuild","value":"940","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":37,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":37,"name":"mean_ms_after_statistics_were_collected","value":"3","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":38,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":38,"text":"mean query time, ms","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":39,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":39,"text":"  before the rebuild            : 940","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":40,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":40,"text":"  after the rebuild             : 940","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":41,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":41,"text":"  after collecting statistics   : 3","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":42,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":42,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":43,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":43,"name":"improvement_from_the_rebuild","value":"0","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":44,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":44,"name":"improvement_from_one_analyze","value":"313","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":45,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":45,"text":"  the rebuild moved it by, ms   : 0","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":46,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":46,"text":"  one statistics collection moved it by : 313 times","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":47,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":47,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":48,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":48,"name":"ms_spent_per_hour","value":"78960000","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":49,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":49,"name":"seconds_spent_per_hour","value":"78960","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":50,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":50,"text":"queries per hour            : 84000","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":51,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":51,"text":"seconds of query time / hour: 78960","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":52,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":52,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":53,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":53,"text":"the maintenance window","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":54,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":54,"text":"  planned    : rebuild the index","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":55,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":55,"text":"  verified   : the index is rebuilt","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":56,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":56,"text":"  measured   : dead space, tree depth, entry validity","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":57,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":57,"text":"  not measured : whether any query reaches it","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":58,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":58,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":59,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":59,"name":"nc_rows_in_the_statistics","value":"12400000","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":60,"ts":"1970-01-01T00:00:00.000Z","type":"eml:assign","mono":60,"name":"nc_index_scans_chosen","value":"84000","declares":true}
+{"stream":"eml","proto":"eml-trace-v1","seq":61,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":61,"text":"null control - the same rebuild, then collect statistics","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":62,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":62,"text":"  rows in the statistics   : 12400000","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":63,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":63,"text":"  index scans chosen /hour : 84000","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":64,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":64,"text":"  mean query time, ms      : 3","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":65,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":65,"text":"  the index did not improve; the planner stopped being","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":66,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":66,"text":"  told the table was small","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":67,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":67,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":68,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":68,"text":"what a rebuilt index guarantees","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":69,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":69,"text":"  this structure is compact and correct : exactly","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":70,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":70,"text":"  queries will use it                   : not addressed;","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":71,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":71,"text":"    use is a planner decision taken from statistics, and","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":72,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":72,"text":"    the rebuild rewrote what the statistics describe","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":73,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":73,"text":"    without rewriting the statistics","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":74,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":74,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":75,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":75,"text":"maintenance that changes an object and a decision that reads","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":76,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":76,"text":"a description of it are two different clocks; the object can","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":77,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":77,"text":"be perfect and unreachable","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":78,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":78,"text":"","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":79,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":79,"text":"The index is rebuilt and the report is right: 40 percent dead space gone,","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":80,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":80,"text":"a level shallower, 0 entries pointing at dead rows. The statistics still say","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":81,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":81,"text":"41000 rows against 12400000 - an estimate out by 302 times, hiding","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":82,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":82,"text":"12359000 rows - so 0 of 84000 queries an hour reach it, the rebuild","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":83,"ts":"1970-01-01T00:00:00.000Z","type":"eml:output","mono":83,"text":"moved the mean by 0 ms, and one statistics collection moves it by 313 times.","end":"\n"}
+{"stream":"eml","proto":"eml-trace-v1","seq":84,"ts":"1970-01-01T00:00:00.000Z","type":"eml:run:done","mono":84,"ok":true,"outputs":66,"anomalies":0}

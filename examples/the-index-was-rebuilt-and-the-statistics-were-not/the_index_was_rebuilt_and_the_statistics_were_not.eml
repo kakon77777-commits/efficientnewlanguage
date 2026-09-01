@@ -1,0 +1,127 @@
+# Self-authored for the EML case corpus (no external origin). The index is
+# rebuilt, unbloated and correct. How many queries use it is computed below.
+#
+# The rebuild did what it promises. The tree was forty percent dead space from
+# six months of updates; it is now packed, its depth is one level shallower, and
+# every entry in it points at a live row. Nothing about the index is stale and
+# nothing about the rebuild was wasted.
+#
+# Whether a query USES an index is not decided by the index. It is decided by
+# the planner, from table statistics, and a rebuild does not collect statistics
+# — it rewrites the structure the statistics describe without touching the
+# description.
+#
+# The last statistics were collected before a bulk load. They say the table has
+# forty-one thousand rows. It has twelve million four hundred thousand, and at
+# forty-one thousand a sequential scan is the correct plan.
+
+12400000 => rows_actual
+41000 => rows_in_the_statistics
+84000 => queries_per_hour
+40 => dead_space_percent_before
+0 => index_scans_chosen
+
+int(rows_actual / rows_in_the_statistics) => estimate_wrong_by
+rows_actual - rows_in_the_statistics => rows_the_planner_cannot_see
+
+"rows in the table          : " + str(rows_actual) ^0
+"rows in the statistics     : " + str(rows_in_the_statistics) ^0
+"rows the planner cannot see: " + str(rows_the_planner_cannot_see) ^0
+"the estimate is out by     : " + str(estimate_wrong_by) + " times" ^0
+"" ^0
+
+# ---- what the rebuild verified ----
+
+"the rebuild's report" ^0
+"  dead space before, percent : " + str(dead_space_percent_before) ^0
+"  dead space after, percent  : 0" ^0
+"  tree depth                 : one level shallower" ^0
+"  entries pointing at dead rows : 0" ^0
+"  corruption found           : none" ^0
+"  verdict                    : REBUILT" ^0
+"" ^0
+"  all true, and the bloat was real; deferring this is how" ^0
+"  an index stops fitting in memory" ^0
+"" ^0
+
+# ---- what chooses the plan ----
+
+"planning one query" ^0
+"  index condition matches    : yes" ^0
+"  index is usable            : yes" ^0
+"  estimated rows to return   : " + str(rows_in_the_statistics) + ", from the statistics" ^0
+"  at that estimate the cheaper plan is : a sequential scan" ^0
+"  index scans chosen this hour : " + str(index_scans_chosen) ^0
+"" ^0
+"  the planner is not wrong; it is answering correctly from" ^0
+"  a number nobody refreshed" ^0
+"" ^0
+
+# ---- what it cost ----
+
+# The rebuild is measured on the index and the index is not on the path.
+940 => mean_ms_before_the_rebuild
+940 => mean_ms_after_the_rebuild
+3 => mean_ms_after_statistics_were_collected
+
+"mean query time, ms" ^0
+"  before the rebuild            : " + str(mean_ms_before_the_rebuild) ^0
+"  after the rebuild             : " + str(mean_ms_after_the_rebuild) ^0
+"  after collecting statistics   : " + str(mean_ms_after_statistics_were_collected) ^0
+"" ^0
+mean_ms_before_the_rebuild - mean_ms_after_the_rebuild => improvement_from_the_rebuild
+int(mean_ms_before_the_rebuild / mean_ms_after_statistics_were_collected) => improvement_from_one_analyze
+"  the rebuild moved it by, ms   : " + str(improvement_from_the_rebuild) ^0
+"  one statistics collection moved it by : " + str(improvement_from_one_analyze) + " times" ^0
+"" ^0
+
+queries_per_hour * mean_ms_before_the_rebuild => ms_spent_per_hour
+int(ms_spent_per_hour / 1000) => seconds_spent_per_hour
+"queries per hour            : " + str(queries_per_hour) ^0
+"seconds of query time / hour: " + str(seconds_spent_per_hour) ^0
+"" ^0
+
+# ---- why the maintenance window looked successful ----
+
+# The window's success criterion was the thing the window changed. Nobody
+# checked the plan, because the plan is not an index property.
+"the maintenance window" ^0
+"  planned    : rebuild the index" ^0
+"  verified   : the index is rebuilt" ^0
+"  measured   : dead space, tree depth, entry validity" ^0
+"  not measured : whether any query reaches it" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same window, with statistics collected after the rebuild.
+rows_actual => nc_rows_in_the_statistics
+queries_per_hour => nc_index_scans_chosen
+
+"null control - the same rebuild, then collect statistics" ^0
+"  rows in the statistics   : " + str(nc_rows_in_the_statistics) ^0
+"  index scans chosen /hour : " + str(nc_index_scans_chosen) ^0
+"  mean query time, ms      : " + str(mean_ms_after_statistics_were_collected) ^0
+"  the index did not improve; the planner stopped being" ^0
+"  told the table was small" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a rebuilt index guarantees" ^0
+"  this structure is compact and correct : exactly" ^0
+"  queries will use it                   : not addressed;" ^0
+"    use is a planner decision taken from statistics, and" ^0
+"    the rebuild rewrote what the statistics describe" ^0
+"    without rewriting the statistics" ^0
+"" ^0
+"maintenance that changes an object and a decision that reads" ^0
+"a description of it are two different clocks; the object can" ^0
+"be perfect and unreachable" ^0
+"" ^0
+
+"The index is rebuilt and the report is right: " + str(dead_space_percent_before) + " percent dead space gone," ^0
+"a level shallower, 0 entries pointing at dead rows. The statistics still say" ^0
+str(rows_in_the_statistics) + " rows against " + str(rows_actual) + " - an estimate out by " + str(estimate_wrong_by) + " times, hiding" ^0
+str(rows_the_planner_cannot_see) + " rows - so " + str(index_scans_chosen) + " of " + str(queries_per_hour) + " queries an hour reach it, the rebuild" ^0
+"moved the mean by " + str(improvement_from_the_rebuild) + " ms, and one statistics collection moves it by " + str(improvement_from_one_analyze) + " times." ^0

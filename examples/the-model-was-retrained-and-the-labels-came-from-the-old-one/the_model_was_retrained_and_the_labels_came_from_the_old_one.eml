@@ -1,0 +1,118 @@
+# Self-authored for the EML case corpus (no external origin). The model is
+# retrained monthly on fresh data and its holdout accuracy is up again. What it
+# got better at is computed below.
+#
+# The pipeline is sound. The holdout is split before any feature is computed, no
+# row appears in both halves, the split is by customer rather than by row so
+# nothing leaks across, and the metric is computed once at the end by a job
+# nobody can rerun until the next month. The number it produces is honest.
+#
+# Accuracy is measured AGAINST LABELS. Two percent of them are human decisions.
+# The other ninety-eight are last month's model's predictions, written back
+# because reviewing eight million rows by hand is not possible.
+#
+# So the metric asks how well this model agrees with the previous one, and the
+# answer to that has been going up for five months.
+
+8600000 => training_rows
+172000 => human_reviewed_rows
+9210 => holdout_accuracy_before_per_myriad
+9640 => holdout_accuracy_after_per_myriad
+9180 => human_subset_accuracy_before_per_myriad
+9120 => human_subset_accuracy_after_per_myriad
+5 => months_of_this
+
+training_rows - human_reviewed_rows => model_labelled_rows
+holdout_accuracy_after_per_myriad - holdout_accuracy_before_per_myriad => headline_gain
+human_subset_accuracy_after_per_myriad - human_subset_accuracy_before_per_myriad => ground_truth_change
+
+"training rows           : " + str(training_rows) ^0
+"  labelled by a human   : " + str(human_reviewed_rows) ^0
+"  labelled by last month's model : " + str(model_labelled_rows) ^0
+"" ^0
+"holdout accuracy before : " + str(holdout_accuracy_before_per_myriad) + " per ten thousand" ^0
+"holdout accuracy after  : " + str(holdout_accuracy_after_per_myriad) + " per ten thousand" ^0
+"headline gain           : " + str(headline_gain) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the pipeline verified ----
+
+"the evaluation" ^0
+"  split before feature computation : yes" ^0
+"  rows in both halves              : 0" ^0
+"  split by customer, not by row    : yes" ^0
+"  metric computed once, by a job nobody can rerun : yes" ^0
+"  verdict                          : NO LEAKAGE" ^0
+"" ^0
+"  every one of those is a real precaution and each of them" ^0
+"  prevents a real failure; none of them is theatre" ^0
+"" ^0
+
+# ---- what the labels are ----
+
+int(model_labelled_rows * 10000 / training_rows) => model_labelled_per_myriad
+"where the answer key comes from" ^0
+"  human decisions       : " + str(human_reviewed_rows) ^0
+"  previous model output : " + str(model_labelled_rows) ^0
+"  share from the model  : " + str(model_labelled_per_myriad) + " per ten thousand" ^0
+"" ^0
+"  the holdout is split from the same pool, so both halves" ^0
+"  are labelled the same way; the leakage check is looking" ^0
+"  for rows crossing the split and the problem is upstream" ^0
+"  of it" ^0
+"" ^0
+
+# ---- the one measurement against people ----
+
+"accuracy on the human-reviewed subset" ^0
+"  before : " + str(human_subset_accuracy_before_per_myriad) + " per ten thousand" ^0
+"  after  : " + str(human_subset_accuracy_after_per_myriad) + " per ten thousand" ^0
+"  change : " + str(ground_truth_change) + " per ten thousand" ^0
+"" ^0
+"  the headline moved " + str(headline_gain) + " the other way; the two numbers" ^0
+"  are measuring agreement with two different things" ^0
+"" ^0
+
+# ---- what five months of this looks like ----
+
+months_of_this * headline_gain => headline_gain_if_it_repeated
+"over " + str(months_of_this) + " months at this rate" ^0
+"  headline improvement, per ten thousand : " + str(headline_gain_if_it_repeated) ^0
+"  measured against people                : falling" ^0
+"  reviewers asked to check more rows     : no, the metric" ^0
+"    is going up" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same pipeline with the holdout labelled entirely by review, and the
+# training pool left as it is.
+0 => nc_holdout_rows_labelled_by_the_model
+human_subset_accuracy_after_per_myriad => nc_holdout_accuracy_after_per_myriad
+
+"null control - a human-labelled holdout, same training pool" ^0
+"  leakage verdict          : unchanged, still none" ^0
+"  holdout rows from the model : " + str(nc_holdout_rows_labelled_by_the_model) ^0
+"  holdout accuracy after   : " + str(nc_holdout_accuracy_after_per_myriad) + " per ten thousand" ^0
+"  the model did not get worse; the metric started" ^0
+"  answering the question it was being read as answering" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a clean holdout guarantees" ^0
+"  the metric is not inflated by seen rows : exactly" ^0
+"  the metric measures being right         : not addressed;" ^0
+"    it measures agreement with the labels, and where the" ^0
+"    labels come from is upstream of every split" ^0
+"" ^0
+"a leakage check compares the two halves of a pool and cannot" ^0
+"see a property both halves share; when the model wrote the" ^0
+"answer key, the loop closes above the line the check draws" ^0
+"" ^0
+
+"The pipeline is clean and the evaluation is honest: split before features, 0" ^0
+"rows in both halves, split by customer, computed once. " + str(model_labelled_per_myriad) + " per ten thousand of" ^0
+"the labels are the previous model's own output, so the headline rose " + str(headline_gain) ^0
+"per ten thousand while accuracy on the " + str(human_reviewed_rows) + " rows a person actually decided" ^0
+"moved " + str(ground_truth_change) + " - and this is the fifth month of it." ^0

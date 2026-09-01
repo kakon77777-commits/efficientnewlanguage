@@ -1,0 +1,118 @@
+# Self-authored for the EML case corpus (no external origin). The column is NOT
+# NULL, the constraint has never been violated, and the database enforces it.
+# How many rows carry a value is computed below.
+#
+# The constraint is doing real work. It was added after a release where a
+# nullable column reached a report as the word "None" in front of a customer, it
+# has rejected fourteen thousand malformed inserts since, and the migration that
+# added it took a maintenance window because the back-fill was careful. Zero
+# violations is a true and hard-won number.
+#
+# NOT NULL constrains the ABSENCE MARKER, and there is more than one way to
+# write nothing down. The loader receives an empty field from the upstream feed
+# and writes an empty string, which satisfies the constraint completely.
+#
+# Every report that counts rows where the column is not null counts them.
+
+14200000 => rows
+0 => not_null_violations
+4860000 => rows_holding_an_empty_string
+14000 => malformed_inserts_rejected
+
+rows - rows_holding_an_empty_string => rows_holding_a_value
+
+"rows                        : " + str(rows) ^0
+"holding an empty string     : " + str(rows_holding_an_empty_string) ^0
+"holding a value             : " + str(rows_holding_a_value) ^0
+"not null violations         : " + str(not_null_violations) ^0
+"" ^0
+
+# ---- what the constraint verified ----
+
+"the NOT NULL constraint" ^0
+"  enforced by            : the database" ^0
+"  violations ever        : " + str(not_null_violations) ^0
+"  malformed inserts rejected since : " + str(malformed_inserts_rejected) ^0
+"  added after            : a null reaching a customer report" ^0
+"  verdict                : ENFORCED" ^0
+"" ^0
+"  it was added for a real reason and it prevents that" ^0
+"  reason from recurring" ^0
+"" ^0
+
+# ---- the two ways to write nothing ----
+
+"what the loader does with a missing upstream field" ^0
+"  writes null          : rejected by the constraint" ^0
+"  writes empty string  : accepted" ^0
+"  which it does        : the second, since the constraint" ^0
+"    was added, because the first stopped working" ^0
+"" ^0
+"  the constraint did not remove the absent values; it" ^0
+"  selected the spelling they are written in" ^0
+"" ^0
+
+int(rows_holding_an_empty_string * 10000 / rows) => empty_per_myriad
+"share of rows with nothing in them : " + str(empty_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the reports count ----
+
+"three counts of the same column" ^0
+"  rows where it is not null  : " + str(rows) ^0
+"  rows where it is non-empty : " + str(rows_holding_a_value) ^0
+"  rows a person would call filled : " + str(rows_holding_a_value) ^0
+"" ^0
+rows - rows_holding_a_value => overcount
+"  the first exceeds the third by : " + str(overcount) ^0
+"  which query the dashboards use : the first" ^0
+"" ^0
+
+# ---- why the fix made it worse ----
+
+# Before the constraint the same rows held null, and every count of "not null"
+# excluded them correctly. Adding the constraint moved them from a value the
+# reports understood into one they do not.
+rows_holding_an_empty_string => rows_that_used_to_be_excluded
+
+"before the constraint" ^0
+"  these rows held        : null" ^0
+"  counted as filled      : no" ^0
+"  reports were           : correct about them" ^0
+"after the constraint" ^0
+"  these rows hold        : an empty string" ^0
+"  counted as filled      : yes, " + str(rows_that_used_to_be_excluded) + " of them" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same constraint, plus a check that the value has length.
+0 => nc_rows_holding_an_empty_string
+rows_holding_a_value => nc_rows_accepted
+
+"null control - NOT NULL plus a length check" ^0
+"  violations of NOT NULL : " + str(not_null_violations) + ", unchanged" ^0
+"  rows holding an empty string : " + str(nc_rows_holding_an_empty_string) ^0
+"  rows accepted          : " + str(nc_rows_accepted) ^0
+"  the constraint did not get stricter about nulls; a" ^0
+"  second spelling of nothing stopped being accepted" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what NOT NULL guarantees" ^0
+"  no row holds the null marker : exactly" ^0
+"  every row holds information  : not addressed; the" ^0
+"    constraint names one representation of absence and" ^0
+"    every type has others" ^0
+"" ^0
+"constraining a representation redirects the values it" ^0
+"forbids; the ones that used to be visibly missing become" ^0
+"invisibly missing, and the reports get worse" ^0
+"" ^0
+
+"The constraint is enforced and its zero is real: " + str(not_null_violations) + " violations ever and" ^0
+str(malformed_inserts_rejected) + " malformed inserts rejected since it was added, after a null reached a" ^0
+"customer report. " + str(rows_holding_an_empty_string) + " of " + str(rows) + " rows hold an empty string - " + str(empty_per_myriad) + " per ten" ^0
+"thousand - so every dashboard counting not-null rows overcounts by " + str(overcount) + ", and" ^0
+"before the constraint existed those same rows were counted correctly." ^0

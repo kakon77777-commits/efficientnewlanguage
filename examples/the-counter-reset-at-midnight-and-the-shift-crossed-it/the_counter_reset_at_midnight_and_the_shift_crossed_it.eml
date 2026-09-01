@@ -1,0 +1,122 @@
+# Self-authored for the EML case corpus (no external origin). The daily counter
+# resets at midnight, which is what a daily counter does. When the page fires is
+# computed below.
+#
+# The counter is correct. "Errors today" means errors since the start of the UTC
+# day, it is documented that way, the reset is atomic, and the dashboard label
+# says today. Nobody has ever mis-implemented it and there is no drift.
+#
+# The threshold on it is a statement about a RATE, written as a level, on a
+# quantity that returns to zero at a moment nobody chose with an incident in
+# mind. An incident that crosses that moment starts its accumulation again.
+#
+# The night shift runs 22:00 to 06:00. The reset sits two hours into it.
+
+1850 => errors_per_hour
+5000 => page_threshold
+22 => shift_starts_hour
+2 => hours_from_shift_start_to_midnight
+
+# Without a reset, the threshold is crossed once the accumulation reaches it.
+# Rounded UP: this is a time-to-reach, and truncating it names an hour at which
+# the count is still below the threshold. int(5000/1850) is 2, and two hours
+# gives 3700, which does not page.
+int((page_threshold + errors_per_hour - 1) / errors_per_hour) => hours_to_threshold_uninterrupted
+# With the reset, the count at midnight is discarded and accumulation restarts.
+hours_from_shift_start_to_midnight * errors_per_hour => discarded_at_midnight
+hours_to_threshold_uninterrupted => hours_after_midnight_to_threshold
+hours_from_shift_start_to_midnight + hours_after_midnight_to_threshold => hours_from_shift_start_to_the_page
+
+"errors per hour            : " + str(errors_per_hour) ^0
+"page threshold             : " + str(page_threshold) ^0
+"shift starts at hour       : " + str(shift_starts_hour) ^0
+"" ^0
+"hours to threshold, uninterrupted : " + str(hours_to_threshold_uninterrupted) ^0
+"errors discarded at midnight      : " + str(discarded_at_midnight) ^0
+"hours from shift start to the page: " + str(hours_from_shift_start_to_the_page) ^0
+"" ^0
+
+# ---- what the counter guarantees ----
+
+"the counter" ^0
+"  meaning        : errors since the start of the utc day" ^0
+"  documented     : yes, in those words" ^0
+"  reset          : atomic, at 00:00 utc" ^0
+"  drift observed : none" ^0
+"  label on the dashboard : errors today" ^0
+"  verdict        : CORRECT" ^0
+"" ^0
+"  it is not lying and it is not misnamed; today is today" ^0
+"" ^0
+
+# ---- what the threshold means to a reader ----
+
+"the alert as written" ^0
+"  condition      : errors today is above " + str(page_threshold) ^0
+"  what it is for : catching a sustained error rate" ^0
+"  what it reads  : a level on a quantity that is reset" ^0
+"  the two agree  : for any incident inside one day" ^0
+"" ^0
+"  the rule and the intent coincide most of the time, which" ^0
+"  is why nobody has looked at it" ^0
+"" ^0
+
+# ---- the delay ----
+
+hours_from_shift_start_to_the_page - hours_to_threshold_uninterrupted => hours_of_delay
+hours_of_delay * errors_per_hour => extra_errors_during_the_delay
+int(hours_of_delay * 10000 / hours_to_threshold_uninterrupted) => delay_per_myriad
+
+"an incident starting at 22:00" ^0
+"  would page at            : hour " + str(hours_to_threshold_uninterrupted) + " of the incident" ^0
+"  pages at                 : hour " + str(hours_from_shift_start_to_the_page) ^0
+"  delay, hours             : " + str(hours_of_delay) ^0
+"  extra errors in the delay: " + str(extra_errors_during_the_delay) ^0
+"  delay as a share of the intended time : " + str(delay_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the graph shows ----
+
+# The counter halving at midnight looks exactly like a partial recovery, and the
+# on-call engineer watching it has no reason to read it as an artifact.
+"the graph at 00:00" ^0
+"  value before  : " + str(discarded_at_midnight) ^0
+"  value after   : 0" ^0
+"  shape         : a vertical drop to zero" ^0
+"  reads as      : the thing recovering" ^0
+"  is            : the day changing" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same threshold on a sliding window of the same length instead of a
+# calendar day.
+0 => nc_hours_of_delay
+hours_to_threshold_uninterrupted => nc_hours_from_shift_start_to_the_page
+
+"null control - a sliding window instead of a calendar day" ^0
+"  counter correctness : unchanged, both are correct" ^0
+"  hours to the page   : " + str(nc_hours_from_shift_start_to_the_page) ^0
+"  delay, hours        : " + str(nc_hours_of_delay) ^0
+"  the counter did not become more accurate; the window" ^0
+"  stopped having an edge in the middle of the night" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a correct daily counter guarantees" ^0
+"  the number is the count for this day : exactly" ^0
+"  a threshold on it detects a rate     : not addressed;" ^0
+"    the count is reset on a boundary chosen by the" ^0
+"    calendar, and an incident does not know about it" ^0
+"" ^0
+"a level on a resetting quantity is a rate alarm with a blind" ^0
+"spot the width of its own reset; the boundary is invisible" ^0
+"because it is correct" ^0
+"" ^0
+
+"The counter is correct: errors since the start of the UTC day, documented," ^0
+"atomic reset, no drift. At " + str(errors_per_hour) + " errors an hour the " + str(page_threshold) + " threshold is reached in" ^0
+str(hours_to_threshold_uninterrupted) + " hours, but an incident starting at 22:00 has " + str(discarded_at_midnight) + " errors discarded at" ^0
+"midnight and pages " + str(hours_of_delay) + " hours late - " + str(delay_per_myriad) + " per ten thousand of the intended" ^0
+"time - after " + str(extra_errors_during_the_delay) + " more errors, on a graph whose drop to zero reads as recovery." ^0

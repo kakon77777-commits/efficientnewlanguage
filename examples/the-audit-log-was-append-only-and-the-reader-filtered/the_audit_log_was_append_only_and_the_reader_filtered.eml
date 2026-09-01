@@ -1,0 +1,103 @@
+# Self-authored for the EML case corpus (no external origin). The audit log is
+# append-only, hash-chained, and nothing has ever been removed from it. How much
+# of it anybody has read is computed below.
+#
+# The integrity is genuine. Every entry carries the hash of the one before it,
+# the chain is verified nightly over all forty-one million eight hundred
+# thousand links, and a deliberate tamper drill last quarter was detected in
+# under a second. There is no delete path in the code and no operator has one.
+#
+# Tamper-evidence is a property of the STORE. What anyone sees is a query, and
+# the query has a default, and the default was chosen to make the page load.
+#
+# The console filters to human actors. The service accounts do ninety-two
+# percent of the writing, and every event in last week's incident was one.
+
+41800000 => entries_total
+3200000 => entries_by_human_actors
+0 => entries_removed
+0 => chain_breaks_found
+14 => incident_events
+
+entries_total - entries_by_human_actors => entries_by_service_actors
+
+"entries in the log          : " + str(entries_total) ^0
+"  by human actors           : " + str(entries_by_human_actors) ^0
+"  by service accounts       : " + str(entries_by_service_actors) ^0
+"entries removed             : " + str(entries_removed) ^0
+"" ^0
+
+# ---- what the integrity check verified ----
+
+"the nightly chain verification" ^0
+"  links checked        : " + str(entries_total) ^0
+"  chain breaks found   : " + str(chain_breaks_found) ^0
+"  delete path in code  : none" ^0
+"  operator delete permission : none" ^0
+"  tamper drill last quarter  : detected in under a second" ^0
+"  verdict              : APPEND-ONLY, INTACT" ^0
+"" ^0
+"  the drill is why anyone trusts this, and it worked" ^0
+"" ^0
+
+# ---- what the console shows ----
+
+int(entries_by_human_actors * 10000 / entries_total) => shown_per_myriad
+"the default view" ^0
+"  filter        : actor type is human" ^0
+"  chosen because: the unfiltered page timed out" ^0
+"  entries shown : " + str(entries_by_human_actors) ^0
+"  share shown   : " + str(shown_per_myriad) + " per ten thousand" ^0
+"  entries hidden: " + str(entries_by_service_actors) ^0
+"" ^0
+"  hidden is not deleted, and for a reader the difference" ^0
+"  only exists if somebody changes the filter" ^0
+"" ^0
+
+# ---- last week's incident ----
+
+# The reviewer opened the console, filtered by time, found nothing, and wrote
+# "no audit trail for this action". Every one of the fourteen events was there.
+0 => incident_events_in_the_default_view
+
+"the review" ^0
+"  events that exist for the incident : " + str(incident_events) ^0
+"  events visible in the default view : " + str(incident_events_in_the_default_view) ^0
+"  the reviewer's conclusion : no audit trail" ^0
+"  the log's own answer      : all " + str(incident_events) + " present, chain intact" ^0
+"" ^0
+"  both are honest reports of different questions" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same log, with the default filter removed and the page paginated instead.
+entries_total => nc_entries_reachable
+incident_events => nc_incident_events_visible
+
+"null control - paginate instead of filter" ^0
+"  chain breaks found     : " + str(chain_breaks_found) + ", unchanged" ^0
+"  entries reachable      : " + str(nc_entries_reachable) ^0
+"  incident events visible: " + str(nc_incident_events_visible) ^0
+"  the log did not become more complete; the default" ^0
+"  stopped removing most of it" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what an append-only log guarantees" ^0
+"  nothing that was written is gone : exactly" ^0
+"  what happened can be found       : not addressed;" ^0
+"    findability is a property of the query, and the query" ^0
+"    has a default that no integrity check inspects" ^0
+"" ^0
+"tamper-evidence answers 'was this changed'; it is used to" ^0
+"answer 'what happened', and between those two sits a filter" ^0
+"somebody set for a page-load time" ^0
+"" ^0
+
+"The log is append-only and the nightly verification is right: " + str(entries_total) + " links," ^0
+str(chain_breaks_found) + " breaks, " + str(entries_removed) + " entries removed, no delete path, a tamper drill caught in" ^0
+"under a second. The console defaults to human actors, which is " + str(shown_per_myriad) + " per ten" ^0
+"thousand of it, so " + str(entries_by_service_actors) + " entries are present and unseen - including all " + str(incident_events) ^0
+"events of last week's incident, reviewed as having no audit trail." ^0

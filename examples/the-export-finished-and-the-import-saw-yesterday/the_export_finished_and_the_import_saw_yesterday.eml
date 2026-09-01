@@ -1,0 +1,132 @@
+# Self-authored for the EML case corpus (no external origin). The export
+# finishes every night and the import reads it every night, and both have run
+# without error for four hundred and nineteen days. How old the data is is
+# computed below.
+#
+# Both jobs are correct. The export writes to a temporary name and renames, so
+# no reader ever sees a partial file; the import validates the row count against
+# a manifest and refuses a file that disagrees; and the reconciliation job
+# compares what the import produced against the file it read and has never found
+# a discrepancy. Three real checks, all passing.
+#
+# Every one of those checks compares the import to the FILE. None of them
+# compares the file to the day. The two schedules were written by different
+# teams eleven months apart and neither is expressed in terms of the other.
+#
+# The import starts at 01:55. The export finishes at 02:00.
+
+115 => import_starts_minute
+120 => export_finishes_minute
+419 => days_running
+3100000 => rows_per_day
+0 => job_failures
+0 => reconciliation_discrepancies
+
+export_finishes_minute - import_starts_minute => minutes_the_import_is_early
+# Missing today's file, the import reads the newest one present, which is the
+# file the previous night's export left.
+1 => days_of_staleness
+days_of_staleness * 24 => hours_of_staleness
+
+"import starts at minute      : " + str(import_starts_minute) ^0
+"export finishes at minute    : " + str(export_finishes_minute) ^0
+"the import is early by, minutes : " + str(minutes_the_import_is_early) ^0
+"" ^0
+"days running                 : " + str(days_running) ^0
+"job failures                 : " + str(job_failures) ^0
+"reconciliation discrepancies : " + str(reconciliation_discrepancies) ^0
+"hours of staleness           : " + str(hours_of_staleness) ^0
+"" ^0
+
+# ---- what the checks verified ----
+
+"the three checks" ^0
+"  export writes to a temp name and renames : no partial" ^0
+"    file is ever visible" ^0
+"  import validates row count against a manifest : refuses" ^0
+"    a file that disagrees" ^0
+"  reconciliation compares output to the file it read :" ^0
+"    " + str(reconciliation_discrepancies) + " discrepancies in " + str(days_running) + " days" ^0
+"  verdict : CONSISTENT" ^0
+"" ^0
+"  none of the three is decorative; the manifest check" ^0
+"  caught a truncated transfer in month two" ^0
+"" ^0
+
+# ---- what none of them compares ----
+
+"the quantity nobody holds" ^0
+"  the file the import read      : yesterday's" ^0
+"  the file the export wrote     : today's" ^0
+"  a check comparing the file's date to today : none" ^0
+"  the manifest's date field     : present, and compared" ^0
+"    against the file, not against the clock" ^0
+"" ^0
+"  every check is internal to the pair, and the pair is" ^0
+"  consistently one day behind" ^0
+"" ^0
+
+# ---- what the staleness costs ----
+
+days_running * rows_per_day => rows_processed_in_total
+rows_per_day => rows_never_seen_until_the_next_day
+int(minutes_the_import_is_early * 10000 / 1440) => early_share_of_a_day_per_myriad
+
+"the arithmetic of five minutes" ^0
+"  the import is early by, as a share of a day : " ^0
+"    " + str(early_share_of_a_day_per_myriad) + " per ten thousand" ^0
+"  the data it reads is behind by, hours : " + str(hours_of_staleness) ^0
+"  rows delayed by a day, every day      : " + str(rows_never_seen_until_the_next_day) ^0
+"  rows processed in total               : " + str(rows_processed_in_total) ^0
+"" ^0
+"  a five-minute overlap produces a twenty-four hour lag," ^0
+"  because the resource is published daily" ^0
+"" ^0
+
+# ---- why it looks right ----
+
+# Everything downstream is internally consistent, because it is all derived from
+# one coherent file. A day-old world that agrees with itself is harder to notice
+# than an inconsistent one.
+"what a downstream reader sees" ^0
+"  totals that add up      : yes" ^0
+"  joins that resolve      : yes" ^0
+"  yesterday's comparison  : also one day old, so the" ^0
+"    day-over-day delta is correct" ^0
+"  anything self-contradictory : nothing" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same two jobs, with the import waiting for today's file rather than
+# starting at a time.
+0 => nc_hours_of_staleness
+0 => nc_reconciliation_discrepancies
+
+"null control - the import waits for today's file" ^0
+"  job failures            : " + str(job_failures) + ", unchanged" ^0
+"  reconciliation discrepancies : " + str(nc_reconciliation_discrepancies) ^0
+"  hours of staleness      : " + str(nc_hours_of_staleness) ^0
+"  neither job improved; the trigger stopped being a clock" ^0
+"  and started being the thing it was waiting for" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a passing reconciliation guarantees" ^0
+"  the output matches the input : exactly" ^0
+"  the input is the current one : not addressed; every" ^0
+"    check in the pipeline is internal to the pair, and" ^0
+"    which file is current is a fact about the clock" ^0
+"" ^0
+"two jobs scheduled by time are coupled by an assumption" ^0
+"neither of them states; the check that would find it compares" ^0
+"a date to today, and nothing in a data pipeline naturally" ^0
+"does that" ^0
+"" ^0
+
+"Both jobs have run for " + str(days_running) + " days with " + str(job_failures) + " failures and " + str(reconciliation_discrepancies) + " reconciliation" ^0
+"discrepancies, on three checks that are each real - one of them caught a" ^0
+"truncated transfer in month two. The import starts " + str(minutes_the_import_is_early) + " minutes before the export" ^0
+"finishes, " + str(early_share_of_a_day_per_myriad) + " per ten thousand of a day, so it reads yesterday's file and" ^0
+"everything downstream is " + str(hours_of_staleness) + " hours old and agrees with itself perfectly." ^0

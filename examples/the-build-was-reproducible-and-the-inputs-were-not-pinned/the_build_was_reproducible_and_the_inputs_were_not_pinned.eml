@@ -1,0 +1,123 @@
+# Self-authored for the EML case corpus (no external origin). Two independent
+# builders produce byte-identical artifacts, every time. Whether two builds nine
+# days apart agree is computed below.
+#
+# The reproducibility is real and it took work. Timestamps are zeroed, the file
+# order is sorted, the build path is normalised, no absolute paths leak into the
+# binary, and a nightly job builds the same commit on two machines with
+# different kernels and compares hashes. It has never disagreed.
+#
+# Reproducible means: same inputs, same output. It is a property of the
+# FUNCTION. It says nothing about whether the input set is the same thing on
+# Tuesday that it was the Monday before.
+#
+# Every direct dependency is pinned to an exact version. Of the transitive
+# closure, seven hundred and six resolve through a range, and thirty-one of
+# those published a new patch release in the last nine days.
+
+84 => direct_dependencies
+84 => direct_pinned_exactly
+1247 => transitive_dependencies
+706 => transitive_resolved_through_a_range
+31 => moved_in_the_last_nine_days
+0 => builder_disagreements
+
+direct_dependencies - direct_pinned_exactly => direct_unpinned
+transitive_dependencies - transitive_resolved_through_a_range => transitive_pinned
+
+"direct dependencies         : " + str(direct_dependencies) ^0
+"  pinned exactly            : " + str(direct_pinned_exactly) ^0
+"  unpinned                  : " + str(direct_unpinned) ^0
+"transitive dependencies     : " + str(transitive_dependencies) ^0
+"  pinned                    : " + str(transitive_pinned) ^0
+"  resolved through a range  : " + str(transitive_resolved_through_a_range) ^0
+"  moved in the last 9 days  : " + str(moved_in_the_last_nine_days) ^0
+"" ^0
+
+# ---- what the nightly comparison verified ----
+
+"two builders, same commit" ^0
+"  timestamps zeroed      : yes" ^0
+"  file order sorted      : yes" ^0
+"  build path normalised  : yes" ^0
+"  absolute paths in the binary : 0" ^0
+"  hash disagreements     : " + str(builder_disagreements) ^0
+"  verdict                : REPRODUCIBLE" ^0
+"" ^0
+"  the two machines run different kernels and it still" ^0
+"  holds; this is not a weak test" ^0
+"" ^0
+
+# ---- what it holds fixed ----
+
+"what the two builders share" ^0
+"  the commit           : the same" ^0
+"  the resolution step  : run once, on one machine, and" ^0
+"    its result handed to both" ^0
+"" ^0
+"  so the comparison holds the input set fixed by" ^0
+"  construction, which is the one thing it is being used" ^0
+"  as evidence about" ^0
+"" ^0
+
+int(transitive_resolved_through_a_range * 10000 / transitive_dependencies) => ranged_per_myriad
+"share of the closure behind a range : " + str(ranged_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- the same commit, nine days apart ----
+
+"building the same commit twice" ^0
+"  on one day, on two machines : identical" ^0
+"  on two days, on one machine : " + str(moved_in_the_last_nine_days) + " packages differ" ^0
+"  artifacts identical         : no" ^0
+"  either build reproducible   : yes, both" ^0
+"" ^0
+"  reproducible and different is not a contradiction; the" ^0
+"  function is deterministic and it was called twice with" ^0
+"  different arguments" ^0
+"" ^0
+
+# ---- what the release note claims ----
+
+# The note says "reproducible build, verified", which is true, and readers take
+# it to mean the artifact can be recreated from the tag. It can, for as long as
+# nothing in the range publishes.
+"what a reader takes from it" ^0
+"  claim in the release note : reproducible, verified" ^0
+"  what a reader wants       : rebuild this tag next year" ^0
+"    and get this artifact" ^0
+"  packages that would have to not publish : " + str(transitive_resolved_through_a_range) ^0
+"" ^0
+
+# ---- null control ----
+
+# The same builders, with the resolved closure committed as a lockfile.
+0 => nc_packages_that_can_move
+transitive_dependencies => nc_pinned
+
+"null control - the resolved closure committed" ^0
+"  builder disagreements   : " + str(builder_disagreements) + ", unchanged" ^0
+"  dependencies pinned     : " + str(nc_pinned) ^0
+"  packages that can move  : " + str(nc_packages_that_can_move) ^0
+"  the build did not become more deterministic; the input" ^0
+"  set stopped being a query" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a reproducible build guarantees" ^0
+"  same inputs give the same bytes : exactly" ^0
+"  the same tag gives the same bytes : not addressed, and" ^0
+"    the nightly comparison cannot address it because it" ^0
+"    resolves once and hands the result to both machines" ^0
+"" ^0
+"determinism is about the function; recoverability is about" ^0
+"the arguments, and a test that fixes the arguments to compare" ^0
+"the function has no opinion on the second" ^0
+"" ^0
+
+"The build is reproducible and the nightly comparison is right: " + str(builder_disagreements) + " disagreements" ^0
+"across two kernels, 0 absolute paths, timestamps zeroed. All " + str(direct_pinned_exactly) + " direct" ^0
+"dependencies are pinned exactly, and " + str(transitive_resolved_through_a_range) + " of the " + str(transitive_dependencies) + " in the closure resolve" ^0
+"through a range - " + str(ranged_per_myriad) + " per ten thousand - of which " + str(moved_in_the_last_nine_days) + " published in nine days, so the" ^0
+"same commit built twice nine days apart is two different artifacts, both reproducible." ^0

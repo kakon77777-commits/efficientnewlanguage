@@ -1,0 +1,109 @@
+# Self-authored for the EML case corpus (no external origin). The cache reports
+# a ninety-nine point four percent hit rate and the number is correct. Where the
+# database load comes from is computed below.
+#
+# The cache is doing its job. Forty-one thousand three hundred and fifty lookups
+# a second are answered without touching the database, the eviction policy was
+# tuned against real traces, and removing the cache would take the database down
+# in seconds. The hit rate is not inflated and it is not a vanity metric.
+#
+# A hit rate is computed over lookups that CAN hit. A key that does not exist
+# produces no entry to store, so it is not a miss the cache could have avoided —
+# it is a lookup the cache is structurally unable to serve, and it is not in the
+# denominator.
+#
+# Something is enumerating identifiers. All of that traffic is absent keys.
+
+48000 => lookups_per_second
+41600 => lookups_for_existing_keys
+41350 => cache_hits
+0 => cache_correctness_incidents
+
+lookups_per_second - lookups_for_existing_keys => lookups_for_absent_keys
+lookups_for_existing_keys - cache_hits => misses_on_existing_keys
+misses_on_existing_keys + lookups_for_absent_keys => database_queries_per_second
+int(cache_hits * 10000 / lookups_for_existing_keys) => reported_hit_rate_per_myriad
+
+"lookups per second           : " + str(lookups_per_second) ^0
+"  for keys that exist        : " + str(lookups_for_existing_keys) ^0
+"  for keys that do not       : " + str(lookups_for_absent_keys) ^0
+"" ^0
+"cache hits                   : " + str(cache_hits) ^0
+"misses on existing keys      : " + str(misses_on_existing_keys) ^0
+"database queries per second  : " + str(database_queries_per_second) ^0
+"" ^0
+
+# ---- what the hit rate measures ----
+
+"the reported hit rate" ^0
+"  numerator   : " + str(cache_hits) ^0
+"  denominator : " + str(lookups_for_existing_keys) ^0
+"  rate        : " + str(reported_hit_rate_per_myriad) + " per ten thousand" ^0
+"  correctness incidents : " + str(cache_correctness_incidents) ^0
+"  verdict     : HEALTHY" ^0
+"" ^0
+"  both operands are right and the ratio is right; the" ^0
+"  denominator is the set of lookups a cache could serve" ^0
+"" ^0
+
+# ---- where the database load is ----
+
+int(lookups_for_absent_keys * 10000 / database_queries_per_second) => absent_share_of_db_per_myriad
+"database load, by cause" ^0
+"  misses on existing keys : " + str(misses_on_existing_keys) ^0
+"  lookups for absent keys : " + str(lookups_for_absent_keys) ^0
+"  share from absent keys  : " + str(absent_share_of_db_per_myriad) + " per ten thousand" ^0
+"" ^0
+"  the cache is at " + str(reported_hit_rate_per_myriad) + " per ten thousand and " + str(absent_share_of_db_per_myriad) + " per ten" ^0
+"  thousand of what reaches the database is traffic it was" ^0
+"  never asked about" ^0
+"" ^0
+
+# ---- why raising the cache size does nothing ----
+
+# The obvious response to database load under a cache is a bigger cache. Every
+# absent key is a distinct identifier that will never be requested again, so
+# there is nothing to retain.
+"the usual remedy" ^0
+"  double the cache size          : possible" ^0
+"  additional absent keys served  : 0" ^0
+"  additional existing keys served: at most " + str(misses_on_existing_keys) ^0
+"  ceiling on the improvement     : " + str(misses_on_existing_keys) + " of " + str(database_queries_per_second) ^0
+"" ^0
+
+# ---- null control ----
+
+# The same cache, storing a short-lived marker for keys that were looked up and
+# not found.
+60 => nc_negative_ttl_seconds
+0 => nc_repeat_lookups_for_the_same_absent_key
+misses_on_existing_keys => nc_database_queries_per_second
+
+"null control - absence cached for 60 seconds" ^0
+"  hit rate on existing keys : " + str(reported_hit_rate_per_myriad) + " per ten thousand, unchanged" ^0
+"  repeat lookups for one absent key reaching the database : " ^0
+"    " + str(nc_repeat_lookups_for_the_same_absent_key) + " after the first" ^0
+"  database queries per second : " + str(nc_database_queries_per_second) + ", for an enumerator" ^0
+"    that never repeats a key this is the wrong control and" ^0
+"    it is stated as such: negative caching helps repeats," ^0
+"    and enumeration has none" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a high hit rate guarantees" ^0
+"  cacheable lookups are being cached : exactly" ^0
+"  the database is protected            : not addressed;" ^0
+"    the ratio's denominator excludes precisely the traffic" ^0
+"    the cache cannot absorb" ^0
+"" ^0
+"a rate is a claim about its denominator; when the denominator" ^0
+"is 'the work this component can do', the rate cannot report" ^0
+"the work it cannot" ^0
+"" ^0
+
+"The cache is at " + str(reported_hit_rate_per_myriad) + " per ten thousand with " + str(cache_correctness_incidents) + " correctness incidents, and both" ^0
+"operands of that ratio are right. Of the " + str(database_queries_per_second) + " queries a second reaching the" ^0
+"database, " + str(lookups_for_absent_keys) + " are lookups for keys that do not exist - " + str(absent_share_of_db_per_myriad) + " per ten thousand -" ^0
+"which are not misses, are not in the denominator, and are not reduced by any" ^0
+"cache size, because each identifier is asked for once and never again." ^0

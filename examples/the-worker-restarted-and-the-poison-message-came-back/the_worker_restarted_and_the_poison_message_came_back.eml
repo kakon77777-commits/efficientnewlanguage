@@ -1,0 +1,122 @@
+# Self-authored for the EML case corpus (no external origin). The supervisor
+# restarted the worker twelve hundred times this hour and every restart
+# succeeded. How much work was done is computed below.
+#
+# The supervisor is correct and it is why this service survives. A worker that
+# dies is replaced in three seconds, the replacement is healthy, and the same
+# mechanism has absorbed a bad deploy, a memory leak and an upstream outage
+# without anyone being paged. Its success rate this hour is a hundred percent.
+#
+# A restart returns the WORKER to a good state. It does not return the queue to
+# one, and the message that killed the worker was never acked, so it is at the
+# head of the queue when the replacement connects.
+#
+# One message has held the consumer for the whole hour. The supervisor reports
+# twelve hundred successes and the backlog reports forty-two thousand.
+
+3 => restart_seconds
+3600 => seconds_in_the_hour
+42000 => messages_per_hour_when_healthy
+0 => failed_restarts
+1 => poison_messages
+
+int(seconds_in_the_hour / restart_seconds) => restarts_this_hour
+# Every attempt reaches the same message first, so nothing behind it is touched.
+0 => messages_processed_this_hour
+messages_per_hour_when_healthy - messages_processed_this_hour => backlog_added_this_hour
+
+"restart time, seconds     : " + str(restart_seconds) ^0
+"restarts this hour        : " + str(restarts_this_hour) ^0
+"failed restarts           : " + str(failed_restarts) ^0
+"poison messages           : " + str(poison_messages) ^0
+"" ^0
+"messages processed        : " + str(messages_processed_this_hour) ^0
+"throughput when healthy   : " + str(messages_per_hour_when_healthy) ^0
+"backlog added this hour   : " + str(backlog_added_this_hour) ^0
+"" ^0
+
+# ---- what the supervisor verified ----
+
+"the supervisor's report" ^0
+"  restarts attempted : " + str(restarts_this_hour) ^0
+"  restarts succeeded : " + str(restarts_this_hour) ^0
+"  restarts failed    : " + str(failed_restarts) ^0
+"  worker healthy after each : yes" ^0
+"  verdict            : HEALTHY" ^0
+"" ^0
+"  every line is true and this mechanism has saved the" ^0
+"  service three times this quarter" ^0
+"" ^0
+
+# ---- what a restart restores ----
+
+"the two states" ^0
+"  the worker  : fresh process, clean memory, restored" ^0
+"  the queue   : the message that killed it is still at" ^0
+"    the head, unacked, because the worker died before" ^0
+"    acking and that is the correct thing to do" ^0
+"" ^0
+"  both halves are behaving as designed, and the design" ^0
+"  loops" ^0
+"" ^0
+
+# ---- the shape of the loop ----
+
+restarts_this_hour * restart_seconds => seconds_spent_restarting
+
+"where the hour went" ^0
+"  seconds spent restarting : " + str(seconds_spent_restarting) ^0
+"  distinct messages attempted : " + str(poison_messages) ^0
+"  attempts on that one message : " + str(restarts_this_hour) ^0
+"" ^0
+"  a retry budget would have caught this; there is one, and" ^0
+"  it counts per worker, and each worker is new" ^0
+"" ^0
+
+# ---- why the alert did not fire ----
+
+# The alert is on worker health, which is the thing the supervisor keeps true.
+# Throughput has an alert too, on a threshold the queue crossed at minute four,
+# routed to a channel the queue's owners read and the service's owners do not.
+"the alerts" ^0
+"  worker health : green, because it is repeatedly restored" ^0
+"  restart rate  : no threshold; restarts are normal" ^0
+"  throughput    : fired at minute four, to the queue team" ^0
+"  the two teams  : each sees a system behaving correctly" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same supervisor, with the delivery count carried on the message rather
+# than in the worker, and a limit that moves it aside.
+5 => nc_attempts_before_the_message_is_set_aside
+messages_per_hour_when_healthy => nc_messages_processed_this_hour
+0 => nc_backlog_added
+
+"null control - the attempt count travels with the message" ^0
+"  restarts succeeded  : unchanged, the supervisor is fine" ^0
+"  attempts on the poison message : " + str(nc_attempts_before_the_message_is_set_aside) ^0
+"  messages processed  : " + str(nc_messages_processed_this_hour) ^0
+"  backlog added       : " + str(nc_backlog_added) ^0
+"  the worker did not get more robust; the counter moved" ^0
+"  to the thing that survives the restart" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a successful restart guarantees" ^0
+"  the process is healthy again : exactly" ^0
+"  progress resumes             : not addressed; the input" ^0
+"    that caused the failure is still the next input, and" ^0
+"    a fresh process meets it with a fresh counter" ^0
+"" ^0
+"any recovery that resets state must not reset the count of" ^0
+"how often it has recovered; put that count where the failure" ^0
+"lives, not where the recovery does" ^0
+"" ^0
+
+"The supervisor restarted the worker " + str(restarts_this_hour) + " times this hour with " + str(failed_restarts) + " failures and a" ^0
+"healthy process every time, which is the same mechanism that saved the service" ^0
+"three times this quarter. " + str(poison_messages) + " message was attempted, " + str(messages_processed_this_hour) + " were processed against a" ^0
+"healthy " + str(messages_per_hour_when_healthy) + ", the backlog grew by " + str(backlog_added_this_hour) + ", and the retry budget did not fire" ^0
+"because it counts per worker and every worker was new." ^0
