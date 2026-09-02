@@ -1,0 +1,112 @@
+# Self-authored for the EML case corpus (no external origin). The plan is an
+# index-only scan with zero heap fetches, which is what the index was designed
+# for. Where the time goes is computed below.
+#
+# The index is covering and the plan proves it. Every column the query reads is
+# in the index, the planner chooses an index-only scan, the visibility map is
+# current so no row needs a heap visit, and heap fetches are zero. This is the
+# outcome the index was added to produce and it produces it.
+#
+# Covering describes which columns are READ. Ordering is a separate node in the
+# plan, fed by the scan, and the index's key order is not the order the query
+# asks for.
+#
+# Two hundred and forty thousand rows come out of the scan and are then sorted,
+# and the sort does not fit in the memory it is allowed.
+
+240000 => rows_returned
+0 => heap_fetches
+150 => index_scan_ms
+1690 => sort_ms
+4096 => work_mem_kb
+68400 => sort_size_kb
+
+index_scan_ms + sort_ms => query_ms
+int(sort_ms * 10000 / query_ms) => sort_share_per_myriad
+int(sort_size_kb / work_mem_kb) => times_over_the_memory_allowance
+
+"rows returned            : " + str(rows_returned) ^0
+"heap fetches             : " + str(heap_fetches) ^0
+"index scan, ms           : " + str(index_scan_ms) ^0
+"sort, ms                 : " + str(sort_ms) ^0
+"query, ms                : " + str(query_ms) ^0
+"" ^0
+"sort working set, kb     : " + str(sort_size_kb) ^0
+"memory allowed, kb       : " + str(work_mem_kb) ^0
+"over the allowance by    : " + str(times_over_the_memory_allowance) + " times" ^0
+"" ^0
+
+# ---- what the plan verified ----
+
+"the plan" ^0
+"  access method     : index-only scan" ^0
+"  columns read from the heap : none" ^0
+"  heap fetches      : " + str(heap_fetches) ^0
+"  visibility map    : current" ^0
+"  verdict           : COVERING" ^0
+"" ^0
+"  this is the property the index was added for, it holds," ^0
+"  and removing the index would make this far worse" ^0
+"" ^0
+
+# ---- what covering does not decide ----
+
+"the two nodes" ^0
+"  scan  : reads " + str(rows_returned) + " rows from the index, " + str(index_scan_ms) + " ms" ^0
+"  sort  : orders them by a column that is not the index's" ^0
+"    leading key, " + str(sort_ms) + " ms" ^0
+"  the index's contribution to the second : none" ^0
+"" ^0
+"  an index can supply an order or supply the columns; this" ^0
+"  one supplies the columns" ^0
+"" ^0
+
+"share of the query spent sorting : " + str(sort_share_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- why it spills ----
+
+# The sort needs sixteen times the memory it is allowed, so it writes and
+# merges temporary files. That is the correct behaviour of a sort that does not
+# fit, and it is where the milliseconds are.
+"the sort" ^0
+"  method            : external merge" ^0
+"  temporary files written : yes" ^0
+"  reason            : " + str(sort_size_kb) + " kb into " + str(work_mem_kb) + " kb" ^0
+"  correct behaviour : yes, this is what a sort does when" ^0
+"    it does not fit" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same index with the ordering column added to its key, so the scan emits
+# rows already in order and the sort node disappears.
+0 => nc_sort_ms
+index_scan_ms => nc_query_ms
+
+"null control - the ordering column added to the index key" ^0
+"  heap fetches      : " + str(heap_fetches) + ", unchanged" ^0
+"  sort, ms          : " + str(nc_sort_ms) ^0
+"  query, ms         : " + str(nc_query_ms) ^0
+"  the index did not become more covering; it started" ^0
+"  supplying an order as well as the columns" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a covering index guarantees" ^0
+"  no row is read from the heap : exactly" ^0
+"  the query is fast            : not addressed; the plan" ^0
+"    has other nodes, and the one that dominates here is" ^0
+"    fed by the scan rather than served by it" ^0
+"" ^0
+"'covering' is a claim about columns and a query plan is a" ^0
+"tree; reading the property off the leaf and the time off the" ^0
+"root is how a correct index sits under a slow query" ^0
+"" ^0
+
+"The scan is index-only with " + str(heap_fetches) + " heap fetches and a current visibility map, which" ^0
+"is exactly what the index was added for. The ordering column is not in its key," ^0
+"so " + str(rows_returned) + " rows go to an external merge sort needing " + str(sort_size_kb) + " kb in " + str(work_mem_kb) + " kb -" ^0
+str(times_over_the_memory_allowance) + " times over - and " + str(sort_ms) + " of the query's " + str(query_ms) + " ms, " + str(sort_share_per_myriad) + " per ten thousand," ^0
+"are spent in a node the index does not touch." ^0

@@ -91,12 +91,12 @@
 
 ## 工作日誌（新到舊）
 
-- **2026-07-25 起 — 案例語料庫每日擴充線（目前 651 個案例、16 條量測軸）。** 這條線是 Neo
+- **2026-07-25 起 — 案例語料庫每日擴充線（目前 666 個案例、16 條量測軸）。** 這條線是 Neo
   2026-07-31 定下的主線（原話：「之後還是先以案例擴充為主」），節奏是每天三輪、每輪 5 個自撰
   案例，全部走完 `eml check` → `eml trace --run`（對**真 CPython** 比對 `eml:equiv` 的 `actual` 與 `expected` 逐 byte 相同（不讀 `ok` 旗標，那是 CLI 對同一組值的結論））→
   `eml roundtrip` 到 fixpoint → 確定性 `.trace.jsonl` golden → 帶真實輸出的 README，再跑全套
-  測試與 `pnpm monitor`，然後兩個 repo 一起發布、驗 production `build_id`。**截至 2026-09-01：
-  語料庫 651 個程式，測試套件 3092 tests / 70 files。**
+  測試與 `pnpm monitor`，然後兩個 repo 一起發布、驗 production `build_id`。**截至 2026-09-02：
+  語料庫 666 個程式，測試套件 3137 tests / 70 files。**
 
   這條線真正的產出不是案例數，而是**量測軸**——每天挑一條現有 gate 看不見的軸，把期望值用
   程式**算出來**而不是打出來，然後 drill（故意弄壞它守的修正、確認 gate 會失敗、再逐 byte 還原）。

@@ -1,0 +1,111 @@
+# Self-authored for the EML case corpus (no external origin). The rate limit is
+# a hundred requests a minute per authenticated user and it has never been
+# exceeded. What one actor can send is computed below.
+#
+# The limit works. It is applied after authentication so it cannot be evaded by
+# rotating addresses, the counter is in shared storage so it holds across
+# instances, it returns a correct retry-after, and it stopped a real incident in
+# March when a customer's integration went into a loop. Zero violations is a
+# true number.
+#
+# A per-user limit is a budget denominated in ACCOUNTS. Its total is the limit
+# times the number of accounts an actor can hold, and that second factor is set
+# by the sign-up flow rather than by the limiter.
+#
+# Sign-up needs an email address and no verification. Four thousand accounts is
+# an afternoon.
+
+100 => limit_per_user_per_minute
+4000 => accounts_held_by_one_actor
+26000 => legitimate_peak_per_minute
+0 => limit_violations
+0 => cost_to_create_an_account
+
+limit_per_user_per_minute * accounts_held_by_one_actor => one_actor_per_minute
+int(one_actor_per_minute / legitimate_peak_per_minute) => times_the_legitimate_peak
+
+"limit per user per minute   : " + str(limit_per_user_per_minute) ^0
+"accounts held by one actor  : " + str(accounts_held_by_one_actor) ^0
+"what that actor may send    : " + str(one_actor_per_minute) + " per minute" ^0
+"" ^0
+"legitimate peak per minute  : " + str(legitimate_peak_per_minute) ^0
+"the actor's budget is       : " + str(times_the_legitimate_peak) + " times the peak" ^0
+"limit violations by the actor : " + str(limit_violations) ^0
+"" ^0
+
+# ---- what the limiter verified ----
+
+"the rate limiter" ^0
+"  applied after authentication : yes, so address rotation" ^0
+"    does not evade it" ^0
+"  counter storage    : shared, holds across instances" ^0
+"  retry-after        : correct" ^0
+"  incident stopped in March : a customer integration loop" ^0
+"  violations         : " + str(limit_violations) ^0
+"  verdict            : ENFORCED" ^0
+"" ^0
+"  it is not a token bucket in a local variable; it is the" ^0
+"  careful version and it does its job" ^0
+"" ^0
+
+# ---- what sets the other factor ----
+
+"the budget, in two factors" ^0
+"  requests per account : " + str(limit_per_user_per_minute) + ", set by the limiter" ^0
+"  accounts per actor   : unbounded, set by the sign-up flow" ^0
+"  cost of an account   : " + str(cost_to_create_an_account) ^0
+"  verification         : none" ^0
+"" ^0
+"  the limiter owns one factor and is read as bounding the" ^0
+"  product" ^0
+"" ^0
+
+int(one_actor_per_minute * 10000 / (one_actor_per_minute + legitimate_peak_per_minute)) => actor_share_per_myriad
+"the actor's share of total traffic : " + str(actor_share_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- why nothing looks wrong ----
+
+# Every account is compliant. There is no account to suspend for abuse, because
+# no account is abusive; the abuse is a property of the set, and nothing
+# computes a property of a set.
+"what an investigator finds" ^0
+"  accounts over the limit    : " + str(limit_violations) ^0
+"  accounts sending unusual volume : " + str(limit_violations) ^0
+"  the pattern is visible in : the union, which no report" ^0
+"    groups by, because there is no column to group by" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same limit, with a second limit on a property the actor cannot mint: the
+# payment instrument, the verified phone, the source network.
+1 => nc_verified_identities_held
+limit_per_user_per_minute * nc_verified_identities_held => nc_one_actor_per_minute
+
+"null control - a second limit on a verified identity" ^0
+"  per-user limit         : " + str(limit_per_user_per_minute) + ", unchanged" ^0
+"  verified identities the actor holds : " + str(nc_verified_identities_held) ^0
+"  what the actor may send : " + str(nc_one_actor_per_minute) + " per minute" ^0
+"  the limiter did not get stricter; the second factor" ^0
+"  stopped being free" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a per-user limit guarantees" ^0
+"  no account exceeds this rate : exactly" ^0
+"  no actor exceeds this rate   : not addressed; the" ^0
+"    limiter's unit is the account, and an actor's account" ^0
+"    count is decided by whatever it costs to make one" ^0
+"" ^0
+"a limit is only as strong as its unit is expensive; putting" ^0
+"one on a free identifier bounds a number that was never the" ^0
+"one at issue" ^0
+"" ^0
+
+"The limit is enforced correctly and " + str(limit_violations) + " accounts have exceeded it: applied after" ^0
+"authentication, shared counter, correct retry-after, and it stopped a real" ^0
+"incident in March. An actor holding " + str(accounts_held_by_one_actor) + " free unverified accounts may send" ^0
+str(one_actor_per_minute) + " requests a minute - " + str(times_the_legitimate_peak) + " times the legitimate peak and " + str(actor_share_per_myriad) + " per ten" ^0
+"thousand of all traffic - while every one of those accounts is compliant." ^0

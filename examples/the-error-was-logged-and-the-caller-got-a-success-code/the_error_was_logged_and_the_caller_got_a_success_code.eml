@@ -1,0 +1,114 @@
+# Self-authored for the EML case corpus (no external origin). The enrichment
+# failure is caught, logged with a stack trace, and does not fail the request.
+# What the caller can tell is computed below.
+#
+# The decision to swallow it is correct. Enrichment is optional: it adds a
+# display name to a record that is complete without one, and letting a
+# best-effort lookup fail a payment would be a much worse defect. The exception
+# is caught narrowly, logged at error with the record identifier and a stack
+# trace, and the logs are searchable and alerted above a rate threshold.
+#
+# The response is a two hundred with the field absent. Absent is also what the
+# response carries when the field does not apply, and the schema has no third
+# value.
+#
+# Nine downstream systems read the absence, and all nine read it the same way.
+
+12400000 => requests_per_day
+74000 => enrichment_failures
+9 => downstream_systems
+9 => systems_treating_absence_as_not_applicable
+124000 => alert_threshold_per_day
+
+requests_per_day => responses_with_a_success_code
+enrichment_failures => errors_logged
+downstream_systems - systems_treating_absence_as_not_applicable => systems_that_can_tell_the_difference
+
+"requests per day             : " + str(requests_per_day) ^0
+"enrichment failures          : " + str(enrichment_failures) ^0
+"errors logged                : " + str(errors_logged) ^0
+"responses with a success code: " + str(responses_with_a_success_code) ^0
+"" ^0
+"downstream systems           : " + str(downstream_systems) ^0
+"  treating absence as not applicable : " + str(systems_treating_absence_as_not_applicable) ^0
+"  able to tell the difference        : " + str(systems_that_can_tell_the_difference) ^0
+"" ^0
+
+# ---- what the handler does right ----
+
+"the exception handler" ^0
+"  scope             : the enrichment call only" ^0
+"  logged at         : error, with the record id and a stack" ^0
+"  logs searchable   : yes" ^0
+"  rate alert        : above " + str(alert_threshold_per_day) + " a day" ^0
+"  the request       : completes, which is correct for an" ^0
+"    optional lookup" ^0
+"  verdict           : HANDLED" ^0
+"" ^0
+"  letting this fail the request would be the worse bug and" ^0
+"  the narrow catch is deliberate" ^0
+"" ^0
+
+# ---- what the response carries ----
+
+"the two states, on the wire" ^0
+"  the field does not apply : absent" ^0
+"  we tried and it failed   : absent" ^0
+"  status code in both cases: success" ^0
+"  a third representation   : not in the schema" ^0
+"" ^0
+"  the information exists, in a log, on the server, keyed" ^0
+"  by a record id the caller does not have" ^0
+"" ^0
+
+int(enrichment_failures * 10000 / requests_per_day) => failure_per_myriad
+"share of responses missing it after a failure : " + str(failure_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- why the alert stays quiet ----
+
+"the rate alert" ^0
+"  threshold, per day : " + str(alert_threshold_per_day) ^0
+"  failures, per day  : " + str(enrichment_failures) ^0
+"  fires              : no" ^0
+"  what the threshold was set from : the level at which" ^0
+"    someone would want to know" ^0
+"" ^0
+alert_threshold_per_day - enrichment_failures => headroom_under_the_threshold
+"  headroom before it fires : " + str(headroom_under_the_threshold) ^0
+"  the number is below the line and the line is reasonable" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same handler, with the response carrying an explicit enrichment status
+# rather than an absent field.
+0 => nc_systems_unable_to_tell
+downstream_systems => nc_systems_that_can_tell
+
+"null control - the response states the enrichment status" ^0
+"  requests failed by the handler : 0, unchanged" ^0
+"  systems able to tell the difference : " + str(nc_systems_that_can_tell) ^0
+"  systems unable to                   : " + str(nc_systems_unable_to_tell) ^0
+"  the handler did not become stricter; the two outcomes" ^0
+"  stopped sharing a representation" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what catching and logging guarantees" ^0
+"  the caller is not failed by an optional step : exactly" ^0
+"  the caller knows the step did not run        : not" ^0
+"    addressed; the log is on the server and the response" ^0
+"    is what the caller reads" ^0
+"" ^0
+"deciding not to fail a request is a decision about the status" ^0
+"code; it is read as a decision about the whole response, and" ^0
+"the body still has to say which of two things happened" ^0
+"" ^0
+
+"The handler is right to swallow it: a narrow catch around an optional lookup," ^0
+"logged at error with a stack and a record id, searchable, with a rate alert set" ^0
+"at a reasonable " + str(alert_threshold_per_day) + " a day and " + str(headroom_under_the_threshold) + " of headroom under it. " + str(enrichment_failures) + " responses" ^0
+"a day - " + str(failure_per_myriad) + " per ten thousand - carry a success code and an absent field that" ^0
+"all " + str(systems_treating_absence_as_not_applicable) + " downstream systems read as not applicable." ^0

@@ -1,0 +1,116 @@
+# Self-authored for the EML case corpus (no external origin). The quota resets
+# on the first of each month and the customer never exceeded it. What the
+# invoice charges for is computed below.
+#
+# The quota is enforced correctly. Five million calls a month, counted in shared
+# storage, reset atomically at midnight on the first, with a header on every
+# response telling the customer how much remains. The customer watched that
+# header, stayed under it in both months, and was never throttled.
+#
+# The invoice is computed over the BILLING CYCLE, which starts on the day the
+# account was created. The two windows are both a month long and they are not
+# the same month.
+#
+# The cycle runs the eighteenth to the seventeenth, so it contains one quota
+# reset, and the customer receives two grants inside one invoice.
+
+5000000 => quota_per_month
+18 => cycle_start_day
+1 => quota_reset_day
+4800000 => used_before_the_reset
+4900000 => used_after_the_reset
+0 => quota_violations
+0 => times_throttled
+
+used_before_the_reset + used_after_the_reset => used_in_the_billing_cycle
+quota_per_month => allowance_on_the_invoice
+used_in_the_billing_cycle - allowance_on_the_invoice => overage_billed
+
+"quota per month              : " + str(quota_per_month) ^0
+"quota resets on day          : " + str(quota_reset_day) ^0
+"billing cycle starts on day  : " + str(cycle_start_day) ^0
+"" ^0
+"used before the reset        : " + str(used_before_the_reset) ^0
+"used after the reset         : " + str(used_after_the_reset) ^0
+"used in the billing cycle    : " + str(used_in_the_billing_cycle) ^0
+"allowance on the invoice     : " + str(allowance_on_the_invoice) ^0
+"overage billed               : " + str(overage_billed) ^0
+"" ^0
+
+# ---- what the quota verified ----
+
+"the quota enforcement" ^0
+"  limit per month     : " + str(quota_per_month) ^0
+"  counter storage     : shared, atomic reset" ^0
+"  remaining sent on every response : yes" ^0
+"  violations          : " + str(quota_violations) ^0
+"  times throttled     : " + str(times_throttled) ^0
+"  verdict             : WITHIN QUOTA" ^0
+"" ^0
+"  the customer read that header and managed to it; both" ^0
+"  months are under the limit and neither is close" ^0
+"" ^0
+
+# ---- the two windows ----
+
+"the two months" ^0
+"  the quota's month  : the first to the last of the" ^0
+"    calendar month" ^0
+"  the invoice's month: day " + str(cycle_start_day) + " to day " + str(cycle_start_day - 1) ^0
+"  quota resets inside one billing cycle : 1" ^0
+"  grants the customer receives inside one invoice : 2" ^0
+"  allowance the invoice subtracts : 1" ^0
+"" ^0
+"  each window is a month and neither is wrong; they" ^0
+"  disagree about which days go together" ^0
+"" ^0
+
+int(overage_billed * 10000 / used_in_the_billing_cycle) => overage_share_per_myriad
+"share of cycle usage billed as overage : " + str(overage_share_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what each side can prove ----
+
+"the dispute" ^0
+"  customer shows     : two months, each under " + str(quota_per_month) ^0
+"  invoice shows      : " + str(used_in_the_billing_cycle) + " calls against " + str(allowance_on_the_invoice) ^0
+"  both are computed correctly : yes" ^0
+"  a document defining which month is the month : none" ^0
+"" ^0
+"  the support engineer can reproduce both numbers and" ^0
+"  neither system has a defect to fix" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same quota, reset on the customer's cycle boundary rather than the
+# calendar month.
+used_after_the_reset => nc_used_in_the_billing_cycle
+0 => nc_overage_billed
+
+"null control - the quota resets on the cycle boundary" ^0
+"  quota violations   : " + str(quota_violations) + ", unchanged" ^0
+"  grants inside one invoice : 1" ^0
+"  overage billed     : " + str(nc_overage_billed) ^0
+"  neither the quota nor the invoice became more correct;" ^0
+"  they started dividing the year at the same points" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what staying inside the quota guarantees" ^0
+"  no request is throttled : exactly" ^0
+"  no overage is charged   : not addressed; the charge is" ^0
+"    computed over a different window, and a window is a" ^0
+"    choice each system makes independently" ^0
+"" ^0
+"two correct counters over two correct periods produce two" ^0
+"correct answers; the defect is the assumption that a limit" ^0
+"and a price share a calendar" ^0
+"" ^0
+
+"The customer stayed inside the quota in both months - " + str(used_before_the_reset) + " and " + str(used_after_the_reset) ^0
+"against " + str(quota_per_month) + " - with " + str(quota_violations) + " violations and " + str(times_throttled) + " throttled requests, managed" ^0
+"against a header the API sends on every response. The billing cycle starts on" ^0
+"day " + str(cycle_start_day) + " and contains one quota reset, so the invoice sees " + str(used_in_the_billing_cycle) + " calls against" ^0
+"one allowance and bills " + str(overage_billed) + " as overage, " + str(overage_share_per_myriad) + " per ten thousand of the cycle." ^0

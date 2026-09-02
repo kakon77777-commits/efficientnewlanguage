@@ -1,0 +1,112 @@
+# Self-authored for the EML case corpus (no external origin). Three people
+# reviewed the quarterly report and signed it. What re-running it gives today is
+# computed below.
+#
+# The sign-off is real. Three named reviewers each opened the report, checked
+# the totals against two independent sources, questioned one line and had it
+# corrected, and signed. The signature is cryptographic, covers the exact bytes
+# of the PDF, and verifies today.
+#
+# The signature covers the DOCUMENT. The document is an output; the thing that
+# produced it is a saved query in the reporting tool, referenced by name, and
+# names are rebound.
+#
+# Two weeks after the signature the query gained a filter — a correct filter,
+# excluding test accounts, added by someone fixing a different report.
+
+3 => reviewers
+41800 => rows_in_the_signed_report
+38240 => rows_when_rerun_today
+14 => days_between_signature_and_edit
+1 => query_edits_since
+0 => query_versions_stored
+0 => signature_verification_failures
+
+rows_in_the_signed_report - rows_when_rerun_today => rows_the_filter_removes
+
+"reviewers                       : " + str(reviewers) ^0
+"rows in the signed report       : " + str(rows_in_the_signed_report) ^0
+"rows when rerun today           : " + str(rows_when_rerun_today) ^0
+"rows the new filter removes     : " + str(rows_the_filter_removes) ^0
+"days between signature and edit : " + str(days_between_signature_and_edit) ^0
+"" ^0
+
+# ---- what the signature verified ----
+
+"the signature" ^0
+"  covers            : the exact bytes of the pdf" ^0
+"  algorithm         : verifies today" ^0
+"  verification failures : " + str(signature_verification_failures) ^0
+"  reviewers         : " + str(reviewers) + ", each named" ^0
+"  totals checked against two independent sources : yes" ^0
+"  lines questioned and corrected during review : 1" ^0
+"  verdict           : SIGNED, VALID" ^0
+"" ^0
+"  the review was not a formality; it found and fixed" ^0
+"  something" ^0
+"" ^0
+
+# ---- what it does not cover ----
+
+"what produced those bytes" ^0
+"  the query          : saved in the reporting tool, by name" ^0
+"  versions stored    : " + str(query_versions_stored) ^0
+"  edits since the signature : " + str(query_edits_since) ^0
+"  the edit itself    : correct, excluding test accounts" ^0
+"  attached to the signature : nothing about the query" ^0
+"" ^0
+"  the signed artifact is downstream of a mutable" ^0
+"  definition, and the signature names neither" ^0
+"" ^0
+
+int(rows_the_filter_removes * 10000 / rows_in_the_signed_report) => difference_per_myriad
+"difference on re-running : " + str(difference_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- which number is right ----
+
+# Both. The signed figure is the correct answer to the question as it was asked
+# in the quarter; today's is the correct answer to the question as it is asked
+# now. Nothing records that they are different questions.
+"the two figures" ^0
+"  signed        : " + str(rows_in_the_signed_report) + ", correct for the question then" ^0
+"  today         : " + str(rows_when_rerun_today) + ", correct for the question now" ^0
+"  which is the report's figure : both, at different times" ^0
+"  a record that the question changed : none" ^0
+"" ^0
+"  a reader who reruns it to check the signed number will" ^0
+"  conclude the signed number was wrong" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same review, with the query text hashed into the signed document.
+rows_in_the_signed_report => nc_rows_when_rerun
+1 => nc_query_versions_stored
+
+"null control - the query text hashed into the document" ^0
+"  signature verification failures : " + str(signature_verification_failures) + ", unchanged" ^0
+"  query versions stored : " + str(nc_query_versions_stored) ^0
+"  rows when rerun       : " + str(nc_rows_when_rerun) ^0
+"  the signature did not get stronger; what it covers" ^0
+"  became the whole of what produced the number" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a signature guarantees" ^0
+"  these bytes are the bytes that were reviewed : exactly" ^0
+"  this number can be reproduced                : not" ^0
+"    addressed; reproduction runs a definition, and the" ^0
+"    signature covers an output" ^0
+"" ^0
+"signing an artifact and being able to derive it again are" ^0
+"different properties; the second needs the inputs inside the" ^0
+"envelope, and a saved query referenced by name is not one" ^0
+"" ^0
+
+"Three reviewers signed the report, the signature covers the exact bytes and" ^0
+"verifies today with " + str(signature_verification_failures) + " failures, and the review corrected a line. " + str(days_between_signature_and_edit) + " days" ^0
+"later the query behind it gained a correct filter, so re-running gives " + str(rows_when_rerun_today) ^0
+"against the signed " + str(rows_in_the_signed_report) + " - a difference of " + str(rows_the_filter_removes) + ", " + str(difference_per_myriad) + " per ten thousand -" ^0
+"with " + str(query_versions_stored) + " versions of the definition stored anywhere." ^0

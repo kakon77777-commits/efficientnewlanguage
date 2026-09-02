@@ -1,0 +1,118 @@
+# Self-authored for the EML case corpus (no external origin). The autoscaler
+# scales workers on queue depth, which is the right signal, and it responded
+# within a minute. How many of them can work is computed below.
+#
+# The scaling policy is well chosen. Queue depth is the quantity that actually
+# expresses unserved demand, it leads latency rather than lagging it, the
+# cooldown is tuned so the fleet does not oscillate, and this policy has
+# absorbed three genuine traffic spikes without anyone being paged.
+#
+# A worker is not a self-contained unit of capacity. Each one opens ten
+# connections to a shared database, and that database has a connection limit
+# which is not an input to the scaling policy and not an output of it.
+#
+# At two hundred and forty workers the fleet wants two thousand four hundred
+# connections against a limit of five hundred.
+
+10 => connections_per_worker
+500 => database_connection_limit
+20 => workers_at_rest
+240 => workers_at_peak
+0 => autoscaler_faults
+
+workers_at_peak * connections_per_worker => connections_wanted
+int(database_connection_limit / connections_per_worker) => workers_that_can_connect
+workers_at_peak - workers_that_can_connect => workers_that_cannot
+
+"connections per worker      : " + str(connections_per_worker) ^0
+"database connection limit   : " + str(database_connection_limit) ^0
+"workers at rest             : " + str(workers_at_rest) ^0
+"workers at peak             : " + str(workers_at_peak) ^0
+"" ^0
+"connections wanted at peak  : " + str(connections_wanted) ^0
+"workers that can connect    : " + str(workers_that_can_connect) ^0
+"workers that cannot         : " + str(workers_that_cannot) ^0
+"" ^0
+
+# ---- what the policy verified ----
+
+"the scaling policy" ^0
+"  signal          : queue depth" ^0
+"  leads latency rather than lagging it : yes" ^0
+"  cooldown tuned so the fleet does not oscillate : yes" ^0
+"  spikes absorbed without a page : 3" ^0
+"  autoscaler faults : " + str(autoscaler_faults) ^0
+"  response time     : under a minute" ^0
+"  verdict           : SCALED" ^0
+"" ^0
+"  queue depth is the correct signal and choosing it over" ^0
+"  cpu was the right call" ^0
+"" ^0
+
+# ---- what a worker costs ----
+
+"one worker, in resources" ^0
+"  compute       : provisioned by the autoscaler" ^0
+"  memory        : provisioned by the autoscaler" ^0
+"  database connections : " + str(connections_per_worker) + ", from a fixed pool the" ^0
+"    autoscaler neither reads nor allocates" ^0
+"" ^0
+"  scaling a fleet multiplies every per-worker cost, and" ^0
+"  one of them is drawn on a resource with a ceiling" ^0
+"" ^0
+
+int(workers_that_cannot * 10000 / workers_at_peak) => starved_per_myriad
+"share of the peak fleet unable to connect : " + str(starved_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- the loop ----
+
+# A worker that cannot connect fails its health check, is replaced, and the
+# replacement cannot connect either. The queue does not drain, so the depth
+# signal stays high, so the policy scales up further.
+"what happens next" ^0
+"  a worker that cannot connect : fails health, is replaced" ^0
+"  the replacement              : also cannot connect" ^0
+"  queue depth                  : does not fall" ^0
+"  the policy reads that as     : still not enough workers" ^0
+"  the policy's response        : more workers" ^0
+"" ^0
+"  every step is the designed behaviour of a component that" ^0
+"  is working" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same policy, with the fleet size capped at what the connection pool
+# supports and the queue depth alarm routed to a human above it.
+workers_that_can_connect => nc_workers_at_peak
+0 => nc_workers_that_cannot
+nc_workers_at_peak * connections_per_worker => nc_connections_wanted
+
+"null control - the fleet capped at the pool's capacity" ^0
+"  autoscaler faults    : " + str(autoscaler_faults) + ", unchanged" ^0
+"  workers at peak      : " + str(nc_workers_at_peak) ^0
+"  connections wanted   : " + str(nc_connections_wanted) ^0
+"  workers that cannot connect : " + str(nc_workers_that_cannot) ^0
+"  the policy did not get smarter; its output range" ^0
+"  stopped exceeding a resource it cannot see" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a correct scaling signal guarantees" ^0
+"  the fleet grows when demand is unserved : exactly" ^0
+"  the work gets done                       : not addressed;" ^0
+"    a worker is capacity only if every resource it needs" ^0
+"    scales with it, and the shared ones do not" ^0
+"" ^0
+"an autoscaler multiplies a unit; the question is never" ^0
+"whether the signal is right but whether the unit is" ^0
+"self-contained, and a fixed pool makes it not" ^0
+"" ^0
+
+"The policy is right and the autoscaler is faultless: queue depth leads latency," ^0
+"the cooldown is tuned, three real spikes absorbed, " + str(autoscaler_faults) + " faults. At " + str(workers_at_peak) + " workers" ^0
+"the fleet wants " + str(connections_wanted) + " connections against a limit of " + str(database_connection_limit) + ", so " + str(workers_that_can_connect) + " can work" ^0
+"and " + str(workers_that_cannot) + " cannot - " + str(starved_per_myriad) + " per ten thousand of the peak fleet - and the queue" ^0
+"they were scaled to drain stays deep, which the policy reads as needing more." ^0

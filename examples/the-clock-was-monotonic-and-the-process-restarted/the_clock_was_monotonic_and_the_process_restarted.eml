@@ -1,0 +1,125 @@
+# Self-authored for the EML case corpus (no external origin). Durations use a
+# monotonic clock, which is the correct choice and immune to every wall-clock
+# hazard. How long a thirty-second lease lasts is computed below.
+#
+# The choice is right and it was made deliberately. A wall clock can step
+# backwards when time is corrected, jump an hour at a transition, and produce
+# negative durations; the code was moved off it after exactly that bug. The
+# monotonic clock never goes backwards and is not affected by any of it.
+#
+# A monotonic clock has no fixed origin. Its zero is whenever the counter it
+# reads started, and comparing two readings is only meaningful if they came from
+# the same one. Persisting a reading writes a number whose origin is not stored
+# beside it.
+#
+# The lease deadline is written to shared storage so other instances can honour
+# it, and the process that wrote it has since restarted.
+
+30 => lease_seconds
+804000 => uptime_at_write_seconds
+62 => restarts_per_week
+2400000 => leases_persisted
+0 => negative_durations_observed
+
+# After a restart the reader's monotonic clock starts near zero, so a deadline
+# written as (old uptime + lease) is far in its future.
+uptime_at_write_seconds + lease_seconds => stored_deadline
+int(stored_deadline / lease_seconds) => times_longer_than_intended
+
+"lease, seconds                : " + str(lease_seconds) ^0
+"uptime when the deadline was written : " + str(uptime_at_write_seconds) ^0
+"stored deadline value         : " + str(stored_deadline) ^0
+"" ^0
+"after a restart the reader's clock starts near : 0" ^0
+"so the lease appears to last, seconds : " + str(stored_deadline) ^0
+"which is longer than intended by : " + str(times_longer_than_intended) + " times" ^0
+"" ^0
+
+# ---- what the monotonic clock guarantees ----
+
+"the clock" ^0
+"  goes backwards      : never" ^0
+"  affected by time correction : no" ^0
+"  affected by a daylight transition : no" ^0
+"  negative durations observed : " + str(negative_durations_observed) ^0
+"  verdict             : MONOTONIC" ^0
+"" ^0
+"  the move to it fixed a real bug and none of the wall" ^0
+"  clock's hazards can recur" ^0
+"" ^0
+
+# ---- what it does not have ----
+
+"comparing two readings" ^0
+"  same process, same boot : meaningful" ^0
+"  different process       : the origins differ" ^0
+"  origin stored beside the value : no" ^0
+"  a way to detect the mismatch   : none, both are just" ^0
+"    numbers of seconds" ^0
+"" ^0
+"  the reading is not wrong and the comparison is not" ^0
+"  detectable as invalid; it is arithmetic on two scales" ^0
+"" ^0
+
+# ---- what it costs ----
+
+restarts_per_week * 52 => restarts_per_year
+int(leases_persisted / 52 / 7) => leases_per_day
+
+"the exposure" ^0
+"  leases persisted        : " + str(leases_persisted) ^0
+"  leases per day          : " + str(leases_per_day) ^0
+"  restarts per week       : " + str(restarts_per_week) ^0
+"  restarts per year       : " + str(restarts_per_year) ^0
+"  every lease written before a restart and read after it" ^0
+"    is held for " + str(stored_deadline) + " seconds instead of " + str(lease_seconds) ^0
+"" ^0
+
+# ---- why it looks like a leak rather than a clock ----
+
+# The symptom is a resource nobody releases. Every investigation looks at the
+# release path, which is correct, and at the deadline arithmetic, which is also
+# correct within one process.
+"what the investigation finds" ^0
+"  release path        : correct" ^0
+"  deadline arithmetic within one process : correct" ^0
+"  negative durations  : " + str(negative_durations_observed) ^0
+"  clock hazards       : none, it is monotonic" ^0
+"  the reading that is wrong : neither of them" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same clock for measuring, with the persisted deadline written as a wall
+# clock instant instead.
+lease_seconds => nc_effective_lease_seconds
+0 => nc_leases_outliving_their_deadline
+
+"null control - persist a wall-clock instant, measure with monotonic" ^0
+"  negative durations   : " + str(negative_durations_observed) + ", unchanged" ^0
+"  effective lease, seconds : " + str(nc_effective_lease_seconds) ^0
+"  leases outliving their deadline : " + str(nc_leases_outliving_their_deadline) ^0
+"  the monotonic clock is still used for every duration;" ^0
+"  the value that crosses a process boundary stopped being" ^0
+"  one of its readings" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a monotonic clock guarantees" ^0
+"  the difference of two readings is a true elapsed time : exactly," ^0
+"    within one origin" ^0
+"  a reading means anything elsewhere                    : not" ^0
+"    addressed; the origin is not part of the value and" ^0
+"    cannot be recovered from it" ^0
+"" ^0
+"monotonic readings are for measuring and wall-clock instants" ^0
+"are for communicating; a value that outlives its process has" ^0
+"crossed from the first use to the second" ^0
+"" ^0
+
+"The clock is monotonic, " + str(negative_durations_observed) + " negative durations have been seen, and moving to it" ^0
+"fixed a real wall-clock bug. Its readings have no stored origin, so a " + str(lease_seconds) ^0
+"second lease written at uptime " + str(uptime_at_write_seconds) + " and read after a restart lasts " + str(stored_deadline) ^0
+"seconds - " + str(times_longer_than_intended) + " times its length - across " + str(restarts_per_year) + " restarts a year," ^0
+"and no reading is wrong." ^0

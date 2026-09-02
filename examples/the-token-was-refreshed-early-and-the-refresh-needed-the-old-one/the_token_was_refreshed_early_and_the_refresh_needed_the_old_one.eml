@@ -1,0 +1,118 @@
+# Self-authored for the EML case corpus (no external origin). The client
+# refreshes five minutes before expiry, which is the right pattern. What happens
+# on a client whose clock is wrong is computed below.
+#
+# The refresh logic is correct. It does not wait for a rejection, it renews on a
+# margin, the margin was chosen to cover a slow network and a retry, and the
+# renewal is idempotent so two in flight do no harm. On a machine whose clock is
+# right, this never produces a failed call.
+#
+# The margin is measured against the CLIENT's clock and the expiry is decided by
+# the server's. A client that believes it is five minutes early is early by five
+# minutes minus its own error, and that quantity can be negative.
+#
+# Two thousand one hundred and forty clients are more than five minutes fast.
+
+3600 => token_lifetime_seconds
+300 => refresh_margin_seconds
+340 => skew_of_an_affected_client_seconds
+18400 => clients
+2140 => clients_skewed_beyond_the_margin
+60 => retry_attempts_per_minute
+0 => refresh_logic_defects
+
+skew_of_an_affected_client_seconds - refresh_margin_seconds => seconds_late_when_it_refreshes
+clients - clients_skewed_beyond_the_margin => clients_unaffected
+clients_skewed_beyond_the_margin * retry_attempts_per_minute => rejected_refreshes_per_minute
+
+"token lifetime, seconds       : " + str(token_lifetime_seconds) ^0
+"refresh margin, seconds       : " + str(refresh_margin_seconds) ^0
+"skew of an affected client, s : " + str(skew_of_an_affected_client_seconds) ^0
+"it refreshes late by, seconds : " + str(seconds_late_when_it_refreshes) ^0
+"" ^0
+"clients                       : " + str(clients) ^0
+"  within the margin           : " + str(clients_unaffected) ^0
+"  skewed beyond it            : " + str(clients_skewed_beyond_the_margin) ^0
+"rejected refreshes per minute : " + str(rejected_refreshes_per_minute) ^0
+"" ^0
+
+# ---- what the refresh logic verified ----
+
+"the refresh implementation" ^0
+"  renews on a margin rather than on rejection : yes" ^0
+"  margin covers a slow network and a retry    : yes" ^0
+"  two renewals in flight are harmless         : yes" ^0
+"  defects found in review                     : " + str(refresh_logic_defects) ^0
+"  failed calls on a correct clock             : none" ^0
+"  verdict           : CORRECT" ^0
+"" ^0
+"  this is the pattern the documentation recommends and it" ^0
+"  is implemented faithfully" ^0
+"" ^0
+
+# ---- whose clock decides what ----
+
+"the two clocks" ^0
+"  when the token expires   : the server's clock" ^0
+"  when the client renews   : the client's clock, minus" ^0
+"    the margin" ^0
+"  the effective margin     : " + str(refresh_margin_seconds) + " minus the client's error" ^0
+"  the client's error is known to it : no" ^0
+"" ^0
+"  a margin against an unknown offset is a margin only" ^0
+"  while the offset is smaller than it" ^0
+"" ^0
+
+int(clients_skewed_beyond_the_margin * 10000 / clients) => affected_per_myriad
+"share of clients past the margin : " + str(affected_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- the loop ----
+
+# The refresh call is authenticated with the access token it is replacing. Once
+# that token has expired the refresh is rejected, and the rejection is what the
+# client's error handler responds to by refreshing.
+"one affected client, in order" ^0
+"  1. believes it has " + str(refresh_margin_seconds) + " seconds left" ^0
+"  2. actually expired " + str(seconds_late_when_it_refreshes) + " seconds ago" ^0
+"  3. sends a refresh, authenticated with the expired token" ^0
+"  4. rejected" ^0
+"  5. the error handler responds by refreshing" ^0
+"  the loop exits when : the clock is corrected, or a" ^0
+"    person restarts it" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same margin, with the client renewing against the expiry the server
+# stated rather than against its own clock plus a lifetime.
+0 => nc_clients_skewed_beyond_the_margin
+0 => nc_rejected_refreshes_per_minute
+
+"null control - renew on the server's stated expiry" ^0
+"  refresh logic defects : " + str(refresh_logic_defects) + ", unchanged" ^0
+"  clients past the margin : " + str(nc_clients_skewed_beyond_the_margin) ^0
+"  rejected refreshes per minute : " + str(nc_rejected_refreshes_per_minute) ^0
+"  the margin did not grow; the quantity it is subtracted" ^0
+"  from stopped being the client's own reading" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what refreshing on a margin guarantees" ^0
+"  the token is renewed before it expires : exactly, on a" ^0
+"    clock that agrees with the server's" ^0
+"  the token is renewed before it expires : not addressed" ^0
+"    otherwise, and the client cannot tell which case it" ^0
+"    is in" ^0
+"" ^0
+"a safety margin absorbs a delay you can measure; against an" ^0
+"unmeasured offset it is a threshold, and the credential that" ^0
+"authorises the renewal is the one that has expired" ^0
+"" ^0
+
+"The refresh logic is correct and review found " + str(refresh_logic_defects) + " defects: it renews on a" ^0
+str(refresh_margin_seconds) + " second margin rather than on rejection, the margin covers a slow network," ^0
+"and concurrent renewals are harmless. " + str(clients_skewed_beyond_the_margin) + " of " + str(clients) + " clients - " + str(affected_per_myriad) + " per ten" ^0
+"thousand - run more than that fast, so they refresh " + str(seconds_late_when_it_refreshes) + " seconds after expiry using" ^0
+"the expired token, and " + str(rejected_refreshes_per_minute) + " rejections a minute feed the handler that retries." ^0

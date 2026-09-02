@@ -1,0 +1,123 @@
+# Self-authored for the EML case corpus (no external origin). The new field is
+# in the schema, validates on every message, and is documented. How many
+# consumers act on it is computed below.
+#
+# The change was made the careful way. The field is optional, so no existing
+# producer breaks; the schema version was bumped; validation runs on both sides
+# and has never rejected a message; the field is in the reference documentation
+# with an example. Six million two hundred thousand messages a day carry it.
+#
+# Forward compatibility is the property that an old consumer IGNORES what it
+# does not recognise. It is why the additive change is safe, and it is
+# indistinguishable, from the producer's side, from a consumer that recognises
+# the field and does nothing with it.
+#
+# Twenty-nine of thirty-four consumers ignore it. The producer's dashboard shows
+# a hundred percent delivery.
+
+6200000 => messages_per_day
+34 => consumers
+5 => consumers_reading_the_field
+0 => schema_validation_failures
+0 => messages_rejected
+
+consumers - consumers_reading_the_field => consumers_ignoring_the_field
+
+"messages per day carrying the field : " + str(messages_per_day) ^0
+"consumers                           : " + str(consumers) ^0
+"  reading the field                 : " + str(consumers_reading_the_field) ^0
+"  ignoring it                       : " + str(consumers_ignoring_the_field) ^0
+"schema validation failures          : " + str(schema_validation_failures) ^0
+"messages rejected                   : " + str(messages_rejected) ^0
+"" ^0
+
+# ---- what the rollout verified ----
+
+"the additive change" ^0
+"  field optional          : yes" ^0
+"  schema version bumped   : yes" ^0
+"  validation on both sides: yes" ^0
+"  validation failures     : " + str(schema_validation_failures) ^0
+"  messages rejected       : " + str(messages_rejected) ^0
+"  documented with an example : yes" ^0
+"  verdict                 : COMPATIBLE, DELIVERED" ^0
+"" ^0
+"  this is the correct way to add a field and every step of" ^0
+"  it was followed" ^0
+"" ^0
+
+# ---- what forward compatibility is ----
+
+"why nothing broke" ^0
+"  old consumers ignore unknown fields : by design" ^0
+"  that is the property that makes this safe : yes" ^0
+"  from the producer, a consumer that ignores it looks like :" ^0
+"    a consumer that received it" ^0
+"  a signal distinguishing the two : none exists in the" ^0
+"    protocol, and adding one would break the property" ^0
+"" ^0
+
+int(consumers_ignoring_the_field * 10000 / consumers) => ignoring_per_myriad
+"share of consumers ignoring it : " + str(ignoring_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the producer's dashboard says ----
+
+messages_per_day => messages_delivered
+"delivery" ^0
+"  messages sent      : " + str(messages_per_day) ^0
+"  messages delivered : " + str(messages_delivered) ^0
+"  delivery rate      : complete" ^0
+"  consumers acting on the field : " + str(consumers_reading_the_field) ^0
+"  a metric for the last line : none" ^0
+"" ^0
+"  the rollout was declared done on the first four numbers," ^0
+"  which are the ones a message bus can produce" ^0
+"" ^0
+
+# ---- what the twenty-nine compute instead ----
+
+# They keep using the previous rule, which was correct before the field existed
+# and is now an approximation. Their outputs are plausible and internally
+# consistent, so nothing downstream complains.
+"a consumer that ignores it" ^0
+"  rule applied     : the one from before the field existed" ^0
+"  output           : plausible, internally consistent" ^0
+"  errors raised    : 0" ^0
+"  difference from the intended result : present, and not" ^0
+"    computed anywhere" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same additive change, with the producer requiring an explicit
+# acknowledgement of the schema version each consumer implements.
+consumers => nc_consumers_declaring_a_version
+consumers_ignoring_the_field => nc_consumers_known_to_be_behind
+
+"null control - consumers declare the schema version they implement" ^0
+"  validation failures : " + str(schema_validation_failures) + ", unchanged" ^0
+"  consumers declaring a version : " + str(nc_consumers_declaring_a_version) ^0
+"  consumers known to be behind  : " + str(nc_consumers_known_to_be_behind) ^0
+"  compatibility did not change; the producer stopped" ^0
+"  having to infer uptake from delivery" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what an additive schema change guarantees" ^0
+"  nothing breaks         : exactly, and that is the point" ^0
+"  the new information is used : not addressed; the" ^0
+"    mechanism that guarantees the first is silence, and" ^0
+"    silence is what the second would have to be measured by" ^0
+"" ^0
+"forward compatibility buys safety with unobservability; a" ^0
+"rollout that measures delivery has measured the half the" ^0
+"protocol reports and not the half anyone wanted" ^0
+"" ^0
+
+"The field is optional, versioned, validated on both sides with " + str(schema_validation_failures) + " failures," ^0
+"documented with an example, and delivered on all " + str(messages_per_day) + " messages a day. " + str(consumers_ignoring_the_field) ^0
+"of " + str(consumers) + " consumers ignore it - " + str(ignoring_per_myriad) + " per ten thousand - which is the same" ^0
+"forward-compatibility rule that made the change safe, and the producer's" ^0
+"dashboard cannot distinguish them from the " + str(consumers_reading_the_field) + " that read it." ^0

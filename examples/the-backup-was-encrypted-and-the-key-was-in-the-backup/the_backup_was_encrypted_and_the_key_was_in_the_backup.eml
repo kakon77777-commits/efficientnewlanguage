@@ -1,0 +1,120 @@
+# Self-authored for the EML case corpus (no external origin). Every backup is
+# encrypted at rest and the restore drill passes quarterly. What an archive
+# contains is computed below.
+#
+# The encryption is correct. A modern authenticated cipher, keys in a managed
+# service with per-role access, no key ever written to the repository, and a
+# restore drill four times a year that has never needed a manual step. Ninety
+# archives, all encrypted, none with a weak or reused key.
+#
+# The archive is a full filesystem snapshot of the application host. That host
+# must start unattended after a reboot, so the key material it needs is on its
+# own disk — which is inside the thing being snapshotted.
+#
+# The backup is encrypted with a key the backup contains.
+
+90 => backups_retained
+90 => backups_encrypted
+4 => restore_drills_per_year
+0 => drills_needing_a_manual_step
+3 => offsite_copies
+1 => key_material_files_per_backup
+
+backups_retained * key_material_files_per_backup => key_copies_in_the_archives
+backups_retained * offsite_copies => archive_copies_offsite
+
+"backups retained            : " + str(backups_retained) ^0
+"encrypted                   : " + str(backups_encrypted) ^0
+"offsite copies of each      : " + str(offsite_copies) ^0
+"archive copies offsite      : " + str(archive_copies_offsite) ^0
+"key material files per backup : " + str(key_material_files_per_backup) ^0
+"copies of the key in the archives : " + str(key_copies_in_the_archives) ^0
+"" ^0
+
+# ---- what the encryption verified ----
+
+"the encryption posture" ^0
+"  cipher              : authenticated, modern" ^0
+"  key storage         : managed service, per-role access" ^0
+"  keys in the repository : none" ^0
+"  weak or reused keys : none" ^0
+"  archives encrypted  : " + str(backups_encrypted) + " of " + str(backups_retained) ^0
+"  verdict             : ENCRYPTED AT REST" ^0
+"" ^0
+"  none of that is nominal; the key service is real and the" ^0
+"  access controls on it are enforced" ^0
+"" ^0
+
+# ---- what the restore drill verified ----
+
+"the quarterly restore drill" ^0
+"  drills per year       : " + str(restore_drills_per_year) ^0
+"  needing a manual step : " + str(drills_needing_a_manual_step) ^0
+"  what it proves        : the archive is complete and the" ^0
+"    restore procedure works unattended" ^0
+"" ^0
+"  the second half of that is the finding: unattended means" ^0
+"  the key was available without a person, and the drill" ^0
+"  runs on a host restored from the archive" ^0
+"" ^0
+
+# ---- what an archive is sufficient for ----
+
+"an attacker holding one archive" ^0
+"  ciphertext           : present" ^0
+"  key material         : present, on the same disk image" ^0
+"  additional access needed : none" ^0
+"  the key service is consulted : not during a restore from" ^0
+"    this image, which is why the drill needs no operator" ^0
+"" ^0
+
+int(key_copies_in_the_archives * 10000 / backups_retained) => key_per_backup_myriad
+"key copies per archive : " + str(key_per_backup_myriad) + " per ten thousand, which is one each" ^0
+"" ^0
+
+# ---- why the audit passed ----
+
+# The audit asks two questions and both have correct answers. It does not ask
+# whether the two artifacts travel together, because they are managed by
+# different teams and appear in different inventories.
+"the audit's questions" ^0
+"  are backups encrypted        : yes, " + str(backups_encrypted) + " of " + str(backups_retained) ^0
+"  are keys held outside the data : yes, in the key service" ^0
+"  do the archives contain a copy of the key : not asked" ^0
+"  who would ask it : nobody owns both inventories" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same archives, excluding the key material path from the snapshot and
+# supplying the key at restore time from the key service.
+0 => nc_key_copies_in_the_archives
+1 => nc_drills_needing_a_key_fetch
+
+"null control - the key path excluded from the snapshot" ^0
+"  archives encrypted      : " + str(backups_encrypted) + ", unchanged" ^0
+"  copies of the key in the archives : " + str(nc_key_copies_in_the_archives) ^0
+"  drills needing a key fetch : " + str(nc_drills_needing_a_key_fetch) ^0
+"  the cipher did not change; the restore stopped being" ^0
+"  able to proceed from the archive alone" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what encryption at rest guarantees" ^0
+"  the data is unreadable without the key : exactly" ^0
+"  the data is unreadable to whoever holds it : not" ^0
+"    addressed; that depends on where the key is, and a" ^0
+"    full-host snapshot is a question about scope rather" ^0
+"    than about cryptography" ^0
+"" ^0
+"encryption separates the data from the key; a backup that" ^0
+"restores unattended has un-separated them, and the property" ^0
+"that proves it is the one the drill is designed to show" ^0
+"" ^0
+
+"All " + str(backups_retained) + " archives are encrypted with a modern authenticated cipher, keys in a" ^0
+"managed service, none in the repository, and " + str(restore_drills_per_year) + " drills a year pass with" ^0
+str(drills_needing_a_manual_step) + " manual steps. Each archive is a full host snapshot, so each contains the" ^0
+"key material that decrypts it - " + str(key_copies_in_the_archives) + " copies across the retained set and" ^0
+str(archive_copies_offsite) + " offsite - and the unattended restore is the demonstration." ^0
