@@ -1,0 +1,109 @@
+# Self-authored for the EML case corpus (no external origin). The client checks
+# every field before submitting and catches twenty-six thousand bad inputs a
+# day. How many submissions reach the server unchecked is computed below.
+#
+# The client-side validation is thorough and it is not security theatre — it is
+# there for the user. Every field is checked as it is typed, the message says
+# what is wrong rather than that something is, and it turns twenty-six thousand
+# would-be round trips a day into an immediate correction. Removing it would
+# make the product worse.
+#
+# It runs where the user is. Server-side validation covers fourteen of fifteen
+# fields; the fifteenth was left out during a deadline with the note that the
+# form already checks it, which was true and is a statement about one caller.
+#
+# A hundred and twelve thousand submissions a day do not come from the form.
+
+840000 => submissions_per_day
+26400 => caught_by_the_client_per_day
+15 => fields
+14 => fields_checked_on_the_server
+112000 => submissions_not_from_the_form
+
+fields - fields_checked_on_the_server => fields_trusted_from_the_client
+submissions_per_day - submissions_not_from_the_form => submissions_from_the_form
+
+"submissions per day        : " + str(submissions_per_day) ^0
+"  from the form            : " + str(submissions_from_the_form) ^0
+"  from an integration      : " + str(submissions_not_from_the_form) ^0
+"caught by the client daily : " + str(caught_by_the_client_per_day) ^0
+"" ^0
+"fields                     : " + str(fields) ^0
+"  checked on the server    : " + str(fields_checked_on_the_server) ^0
+"  trusted from the client  : " + str(fields_trusted_from_the_client) ^0
+"" ^0
+
+# ---- what the client validation does ----
+
+"the form" ^0
+"  checks every field as it is typed : yes" ^0
+"  message names what is wrong       : yes" ^0
+"  round trips saved per day         : " + str(caught_by_the_client_per_day) ^0
+"  is it security theatre            : no, it is for the user" ^0
+"  verdict                           : GOOD VALIDATION" ^0
+"" ^0
+"  removing it would make the product worse and nobody" ^0
+"  should" ^0
+"" ^0
+
+# ---- what it is evidence about ----
+
+"the scope of a client-side check" ^0
+"  submissions it inspects : the ones it produced" ^0
+"  submissions it inspects that it did not produce : none," ^0
+"    because it is not on that path" ^0
+"  what the note said : the form already checks it" ^0
+"  what the note meant : the form's submissions are checked" ^0
+"" ^0
+"  the sentence is true; the inference drawn from it names" ^0
+"  a population one caller does not cover" ^0
+"" ^0
+
+int(submissions_not_from_the_form * 10000 / submissions_per_day) => unvalidated_per_myriad
+"share arriving with that field unchecked : " + str(unvalidated_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- why the integrations exist ----
+
+# They are documented, supported, and were the reason the API was built. Nobody
+# bypassed anything; the form is one client among several and it is the only
+# one the note considered.
+"the callers" ^0
+"  the form               : one client" ^0
+"  documented integrations : several, supported, intended" ^0
+"  anyone bypassing a control : nobody" ^0
+"  clients the note considered : one" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same client validation, with the fifteenth field checked on the server
+# as well.
+0 => nc_submissions_with_an_unchecked_field
+caught_by_the_client_per_day => nc_caught_by_the_client
+
+"null control - the fifteenth field checked on the server too" ^0
+"  caught by the client : " + str(nc_caught_by_the_client) + ", unchanged" ^0
+"  submissions with an unchecked field : " + str(nc_submissions_with_an_unchecked_field) ^0
+"  the form did not change; the check moved to the place" ^0
+"  every caller passes through" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what client-side validation guarantees" ^0
+"  this client sends well-formed values : exactly" ^0
+"  the server receives well-formed values : not addressed;" ^0
+"    it is a property of one caller, and the server's" ^0
+"    population is every caller" ^0
+"" ^0
+"a check is evidence about the traffic that passes through it;" ^0
+"moving one to the client improves the experience of that" ^0
+"client and removes it from the boundary" ^0
+"" ^0
+
+"The form checks every field as it is typed and saves " + str(caught_by_the_client_per_day) + " round trips a day," ^0
+"which is real and worth keeping. " + str(fields_checked_on_the_server) + " of " + str(fields) + " fields are also checked on the" ^0
+"server; the fifteenth was left to the form, so the " + str(submissions_not_from_the_form) + " submissions a day" ^0
+"that arrive from documented integrations - " + str(unvalidated_per_myriad) + " per ten thousand - carry that" ^0
+"field unchecked, and nobody bypassed anything." ^0

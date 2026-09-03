@@ -1,0 +1,113 @@
+# Self-authored for the EML case corpus (no external origin). The parser rejects
+# anything the specification does not require it to accept, deliberately. How
+# many times that strictness has fired is computed below.
+#
+# The strictness was chosen and defended. Accepting near-misses is how a format
+# acquires an undocumented dialect that later becomes mandatory, so this parser
+# refuses: no trailing commas, no duplicate keys, no implicit coercion, and a
+# clear error naming the byte offset. The decision is right and the team has
+# turned down two requests to loosen it.
+#
+# Strictness on INPUT protects us from other people's output. The direction
+# that decides whether other people can read US is the generator, and nothing
+# argued about that one.
+#
+# Every file this parser sees comes from that generator.
+
+2400000 => files_parsed_per_day
+0 => rejections_per_day
+5 => third_party_parsers_tested
+3 => third_party_parsers_that_reject_our_output
+1840 => external_consumers
+2 => requests_to_loosen_the_parser_declined
+
+third_party_parsers_tested - third_party_parsers_that_reject_our_output => third_party_parsers_that_accept
+int(external_consumers * third_party_parsers_that_reject_our_output / third_party_parsers_tested) => consumers_likely_affected
+
+"files parsed per day        : " + str(files_parsed_per_day) ^0
+"rejections per day          : " + str(rejections_per_day) ^0
+"" ^0
+"third-party parsers tested  : " + str(third_party_parsers_tested) ^0
+"  accept our output         : " + str(third_party_parsers_that_accept) ^0
+"  reject our output         : " + str(third_party_parsers_that_reject_our_output) ^0
+"external consumers          : " + str(external_consumers) ^0
+"likely affected             : " + str(consumers_likely_affected) ^0
+"" ^0
+
+# ---- what the strict parser verified ----
+
+"the parser" ^0
+"  trailing commas    : rejected" ^0
+"  duplicate keys     : rejected" ^0
+"  implicit coercion  : rejected" ^0
+"  error message      : names the byte offset" ^0
+"  requests to loosen it, declined : " + str(requests_to_loosen_the_parser_declined) ^0
+"  verdict            : STRICT" ^0
+"" ^0
+"  refusing near-misses is how a format avoids acquiring an" ^0
+"  undocumented dialect, and that reasoning is sound" ^0
+"" ^0
+
+# ---- where its input comes from ----
+
+"the population it guards" ^0
+"  files parsed per day : " + str(files_parsed_per_day) ^0
+"  produced by our own generator : all of them" ^0
+"  produced by a third party     : none" ^0
+"  rejections           : " + str(rejections_per_day) ^0
+"" ^0
+"  the strictness has never fired, which is consistent with" ^0
+"  it working and with there being nothing for it to catch" ^0
+"" ^0
+
+int(third_party_parsers_that_reject_our_output * 10000 / third_party_parsers_tested) => rejecting_share_per_myriad
+"share of tested parsers that reject us : " + str(rejecting_share_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the generator emits ----
+
+# An optional construct the specification permits and most implementations do
+# not support. Our own parser accepts it, which is the only reason nobody
+# noticed: the round trip through our own tools is clean.
+"the round trip" ^0
+"  our generator to our parser : clean" ^0
+"  our generator to theirs     : " + str(third_party_parsers_that_reject_our_output) + " of " + str(third_party_parsers_tested) + " refuse" ^0
+"  the construct               : permitted by the spec," ^0
+"    supported by few" ^0
+"  who tested the second row before a customer did : nobody" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same parser, with the generator restricted to the intersection every
+# tested implementation accepts.
+third_party_parsers_tested => nc_parsers_that_accept
+0 => nc_consumers_affected
+
+"null control - the generator emits the common subset" ^0
+"  parser strictness   : unchanged, still strict" ^0
+"  parsers accepting our output : " + str(nc_parsers_that_accept) ^0
+"  consumers affected  : " + str(nc_consumers_affected) ^0
+"  the parser did not loosen; the generator stopped using" ^0
+"  a permission nobody else implements" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a strict parser guarantees" ^0
+"  we do not accept malformed input : exactly" ^0
+"  we do not emit unreadable output : not addressed, and" ^0
+"    the two are different directions with different" ^0
+"    counterparties" ^0
+"" ^0
+"be strict in what you accept and conservative in what you" ^0
+"send is one sentence with two halves; a project can argue" ^0
+"the first half for years while the second is whatever the" ^0
+"library happened to do" ^0
+"" ^0
+
+"The parser is strict on every axis and the strictness was defended twice: no" ^0
+"trailing commas, no duplicate keys, no coercion, errors naming the byte offset." ^0
+"All " + str(files_parsed_per_day) + " files a day come from our own generator, so it has fired " + str(rejections_per_day) ^0
+"times, while that generator emits a spec-permitted construct " + str(third_party_parsers_that_reject_our_output) + " of " + str(third_party_parsers_tested) + " other" ^0
+"parsers refuse - " + str(rejecting_share_per_myriad) + " per ten thousand - reaching about " + str(consumers_likely_affected) + " external consumers." ^0

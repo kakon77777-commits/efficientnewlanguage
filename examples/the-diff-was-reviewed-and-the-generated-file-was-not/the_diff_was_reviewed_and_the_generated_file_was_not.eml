@@ -1,0 +1,126 @@
+# Self-authored for the EML case corpus (no external origin). Two people
+# reviewed every line of the change and approved it. How many lines were in the
+# change is computed below.
+#
+# The review is real. Two approvals are required, from people who did not write
+# the code; the reviewers read the eighty-four lines, asked two questions and
+# had one of them answered with an edit. Nobody rubber-stamped anything and the
+# process has caught defects that tests did not.
+#
+# What a reviewer reads is what the diff view SHOWS. Generated files are marked
+# in the repository's attributes so they collapse — a rule added because a
+# lockfile update used to bury a one-line change under nine thousand lines of
+# churn, which is a real problem and this is the standard fix.
+#
+# The change also updated a lockfile. Inside it, one package's resolved URL
+# points somewhere else.
+
+84 => lines_a_reviewer_saw
+12400 => lines_in_collapsed_generated_files
+2 => reviewers
+2 => approvals
+1 => substituted_packages
+0 => rubber_stamps
+
+lines_a_reviewer_saw + lines_in_collapsed_generated_files => lines_in_the_change
+int(lines_in_collapsed_generated_files * 10000 / lines_in_the_change) => collapsed_per_myriad
+
+"lines a reviewer saw           : " + str(lines_a_reviewer_saw) ^0
+"lines in collapsed files       : " + str(lines_in_collapsed_generated_files) ^0
+"lines in the change            : " + str(lines_in_the_change) ^0
+"share collapsed                : " + str(collapsed_per_myriad) + " per ten thousand" ^0
+"" ^0
+"reviewers                      : " + str(reviewers) ^0
+"approvals                      : " + str(approvals) ^0
+"substituted packages           : " + str(substituted_packages) ^0
+"" ^0
+
+# ---- what the review verified ----
+
+"the review" ^0
+"  approvals required : " + str(approvals) + ", from people who did not write it" ^0
+"  lines read         : " + str(lines_a_reviewer_saw) ^0
+"  questions asked    : 2" ^0
+"  answered with an edit : 1" ^0
+"  rubber stamps      : " + str(rubber_stamps) ^0
+"  verdict            : REVIEWED" ^0
+"" ^0
+"  this process has caught defects the tests did not, and" ^0
+"  the reviewers were reading rather than clicking" ^0
+"" ^0
+
+# ---- why the rest is collapsed ----
+
+"the generated-file rule" ^0
+"  added because      : a lockfile update buried a one-line" ^0
+"    change under nine thousand lines of churn" ^0
+"  is that a real problem : yes, and reviewers stopped" ^0
+"    reading everything when it happened" ^0
+"  the rule            : mark them generated, collapse them" ^0
+"  what it assumes     : generated content is a function of" ^0
+"    reviewed content" ^0
+"" ^0
+"  that assumption holds for a stub regenerated from a" ^0
+"  schema in the same change; a lockfile also records where" ^0
+"  each package came from" ^0
+"" ^0
+
+# ---- what a lockfile carries ----
+
+"one line inside the collapsed region" ^0
+"  package         : unchanged name, unchanged version" ^0
+"  resolved url    : a different host" ^0
+"  integrity hash  : present, and matching the thing at" ^0
+"    that host" ^0
+"  what a checker would compare it to : nothing; the hash" ^0
+"    attests the download, not the origin" ^0
+"" ^0
+
+# ---- why the tooling did not object ----
+
+# The install succeeds, the hash matches, the tests pass. Every automated check
+# in the pipeline is a check on the artifact rather than on where it came from.
+"the pipeline" ^0
+"  install         : succeeds" ^0
+"  integrity hash  : matches" ^0
+"  tests           : pass" ^0
+"  a check on the origin : none" ^0
+"  approvals       : " + str(approvals) ^0
+"" ^0
+
+# ---- null control ----
+
+# The same rule, with generated files collapsed by default and the resolved
+# hosts extracted into a small file that is not collapsed.
+1 => nc_lines_shown_from_the_lockfile
+0 => nc_substitutions_reaching_main
+
+"null control - resolved hosts summarised into an uncollapsed file" ^0
+"  lines a reviewer reads : " + str(lines_a_reviewer_saw) + " plus " + str(nc_lines_shown_from_the_lockfile) ^0
+"  churn still collapsed  : yes, the rule still holds" ^0
+"  substitutions reaching main : " + str(nc_substitutions_reaching_main) ^0
+"  the review did not get longer; the part of a generated" ^0
+"  file that is not derivable from the source came out of" ^0
+"  the collapsed region" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what two approvals guarantee" ^0
+"  two people read the change : exactly, and read it" ^0
+"    carefully" ^0
+"  two people read what shipped : not addressed; the diff" ^0
+"    view decides what a reviewer is shown, and it was" ^0
+"    configured to hide the part nobody could usefully read" ^0
+"" ^0
+"collapsing generated files assumes they are a function of" ^0
+"what was reviewed; a lockfile is mostly that and partly a" ^0
+"record of provenance, and the second part is the part worth" ^0
+"reading" ^0
+"" ^0
+
+"Two reviewers read all " + str(lines_a_reviewer_saw) + " lines the diff showed, asked two questions, had one" ^0
+"answered with an edit, and " + str(rubber_stamps) + " approvals were rubber stamps. The change contains" ^0
+str(lines_in_the_change) + " lines, of which " + str(lines_in_collapsed_generated_files) + " are collapsed as generated - " + str(collapsed_per_myriad) + " per ten" ^0
+"thousand - and " + str(substituted_packages) + " package inside that region now resolves from a different host" ^0
+"with an integrity hash that matches what is there." ^0

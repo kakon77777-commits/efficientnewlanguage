@@ -1,0 +1,114 @@
+# Self-authored for the EML case corpus (no external origin). Every log line in
+# the request path carries a correlation id and tracing across four services
+# works. What share of the work is traceable is computed below.
+#
+# The correlation is properly built. The id is generated at the edge, propagated
+# in a header, put into a context that every logger reads without being asked,
+# and it survives four service hops. Pasting one id into the log search returns
+# the whole request, in order, across all four. It was a real piece of work and
+# it pays for itself weekly.
+#
+# It propagates along the CALL. The asynchronous half is not a call: the handler
+# enqueues a job with the payload it needs, and the enqueue was written against
+# a job schema that has fields for the work and none for the context.
+#
+# Sixty-one percent of the processing time is in that worker.
+
+4200000 => requests_per_day
+7 => log_lines_per_request_in_the_service
+11 => log_lines_per_request_in_the_worker
+6100 => worker_share_of_processing_time_per_myriad
+4 => services_the_id_survives
+
+log_lines_per_request_in_the_service + log_lines_per_request_in_the_worker => log_lines_per_request
+int(log_lines_per_request_in_the_worker * 10000 / log_lines_per_request) => untraceable_per_myriad
+requests_per_day * log_lines_per_request_in_the_worker => untraceable_lines_per_day
+
+"requests per day               : " + str(requests_per_day) ^0
+"services the id survives       : " + str(services_the_id_survives) ^0
+"" ^0
+"log lines per request, service : " + str(log_lines_per_request_in_the_service) ^0
+"log lines per request, worker  : " + str(log_lines_per_request_in_the_worker) ^0
+"share with no correlation id   : " + str(untraceable_per_myriad) + " per ten thousand" ^0
+"untraceable lines per day      : " + str(untraceable_lines_per_day) ^0
+"worker share of processing time: " + str(worker_share_of_processing_time_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the correlation gives ----
+
+"the request path" ^0
+"  id generated at    : the edge" ^0
+"  propagated in      : a header" ^0
+"  read by every logger : yes, from context, without being" ^0
+"    asked" ^0
+"  services it survives : " + str(services_the_id_survives) ^0
+"  one id pasted into search returns : the whole request," ^0
+"    in order, across all four" ^0
+"  verdict            : CORRELATED" ^0
+"" ^0
+"  this pays for itself weekly and nobody should undo it" ^0
+"" ^0
+
+# ---- where it stops ----
+
+"the enqueue" ^0
+"  what the job carries : the payload the work needs" ^0
+"  fields for context   : none in the job schema" ^0
+"  a header to propagate: there is no request to put one on" ^0
+"  the worker's logger  : reads a context that is empty" ^0
+"    because this process did not handle a request" ^0
+"" ^0
+"  nothing was dropped; the mechanism is a call-scoped one" ^0
+"  and this is not a call" ^0
+"" ^0
+
+# ---- what an investigation can and cannot do ----
+
+# The failure being investigated is in the worker. The request that caused it
+# is findable only by matching on the payload, which is not indexed and is not
+# unique.
+"investigating a worker failure" ^0
+"  the worker's own lines    : present, complete, timestamped" ^0
+"  which request caused it   : not recorded" ^0
+"  matching on the payload   : possible, unindexed, and not" ^0
+"    unique" ^0
+"  the service's lines for that request : present, and not" ^0
+"    linkable to these" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same correlation, with the id added to the job schema and read into the
+# worker's context at dequeue.
+0 => nc_untraceable_lines_per_day
+log_lines_per_request => nc_traceable_lines_per_request
+
+"null control - the id carried in the job" ^0
+"  services the id survives : " + str(services_the_id_survives) + ", unchanged" ^0
+"  traceable lines per request : " + str(nc_traceable_lines_per_request) ^0
+"  untraceable lines per day   : " + str(nc_untraceable_lines_per_day) ^0
+"  the propagation did not improve; the job schema gained" ^0
+"  a field for the thing that was already being propagated" ^0
+"  everywhere else" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what request correlation guarantees" ^0
+"  everything on the call path shares an id : exactly" ^0
+"  everything caused by the request does    : not addressed;" ^0
+"    the mechanism is scoped to a call, and the work that" ^0
+"    was moved off the call to make it fast is precisely" ^0
+"    what leaves that scope" ^0
+"" ^0
+"context propagation follows the shape of the control flow;" ^0
+"the moment work becomes asynchronous it needs the context as" ^0
+"data, and a job schema written for the work has no field" ^0
+"for it" ^0
+"" ^0
+
+"Correlation works across all " + str(services_the_id_survives) + " services and one id returns the whole request in" ^0
+"order, which is real and earns its keep. The worker is reached by an enqueue" ^0
+"rather than a call, so its " + str(log_lines_per_request_in_the_worker) + " lines a request carry no id - " + str(untraceable_per_myriad) + " per ten" ^0
+"thousand of the lines and " + str(untraceable_lines_per_day) + " a day - covering the " + str(worker_share_of_processing_time_per_myriad) + " per ten thousand" ^0
+"of processing time where the failures being investigated actually happen." ^0

@@ -1,0 +1,117 @@
+# Self-authored for the EML case corpus (no external origin). Every commit on
+# the branch was checked and every check passed. What was never checked is
+# computed below.
+#
+# The checking is thorough. It runs on every commit rather than only on the tip,
+# so a bad intermediate state cannot hide inside a branch; it is the full suite,
+# not a subset; and it has failed on real defects rather than sitting green as
+# decoration. Forty-one commits, forty-one green runs.
+#
+# What it checks is the branch's content against the base the branch STARTED
+# from. Main has moved a hundred and twenty-eight commits since, and the state
+# that will exist after the merge is the pair.
+#
+# Git reports no conflict, because the two sides touch different files.
+
+41 => commits_on_the_branch
+41 => commits_checked_green
+128 => main_commits_since_the_branch_started
+0 => textual_conflicts_reported
+0 => checks_run_on_the_merged_state
+3 => semantic_conflicts_found_after_the_merge
+
+commits_on_the_branch + main_commits_since_the_branch_started => commits_in_the_merged_history
+
+"commits on the branch          : " + str(commits_on_the_branch) ^0
+"checked, green                 : " + str(commits_checked_green) ^0
+"main commits since it started  : " + str(main_commits_since_the_branch_started) ^0
+"commits in the merged history  : " + str(commits_in_the_merged_history) ^0
+"textual conflicts reported     : " + str(textual_conflicts_reported) ^0
+"checks run on the merged state : " + str(checks_run_on_the_merged_state) ^0
+"" ^0
+
+# ---- what the per-commit check verified ----
+
+"the branch checks" ^0
+"  runs on            : every commit, not only the tip" ^0
+"  scope              : the full suite" ^0
+"  green              : " + str(commits_checked_green) + " of " + str(commits_on_the_branch) ^0
+"  has failed on real defects : yes" ^0
+"  verdict            : BRANCH IS GREEN" ^0
+"" ^0
+"  checking every commit is stricter than checking the tip" ^0
+"  and it costs more; this is the careful configuration" ^0
+"" ^0
+
+# ---- what each run was given ----
+
+"the state under test" ^0
+"  branch content     : as authored" ^0
+"  base               : where the branch started" ^0
+"  main's " + str(main_commits_since_the_branch_started) + " later commits : not present in any run" ^0
+"" ^0
+"  every run measured a state that existed; none of them" ^0
+"  measured the state that will exist" ^0
+"" ^0
+
+# ---- why the merge was clean ----
+
+# A textual conflict needs two edits to the same lines. The branch renamed a
+# helper; main added three new callers of the old name. Different files.
+"the merge" ^0
+"  files the branch touched : 9" ^0
+"  files main touched       : 61" ^0
+"  files in both            : 0" ^0
+"  conflicts git can see    : " + str(textual_conflicts_reported) ^0
+"  squashed to              : one commit, whose content is a" ^0
+"    state nothing has run against" ^0
+"" ^0
+
+int(main_commits_since_the_branch_started * 10000 / commits_in_the_merged_history) => unchecked_side_per_myriad
+"share of the merged history the branch never saw : " + str(unchecked_side_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the three were ----
+
+"found after the merge, on main" ^0
+"  a renamed helper with three new callers of the old name" ^0
+"  a config key both sides added, with different defaults" ^0
+"  a migration ordering that is fine either way alone" ^0
+"  each side, checked alone : green" ^0
+"  the pair, checked        : never, until main was red" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same branch, with the check run once more on the merge result before it
+# lands rather than only on the branch.
+1 => nc_checks_run_on_the_merged_state
+0 => nc_semantic_conflicts_reaching_main
+
+"null control - one run on the merge result" ^0
+"  branch checks       : " + str(commits_checked_green) + ", unchanged" ^0
+"  runs on the merged state : " + str(nc_checks_run_on_the_merged_state) ^0
+"  conflicts reaching main : " + str(nc_semantic_conflicts_reaching_main) ^0
+"  the branch did not become better tested; the state that" ^0
+"  ships stopped being the one state nothing had run" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a green branch guarantees" ^0
+"  every commit on it is good : exactly, and more than most" ^0
+"    projects check" ^0
+"  the merge is good          : not addressed; the merge is" ^0
+"    a state neither side ever built, and a conflict" ^0
+"    detector that compares text cannot see it" ^0
+"" ^0
+"checking harder along one line does not reach the point where" ^0
+"two lines meet; the only run that can is one on the result," ^0
+"and it is the run a squash makes look redundant" ^0
+"" ^0
+
+"Every one of " + str(commits_on_the_branch) + " commits was checked with the full suite and " + str(commits_checked_green) + " were green," ^0
+"which is stricter than checking the tip. Main moved " + str(main_commits_since_the_branch_started) + " commits meanwhile - " ^0
+str(unchecked_side_per_myriad) + " per ten thousand of the merged history - and git reported " + str(textual_conflicts_reported) ^0
+"conflicts because the two sides touch no common file, so " + str(checks_run_on_the_merged_state) + " runs ever saw the" ^0
+"state that shipped and " + str(semantic_conflicts_found_after_the_merge) + " defects were found on main instead." ^0
