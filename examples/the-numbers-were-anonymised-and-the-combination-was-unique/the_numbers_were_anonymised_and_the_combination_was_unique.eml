@@ -1,0 +1,111 @@
+# Self-authored for the EML case corpus (no external origin). Every direct
+# identifier was removed and the removal was verified field by field. How many
+# records identify one person is computed below.
+#
+# The removal was thorough. Name, email address, account number and phone were
+# dropped, not masked; the extract was diffed against the source to prove the
+# columns are absent rather than blanked; free-text fields were scanned for
+# identifiers that had leaked into them and forty-one were found and removed;
+# and the release was signed off by someone who had done this before.
+#
+# What was kept is what the research needs: postcode, date of birth, sex. Each
+# of those is worthless alone and the three together are not.
+#
+# Two point six million of the three point one million records are the only
+# record with their triple.
+
+3100000 => records
+4 => direct_identifiers_removed
+3 => quasi_identifiers_kept
+41 => identifiers_found_in_free_text_and_removed
+2684000 => records_unique_on_the_triple
+0 => direct_identifiers_remaining
+
+records - records_unique_on_the_triple => records_sharing_their_triple
+int(records_unique_on_the_triple * 10000 / records) => unique_per_myriad
+
+"records                      : " + str(records) ^0
+"direct identifiers removed   : " + str(direct_identifiers_removed) ^0
+"direct identifiers remaining : " + str(direct_identifiers_remaining) ^0
+"quasi identifiers kept       : " + str(quasi_identifiers_kept) ^0
+"" ^0
+"unique on the kept triple    : " + str(records_unique_on_the_triple) ^0
+"sharing their triple         : " + str(records_sharing_their_triple) ^0
+"share unique                 : " + str(unique_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the removal verified ----
+
+"the de-identification" ^0
+"  columns dropped rather than masked : yes" ^0
+"  extract diffed against the source  : yes" ^0
+"  free-text scanned for leaked identifiers : yes" ^0
+"  identifiers found and removed there : " + str(identifiers_found_in_free_text_and_removed) ^0
+"  direct identifiers remaining : " + str(direct_identifiers_remaining) ^0
+"  signed off by someone experienced : yes" ^0
+"  verdict                      : DE-IDENTIFIED" ^0
+"" ^0
+"  the free-text scan alone is more than most releases do," ^0
+"  and it found real leaks" ^0
+"" ^0
+
+# ---- what was kept, and why ----
+
+"the three that stayed" ^0
+"  postcode      : the study is about geography" ^0
+"  date of birth : the study is about age" ^0
+"  sex           : the study stratifies on it" ^0
+"  each alone identifies : nobody" ^0
+"  the three together    : " + str(records_unique_on_the_triple) + " records" ^0
+"" ^0
+"  every one was kept for a reason and none of the reasons" ^0
+"  is wrong; the property that fails is a property of the" ^0
+"  combination, and no field-by-field review has one" ^0
+"" ^0
+
+# ---- what re-identification costs ----
+
+# A voter roll or a marketing list carries the same triple against a name. The
+# join is a join; there is no inference and no cryptography.
+"linking to an external list" ^0
+"  what is needed  : a list with the same three fields" ^0
+"  such lists      : commercially available" ^0
+"  the operation   : a join" ^0
+"  records it names : " + str(records_unique_on_the_triple) ^0
+"  inference or cryptanalysis required : none" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same release with the postcode truncated to its district and the birth
+# date reduced to a year, which the study's own analysis says it can tolerate.
+0 => nc_records_unique_on_the_triple
+records => nc_records_sharing_their_triple
+
+"null control - postcode district and birth year" ^0
+"  direct identifiers remaining : " + str(direct_identifiers_remaining) + ", unchanged" ^0
+"  unique on the triple  : " + str(nc_records_unique_on_the_triple) ^0
+"  sharing their triple  : " + str(nc_records_sharing_their_triple) ^0
+"  the removal did not get more thorough; the fields that" ^0
+"  were kept stopped being fine enough to single anyone out" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what removing every direct identifier guarantees" ^0
+"  no field names a person : exactly, and verifiably" ^0
+"  no record names a person : not addressed; identification" ^0
+"    is a property of a tuple, and a review that walks the" ^0
+"    columns one at a time cannot hold a tuple" ^0
+"" ^0
+"anonymity is a property of a set, not of a schema; the check" ^0
+"that would find this counts how many records share their" ^0
+"quasi-identifiers, and nothing in a field-by-field review" ^0
+"asks for a count" ^0
+"" ^0
+
+"The de-identification is thorough: " + str(direct_identifiers_removed) + " columns dropped rather than masked, the" ^0
+"extract diffed against the source, free text scanned with " + str(identifiers_found_in_free_text_and_removed) + " real leaks found and" ^0
+"removed, " + str(direct_identifiers_remaining) + " direct identifiers remaining. The " + str(quasi_identifiers_kept) + " fields the study needs leave" ^0
+str(records_unique_on_the_triple) + " of " + str(records) + " records - " + str(unique_per_myriad) + " per ten thousand - as the only record with" ^0
+"their combination, recoverable by a join against a list anyone can buy." ^0

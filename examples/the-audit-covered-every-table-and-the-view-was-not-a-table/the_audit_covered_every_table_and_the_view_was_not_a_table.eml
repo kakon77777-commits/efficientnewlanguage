@@ -1,0 +1,121 @@
+# Self-authored for the EML case corpus (no external origin). Every table in the
+# database is covered by the access audit and the coverage is enumerated rather
+# than asserted. What is not covered is computed below.
+#
+# The audit is built the right way round. It does not take a list of tables from
+# a document; it queries the catalog for every table that exists, joins that
+# against the tables it has a policy for, and fails if the difference is
+# non-empty. A table added without a policy fails the nightly job, and that has
+# happened four times and been fixed each time.
+#
+# The catalog query asks for tables. A view is a different kind of object, it is
+# queryable by the same clients with the same syntax, and it is not in the
+# answer.
+#
+# Nine of the eleven views select from a table the policy calls restricted.
+
+412 => tables
+412 => tables_with_a_policy
+11 => views
+9 => views_selecting_from_a_restricted_table
+4 => tables_caught_without_a_policy_this_year
+0 => tables_uncovered
+
+views - views_selecting_from_a_restricted_table => views_over_unrestricted_data
+tables + views => queryable_objects
+int(views * 10000 / queryable_objects) => uncovered_per_myriad
+
+"tables                          : " + str(tables) ^0
+"tables with a policy            : " + str(tables_with_a_policy) ^0
+"tables uncovered                : " + str(tables_uncovered) ^0
+"tables caught without a policy this year : " + str(tables_caught_without_a_policy_this_year) ^0
+"" ^0
+"views                           : " + str(views) ^0
+"  selecting restricted data     : " + str(views_selecting_from_a_restricted_table) ^0
+"  over unrestricted data        : " + str(views_over_unrestricted_data) ^0
+"queryable objects               : " + str(queryable_objects) ^0
+"share not covered               : " + str(uncovered_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the audit verified ----
+
+"the coverage check" ^0
+"  source of the object list : the catalog, not a document" ^0
+"  method                    : every table that exists," ^0
+"    joined against the tables with a policy" ^0
+"  fails when the difference is non-empty : yes" ^0
+"  tables caught this year   : " + str(tables_caught_without_a_policy_this_year) + ", each fixed" ^0
+"  tables uncovered now      : " + str(tables_uncovered) ^0
+"  verdict                   : COMPLETE" ^0
+"" ^0
+"  enumerating from the catalog rather than from a list is" ^0
+"  the whole difference between this and a checklist, and" ^0
+"  it is why the four were caught" ^0
+"" ^0
+
+# ---- what the catalog query asked for ----
+
+"the enumeration" ^0
+"  asks for        : tables" ^0
+"  a view is       : a different object kind" ^0
+"  a client querying a view uses : the same syntax, the" ^0
+"    same connection, the same permissions model" ^0
+"  is a view in the answer : no" ^0
+"  is that a bug in the query : no, it asked what it asked" ^0
+"" ^0
+"  the audit is complete over its population and the" ^0
+"  population is narrower than the word `every` suggests" ^0
+"" ^0
+
+# ---- what a view is for ----
+
+# Views exist precisely to expose a shaped subset to a caller who should not
+# have the table. Most of them were created BY a data-access review, which is
+# why they select from restricted tables.
+"why the views select restricted data" ^0
+"  a view exists to : expose a shaped subset to a caller" ^0
+"    who should not have the table" ^0
+"  who created most of them : a data-access review" ^0
+"  so selecting from a restricted table is : their purpose" ^0
+"  and it is also why they are the objects most worth" ^0
+"    auditing" ^0
+"" ^0
+
+int(views_selecting_from_a_restricted_table * 10000 / views) => restricted_view_share_per_myriad
+"share of views over restricted data : " + str(restricted_view_share_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same audit, enumerating every queryable object rather than every table.
+queryable_objects => nc_objects_enumerated
+0 => nc_objects_uncovered
+
+"null control - enumerate queryable objects, not tables" ^0
+"  source of the list  : the catalog, unchanged" ^0
+"  objects enumerated  : " + str(nc_objects_enumerated) ^0
+"  objects uncovered   : " + str(nc_objects_uncovered) ^0
+"  the audit did not become more thorough; the noun in its" ^0
+"  query stopped being narrower than the noun in its name" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what an enumerated audit guarantees" ^0
+"  every member of the enumerated set is covered : exactly," ^0
+"    and better than any checklist" ^0
+"  everything reachable is covered               : not" ^0
+"    addressed; the set comes from a query, and the query" ^0
+"    names a kind" ^0
+"" ^0
+"enumerating from the system beats enumerating from a document" ^0
+"and inherits the system's taxonomy; the gap is not a" ^0
+"forgotten item but a category the query did not ask for, and" ^0
+"the audit's own completeness proof cannot see it" ^0
+"" ^0
+
+"The audit enumerates from the catalog rather than from a document, joins every" ^0
+"existing table against the tables with a policy, fails on any difference, and" ^0
+"caught " + str(tables_caught_without_a_policy_this_year) + " tables this year - " + str(tables_uncovered) + " are uncovered out of " + str(tables) + ". Its query asks" ^0
+"for tables, so " + str(views) + " views are outside it - " + str(uncovered_per_myriad) + " per ten thousand of the queryable" ^0
+"objects - and " + str(views_selecting_from_a_restricted_table) + " of them, " + str(restricted_view_share_per_myriad) + " per ten thousand, exist to expose restricted data." ^0

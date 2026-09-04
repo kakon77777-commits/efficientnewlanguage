@@ -1,0 +1,115 @@
+# Self-authored for the EML case corpus (no external origin). The server cannot
+# read a single message body and the cryptography is not the weak part. What the
+# server does hold is computed below.
+#
+# The end-to-end encryption is real. Keys are generated on the device and never
+# leave it, the server stores ciphertext it has no key for, forward secrecy is
+# implemented and exercised, and an independent review found no way for the
+# operator to recover a body. Eighty-four million messages a day and zero
+# readable ones.
+#
+# A message is a body and an envelope. Delivery needs the envelope in clear —
+# who to, from whom, when, how big — and none of that is what the cryptography
+# was asked to hide.
+#
+# Two years of envelopes is a graph.
+
+84000000 => messages_per_day
+0 => bodies_readable_by_the_server
+6 => envelope_fields_in_plaintext
+730 => retention_days
+11400000 => distinct_pairs_per_day
+2 => independent_reviews_finding_no_body_recovery
+
+messages_per_day * retention_days => envelopes_retained
+int(distinct_pairs_per_day * 10000 / messages_per_day) => pairs_per_myriad
+
+"messages per day             : " + str(messages_per_day) ^0
+"bodies readable by the server: " + str(bodies_readable_by_the_server) ^0
+"envelope fields in plaintext : " + str(envelope_fields_in_plaintext) ^0
+"retention, days              : " + str(retention_days) ^0
+"envelopes retained           : " + str(envelopes_retained) ^0
+"distinct sender-recipient pairs per day : " + str(distinct_pairs_per_day) ^0
+"" ^0
+
+# ---- what the encryption verified ----
+
+"the cryptography" ^0
+"  keys generated on the device : yes" ^0
+"  keys leaving the device      : never" ^0
+"  what the server stores       : ciphertext it has no key for" ^0
+"  forward secrecy              : implemented and exercised" ^0
+"  independent reviews finding a body-recovery path : " ^0
+"    " + str(2 - independent_reviews_finding_no_body_recovery) + " of " + str(independent_reviews_finding_no_body_recovery) ^0
+"  bodies readable              : " + str(bodies_readable_by_the_server) ^0
+"  verdict                      : END TO END" ^0
+"" ^0
+"  the claim is true and the implementation deserves it" ^0
+"" ^0
+
+# ---- what delivery needs in clear ----
+
+"the envelope" ^0
+"  recipient      : required to route" ^0
+"  sender         : required to reply and to rate limit" ^0
+"  timestamp      : required to order" ^0
+"  size           : required to bill and to allocate" ^0
+"  device         : required to fan out" ^0
+"  read receipt   : required by the product" ^0
+"  fields the cryptography was asked to cover : the body" ^0
+"" ^0
+"  none of the six is an oversight; each is load-bearing" ^0
+"  for something the service must do" ^0
+"" ^0
+
+"pairs as a share of messages : " + str(pairs_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the envelopes are ----
+
+# Who talks to whom, how often, at what hour, and how long the messages are.
+# The content of a conversation between a person and a clinic is protected; the
+# fact of it is a row.
+"what a graph over " + str(envelopes_retained) + " envelopes answers" ^0
+"  who talks to whom       : directly" ^0
+"  how often, at what hour : directly" ^0
+"  who stopped talking to whom, and when : directly" ^0
+"  the words exchanged     : not at all" ^0
+"" ^0
+"  the protected question and the answerable one are" ^0
+"  different questions, and only one of them was asked of" ^0
+"  the cryptography" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same encryption, with sealed sender and padded sizes, so the envelope
+# carries less than delivery previously demanded.
+1 => nc_envelope_fields_in_plaintext
+bodies_readable_by_the_server => nc_bodies_readable
+
+"null control - sealed sender and padded sizes" ^0
+"  bodies readable        : " + str(nc_bodies_readable) + ", unchanged" ^0
+"  envelope fields in plaintext : " + str(nc_envelope_fields_in_plaintext) ^0
+"  the cryptography did not get stronger; the routing" ^0
+"  stopped requiring the fields the graph is built from" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what end-to-end encryption guarantees" ^0
+"  the operator cannot read the content : exactly" ^0
+"  the operator learns nothing           : not addressed;" ^0
+"    the envelope is what delivery runs on, and it was" ^0
+"    never in the scope of the guarantee" ^0
+"" ^0
+"encryption protects what it is applied to; a system's" ^0
+"metadata is the part that must stay legible for the system to" ^0
+"work, which is exactly why it is the part that accumulates" ^0
+"" ^0
+
+"The encryption is genuine: device-generated keys that never leave, forward" ^0
+"secrecy, " + str(independent_reviews_finding_no_body_recovery) + " independent reviews finding no recovery path, and " + str(bodies_readable_by_the_server) + " readable" ^0
+"bodies out of " + str(messages_per_day) + " a day. Delivery needs " + str(envelope_fields_in_plaintext) + " envelope fields in clear, so" ^0
+str(envelopes_retained) + " envelopes are retained over " + str(retention_days) + " days - " + str(distinct_pairs_per_day) + " distinct pairs a day," ^0
+str(pairs_per_myriad) + " per ten thousand of the traffic - and none of them is ciphertext." ^0

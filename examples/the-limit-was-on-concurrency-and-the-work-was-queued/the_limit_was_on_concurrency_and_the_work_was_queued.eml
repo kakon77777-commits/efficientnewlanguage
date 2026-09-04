@@ -1,0 +1,123 @@
+# Self-authored for the EML case corpus (no external origin). The downstream
+# never sees more than thirty-two concurrent requests and it never has. What a
+# caller waits is computed below.
+#
+# The concurrency limit is correct and it saved the downstream. Thirty-two was
+# measured, not guessed: above it the downstream's latency rose superlinearly
+# and at forty it fell over. The semaphore is acquired and released in a finally,
+# so a panic cannot leak a permit, and a soak test confirmed the count never
+# exceeds the limit over eight hours.
+#
+# A request over the limit does not fail. It waits, in an unbounded queue, with
+# no deadline — which is what makes the protection perfect and is the whole of
+# the problem.
+#
+# Arrivals are four hundred and eighty a second and the limit serves two
+# hundred and sixty-six.
+
+32 => concurrency_limit
+120 => downstream_service_ms
+480 => arrivals_per_second
+60 => burst_seconds
+0 => times_the_limit_was_exceeded
+0 => queue_bound
+
+int(concurrency_limit * 1000 / downstream_service_ms) => served_per_second
+arrivals_per_second - served_per_second => overflow_per_second
+overflow_per_second * burst_seconds => queued_after_the_burst
+int(queued_after_the_burst / served_per_second) => wait_seconds_at_the_back
+
+"concurrency limit          : " + str(concurrency_limit) ^0
+"downstream service time, ms: " + str(downstream_service_ms) ^0
+"served per second          : " + str(served_per_second) ^0
+"arrivals per second        : " + str(arrivals_per_second) ^0
+"overflow per second        : " + str(overflow_per_second) ^0
+"" ^0
+"after a " + str(burst_seconds) + " second burst" ^0
+"  queued                   : " + str(queued_after_the_burst) ^0
+"  wait at the back, seconds: " + str(wait_seconds_at_the_back) ^0
+"  queue bound              : " + str(queue_bound) + ", meaning none" ^0
+"  times the limit was exceeded : " + str(times_the_limit_was_exceeded) ^0
+"" ^0
+
+# ---- what the limit verified ----
+
+"the semaphore" ^0
+"  limit measured, not guessed : yes, the downstream falls" ^0
+"    over at 40 and degrades above 32" ^0
+"  acquired and released in a finally : yes, a panic cannot" ^0
+"    leak a permit" ^0
+"  soak test over eight hours  : never exceeded" ^0
+"  times exceeded in production: " + str(times_the_limit_was_exceeded) ^0
+"  verdict                     : LIMITED" ^0
+"" ^0
+"  the downstream is genuinely protected and removing this" ^0
+"  would take it down" ^0
+"" ^0
+
+# ---- what happens to the rest ----
+
+"a request that cannot get a permit" ^0
+"  rejected            : no" ^0
+"  given a deadline    : no" ^0
+"  counted             : no, the queue has no metric" ^0
+"  what it does        : waits" ^0
+"  what the caller sees: a request in flight" ^0
+"" ^0
+"  the protection is perfect because nothing is refused," ^0
+"  and nothing is refused because the queue is unbounded" ^0
+"" ^0
+
+int(overflow_per_second * 10000 / arrivals_per_second) => overflow_per_myriad
+"share of arrivals that must wait : " + str(overflow_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the dashboards show ----
+
+# The downstream's dashboard is the healthiest it has ever been: latency flat,
+# error rate zero, concurrency pinned at exactly the limit. The caller's
+# dashboard is the one on fire, and they are different teams.
+"the two dashboards" ^0
+"  downstream : latency flat, errors zero, concurrency at" ^0
+"    exactly " + str(concurrency_limit) ^0
+"  caller     : latency climbing without bound" ^0
+"  a panel showing the queue : none exists" ^0
+"  which team owns which : different teams" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same limit, with a bounded queue and a deadline, so overflow is refused
+# quickly instead of accepted slowly.
+2 => nc_queue_seconds
+nc_queue_seconds * served_per_second => nc_queue_bound
+overflow_per_second => nc_refused_per_second
+
+"null control - a bounded queue with a deadline" ^0
+"  times the limit was exceeded : " + str(times_the_limit_was_exceeded) + ", unchanged" ^0
+"  queue bound                  : " + str(nc_queue_bound) ^0
+"  refused per second           : " + str(nc_refused_per_second) ^0
+"  wait at the back, seconds    : " + str(nc_queue_seconds) ^0
+"  the downstream is no better protected; the overflow" ^0
+"  became visible and answerable instead of pending" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a concurrency limit guarantees" ^0
+"  the downstream sees at most N at once : exactly" ^0
+"  the system degrades gracefully        : not addressed;" ^0
+"    where the excess goes is a separate decision, and an" ^0
+"    unbounded queue is the default nobody chose" ^0
+"" ^0
+"limiting is half a policy; the other half is what happens to" ^0
+"what is over the limit, and a queue with no bound and no" ^0
+"deadline converts a rejection into a latency nobody has a" ^0
+"metric for" ^0
+"" ^0
+
+"The limit holds and the downstream is protected: " + str(concurrency_limit) + " measured rather than guessed," ^0
+"released in a finally, " + str(times_the_limit_was_exceeded) + " exceedances in production or in an eight-hour soak." ^0
+"It serves " + str(served_per_second) + " a second against " + str(arrivals_per_second) + " arriving, so " + str(overflow_per_myriad) + " per ten thousand" ^0
+"must wait, and after " + str(burst_seconds) + " seconds " + str(queued_after_the_burst) + " requests are queued with nothing bounding" ^0
+"them and " + str(wait_seconds_at_the_back) + " seconds of wait at the back, on a queue that has no panel." ^0

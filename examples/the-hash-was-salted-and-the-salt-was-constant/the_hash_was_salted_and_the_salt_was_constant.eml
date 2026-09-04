@@ -1,0 +1,128 @@
+# Self-authored for the EML case corpus (no external origin). Passwords are
+# salted and stretched with a tuned work factor, and no password is stored. How
+# many users share a stored value is computed below.
+#
+# The hashing is not naive. It is a memory-hard derivation rather than a bare
+# digest, the work factor was measured against the login endpoint's budget and
+# set to two hundred and forty milliseconds, the output is compared in constant
+# time, and a plaintext password has never been written anywhere. Every review
+# of this code has passed it.
+#
+# A salt's purpose is to make two identical passwords produce two different
+# stored values, so that one precomputed table cannot serve the whole database.
+# It does that by being DIFFERENT PER RECORD.
+#
+# This salt comes from the configuration file. There is one of it.
+
+2400000 => users
+1780000 => distinct_stored_values
+1 => salts_in_use
+240 => work_factor_ms
+41000 => users_on_the_most_common_password
+0 => plaintext_passwords_stored
+
+users - distinct_stored_values => users_sharing_a_value_with_someone
+int(users_sharing_a_value_with_someone * 10000 / users) => sharing_per_myriad
+
+"users                        : " + str(users) ^0
+"distinct stored values       : " + str(distinct_stored_values) ^0
+"sharing a value with someone : " + str(users_sharing_a_value_with_someone) ^0
+"share                        : " + str(sharing_per_myriad) + " per ten thousand" ^0
+"" ^0
+"salts in use                 : " + str(salts_in_use) ^0
+"work factor, ms              : " + str(work_factor_ms) ^0
+"plaintext passwords stored   : " + str(plaintext_passwords_stored) ^0
+"" ^0
+
+# ---- what the hashing verified ----
+
+"the derivation" ^0
+"  memory-hard rather than a bare digest : yes" ^0
+"  work factor measured against the endpoint budget : yes" ^0
+"  comparison in constant time : yes" ^0
+"  plaintext written anywhere  : " + str(plaintext_passwords_stored) ^0
+"  reviews passed              : all" ^0
+"  verdict                     : PROPERLY HASHED" ^0
+"" ^0
+"  none of that is nominal; the work factor alone is worth" ^0
+"  more than most deployments manage" ^0
+"" ^0
+
+# ---- what a salt is for ----
+
+"the property a salt supplies" ^0
+"  two identical passwords must store differently : that is" ^0
+"    the whole of it" ^0
+"  how it does that : by differing per record" ^0
+"  salts here       : " + str(salts_in_use) + ", from the configuration" ^0
+"  so two identical passwords store : identically" ^0
+"" ^0
+"  the salt is present, is long, is random, and was" ^0
+"  generated once" ^0
+"" ^0
+
+# ---- what one salt costs ----
+
+# A precomputed table has to be built for this salt, which is work. It is built
+# once and then serves every account, which is the property the salt existed to
+# remove.
+"an attacker with the database" ^0
+"  tables needed for a per-record salt : " + str(users) ^0
+"  tables needed here                  : " + str(salts_in_use) ^0
+"  accounts one table serves           : " + str(users) ^0
+"  accounts confirmed by one guess     : " + str(users_on_the_most_common_password) ^0
+"" ^0
+"  the work factor still applies to each guess; what is" ^0
+"  gone is having to spend it again for the next account" ^0
+"" ^0
+
+int(users_on_the_most_common_password * 10000 / users) => most_common_per_myriad
+"users behind the most common stored value : " + str(most_common_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what a review sees ----
+
+"reading the code" ^0
+"  a salt is read      : yes" ^0
+"  it is concatenated correctly : yes" ^0
+"  it is long and random : yes" ^0
+"  where it comes from : a configuration value" ^0
+"  is that per record  : the line does not say, and the" ^0
+"    name of the variable is `salt`" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same derivation, with the salt generated per record and stored beside the
+# hash, which is what every reference implementation does.
+users => nc_distinct_stored_values
+0 => nc_users_sharing_a_value
+users => nc_tables_needed
+
+"null control - a salt generated per record" ^0
+"  work factor, ms       : " + str(work_factor_ms) + ", unchanged" ^0
+"  distinct stored values: " + str(nc_distinct_stored_values) ^0
+"  sharing a value       : " + str(nc_users_sharing_a_value) ^0
+"  tables an attacker needs : " + str(nc_tables_needed) ^0
+"  the derivation did not get stronger; the salt started" ^0
+"  varying, which is the only thing it was ever for" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a salted hash guarantees" ^0
+"  the stored value is not the password : exactly" ^0
+"  two accounts with one password differ : not addressed" ^0
+"    unless the salt varies, and a constant salt satisfies" ^0
+"    every other property a salt is described as having" ^0
+"" ^0
+"a salt is defined by its variation, not by its presence;" ^0
+"long, random and correctly concatenated are the properties a" ^0
+"reader checks, and none of them is the one that matters" ^0
+"" ^0
+
+"The derivation is memory-hard, tuned to " + str(work_factor_ms) + " ms, compared in constant time, with" ^0
+str(plaintext_passwords_stored) + " plaintext passwords stored anywhere. There is " + str(salts_in_use) + " salt, so " + str(users_sharing_a_value_with_someone) + " users -" ^0
+str(sharing_per_myriad) + " per ten thousand - share a stored value with somebody, one precomputed" ^0
+"table serves all " + str(users) + " accounts, and a single correct guess confirms " + str(users_on_the_most_common_password) ^0
+"of them at once." ^0

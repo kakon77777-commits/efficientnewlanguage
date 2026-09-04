@@ -1,0 +1,112 @@
+# Self-authored for the EML case corpus (no external origin). A document is
+# searchable two seconds after it is written and the freshness is measured
+# continuously. How old the access rules in the index are is computed below.
+#
+# The indexing pipeline is fast and it is watched. Writes are streamed rather
+# than batched, the end-to-end lag from commit to searchable is measured on
+# every document rather than sampled, the alert fires above five seconds, and it
+# has fired twice this year for real reasons. Two seconds is a measured median
+# and the tail is bounded.
+#
+# What is indexed is the document AND a copy of who may see it, because
+# filtering results by permission at query time against the authorization
+# service would put a network call inside every hit.
+#
+# A document is re-indexed when its CONTENT changes. Permissions are not content.
+
+41000000 => documents
+2 => index_lag_seconds
+18400 => permission_changes_per_day
+240000 => documents_reindexed_per_day
+2 => freshness_alerts_this_year
+
+int(documents / documents_reindexed_per_day) => mean_days_until_a_document_is_touched
+int(mean_days_until_a_document_is_touched / 2) => mean_days_a_permission_change_waits
+
+"documents                      : " + str(documents) ^0
+"index lag, seconds             : " + str(index_lag_seconds) ^0
+"documents re-indexed per day   : " + str(documents_reindexed_per_day) ^0
+"permission changes per day     : " + str(permission_changes_per_day) ^0
+"" ^0
+"days until a document is touched : " + str(mean_days_until_a_document_is_touched) ^0
+"mean wait for a permission change: " + str(mean_days_a_permission_change_waits) + " days" ^0
+"" ^0
+
+# ---- what the freshness measurement verified ----
+
+"the indexing pipeline" ^0
+"  writes streamed, not batched : yes" ^0
+"  lag measured on every document : yes, not sampled" ^0
+"  median lag, seconds          : " + str(index_lag_seconds) ^0
+"  alert above five seconds     : yes" ^0
+"  fired this year for real reasons : " + str(freshness_alerts_this_year) ^0
+"  verdict                      : FRESH" ^0
+"" ^0
+"  measuring every document rather than a sample is the" ^0
+"  expensive choice and it was made deliberately" ^0
+"" ^0
+
+# ---- what freshness is about ----
+
+"the two things in an index entry" ^0
+"  the content   : re-indexed when it changes, in " + str(index_lag_seconds) + " s" ^0
+"  the access rule : copied in at index time, so that a" ^0
+"    query can filter without a network call per hit" ^0
+"  what re-indexing is triggered by : a content change" ^0
+"  what a permission change triggers : nothing" ^0
+"" ^0
+"  the copy is there for a good reason and the trigger was" ^0
+"  written for the other field" ^0
+"" ^0
+
+int(permission_changes_per_day * mean_days_a_permission_change_waits) => stale_rules_in_flight
+"permission changes waiting in the index : about " + str(stale_rules_in_flight) ^0
+"" ^0
+
+# ---- what a revoked reader sees ----
+
+# The document does not open: opening it goes through the authorization service,
+# which is current. The search RESULT is the leak - the title, the snippet, and
+# the fact that the document exists.
+"a reader whose access was revoked" ^0
+"  opening the document : refused, the service is current" ^0
+"  the document in results : present" ^0
+"  the title             : shown" ^0
+"  the snippet           : shown, and it is the matched text" ^0
+"  what that reveals     : the existence, the name, and the" ^0
+"    passage containing the searched term" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same pipeline, with a permission change enqueued as a re-index of the
+# documents it covers.
+0 => nc_stale_rules_in_flight
+index_lag_seconds => nc_permission_lag_seconds
+
+"null control - a permission change re-indexes its documents" ^0
+"  median content lag, seconds : " + str(index_lag_seconds) + ", unchanged" ^0
+"  permission lag, seconds     : " + str(nc_permission_lag_seconds) ^0
+"  changes waiting             : " + str(nc_stale_rules_in_flight) ^0
+"  the pipeline did not get faster; the second field in" ^0
+"  the entry got a trigger of its own" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a fresh index guarantees" ^0
+"  the content is current : exactly, and measured per document" ^0
+"  the entry is current   : not addressed; an entry has more" ^0
+"    than one field and only one of them has a trigger" ^0
+"" ^0
+"a freshness metric measures the field its trigger fires on;" ^0
+"anything else copied into the same record ages silently, and" ^0
+"the copy exists precisely because reading it live was too" ^0
+"expensive" ^0
+"" ^0
+
+"The index is fresh and measured on every document: streamed writes, a " + str(index_lag_seconds) + " second" ^0
+"median, an alert above five that has fired " + str(freshness_alerts_this_year) + " times this year for real reasons." ^0
+"Re-indexing is triggered by a content change, so with " + str(documents_reindexed_per_day) + " documents touched a" ^0
+"day out of " + str(documents) + ", a permission change waits about " + str(mean_days_a_permission_change_waits) + " days, roughly" ^0
+str(stale_rules_in_flight) + " of them in flight, while the title and the matching snippet stay visible." ^0

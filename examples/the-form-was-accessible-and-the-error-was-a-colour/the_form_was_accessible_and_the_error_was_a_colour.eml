@@ -1,0 +1,119 @@
+# Self-authored for the EML case corpus (no external origin). The form passes
+# every automated accessibility check, a hundred and forty-eight of them. How a
+# user is told a field is wrong is computed below.
+#
+# The accessibility work was done and it was not box-ticking. Every input has a
+# programmatically associated label, the tab order follows the visual order, the
+# landmarks are right, focus is visible and never trapped, the contrast ratios
+# exceed the requirement rather than meeting it, and the checker runs in the
+# pipeline so a regression fails the build.
+#
+# What the checker verifies is what a machine can decide from the document. That
+# an error is CONVEYED is a semantic question: the rule says do not use colour
+# as the only means of conveying information, and deciding whether something is
+# the only means requires knowing what the something means.
+#
+# A failed field gets a red border. There is no text, no icon, and no
+# announcement.
+
+148 => automated_checks
+148 => automated_checks_passed
+15 => fields
+15 => fields_whose_error_is_colour_only
+41000 => sessions_per_day
+450 => colour_vision_deficiency_per_myriad
+0 => contrast_failures
+
+int(sessions_per_day * colour_vision_deficiency_per_myriad / 10000) => sessions_that_cannot_see_the_signal
+automated_checks - automated_checks_passed => automated_failures
+
+"automated checks             : " + str(automated_checks) ^0
+"passed                       : " + str(automated_checks_passed) ^0
+"failed                       : " + str(automated_failures) ^0
+"contrast failures            : " + str(contrast_failures) ^0
+"" ^0
+"fields                       : " + str(fields) ^0
+"errors signalled by colour only : " + str(fields_whose_error_is_colour_only) ^0
+"sessions per day             : " + str(sessions_per_day) ^0
+"sessions that cannot see it  : " + str(sessions_that_cannot_see_the_signal) ^0
+"" ^0
+
+# ---- what the checker verified ----
+
+"the automated suite" ^0
+"  labels programmatically associated : all " + str(fields) ^0
+"  tab order follows visual order     : yes" ^0
+"  landmarks                          : correct" ^0
+"  focus visible, never trapped       : yes" ^0
+"  contrast                           : exceeds, not merely meets" ^0
+"  runs in the pipeline               : yes, a regression fails the build" ^0
+"  verdict                            : ACCESSIBLE" ^0
+"" ^0
+"  this is a real implementation and the pipeline gate" ^0
+"  keeps it real" ^0
+"" ^0
+
+# ---- what a checker can decide ----
+
+"the two kinds of rule" ^0
+"  is this contrast ratio above 4.5 : a machine can measure" ^0
+"  is this label associated          : a machine can read" ^0
+"  is colour the ONLY means of conveying this : requires" ^0
+"    knowing what is being conveyed" ^0
+"  so the third is                   : not in the suite," ^0
+"    and correctly not in it" ^0
+"" ^0
+"  the checker is not failing to test it; a checker cannot" ^0
+"  hold the premise the rule is about" ^0
+"" ^0
+
+int(fields_whose_error_is_colour_only * 10000 / fields) => colour_only_per_myriad
+"share of fields whose error is colour only : " + str(colour_only_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the user experiences ----
+
+# The submit button does nothing, because the form will not submit while a
+# field is invalid, and nothing says which field or why.
+"a failed submission" ^0
+"  what changes visually : one border becomes red" ^0
+"  text explaining it    : none" ^0
+"  icon                  : none" ^0
+"  announcement to assistive technology : none" ^0
+"  what a user who cannot see the change experiences :" ^0
+"    a button that does nothing" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same form, with the error also written as text beside the field and
+# announced.
+0 => nc_fields_whose_error_is_colour_only
+automated_checks_passed => nc_automated_checks_passed
+
+"null control - the error also written and announced" ^0
+"  automated checks passed : " + str(nc_automated_checks_passed) + ", unchanged" ^0
+"  errors signalled by colour only : " + str(nc_fields_whose_error_is_colour_only) ^0
+"  the suite did not get stricter; the signal stopped" ^0
+"  having exactly one channel" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a passing accessibility suite guarantees" ^0
+"  every machine-decidable rule holds : exactly" ^0
+"  the interface can be used          : not addressed; the" ^0
+"    rules that need a reader to know what something means" ^0
+"    are the ones a checker cannot hold, and they are not" ^0
+"    the easy ones" ^0
+"" ^0
+"an automated suite partitions the guidelines into the ones it" ^0
+"can decide and the ones it cannot, and reports only on the" ^0
+"first; a green build is a statement about that partition" ^0
+"" ^0
+
+"The form passes all " + str(automated_checks) + " automated checks with " + str(automated_failures) + " failures and " + str(contrast_failures) + " contrast" ^0
+"problems, on labels, tab order, landmarks, focus and ratios that exceed rather" ^0
+"than meet. All " + str(fields) + " fields signal a validation error with a red border alone -" ^0
+str(colour_only_per_myriad) + " per ten thousand - which no checker can decide is the only means, and" ^0
+"about " + str(sessions_that_cannot_see_the_signal) + " sessions a day meet a button that appears to do nothing." ^0

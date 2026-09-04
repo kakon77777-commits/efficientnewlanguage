@@ -1,0 +1,121 @@
+# Self-authored for the EML case corpus (no external origin). The digest is
+# computed over the plaintext before compression and verified after
+# decompression, end to end. What the storage migration verified is computed
+# below.
+#
+# The end-to-end check is the right one. Computing the digest over the
+# compressed bytes would verify the transport and say nothing about the content;
+# computing it over the plaintext and checking it after decompression covers the
+# compressor, the transport and the decompressor in one comparison. It has
+# caught a truncated transfer and a bad decompressor build.
+#
+# What the archive holds is the compressed bytes and that digest. Verifying it
+# means decompressing, which for four point two terabytes is eighteen hundred
+# CPU hours, so the migration that re-encoded everything to a newer format
+# verified what it could afford: sizes and record counts.
+#
+# Twelve archives came out of the migration short.
+
+41000 => archives
+4200000000000 => bytes_stored
+71000000 => records
+1840 => cpu_hours_for_a_full_verification
+12 => archives_that_lost_records
+310000 => records_lost
+0 => size_or_count_mismatches_reported
+
+int(records_lost * 10000 / records) => lost_per_myriad
+archives - archives_that_lost_records => archives_intact
+
+"archives                     : " + str(archives) ^0
+"bytes stored                 : " + str(bytes_stored) ^0
+"records                      : " + str(records) ^0
+"" ^0
+"archives that lost records   : " + str(archives_that_lost_records) ^0
+"archives intact              : " + str(archives_intact) ^0
+"records lost                 : " + str(records_lost) ^0
+"share lost                   : " + str(lost_per_myriad) + " per ten thousand" ^0
+"size or count mismatches reported : " + str(size_or_count_mismatches_reported) ^0
+"" ^0
+
+# ---- what the end-to-end digest verifies ----
+
+"the transfer check" ^0
+"  digest computed over : the plaintext, before compression" ^0
+"  verified             : after decompression, by the receiver" ^0
+"  what that covers     : compressor, transport, decompressor" ^0
+"  what it has caught   : a truncated transfer, a bad" ^0
+"    decompressor build" ^0
+"  verdict              : END TO END" ^0
+"" ^0
+"  choosing the plaintext over the compressed bytes is the" ^0
+"  stronger of the two and somebody argued for it" ^0
+"" ^0
+
+# ---- what verifying the archive costs ----
+
+"checking one archive at rest" ^0
+"  requires        : decompressing it" ^0
+"  for the estate  : " + str(cpu_hours_for_a_full_verification) + " CPU hours" ^0
+"  what the migration checked instead : compressed size and" ^0
+"    record count, per archive" ^0
+"  mismatches those found : " + str(size_or_count_mismatches_reported) ^0
+"" ^0
+"  a count is a real check and it catches a whole class;" ^0
+"  it is not the class the digest was chosen to catch" ^0
+"" ^0
+
+# ---- why a count did not see it ----
+
+# The migration re-encoded record by record and wrote a count as it went. The
+# records it dropped were dropped before the counter, so the count it wrote is
+# a true count of what it wrote.
+"the count" ^0
+"  written by      : the migration, as it wrote" ^0
+"  counts          : the records it emitted" ^0
+"  records dropped before the counter : " + str(records_lost) ^0
+"  so the count is : a true count of the output" ^0
+"  what would have differed : a count taken from the input" ^0
+"" ^0
+
+int(archives_that_lost_records * 10000 / archives) => affected_archives_per_myriad
+"share of archives affected : " + str(affected_archives_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same migration, verifying a sample of archives by decompressing and
+# re-checking the stored digest rather than every one.
+100 => nc_archives_sampled
+int(nc_archives_sampled * cpu_hours_for_a_full_verification / archives) => nc_cpu_hours
+archives_that_lost_records => nc_archives_the_sample_would_reach
+
+"null control - a sample decompressed and digest-checked" ^0
+"  archives sampled   : " + str(nc_archives_sampled) ^0
+"  CPU hours          : " + str(nc_cpu_hours) ^0
+"  the class of defect it can see : the one the digest was" ^0
+"    chosen for, on " + str(nc_archives_the_sample_would_reach) + " affected archives it would have to" ^0
+"    be lucky to hit - so the sample is a detector, not a" ^0
+"    proof, and it is stated as one" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what an end-to-end digest guarantees" ^0
+"  what arrived is what was sent : exactly, on every transfer" ^0
+"  what is stored is what was sent : addressed only when" ^0
+"    somebody pays to check it, and the price is the" ^0
+"    decompression the digest's own choice of operand" ^0
+"    implies" ^0
+"" ^0
+"choosing the stronger operand makes the check better and" ^0
+"makes it cost more to run; the cheap substitute a later job" ^0
+"reaches for is a different check, and it is the one that" ^0
+"actually runs" ^0
+"" ^0
+
+"The digest covers the plaintext and is verified after decompression, which is" ^0
+"the stronger of the two choices and has caught a truncated transfer and a bad" ^0
+"decompressor. Re-checking it at rest costs " + str(cpu_hours_for_a_full_verification) + " CPU hours, so the migration" ^0
+"compared sizes and counts and reported " + str(size_or_count_mismatches_reported) + " mismatches, while " + str(archives_that_lost_records) + " archives" ^0
+"lost " + str(records_lost) + " records - " + str(lost_per_myriad) + " per ten thousand - counted correctly on the way out." ^0

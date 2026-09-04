@@ -1,0 +1,119 @@
+# Self-authored for the EML case corpus (no external origin). The fix is behind
+# a flag and the flag service propagates a change in thirty seconds. How long
+# turning it on takes is computed below.
+#
+# Putting the fix behind a flag was right. It is a behavioural change to a hot
+# path, the flag lets it be turned off without a deploy, the incident procedure
+# names the flag, and the flag service is fast and reliable: a change is visible
+# to a client that asks within thirty seconds, measured.
+#
+# The application reads the flag once, at start-up, into a module-level
+# constant. That was a deliberate performance decision — a hot path should not
+# make a lookup per request — and it is why the flag's propagation time is not
+# the application's.
+#
+# The processes were started an average of nine hours ago.
+
+30 => flag_service_propagation_seconds
+240 => pods
+6 => recycle_hours
+41 => incident_procedure_steps_naming_the_flag
+0 => flag_service_outages_this_year
+
+int(recycle_hours / 2) => mean_hours_since_a_pod_started
+mean_hours_since_a_pod_started * 3600 => mean_seconds_until_a_pod_sees_it
+recycle_hours * 3600 => seconds_until_every_pod_sees_it
+int(mean_seconds_until_a_pod_sees_it / flag_service_propagation_seconds) => actual_over_advertised
+
+"flag service propagation, seconds : " + str(flag_service_propagation_seconds) ^0
+"flag service outages this year    : " + str(flag_service_outages_this_year) ^0
+"" ^0
+"pods                              : " + str(pods) ^0
+"pod recycle, hours                : " + str(recycle_hours) ^0
+"mean hours since a pod started    : " + str(mean_hours_since_a_pod_started) ^0
+"mean seconds until a pod sees it  : " + str(mean_seconds_until_a_pod_sees_it) ^0
+"seconds until every pod sees it   : " + str(seconds_until_every_pod_sees_it) ^0
+"actual over advertised            : " + str(actual_over_advertised) + " times" ^0
+"" ^0
+
+# ---- what the flag service verified ----
+
+"the flag service" ^0
+"  propagation to a client that asks, seconds : " + str(flag_service_propagation_seconds) ^0
+"  measured rather than advertised : measured" ^0
+"  outages this year : " + str(flag_service_outages_this_year) ^0
+"  the incident procedure names this flag : yes, in " ^0
+"    " + str(incident_procedure_steps_naming_the_flag) + " steps across the runbooks" ^0
+"  verdict           : FAST" ^0
+"" ^0
+"  the number is real; the service is not the slow part" ^0
+"" ^0
+
+# ---- who asks ----
+
+"how the application reads it" ^0
+"  when              : once, at start-up" ^0
+"  into              : a module-level constant" ^0
+"  why               : a hot path should not do a lookup per" ^0
+"    request, and that reasoning is correct" ^0
+"  how a running process learns of a change : it does not" ^0
+"  what makes it learn : being replaced" ^0
+"" ^0
+"  the caching decision and the propagation number are both" ^0
+"  right, and they describe different systems" ^0
+"" ^0
+
+# ---- what the runbook says ----
+
+# The step reads "turn off the flag", which is one action and looks atomic. The
+# operator performs it, the flag service confirms, and the behaviour continues
+# on every pod that has not recycled.
+"the incident step" ^0
+"  action              : turn off the flag" ^0
+"  the service confirms: immediately" ^0
+"  behaviour stops on a pod : when that pod restarts" ^0
+"  a step saying to restart the fleet : none" ^0
+"  what an operator sees after the step : the flag off and" ^0
+"    the symptom continuing" ^0
+"" ^0
+
+int(flag_service_propagation_seconds * 10000 / mean_seconds_until_a_pod_sees_it) => advertised_share_per_myriad
+"the advertised time as a share of the real one : " + str(advertised_share_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same flag, read per request from a locally cached value the client
+# refreshes in the background, which is what the flag service's own SDK does.
+flag_service_propagation_seconds => nc_seconds_until_every_pod_sees_it
+0 => nc_pods_still_on_the_old_value
+
+"null control - the SDK's background refresh, read per request" ^0
+"  lookups added to the hot path : none, the value is local" ^0
+"  seconds until every pod sees it : " + str(nc_seconds_until_every_pod_sees_it) ^0
+"  pods still on the old value after a minute : " + str(nc_pods_still_on_the_old_value) ^0
+"  the flag service did not get faster; the application" ^0
+"  started being one of its clients" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a fast flag service guarantees" ^0
+"  a client that asks gets the new value quickly : exactly" ^0
+"  the behaviour changes quickly                 : not" ^0
+"    addressed; that depends on how often the application" ^0
+"    asks, and reading once is a decision made for a" ^0
+"    different reason in a different file" ^0
+"" ^0
+"a propagation time is a property of a distribution channel;" ^0
+"the number an operator needs is the one that ends at the" ^0
+"behaviour, and it is the channel's time plus whatever the" ^0
+"reader's caching adds" ^0
+"" ^0
+
+"The flag service is fast and reliable: " + str(flag_service_propagation_seconds) + " seconds to a client that asks," ^0
+"measured, with " + str(flag_service_outages_this_year) + " outages this year, and " + str(incident_procedure_steps_naming_the_flag) + " runbook steps name this flag." ^0
+"The application reads it once at start-up for a good reason, so with pods" ^0
+"recycling every " + str(recycle_hours) + " hours a change reaches the mean pod in " + str(mean_seconds_until_a_pod_sees_it) + " seconds and the" ^0
+"last one in " + str(seconds_until_every_pod_sees_it) + " - " + str(actual_over_advertised) + " times the advertised figure, which is " + str(advertised_share_per_myriad) + " per ten" ^0
+"thousand of the real one - while the runbook step reads as a single action." ^0

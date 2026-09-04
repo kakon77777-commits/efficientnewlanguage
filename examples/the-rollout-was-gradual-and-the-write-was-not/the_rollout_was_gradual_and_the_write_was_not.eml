@@ -1,0 +1,112 @@
+# Self-authored for the EML case corpus (no external origin). The feature is on
+# for five percent of users behind a kill switch that has been exercised. How
+# many users are exposed to it is computed below.
+#
+# The rollout is done properly. Five percent, bucketed by a stable hash of the
+# user so the same people stay in the cohort rather than flickering; a kill
+# switch tested in a game day and shown to take effect in eleven seconds; a
+# dashboard split by cohort so a regression shows up as a difference rather than
+# as noise. This is the careful version.
+#
+# A percentage rollout gates who RUNS the new code. The new code's first act is
+# a write, and a write is read by everybody.
+#
+# The five percent are writing a new row shape into a shared table.
+
+4200000 => users
+500 => rollout_per_myriad
+11 => kill_switch_seconds
+84000 => new_shape_rows_written_per_day
+0 => cohort_flicker_incidents
+
+int(users * rollout_per_myriad / 10000) => users_running_the_new_code
+users - users_running_the_new_code => users_not_running_it
+users => users_reading_the_table
+
+"users                        : " + str(users) ^0
+"rollout                      : " + str(rollout_per_myriad) + " per ten thousand" ^0
+"running the new code         : " + str(users_running_the_new_code) ^0
+"not running it               : " + str(users_not_running_it) ^0
+"reading the table it writes  : " + str(users_reading_the_table) ^0
+"" ^0
+"new-shape rows written per day : " + str(new_shape_rows_written_per_day) ^0
+"kill switch, seconds         : " + str(kill_switch_seconds) ^0
+"cohort flicker incidents     : " + str(cohort_flicker_incidents) ^0
+"" ^0
+
+# ---- what the rollout verified ----
+
+"the rollout mechanism" ^0
+"  bucketing         : a stable hash of the user" ^0
+"  cohort flicker    : " + str(cohort_flicker_incidents) ^0
+"  kill switch tested in a game day : yes" ^0
+"  time to take effect, seconds : " + str(kill_switch_seconds) ^0
+"  dashboard split by cohort : yes, so a regression is a" ^0
+"    difference rather than noise" ^0
+"  verdict           : GRADUAL" ^0
+"" ^0
+"  every one of those is a deliberate choice and each one" ^0
+"  prevents a real failure mode" ^0
+"" ^0
+
+# ---- what the percentage gates ----
+
+"the two populations" ^0
+"  who executes the new branch : " + str(users_running_the_new_code) ^0
+"  who reads what it produced  : " + str(users_reading_the_table) ^0
+"  the flag is consulted on the write path : yes" ^0
+"  on the read path                        : no, and it" ^0
+"    could not be - a reader does not know which cohort" ^0
+"    wrote the row it is reading" ^0
+"" ^0
+
+int(users_reading_the_table * 10000 / users) => exposed_per_myriad
+"share of users exposed to the change : " + str(exposed_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the kill switch reverts ----
+
+# Turning it off stops the writes in eleven seconds. The rows already written
+# stay, and every reader keeps meeting them, so the switch bounds the
+# accumulation and not the exposure.
+"turning it off" ^0
+"  new-shape writes after " + str(kill_switch_seconds) + " seconds : 0" ^0
+"  rows already written    : still there" ^0
+"  readers still meeting them : " + str(users_reading_the_table) ^0
+"  what the switch bounds  : the accumulation" ^0
+"  what it does not bound  : the exposure" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same rollout, with the reader taught the new shape first and shipped to
+# everyone before the writer is enabled for anyone.
+users => nc_readers_that_understand_the_shape
+0 => nc_readers_meeting_an_unknown_shape
+
+"null control - the reader ships first, to everyone" ^0
+"  rollout of the writer : " + str(rollout_per_myriad) + " per ten thousand, unchanged" ^0
+"  readers that understand the shape : " + str(nc_readers_that_understand_the_shape) ^0
+"  readers meeting an unknown shape  : " + str(nc_readers_meeting_an_unknown_shape) ^0
+"  the rollout did not get more gradual; the half that is" ^0
+"  not gated stopped being the half that changed" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a percentage rollout guarantees" ^0
+"  a fraction of users runs the new code : exactly" ^0
+"  a fraction of users is affected by it : not addressed;" ^0
+"    the flag is a property of the caller, and a write" ^0
+"    outlives the caller and belongs to everyone" ^0
+"" ^0
+"gradual is a property of execution, not of effect; a change" ^0
+"whose output is shared has an exposure equal to the readership" ^0
+"from the first user in the cohort" ^0
+"" ^0
+
+"The rollout is careful: stable bucketing with " + str(cohort_flicker_incidents) + " flicker incidents, a kill switch" ^0
+"exercised in a game day and effective in " + str(kill_switch_seconds) + " seconds, a dashboard split by cohort." ^0
+"It gates the write path, which " + str(users_running_the_new_code) + " users take, and the rows land in a table all" ^0
+str(users_reading_the_table) + " read - " + str(exposed_per_myriad) + " per ten thousand exposed at " + str(rollout_per_myriad) + " per ten thousand rolled" ^0
+"out - and the switch stops " + str(new_shape_rows_written_per_day) + " new rows a day without removing the ones there." ^0

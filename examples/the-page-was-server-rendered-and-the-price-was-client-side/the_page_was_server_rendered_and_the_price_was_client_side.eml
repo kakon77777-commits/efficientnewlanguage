@@ -1,0 +1,128 @@
+# Self-authored for the EML case corpus (no external origin). The page is
+# rendered on the server and arrives complete, which the performance work
+# measured and confirmed. Where the price comes from is computed below.
+#
+# The server rendering is real and it was worth doing. The document arrives with
+# its content, first contentful paint fell from two point one seconds to four
+# hundred milliseconds, the page is readable with scripting disabled, and a
+# crawler that runs no JavaScript sees every product. The measurements are on
+# real devices rather than a simulated fast one.
+#
+# One number on the page is not in that document. The price depends on the
+# viewer's currency and their tier, so it is fetched after load and written into
+# a placeholder — a decision made to keep the rendered page cacheable at the
+# edge for everyone.
+#
+# The placeholder is rendered, cached, and shown for four hundred milliseconds
+# before the real number replaces it.
+
+400 => fcp_ms
+2100 => fcp_before_ms
+410 => price_fetch_ms
+4200000 => page_views_per_day
+0 => views_where_the_page_did_not_render
+
+fcp_before_ms - fcp_ms => fcp_improvement_ms
+page_views_per_day * price_fetch_ms => ms_a_day_showing_a_placeholder
+int(ms_a_day_showing_a_placeholder / 1000 / 3600) => hours_a_day_showing_a_placeholder
+int(price_fetch_ms * 10000 / (fcp_ms + price_fetch_ms)) => placeholder_share_per_myriad
+
+"first contentful paint, before, ms : " + str(fcp_before_ms) ^0
+"first contentful paint, after, ms  : " + str(fcp_ms) ^0
+"improvement, ms                    : " + str(fcp_improvement_ms) ^0
+"views where the page did not render: " + str(views_where_the_page_did_not_render) ^0
+"" ^0
+"price fetch, ms                    : " + str(price_fetch_ms) ^0
+"page views per day                 : " + str(page_views_per_day) ^0
+"hours a day showing a placeholder  : " + str(hours_a_day_showing_a_placeholder) ^0
+"share of the visible time before the price : " + str(placeholder_share_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the rendering verified ----
+
+"the server-rendered page" ^0
+"  document arrives with its content : yes" ^0
+"  readable with scripting disabled  : yes" ^0
+"  a crawler running no JavaScript sees every product : yes" ^0
+"  first contentful paint, ms        : " + str(fcp_ms) + ", from " + str(fcp_before_ms) ^0
+"  measured on                       : real devices, not a" ^0
+"    simulated fast one" ^0
+"  verdict                           : SERVER RENDERED" ^0
+"" ^0
+"  the work was worth doing and the numbers are honest" ^0
+"" ^0
+
+# ---- what is not in the document ----
+
+"the price" ^0
+"  depends on   : the viewer's currency and tier" ^0
+"  so it is     : fetched after load, into a placeholder" ^0
+"  why          : to keep one rendered page cacheable at the" ^0
+"    edge for every viewer" ^0
+"  that reason  : correct, and the cache hit rate depends" ^0
+"    on it" ^0
+"" ^0
+"  the page is complete except for the number the page is" ^0
+"  about" ^0
+"" ^0
+
+# ---- what a metric sees ----
+
+# First contentful paint fires when the placeholder paints. Every performance
+# metric on the dashboard is measured against a document that is complete by
+# their definitions and not by a shopper's.
+"the metrics, against the placeholder" ^0
+"  first contentful paint : fires at " + str(fcp_ms) + " ms" ^0
+"  largest contentful paint : fires on the image, earlier" ^0
+"    than the price" ^0
+"  a metric that waits for the price : none defined" ^0
+"  what the dashboards report : an improvement of " + str(fcp_improvement_ms) + " ms" ^0
+"" ^0
+
+# ---- what a crawler sees ----
+
+# The crawler that reads every product reads the placeholder as the price. The
+# structured data block is rendered server-side too, with the same placeholder
+# in it.
+"the crawler" ^0
+"  products found        : all of them" ^0
+"  price it reads        : the placeholder" ^0
+"  structured data block : rendered server-side, same value" ^0
+"  what a listing shows  : that value" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same rendering, with the price rendered server-side and the page varied
+# on currency and tier at the edge instead of shared.
+0 => nc_hours_a_day_showing_a_placeholder
+fcp_ms => nc_time_until_the_price_is_visible_ms
+
+"null control - the price rendered, the cache varied on currency and tier" ^0
+"  first contentful paint, ms : " + str(fcp_ms) + ", unchanged" ^0
+"  time until the price is visible, ms : " + str(nc_time_until_the_price_is_visible_ms) ^0
+"  hours a day showing a placeholder   : " + str(nc_hours_a_day_showing_a_placeholder) ^0
+"  the rendering did not change; the cache key grew and" ^0
+"  the number the page is about arrived with the page" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what server rendering guarantees" ^0
+"  the document arrives complete : exactly, for everything" ^0
+"    in the document" ^0
+"  the page is usable on arrival : not addressed; what was" ^0
+"    left out was left out for a cache key, and the metric" ^0
+"    that would notice is one nobody defines" ^0
+"" ^0
+"a rendering strategy is measured by when pixels appear and" ^0
+"used to decide when a page is ready; the difference is" ^0
+"whichever field could not be shared, which is usually the" ^0
+"one the visit is for" ^0
+"" ^0
+
+"The server rendering is real and worth it: content in the document, readable" ^0
+"without scripting, every product visible to a crawler, first paint from " + str(fcp_before_ms) ^0
+"to " + str(fcp_ms) + " ms on real devices. The price is fetched afterwards to keep one page" ^0
+"cacheable for everyone, so it arrives " + str(price_fetch_ms) + " ms later - " + str(placeholder_share_per_myriad) + " per ten thousand" ^0
+"of the visible time - for " + str(hours_a_day_showing_a_placeholder) + " viewer-hours a day, and the crawler indexes the placeholder." ^0
