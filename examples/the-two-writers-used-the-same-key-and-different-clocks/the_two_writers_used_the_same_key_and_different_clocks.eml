@@ -1,0 +1,115 @@
+# Self-authored for the EML case corpus (no external origin). Conflicts resolve
+# deterministically by last-write-wins and both hosts run a disciplined clock.
+# How often the later write loses is computed below.
+#
+# The resolution rule is deterministic and that matters. Every replica applies
+# the same comparison and converges on the same value, so there is no split
+# brain and no operator has to choose; the alternative considered was a merge
+# function, which the data model cannot support. Clocks are disciplined and the
+# monitored offset stays under forty milliseconds.
+#
+# Last-write-wins compares TIMESTAMPS. Two writes are ordered by whichever
+# host's clock read higher, and for two writes closer together than the offset
+# between those clocks that is not the order they happened in.
+#
+# Conflicting writes are a median of twelve milliseconds apart.
+
+8400000 => writes_per_day
+24000 => conflicting_pairs_per_day
+12 => median_gap_ms
+40 => monitored_clock_offset_ms
+19600 => pairs_closer_together_than_the_offset
+0 => divergent_replicas
+
+int(pairs_closer_together_than_the_offset / 2) => pairs_resolved_backwards
+int(pairs_resolved_backwards * 10000 / conflicting_pairs_per_day) => backwards_per_myriad
+conflicting_pairs_per_day - pairs_closer_together_than_the_offset => pairs_the_clocks_can_order
+
+"writes per day                   : " + str(writes_per_day) ^0
+"conflicting pairs per day        : " + str(conflicting_pairs_per_day) ^0
+"median gap between them, ms      : " + str(median_gap_ms) ^0
+"monitored clock offset, ms       : " + str(monitored_clock_offset_ms) ^0
+"" ^0
+"pairs the clocks can order       : " + str(pairs_the_clocks_can_order) ^0
+"pairs closer than the offset     : " + str(pairs_closer_together_than_the_offset) ^0
+"of those, resolved backwards     : " + str(pairs_resolved_backwards) ^0
+"share of conflicts resolved backwards : " + str(backwards_per_myriad) + " per ten thousand" ^0
+"divergent replicas               : " + str(divergent_replicas) ^0
+"" ^0
+
+# ---- what the rule guarantees ----
+
+"last-write-wins" ^0
+"  every replica applies the same comparison : yes" ^0
+"  replicas converge on the same value       : yes" ^0
+"  divergent replicas observed               : " + str(divergent_replicas) ^0
+"  an operator has to choose                 : never" ^0
+"  the alternative considered : a merge function the data" ^0
+"    model cannot support" ^0
+"  verdict : CONVERGENT" ^0
+"" ^0
+"  determinism is real and it is what makes this operable" ^0
+"" ^0
+
+# ---- what it compares ----
+
+"the two operands" ^0
+"  a timestamp from host A : A's clock" ^0
+"  a timestamp from host B : B's clock" ^0
+"  what makes them comparable : an assumption that the" ^0
+"    offset between the clocks is smaller than the gap" ^0
+"    between the writes" ^0
+"  is that assumption monitored : the offset is; the gap" ^0
+"    is not" ^0
+"" ^0
+"  the clock discipline is good and the quantity it is" ^0
+"  good enough for is the one nobody measured" ^0
+"" ^0
+
+# ---- what convergence means here ----
+
+# Every replica agrees, and what they agree on is the write whose host's clock
+# was ahead. Consistency is total and the surviving value is the earlier edit
+# about half the time.
+"the outcome for one backwards pair" ^0
+"  replicas agreeing on the value : all" ^0
+"  the value they agree on        : the earlier write" ^0
+"  a log line saying so           : none, both writes" ^0
+"    succeeded and neither is an error" ^0
+"  how a user notices             : their edit is gone" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same rule with a logical clock - a version vector - so ordering comes
+# from causality rather than from two wall clocks.
+0 => nc_pairs_resolved_backwards
+pairs_closer_together_than_the_offset => nc_pairs_detected_as_concurrent
+
+"null control - a version vector instead of a wall clock" ^0
+"  divergent replicas      : " + str(divergent_replicas) + ", unchanged" ^0
+"  pairs resolved backwards: " + str(nc_pairs_resolved_backwards) ^0
+"  pairs reported concurrent : " + str(nc_pairs_detected_as_concurrent) + ", which is what they are" ^0
+"  the rule did not become more deterministic; the ordering" ^0
+"  stopped coming from two unrelated clocks" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what last-write-wins guarantees" ^0
+"  every replica converges on one value : exactly" ^0
+"  that value is the last write         : not addressed;" ^0
+"    the comparison is between two clocks, and two clocks" ^0
+"    order two events only when they are further apart" ^0
+"    than the clocks are" ^0
+"" ^0
+"a conflict rule can be perfectly deterministic and still be" ^0
+"deciding on the wrong quantity; clock discipline bounds the" ^0
+"error and the writes have to be further apart than the bound" ^0
+"" ^0
+
+"The rule is deterministic and every replica converges - " + str(divergent_replicas) + " divergences, no" ^0
+"operator ever chooses. It compares two hosts' clocks, monitored to within" ^0
+str(monitored_clock_offset_ms) + " ms, against conflicting writes a median of " + str(median_gap_ms) + " ms apart, so " + str(pairs_closer_together_than_the_offset) ^0
+"pairs a day are closer together than the clocks are and about " + str(pairs_resolved_backwards) + " of them -" ^0
+str(backwards_per_myriad) + " per ten thousand of conflicts - converge on the earlier edit." ^0

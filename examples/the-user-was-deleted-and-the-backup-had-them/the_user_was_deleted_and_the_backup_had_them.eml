@@ -1,0 +1,146 @@
+# Self-authored for the EML case corpus (no external origin). Erasure cascades
+# across every table and a post-deletion probe confirms zero rows remain. Which
+# stores the probe reads is computed below.
+#
+# The erasure path is properly built. A request fans out across thirty-one
+# tables in one transaction, it runs well inside the statutory deadline, and it
+# does not stop at trusting the cascade: a separate probe re-queries every one
+# of those tables for the subject identifier afterwards and asserts an empty
+# result. Twelve thousand four hundred requests this year, all probed, all
+# empty.
+#
+# The probe reads the live database. The same rows also exist in daily backups,
+# in quarterly archives, in the analytics warehouse loaded from a snapshot, and
+# in a search index rebuilt from that warehouse.
+#
+# The warehouse is queried by analysts every day.
+
+31 => tables_in_the_cascade
+12400 => erasure_requests_this_year
+12400 => requests_the_probe_confirmed_empty
+0 => rows_remaining_in_the_live_database
+1 => live_database
+35 => daily_backups_retained
+28 => quarterly_archives_retained
+1 => analytics_warehouse
+1 => search_index_rebuilt_from_the_warehouse
+7 => years_the_quarterly_archives_are_held
+40 => analysts_querying_the_warehouse_daily
+
+daily_backups_retained + quarterly_archives_retained => point_in_time_copies
+point_in_time_copies + analytics_warehouse + search_index_rebuilt_from_the_warehouse => stores_besides_the_live_database
+stores_besides_the_live_database + live_database => stores_holding_this_data
+int(stores_besides_the_live_database * 10000 / stores_holding_this_data) => unprobed_per_myriad
+years_the_quarterly_archives_are_held * 365 => days_until_the_last_archive_copy_expires
+
+"tables in the cascade           : " + str(tables_in_the_cascade) ^0
+"erasure requests this year      : " + str(erasure_requests_this_year) ^0
+"  probe confirmed empty         : " + str(requests_the_probe_confirmed_empty) ^0
+"rows remaining in the live database : " + str(rows_remaining_in_the_live_database) ^0
+"" ^0
+"stores holding this data        : " + str(stores_holding_this_data) ^0
+"  the live database             : " + str(live_database) ^0
+"  daily backups                 : " + str(daily_backups_retained) ^0
+"  quarterly archives            : " + str(quarterly_archives_retained) ^0
+"  analytics warehouse           : " + str(analytics_warehouse) ^0
+"  search index                  : " + str(search_index_rebuilt_from_the_warehouse) ^0
+"stores the probe does not read  : " + str(stores_besides_the_live_database) ^0
+"  share                         : " + str(unprobed_per_myriad) + " per ten thousand" ^0
+"" ^0
+"days until the last archive copy expires : " + str(days_until_the_last_archive_copy_expires) ^0
+"analysts querying the warehouse daily    : " + str(analysts_querying_the_warehouse_daily) ^0
+"" ^0
+
+# ---- what the probe verified ----
+
+"the deletion and its probe" ^0
+"  tables in the cascade : " + str(tables_in_the_cascade) ^0
+"  the cascade is trusted : no; a separate probe re-queries" ^0
+"  what the probe asserts : an empty result for the subject" ^0
+"    identifier, in every one of the " + str(tables_in_the_cascade) + " tables" ^0
+"  requests probed  : " + str(requests_the_probe_confirmed_empty) + " of " + str(erasure_requests_this_year) ^0
+"  rows found       : " + str(rows_remaining_in_the_live_database) ^0
+"  verdict : ERASED" ^0
+"" ^0
+"  re-querying rather than trusting the cascade is the step" ^0
+"  most implementations skip, and it is the right one" ^0
+"" ^0
+# ---- what the probe is a statement about ----
+
+"the probe" ^0
+"  connects to : the live database" ^0
+"  enumerates  : the " + str(tables_in_the_cascade) + " tables of the cascade" ^0
+"  where that list came from : the cascade it is checking" ^0
+"  what it proves : this database no longer holds the rows" ^0
+"  what a reader takes it for : that the data is gone" ^0
+"" ^0
+"  the probe is complete over the store it connects to, and" ^0
+"  its table list is the deletion's own list, so it can only" ^0
+"  disagree with the cascade about execution, never about" ^0
+"  scope" ^0
+"" ^0
+
+# ---- the four other copies ----
+
+# A daily backup rolls off in thirty-five days, which is a real bound and a
+# defensible one. A quarterly archive does not roll off for seven years. The
+# warehouse and the index are not backups at all; they are read every day.
+"the copies the probe does not read" ^0
+"  daily backups      : " + str(daily_backups_retained) + ", each expiring on its own" ^0
+"  quarterly archives : " + str(quarterly_archives_retained) + ", the last in " + str(days_until_the_last_archive_copy_expires) + " days" ^0
+"  analytics warehouse: loaded from a snapshot, queried by" ^0
+"    " + str(analysts_querying_the_warehouse_daily) + " analysts a day" ^0
+"  search index       : rebuilt from the warehouse" ^0
+"  of these, the ones that expire on their own : the backups" ^0
+"  of these, the ones a person reads : the warehouse and the" ^0
+"    index, today" ^0
+"" ^0
+
+# ---- why the report says complete ----
+
+# The compliance report counts requests completed within the deadline and
+# verified by the probe, and both numbers are correct. Neither is a count over
+# stores.
+"what the compliance report counts" ^0
+"  requests completed in time : " + str(erasure_requests_this_year) ^0
+"  requests verified by a probe : " + str(requests_the_probe_confirmed_empty) ^0
+"  stores enumerated : the deletion enumerates tables" ^0
+"  an inventory of stores holding personal data : exists," ^0
+"    and nothing joins it to the deletion path" ^0
+"" ^0
+# ---- null control ----
+
+# The same erasure, driven from the data inventory: the request emits a
+# tombstone that every registered store consumes, and the probe enumerates
+# stores from the inventory rather than tables from the cascade.
+stores_holding_this_data => nc_stores_the_probe_reads
+0 => nc_stores_the_probe_does_not_read
+
+"null control - the probe enumerates stores, not tables" ^0
+"  rows remaining in the live database : " + str(rows_remaining_in_the_live_database) + ", unchanged" ^0
+"  stores the probe reads : " + str(nc_stores_the_probe_reads) ^0
+"  stores it does not read : " + str(nc_stores_the_probe_does_not_read) ^0
+"  the deletion did not become more thorough; the probe" ^0
+"  stopped taking its list from the thing it was checking" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a verified erasure guarantees" ^0
+"  the live database no longer holds the subject : exactly," ^0
+"    checked rather than assumed" ^0
+"  the subject is no longer held                 : not" ^0
+"    addressed; the probe names a connection, and the" ^0
+"    obligation names the data" ^0
+"" ^0
+"a verification inherits the scope of the thing it verifies;" ^0
+"a probe built from the deletion's own table list can catch a" ^0
+"cascade that failed and can never catch a copy the cascade" ^0
+"was never told about" ^0
+"" ^0
+
+"Erasure is verified rather than assumed: " + str(tables_in_the_cascade) + " tables cascaded, then re-queried" ^0
+"by a separate probe that found " + str(rows_remaining_in_the_live_database) + " rows across all " + str(requests_the_probe_confirmed_empty) + " requests this year." ^0
+"The probe reads the live database, " + str(live_database) + " of " + str(stores_holding_this_data) + " stores holding the data, so" ^0
+str(stores_besides_the_live_database) + " - " + str(unprobed_per_myriad) + " per ten thousand - are unread, including archives that expire" ^0
+"in " + str(days_until_the_last_archive_copy_expires) + " days and a warehouse " + str(analysts_querying_the_warehouse_daily) + " analysts query today." ^0

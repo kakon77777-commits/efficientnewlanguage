@@ -1,0 +1,122 @@
+# Self-authored for the EML case corpus (no external origin). Every image is
+# scanned before it can be pushed and eleven builds were blocked this quarter.
+# How many running images carry a known advisory is computed below.
+#
+# The build gate is real. The scanner runs on the assembled image rather than on
+# the manifest, it fails the build above a severity rather than warning, the
+# severity threshold was argued about and set deliberately, and it has blocked
+# eleven builds this quarter — each of which was a genuine finding that somebody
+# then fixed.
+#
+# A scan is a comparison against the advisory database AT THAT MOMENT. The image
+# does not change afterwards and the database does, so what the scan establishes
+# has a date on it.
+#
+# The running images average forty-seven days old.
+
+240 => images_in_production
+47 => mean_age_days
+11 => builds_blocked_this_quarter
+118 => advisories_published_since_build
+14 => of_those_high_or_critical
+0 => rescans_of_running_images
+
+advisories_published_since_build - of_those_high_or_critical => lower_severity_advisories
+int(of_those_high_or_critical * 10000 / advisories_published_since_build) => high_share_per_myriad
+
+"images in production            : " + str(images_in_production) ^0
+"mean age, days                  : " + str(mean_age_days) ^0
+"builds blocked this quarter     : " + str(builds_blocked_this_quarter) ^0
+"" ^0
+"advisories published since build: " + str(advisories_published_since_build) ^0
+"  high or critical              : " + str(of_those_high_or_critical) ^0
+"  lower severity                : " + str(lower_severity_advisories) ^0
+"  high share                    : " + str(high_share_per_myriad) + " per ten thousand" ^0
+"rescans of running images       : " + str(rescans_of_running_images) ^0
+"" ^0
+
+# ---- what the gate verified ----
+
+"the build scan" ^0
+"  runs on            : the assembled image, not the manifest" ^0
+"  on a finding       : fails the build, does not warn" ^0
+"  severity threshold : argued about and set deliberately" ^0
+"  builds blocked this quarter : " + str(builds_blocked_this_quarter) ^0
+"  each of those      : a genuine finding somebody fixed" ^0
+"  verdict            : GATED" ^0
+"" ^0
+"  scanning the assembled image rather than the manifest is" ^0
+"  the stronger of the two and costs more to run" ^0
+"" ^0
+
+# ---- what a scan is a statement about ----
+
+"the comparison" ^0
+"  one operand : the image, which does not change" ^0
+"  the other   : the advisory database, which does" ^0
+"  when it was made : at build" ^0
+"  what it establishes : that this image had no known" ^0
+"    high-severity advisory ON THAT DAY" ^0
+"  what a reader takes from a green scan : that it has none" ^0
+"" ^0
+"  the scan is not stale in the sense of being wrong; the" ^0
+"  proposition it proved has a date in it" ^0
+"" ^0
+
+# ---- what has moved since ----
+
+int(advisories_published_since_build / mean_age_days) => advisories_per_day_against_these_packages
+
+"in the " + str(mean_age_days) + " days since a mean image was built" ^0
+"  advisories against its packages : " + str(advisories_published_since_build) ^0
+"  per day                         : about " + str(advisories_per_day_against_these_packages) ^0
+"  high or critical                : " + str(of_those_high_or_critical) ^0
+"  scans that would have seen them : " + str(rescans_of_running_images) ^0
+"" ^0
+
+# ---- why nothing looks wrong ----
+
+# The pipeline dashboard shows a hundred percent scan coverage, which is true:
+# every image was scanned. Coverage is counted over builds, and the fleet is
+# not a set of builds.
+"the coverage number" ^0
+"  images scanned before push : all" ^0
+"  coverage reported          : complete" ^0
+"  what it counts             : builds" ^0
+"  what is running            : images, for " + str(mean_age_days) + " days on average" ^0
+"  a metric over the second   : none defined" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same gate, with a nightly rescan of the running fleet against the current
+# database.
+1 => nc_rescans_per_day
+of_those_high_or_critical => nc_findings_surfaced
+
+"null control - a nightly rescan of what is running" ^0
+"  builds blocked   : " + str(builds_blocked_this_quarter) + ", unchanged" ^0
+"  rescans per day  : " + str(nc_rescans_per_day) ^0
+"  findings surfaced: " + str(nc_findings_surfaced) ^0
+"  the build gate did not get stricter; the fleet became a" ^0
+"  population the scanner is pointed at" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a passing build scan guarantees" ^0
+"  this image had no known finding when it was built : exactly" ^0
+"  this image has no known finding                    : not" ^0
+"    addressed; one operand of the comparison keeps moving" ^0
+"    and the check was run once" ^0
+"" ^0
+"a scan is a join against a database with a timestamp; gating" ^0
+"the build fixes the image and leaves the other side free, so" ^0
+"the answer decays at whatever rate advisories are published" ^0
+"" ^0
+
+"The build gate is real and blocked " + str(builds_blocked_this_quarter) + " builds this quarter, each a genuine" ^0
+"finding, scanning the assembled image and failing rather than warning. It" ^0
+"compares against a database that has since published " + str(advisories_published_since_build) + " advisories against" ^0
+"these packages - " + str(of_those_high_or_critical) + " of them high or critical, " + str(high_share_per_myriad) + " per ten thousand - across" ^0
+"images averaging " + str(mean_age_days) + " days old, with " + str(rescans_of_running_images) + " rescans of anything that is running." ^0

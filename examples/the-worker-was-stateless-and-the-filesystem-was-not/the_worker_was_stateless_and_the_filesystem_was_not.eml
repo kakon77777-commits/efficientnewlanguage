@@ -1,0 +1,151 @@
+# Self-authored for the EML case corpus (no external origin). The workers hold
+# no session state, any request can go to any pod, and a chaos test kills one
+# every five minutes without a failed request. What persists is computed below.
+#
+# The statelessness is real and it was earned. There is no in-memory session,
+# no sticky routing, no affinity in the load balancer; scaling out works
+# linearly; and the chaos test is not a drill on paper - it kills a random pod
+# every five minutes, all day, and the failed-request count has been zero for
+# eleven months.
+#
+# Statelessness was established about memory. The container has a writable
+# filesystem, a template compiler caches to it, and that cache survives every
+# request boundary the memory claim was proved across.
+#
+# A pod lives about thirty-four days before disk pressure evicts it.
+
+240 => worker_pods
+0 => in_memory_session_state
+0 => failed_requests_under_the_chaos_test
+288 => chaos_kills_per_day
+41000 => files_written_per_pod_per_day
+380 => megabytes_written_per_pod_per_day
+34 => days_until_disk_pressure_evicts_a_pod
+30 => days_in_the_month
+0 => alerts_separating_the_two_causes
+120 => p99_ms_on_a_warm_pod
+890 => p99_ms_on_a_fresh_pod
+
+# Both restart counts are derived, so neither can drift from the fleet size,
+# the pod lifetime, or the kill rate that produced them.
+chaos_kills_per_day * days_in_the_month => chaos_kills_per_month
+int(worker_pods * days_in_the_month / days_until_disk_pressure_evicts_a_pod) => restarts_caused_by_disk_pressure
+chaos_kills_per_month + restarts_caused_by_disk_pressure => pod_restarts_per_month
+pod_restarts_per_month - restarts_caused_by_disk_pressure => restarts_from_chaos_or_churn
+int(restarts_caused_by_disk_pressure * 10000 / pod_restarts_per_month) => disk_pressure_per_myriad
+p99_ms_on_a_fresh_pod - p99_ms_on_a_warm_pod => p99_gap_ms
+
+"worker pods                     : " + str(worker_pods) ^0
+"in-memory session state         : " + str(in_memory_session_state) ^0
+"chaos kills per day             : " + str(chaos_kills_per_day) ^0
+"failed requests under the chaos test : " + str(failed_requests_under_the_chaos_test) ^0
+"" ^0
+"files written per pod per day   : " + str(files_written_per_pod_per_day) ^0
+"megabytes per pod per day       : " + str(megabytes_written_per_pod_per_day) ^0
+"days until disk pressure evicts : " + str(days_until_disk_pressure_evicts_a_pod) ^0
+"" ^0
+"pod restarts per month          : " + str(pod_restarts_per_month) ^0
+"  from chaos or normal churn    : " + str(restarts_from_chaos_or_churn) ^0
+"  from disk pressure            : " + str(restarts_caused_by_disk_pressure) ^0
+"  share                         : " + str(disk_pressure_per_myriad) + " per ten thousand" ^0
+"alerts separating the two causes : " + str(alerts_separating_the_two_causes) ^0
+"" ^0
+"p99 on a warm pod, ms           : " + str(p99_ms_on_a_warm_pod) ^0
+"p99 on a fresh pod, ms          : " + str(p99_ms_on_a_fresh_pod) ^0
+"  gap                           : " + str(p99_gap_ms) + " ms" ^0
+"" ^0
+
+# ---- what the chaos test verified ----
+
+"the statelessness claim" ^0
+"  in-memory session state : " + str(in_memory_session_state) ^0
+"  sticky routing or affinity : none" ^0
+"  pods killed per day     : " + str(chaos_kills_per_day) ^0
+"  failed requests         : " + str(failed_requests_under_the_chaos_test) ^0
+"  months at zero          : eleven" ^0
+"  verdict : STATELESS" ^0
+"" ^0
+"  killing a pod every five minutes in production is a real" ^0
+"  test and almost nobody runs it" ^0
+"" ^0
+
+# ---- what the test ranges over ----
+
+"what the chaos test can observe" ^0
+"  a request in flight when a pod dies : retried elsewhere," ^0
+"    and it succeeds" ^0
+"  what that proves : no request depends on memory in one" ^0
+"    process" ^0
+"  what it does not observe : the pods it did not kill, and" ^0
+"    what they have been accumulating" ^0
+"  the filesystem : writable, and never asserted about" ^0
+"" ^0
+"  correctness under pod loss and independence from pod" ^0
+"  identity are different claims, and only the first was run" ^0
+"" ^0
+# ---- what the cache makes observable ----
+
+# The template cache is a correctness-neutral optimisation and it works. It also
+# makes a pod's age an input to what a caller experiences, which is the thing
+# statelessness was supposed to have removed.
+"pod age as an input" ^0
+"  p99 on a pod minutes old : " + str(p99_ms_on_a_fresh_pod) + " ms" ^0
+"  p99 on a pod days old    : " + str(p99_ms_on_a_warm_pod) + " ms" ^0
+"  difference               : " + str(p99_gap_ms) + " ms" ^0
+"  is the response different : no, the same bytes" ^0
+"  is the experience different : yes, and it depends on" ^0
+"    which pod answered" ^0
+"  what routing guarantees about that : nothing, by design" ^0
+"" ^0
+
+# ---- the restart count ----
+
+# Two causes produce the same event. The chaos test kills pods on purpose, disk
+# pressure kills them because a directory grew, and the restart counter sums
+# them into one number that is expected to be large.
+"why the eviction is invisible" ^0
+"  restarts a month : " + str(pod_restarts_per_month) ^0
+"  expected, from the chaos test and churn : " + str(restarts_from_chaos_or_churn) ^0
+"  from disk pressure : " + str(restarts_caused_by_disk_pressure) ^0
+"  alerts separating them : " + str(alerts_separating_the_two_causes) ^0
+"  why a high restart count reads as healthy : because the" ^0
+"    team deliberately causes " + str(chaos_kills_per_day) + " of them a day" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same workers, with the cache moved to a shared store under an explicit
+# key and the container filesystem read-only.
+0 => nc_restarts_caused_by_disk_pressure
+p99_ms_on_a_warm_pod => nc_p99_ms_on_a_fresh_pod
+0 => nc_p99_gap_ms
+
+"null control - a shared cache and a read-only container" ^0
+"  in-memory session state : " + str(in_memory_session_state) + ", unchanged" ^0
+"  restarts from disk pressure : " + str(nc_restarts_caused_by_disk_pressure) ^0
+"  p99 on a fresh pod : " + str(nc_p99_ms_on_a_fresh_pod) + " ms" ^0
+"  gap between fresh and warm : " + str(nc_p99_gap_ms) + " ms" ^0
+"  the workers did not become more stateless; the state they" ^0
+"  had stopped being per pod and started having a name" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a passing chaos test guarantees" ^0
+"  no request depends on state in one process : exactly," ^0
+"    proved " + str(chaos_kills_per_day) + " times a day for eleven months" ^0
+"  the workers are interchangeable             : not" ^0
+"    addressed; a process is not the only thing a pod has," ^0
+"    and the test only ever destroys pods" ^0
+"" ^0
+"statelessness is a claim about what a request reads, so it" ^0
+"has to name every store a request can read; a claim proved" ^0
+"by killing processes covers memory exactly and leaves the" ^0
+"disk under it untouched and accumulating" ^0
+"" ^0
+
+"The workers hold " + str(in_memory_session_state) + " session state and a chaos test kills " + str(chaos_kills_per_day) + " pods a day with" ^0
+str(failed_requests_under_the_chaos_test) + " failed requests, which almost nobody proves. A template cache writes " + str(megabytes_written_per_pod_per_day) ^0
+"megabytes a pod a day to the container filesystem, so p99 depends on pod age -" ^0
+str(p99_ms_on_a_fresh_pod) + " ms against " + str(p99_ms_on_a_warm_pod) + ", a gap of " + str(p99_gap_ms) + " - and " + str(restarts_caused_by_disk_pressure) + " of " + str(pod_restarts_per_month) + " restarts a month," ^0
+str(disk_pressure_per_myriad) + " per ten thousand, are evictions hidden inside a number the test inflates." ^0

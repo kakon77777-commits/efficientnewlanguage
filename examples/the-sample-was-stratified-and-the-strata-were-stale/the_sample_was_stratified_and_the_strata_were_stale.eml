@@ -1,0 +1,141 @@
+# Self-authored for the EML case corpus (no external origin). The quality sample
+# is stratified with proportional allocation and weighted estimation, reviewed
+# by a statistician. What the weights reconstruct is computed below.
+#
+# The sampling design is the good kind. It is not a convenience sample of
+# whoever answers; the population is partitioned into twelve strata by region
+# and plan tier, allocation is proportional to stratum size, every estimate is
+# weighted back to the population, and the whole design was reviewed by a
+# statistician who checked the estimator and the variance calculation.
+#
+# The weights encode the stratum SIZES, and the sizes came from a snapshot of
+# the population taken when the design was written. The design has not changed
+# since, which is correct for a design and wrong for a measurement of a moving
+# population.
+#
+# That snapshot is fourteen months old.
+
+12 => strata
+4800 => sampled_per_quarter
+14 => months_since_the_population_snapshot
+0 => refreshes_of_the_stratum_sizes_since_design
+240000 => accounts_at_the_snapshot
+412000 => accounts_now
+74000 => self_serve_accounts_at_the_snapshot
+214000 => self_serve_accounts_now
+1 => statistician_reviews_of_the_design
+
+int(self_serve_accounts_at_the_snapshot * 10000 / accounts_at_the_snapshot) => weight_in_use_per_myriad
+int(self_serve_accounts_now * 10000 / accounts_now) => correct_weight_per_myriad
+correct_weight_per_myriad - weight_in_use_per_myriad => weight_error_per_myriad
+accounts_now - accounts_at_the_snapshot => accounts_added_since_the_snapshot
+
+"strata                          : " + str(strata) ^0
+"sampled per quarter             : " + str(sampled_per_quarter) ^0
+"statistician reviews of the design : " + str(statistician_reviews_of_the_design) ^0
+"months since the population snapshot : " + str(months_since_the_population_snapshot) ^0
+"refreshes of the stratum sizes  : " + str(refreshes_of_the_stratum_sizes_since_design) ^0
+"" ^0
+"accounts at the snapshot        : " + str(accounts_at_the_snapshot) ^0
+"accounts now                    : " + str(accounts_now) ^0
+"  added since                   : " + str(accounts_added_since_the_snapshot) ^0
+"" ^0
+"self-serve share, weight in use : " + str(weight_in_use_per_myriad) + " per ten thousand" ^0
+"self-serve share, actual now    : " + str(correct_weight_per_myriad) + " per ten thousand" ^0
+"  error in the weight           : " + str(weight_error_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the design verified ----
+
+"the sampling design" ^0
+"  population partitioned into strata : " + str(strata) ^0
+"  allocation : proportional to stratum size" ^0
+"  estimates weighted back to the population : yes" ^0
+"  estimator and variance reviewed : by a statistician" ^0
+"  verdict : STRATIFIED" ^0
+"" ^0
+"  a stratified design beats a convenience sample by a wide" ^0
+"  margin and this one is correctly specified" ^0
+"" ^0
+
+# ---- what the weights are a statement about ----
+
+"one weight" ^0
+"  what it encodes : the share of the population in this" ^0
+"    stratum" ^0
+"  where that share came from : a snapshot of the population" ^0
+"  when that snapshot was taken : " + str(months_since_the_population_snapshot) + " months ago" ^0
+"  what the estimate is therefore unbiased for : the" ^0
+"    population as it was then" ^0
+"  how often the design says to refresh it : the design is a" ^0
+"    design; it says how to weight, not when to re-measure" ^0
+"" ^0
+"  the estimator is unbiased and the population it is" ^0
+"  unbiased for is not the one being reported on" ^0
+"" ^0
+
+# ---- why every diagnostic is green ----
+
+# Response rate per stratum, achieved allocation against target allocation,
+# margin of error, design effect - all of them are computed against the strata
+# as defined, so all of them are consistent and all of them are green.
+"what the quarterly report can check" ^0
+"  response rate per stratum : computed, healthy" ^0
+"  achieved allocation vs target : matches" ^0
+"  margin of error : computed from the design" ^0
+"  design effect   : computed from the design" ^0
+"  stratum sizes vs the current population : not computed" ^0
+"  the check that would show it : one query against the" ^0
+"    accounts table, which nothing runs" ^0
+"" ^0
+
+# ---- the direction of the error ----
+
+# The tier that grew is under-weighted, so its experience is discounted by the
+# same factor the design applies deliberately to a small stratum. The estimate
+# is precise, and precise about a smaller company.
+"the effect on one estimate" ^0
+"  self-serve accounts then : " + str(self_serve_accounts_at_the_snapshot) ^0
+"  self-serve accounts now  : " + str(self_serve_accounts_now) ^0
+"  weight applied to them   : " + str(weight_in_use_per_myriad) + " per ten thousand" ^0
+"  weight they should carry : " + str(correct_weight_per_myriad) + " per ten thousand" ^0
+"  the estimate is : precise, and about the population of" ^0
+"    " + str(months_since_the_population_snapshot) + " months ago" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same design, with stratum sizes recomputed from the accounts table before
+# each quarter's allocation.
+correct_weight_per_myriad => nc_weight_in_use_per_myriad
+0 => nc_weight_error_per_myriad
+
+"null control - stratum sizes recomputed each quarter" ^0
+"  strata and allocation rule : unchanged" ^0
+"  weight in use       : " + str(nc_weight_in_use_per_myriad) + " per ten thousand" ^0
+"  error in the weight : " + str(nc_weight_error_per_myriad) + " per ten thousand" ^0
+"  the design did not improve; the quantity it reads was" ^0
+"  read again" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a stratified sample guarantees" ^0
+"  unbiased estimates for the population the weights" ^0
+"    describe : exactly, and demonstrably" ^0
+"  unbiased estimates for the current population : not" ^0
+"    addressed; the weights are data, and this design has" ^0
+"    no step that re-reads them" ^0
+"" ^0
+"a sampling design is a function of the population it was" ^0
+"written against; reviewing the method proves the method and" ^0
+"leaves the parameter unexamined, because a parameter is not" ^0
+"part of a method" ^0
+"" ^0
+
+"The design is properly stratified - " + str(strata) + " strata, proportional allocation, weighted" ^0
+"estimation, reviewed by a statistician - and every diagnostic it computes is" ^0
+"green. Its weights come from a population snapshot " + str(months_since_the_population_snapshot) + " months old, refreshed" ^0
+str(refreshes_of_the_stratum_sizes_since_design) + " times since, over which the account base went from " + str(accounts_at_the_snapshot) + " to " + str(accounts_now) + "," ^0
+"so the self-serve stratum is weighted at " + str(weight_in_use_per_myriad) + " per ten thousand instead of" ^0
+str(correct_weight_per_myriad) + " - an error of " + str(weight_error_per_myriad) + " per ten thousand in a quantity nothing recomputes." ^0

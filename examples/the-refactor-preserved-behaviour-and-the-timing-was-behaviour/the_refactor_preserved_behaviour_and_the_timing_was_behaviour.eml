@@ -1,0 +1,141 @@
+# Self-authored for the EML case corpus (no external origin). A refactor was
+# validated by replaying millions of production inputs through both
+# implementations. What the replay compared is computed below.
+#
+# The differential test is the strong kind. It is not a suite of hand-written
+# expectations; it captured real production inputs, ran the old and the new
+# implementation against each of them, and compared the results byte for byte,
+# including which exception type was raised. Four point two million inputs, no
+# divergence in value and none in error.
+#
+# What it compared is the RETURN VALUE. The old implementation gathered two
+# hundred items into one backend call and the new one makes a call per item, so
+# every caller sees the same answer after a different amount of time.
+#
+# The downstream service's client times out at two hundred milliseconds.
+
+4200000 => production_inputs_replayed
+0 => outputs_that_differed
+0 => exception_types_that_differed
+0 => assertions_about_duration_in_the_replay
+200 => items_per_backend_call_before
+1 => items_per_backend_call_after
+38 => p99_ms_before
+210 => p99_ms_after
+200 => downstream_timeout_ms
+9600000 => calls_per_day
+144000 => calls_above_the_downstream_timeout
+
+p99_ms_after - p99_ms_before => p99_increase_ms
+int(p99_ms_after * 100 / p99_ms_before) => p99_after_as_percent_of_before
+int(calls_above_the_downstream_timeout * 10000 / calls_per_day) => timed_out_per_myriad
+
+"production inputs replayed      : " + str(production_inputs_replayed) ^0
+"outputs that differed           : " + str(outputs_that_differed) ^0
+"exception types that differed   : " + str(exception_types_that_differed) ^0
+"assertions about duration       : " + str(assertions_about_duration_in_the_replay) ^0
+"" ^0
+"items per backend call, before  : " + str(items_per_backend_call_before) ^0
+"items per backend call, after   : " + str(items_per_backend_call_after) ^0
+"p99 before, ms                  : " + str(p99_ms_before) ^0
+"p99 after, ms                   : " + str(p99_ms_after) ^0
+"  increase, ms                  : " + str(p99_increase_ms) ^0
+"  after as percent of before    : " + str(p99_after_as_percent_of_before) ^0
+"" ^0
+"downstream client timeout, ms   : " + str(downstream_timeout_ms) ^0
+"calls per day                   : " + str(calls_per_day) ^0
+"  above the timeout             : " + str(calls_above_the_downstream_timeout) ^0
+"  share                         : " + str(timed_out_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the replay verified ----
+
+"the differential test" ^0
+"  inputs           : captured from production, not written" ^0
+"  both implementations run against each : yes" ^0
+"  comparison       : byte for byte on the result" ^0
+"  errors compared  : the exception type, not just success" ^0
+"  inputs replayed  : " + str(production_inputs_replayed) ^0
+"  divergences      : " + str(outputs_that_differed) ^0
+"  verdict          : EQUIVALENT" ^0
+"" ^0
+"  replaying real inputs against both sides is stronger than" ^0
+"  any expectation somebody would have thought to write" ^0
+"" ^0
+
+# ---- what equivalence was asserted over ----
+
+"the assertion" ^0
+"  one operand  : the old implementation's return value" ^0
+"  the other    : the new implementation's return value" ^0
+"  what a caller observes : the value, and when it arrives" ^0
+"  which of those the replay held fixed : the first" ^0
+"  assertions about the second : " + str(assertions_about_duration_in_the_replay) ^0
+"" ^0
+"  the test is exactly as strong as it looks about values" ^0
+"  and says nothing at all about the other observable" ^0
+"" ^0
+
+# ---- why the timing moved ----
+
+# The refactor removed the batching layer, which was the thing being refactored.
+# Per item the work is the same; per call it is two hundred round trips instead
+# of one, and the latency is dominated by the round trip.
+"where the time went" ^0
+"  items per backend call, before : " + str(items_per_backend_call_before) ^0
+"  items per backend call, after  : " + str(items_per_backend_call_after) ^0
+"  work per item                  : unchanged" ^0
+"  round trips per batch          : " + str(items_per_backend_call_before) + " instead of 1" ^0
+"  what dominates the latency     : the round trip" ^0
+"  p99, before and after, ms      : " + str(p99_ms_before) + " and " + str(p99_ms_after) ^0
+"" ^0
+
+# ---- what the caller was promised ----
+
+# A caller reading the refactor's notes sees a proven equivalence and a test
+# population larger than anything it could have asked for. The word in the note
+# is behaviour. For a caller with a deadline, the deadline is behaviour.
+"the claim as a caller reads it" ^0
+"  proven over          : " + str(production_inputs_replayed) + " real inputs" ^0
+"  the word used        : behaviour is preserved" ^0
+"  what the caller has  : a client with a " + str(downstream_timeout_ms) + " ms timeout" ^0
+"  is a timeout a value : no" ^0
+"  is a timeout something the caller observes : yes" ^0
+"  calls a day now exceeding it : " + str(calls_above_the_downstream_timeout) ^0
+"" ^0
+
+# ---- null control ----
+
+# The same replay harness, recording each side's duration per input and failing
+# when the new one exceeds a multiple of the old.
+production_inputs_replayed => nc_inputs_with_a_duration_recorded
+calls_above_the_downstream_timeout => nc_calls_that_would_have_been_seen_before_deploy
+
+"null control - the replay also compares durations" ^0
+"  outputs that differed : " + str(outputs_that_differed) + ", unchanged" ^0
+"  inputs with a duration recorded : " + str(nc_inputs_with_a_duration_recorded) ^0
+"  slow calls visible before the deploy : " + str(nc_calls_that_would_have_been_seen_before_deploy) ^0
+"  the refactor did not get safer; the replay started" ^0
+"  measuring the second thing a caller can see" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a passing differential test guarantees" ^0
+"  the two implementations return the same value : exactly," ^0
+"    over a population no hand-written suite would reach" ^0
+"  the two implementations behave the same        : not" ^0
+"    addressed; behaviour is whatever a caller can observe," ^0
+"    and the assertion ranges over one of those things" ^0
+"" ^0
+"an equivalence proof is only as wide as the relation it" ^0
+"asserts; calling that relation behaviour renames the gap" ^0
+"instead of closing it" ^0
+"" ^0
+
+"The differential test replayed " + str(production_inputs_replayed) + " real production inputs through both" ^0
+"implementations and found " + str(outputs_that_differed) + " differing outputs and " + str(exception_types_that_differed) + " differing exception types," ^0
+"which no hand-written suite would have covered. It asserted over return values" ^0
+"and made " + str(assertions_about_duration_in_the_replay) + " assertions about duration, so p99 moved from " + str(p99_ms_before) + " ms to " + str(p99_ms_after) + " ms -" ^0
+str(p99_after_as_percent_of_before) + " percent of before - past a downstream timeout of " + str(downstream_timeout_ms) + " ms that " + str(calls_above_the_downstream_timeout) ^0
+"calls a day, " + str(timed_out_per_myriad) + " per ten thousand, now exceed." ^0

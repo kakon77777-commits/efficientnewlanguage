@@ -1,0 +1,133 @@
+# Self-authored for the EML case corpus (no external origin). Every job is
+# checked against its tenant's remaining budget before it is accepted, and no
+# submission has bypassed the check. What the check compares is computed below.
+#
+# The admission check is real enforcement, not advice. It runs in the submit
+# path, it refuses rather than warns, there is no flag to skip it, and it has
+# turned away nine thousand four hundred submissions this month. A tenant
+# cannot submit a job whose declared cost exceeds what is left.
+#
+# The check reads the budget remaining, which is the quota minus what completed
+# jobs have spent. A job that was accepted and has not run yet has spent
+# nothing, so it appears in neither term, and it is going to run.
+#
+# The median job waits forty-one minutes in the queue before it starts.
+
+340000 => submissions_per_month
+9400 => submissions_refused_at_submit
+0 => submissions_that_bypassed_the_check
+41 => median_queue_minutes
+1900 => tenants
+210 => tenants_whose_spend_exceeded_quota_this_month
+24 => accepted_and_not_yet_started_per_tenant_median
+0 => reservations_taken_at_submit
+
+tenants - tenants_whose_spend_exceeded_quota_this_month => tenants_within_quota_this_month
+int(tenants_whose_spend_exceeded_quota_this_month * 10000 / tenants) => overrun_per_myriad
+int(submissions_refused_at_submit * 10000 / submissions_per_month) => refused_per_myriad
+
+"submissions per month           : " + str(submissions_per_month) ^0
+"  refused at submit             : " + str(submissions_refused_at_submit) ^0
+"  share refused                 : " + str(refused_per_myriad) + " per ten thousand" ^0
+"  that bypassed the check       : " + str(submissions_that_bypassed_the_check) ^0
+"" ^0
+"median queue wait, minutes      : " + str(median_queue_minutes) ^0
+"accepted and not yet started, per tenant : " + str(accepted_and_not_yet_started_per_tenant_median) ^0
+"reservations taken at submit    : " + str(reservations_taken_at_submit) ^0
+"" ^0
+"tenants                         : " + str(tenants) ^0
+"  within quota                  : " + str(tenants_within_quota_this_month) ^0
+"  spend exceeded quota          : " + str(tenants_whose_spend_exceeded_quota_this_month) ^0
+"  share                         : " + str(overrun_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the check enforces ----
+
+"the admission check" ^0
+"  where it runs : the submit path" ^0
+"  on insufficient budget : refuses, does not warn" ^0
+"  a flag to skip it : none" ^0
+"  submissions refused this month : " + str(submissions_refused_at_submit) ^0
+"  submissions that bypassed it   : " + str(submissions_that_bypassed_the_check) ^0
+"  verdict : ENFORCED" ^0
+"" ^0
+"  refusing rather than warning is what makes this a limit," ^0
+"  and it is enforced without exception" ^0
+"" ^0
+
+# ---- what the two operands are ----
+
+"the comparison" ^0
+"  left  : the declared cost of this job" ^0
+"  right : quota minus what completed jobs have spent" ^0
+"  jobs accepted and not yet run : counted in neither term" ^0
+"  how many of those a tenant typically has : " + str(accepted_and_not_yet_started_per_tenant_median) ^0
+"  reservations that would put them in the right operand : " ^0
+"    " + str(reservations_taken_at_submit) ^0
+"" ^0
+"  the check is correct about one job against a number, and" ^0
+"  the number omits the jobs the same check already accepted" ^0
+"" ^0
+# ---- how a tenant exceeds a limit nobody let them exceed ----
+
+# No submission was ever accepted that exceeded the remaining budget. Each of
+# the twenty-four queued jobs passed the check honestly, against a budget that
+# was accurate at the moment it was read.
+"one tenant near the limit" ^0
+"  jobs submitted while near the limit : each passes" ^0
+"  each check compares against : the budget at that instant" ^0
+"  each of those checks is correct : yes" ^0
+"  jobs queued and approved     : " + str(accepted_and_not_yet_started_per_tenant_median) ^0
+"  what they collectively cost  : more than what is left" ^0
+"  the moment the aggregate is evaluated : never; there is" ^0
+"    no step that sums the approved queue" ^0
+"" ^0
+
+# ---- the two times ----
+
+"submit and run" ^0
+"  what happens at submit : the check, and acceptance" ^0
+"  what happens at run    : the spend" ^0
+"  minutes between them, median : " + str(median_queue_minutes) ^0
+"  what changes in between : other jobs of the same tenant" ^0
+"    start and finish" ^0
+"  what the check knew about them : nothing; they had not" ^0
+"    spent yet either" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same check, debiting a reservation at submit and releasing it when the
+# job finishes, so the remaining budget counts committed future spend.
+submissions_per_month => nc_submissions_still_checked
+0 => nc_tenants_whose_spend_exceeded_quota_this_month
+accepted_and_not_yet_started_per_tenant_median => nc_queued_jobs_visible_to_the_check
+
+"null control - a reservation is taken at submit" ^0
+"  submissions checked : " + str(nc_submissions_still_checked) + ", unchanged" ^0
+"  queued jobs visible to the check : " + str(nc_queued_jobs_visible_to_the_check) ^0
+"  tenants exceeding quota : " + str(nc_tenants_whose_spend_exceeded_quota_this_month) ^0
+"  the check did not become stricter; the number it reads" ^0
+"  started including the commitments the check itself made" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what an enforced admission check guarantees" ^0
+"  no accepted job exceeded the budget at its own submit :" ^0
+"    exactly, with no exception and no bypass" ^0
+"  accepted jobs will not exceed the budget              : not" ^0
+"    addressed; that is a property of a set, and the check" ^0
+"    is a predicate on one element against a stale total" ^0
+"" ^0
+"a limit enforced per request bounds each request; bounding" ^0
+"the sum requires the accounting to move at the moment of the" ^0
+"decision rather than at the moment of the cost" ^0
+"" ^0
+
+"The check is real enforcement: it runs in the submit path, refuses rather than" ^0
+"warns, has no bypass, and turned away " + str(submissions_refused_at_submit) + " of " + str(submissions_per_month) + " submissions - " + str(refused_per_myriad) ^0
+"per ten thousand. It compares one job against quota minus completed spend, and" ^0
+"a tenant holds " + str(accepted_and_not_yet_started_per_tenant_median) + " approved jobs waiting a median of " + str(median_queue_minutes) + " minutes with " + str(reservations_taken_at_submit) ^0
+"reservations against them, so " + str(tenants_whose_spend_exceeded_quota_this_month) + " of " + str(tenants) + " tenants - " + str(overrun_per_myriad) + " per ten thousand -" ^0
+"spent past a quota no single submission was ever allowed to exceed." ^0

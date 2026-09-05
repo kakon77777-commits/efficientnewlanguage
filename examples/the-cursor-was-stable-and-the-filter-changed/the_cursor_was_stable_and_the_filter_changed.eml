@@ -1,0 +1,128 @@
+# Self-authored for the EML case corpus (no external origin). Keyset pagination
+# returns no duplicates and skips no row, which offset pagination did both of.
+# How many rows a full scan misses is computed below.
+#
+# The change to keyset was correct and it fixed a measured bug. Offset
+# pagination re-counts from the start on every page, so a row inserted behind
+# the reader shifts everything down and the next page repeats one and skips
+# another; the support queue had examples. Keyset carries the last row's sort
+# key, so the reader resumes exactly where it stopped, and a differential test
+# over a live table found no duplicate and no skip.
+#
+# The cursor encodes the ORDER. It says where the reader is in the sort, and it
+# says nothing about which rows are in the result set, because membership is
+# decided by the filter each page re-evaluates.
+#
+# A row whose status changes to matching, behind the cursor, is never returned.
+
+2400000 => rows
+100 => page_size
+41000 => rows_whose_status_changes_during_a_scan
+18400 => rows_that_enter_the_filter_behind_the_cursor
+0 => duplicates_from_keyset
+0 => skips_from_ordering
+
+int(rows / page_size) => pages
+rows_whose_status_changes_during_a_scan - rows_that_enter_the_filter_behind_the_cursor => rows_that_leave_the_filter
+int(rows_that_enter_the_filter_behind_the_cursor * 10000 / rows) => missed_per_myriad
+
+"rows                          : " + str(rows) ^0
+"page size                     : " + str(page_size) ^0
+"pages in a full scan          : " + str(pages) ^0
+"" ^0
+"duplicates from keyset        : " + str(duplicates_from_keyset) ^0
+"skips from ordering           : " + str(skips_from_ordering) ^0
+"" ^0
+"rows changing status mid-scan : " + str(rows_whose_status_changes_during_a_scan) ^0
+"  leaving the filter          : " + str(rows_that_leave_the_filter) ^0
+"  entering behind the cursor  : " + str(rows_that_enter_the_filter_behind_the_cursor) ^0
+"never returned                : " + str(missed_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what keyset fixed ----
+
+"the pagination change" ^0
+"  offset : re-counts from the start, so an insert behind" ^0
+"    the reader shifts every later page" ^0
+"  keyset : resumes at the last row's sort key" ^0
+"  duplicates in a differential test over a live table : " + str(duplicates_from_keyset) ^0
+"  skips from ordering                                 : " + str(skips_from_ordering) ^0
+"  verdict : STABLE" ^0
+"" ^0
+"  the support queue had examples of the old behaviour and" ^0
+"  it has none of this one" ^0
+"" ^0
+
+# ---- what the cursor carries ----
+
+"one cursor" ^0
+"  encodes        : the last row's position in the sort" ^0
+"  answers        : where am I in the order" ^0
+"  does not encode: which rows are in the result" ^0
+"  who decides that : the filter, re-evaluated on every page" ^0
+"" ^0
+"  the two questions are different and only one of them is" ^0
+"  what stability was about" ^0
+"" ^0
+
+# ---- the two directions ----
+
+# A row that stops matching after the reader has passed it was already
+# returned; nothing is lost. A row that starts matching behind the reader is
+# below the cursor and will never be visited again.
+"a row that changes status mid-scan" ^0
+"  stops matching, ahead of the cursor : correctly absent" ^0
+"  stops matching, behind the cursor   : already returned," ^0
+"    and that is arguably right" ^0
+"  starts matching, ahead of the cursor: returned, fine" ^0
+"  starts matching, behind the cursor  : never returned," ^0
+"    and no page will revisit it" ^0
+"" ^0
+
+# ---- why the scan looks complete ----
+
+# The reader counts pages and rows and both are self-consistent. The number
+# that would show it is a count taken at the end and compared to the set the
+# filter now selects, and the two are taken at different times by design.
+"what the reader can check" ^0
+"  pages read      : " + str(pages) ^0
+"  rows returned   : consistent with the pages" ^0
+"  duplicates      : " + str(duplicates_from_keyset) ^0
+"  a count of the filter's set, taken at the end : would" ^0
+"    differ, and would differ for legitimate reasons too" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same keyset cursor, over a snapshot: the scan reads at one transaction
+# timestamp so the filter's set is fixed for its duration.
+0 => nc_rows_never_returned
+rows_whose_status_changes_during_a_scan => nc_rows_changing_after_the_snapshot
+
+"null control - the scan reads at one snapshot" ^0
+"  duplicates       : " + str(duplicates_from_keyset) + ", unchanged" ^0
+"  rows never returned : " + str(nc_rows_never_returned) ^0
+"  rows changing after the snapshot : " + str(nc_rows_changing_after_the_snapshot) + ", and they" ^0
+"    belong to the next scan, which is a statement anyone" ^0
+"    can act on" ^0
+"  the cursor did not improve; the set stopped moving" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a stable cursor guarantees" ^0
+"  the reader resumes where it stopped : exactly" ^0
+"  the reader sees every matching row  : not addressed;" ^0
+"    the cursor is a position in an order, and membership" ^0
+"    is a predicate evaluated fresh on every page" ^0
+"" ^0
+"pagination stability is about the sequence, completeness is" ^0
+"about the set, and a filter that can change makes the second" ^0
+"a question about isolation rather than about paging" ^0
+"" ^0
+
+"Keyset pagination is stable and it fixed a real bug: no duplicates and " + str(skips_from_ordering) ^0
+"ordering skips in a differential test over a live table, where offset had both." ^0
+"The cursor carries a position in the sort, not a membership rule, so of the" ^0
+str(rows_whose_status_changes_during_a_scan) + " rows changing status during a " + str(pages) + "-page scan, the " + str(rows_that_enter_the_filter_behind_the_cursor) + " that begin" ^0
+"matching behind the cursor - " + str(missed_per_myriad) + " per ten thousand - are never returned." ^0

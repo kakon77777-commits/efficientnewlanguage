@@ -1,0 +1,137 @@
+# Self-authored for the EML case corpus (no external origin). Every invoice is
+# reconciled nightly against the sum of its lines, in exact integer arithmetic,
+# and no invoice mismatches. What the sum is a sum of is computed below.
+#
+# The reconciliation is the careful kind. Amounts are integers in minor units,
+# never floating point, so there is no rounding to argue about; the check runs
+# over every invoice rather than a sample; it compares the stored total against
+# a freshly computed sum of the lines; and it has caught seven genuine bugs,
+# each a real defect that would have reached a customer.
+#
+# The sum adds the amount column. The currency lives in a different column, and
+# addition does not read it, so a line in yen and a line in dollars add to a
+# number that is denominated in nothing.
+#
+# Nine currencies are in use and their minor units are not the same size.
+
+4100000 => invoices
+4100000 => invoices_reconciled_nightly
+0 => invoices_that_mismatch
+7 => genuine_bugs_the_reconciliation_caught
+0 => amounts_stored_as_floating_point
+9 => currencies_in_use
+3 => distinct_minor_unit_sizes
+21400 => invoices_with_lines_in_more_than_one_currency
+0 => reconciliations_that_group_by_currency
+
+invoices - invoices_with_lines_in_more_than_one_currency => invoices_in_a_single_currency
+int(invoices_with_lines_in_more_than_one_currency * 10000 / invoices) => mixed_per_myriad
+
+"invoices                        : " + str(invoices) ^0
+"reconciled nightly              : " + str(invoices_reconciled_nightly) ^0
+"mismatching                     : " + str(invoices_that_mismatch) ^0
+"genuine bugs the check caught   : " + str(genuine_bugs_the_reconciliation_caught) ^0
+"amounts stored as floating point: " + str(amounts_stored_as_floating_point) ^0
+"" ^0
+"currencies in use               : " + str(currencies_in_use) ^0
+"distinct minor unit sizes       : " + str(distinct_minor_unit_sizes) ^0
+"invoices in a single currency   : " + str(invoices_in_a_single_currency) ^0
+"invoices mixing currencies      : " + str(invoices_with_lines_in_more_than_one_currency) ^0
+"  share                         : " + str(mixed_per_myriad) + " per ten thousand" ^0
+"reconciliations grouping by currency : " + str(reconciliations_that_group_by_currency) ^0
+"" ^0
+
+# ---- what the reconciliation verified ----
+
+"the nightly check" ^0
+"  population : every invoice, not a sample" ^0
+"  arithmetic : integers in minor units" ^0
+"  floating point anywhere in the path : " + str(amounts_stored_as_floating_point) ^0
+"  compares : the stored total against a fresh sum of lines" ^0
+"  mismatches : " + str(invoices_that_mismatch) ^0
+"  genuine bugs caught so far : " + str(genuine_bugs_the_reconciliation_caught) ^0
+"  verdict : RECONCILED" ^0
+"" ^0
+"  exact integer arithmetic over the full population is the" ^0
+"  expensive choice and it is why the seven were found" ^0
+"" ^0
+
+# ---- what the two sides are ----
+
+"the equality being checked" ^0
+"  left  : the stored total" ^0
+"  right : the sum of the line amounts" ^0
+"  what the sum reads : the amount column" ^0
+"  what it does not read : the currency column, which is" ^0
+"    populated on every line" ^0
+"  how the stored total was produced : by the same sum" ^0
+"" ^0
+"  the two sides agree because they are the same computation" ^0
+"  run twice, and the thing neither reads is present in the" ^0
+"  row both of them read" ^0
+"" ^0
+
+# ---- what mixing costs ----
+
+# Yen has no minor unit and dollars have two, so the integers are not even on
+# one scale. Adding them is not a currency error on top of correct arithmetic;
+# the addition is between two different units of measure.
+"one mixed invoice" ^0
+"  a line in a zero-decimal currency : an integer of whole" ^0
+"    units" ^0
+"  a line in a two-decimal currency  : an integer of" ^0
+"    hundredths" ^0
+"  distinct minor unit sizes in use  : " + str(distinct_minor_unit_sizes) ^0
+"  what their sum is denominated in  : nothing" ^0
+"  what the check says about it      : that it matches" ^0
+"" ^0
+
+# ---- why it stays invisible ----
+
+# A mismatch would be a difference between the two sides. Both sides commit the
+# same category error in the same direction, so the difference is zero, which is
+# the value the check was built to see.
+"what a mismatch would require" ^0
+"  the two sides to disagree : they cannot; one is the" ^0
+"    other, recomputed" ^0
+"  the currency column to be missing : it is not" ^0
+"  a query grouping by currency : " + str(reconciliations_that_group_by_currency) ^0
+"  invoices where that query would return more than one row : " ^0
+"    " + str(invoices_with_lines_in_more_than_one_currency) ^0
+"" ^0
+
+# ---- null control ----
+
+# The same reconciliation, keyed on the pair of invoice and currency, so a
+# multi-currency invoice reconciles once per currency.
+invoices => nc_invoices_reconciled
+invoices_with_lines_in_more_than_one_currency => nc_invoices_reporting_more_than_one_total
+
+"null control - reconcile per invoice and currency" ^0
+"  invoices reconciled : " + str(nc_invoices_reconciled) + ", unchanged" ^0
+"  invoices reporting more than one total : " + str(nc_invoices_reporting_more_than_one_total) ^0
+"  arithmetic : the same exact integers" ^0
+"  the check did not become more rigorous; the sum acquired" ^0
+"  a group, and a total acquired a unit" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a passing reconciliation guarantees" ^0
+"  the stored total equals the sum of the lines : exactly," ^0
+"    in exact arithmetic, over every invoice" ^0
+"  the total is a correct amount of money       : not" ^0
+"    addressed; equality of two sums says nothing about" ^0
+"    whether the addends were addable" ^0
+"" ^0
+"a total is a number and an amount is a number with a unit;" ^0
+"checking that two numbers agree is a strictly weaker" ^0
+"statement, and it is strongest exactly where the unit is" ^0
+"constant, which is where nobody needed the check" ^0
+"" ^0
+
+"The reconciliation is exact and complete: integer minor units, " + str(amounts_stored_as_floating_point) + " floating" ^0
+"point values, every one of " + str(invoices_reconciled_nightly) + " invoices checked nightly, " + str(invoices_that_mismatch) + " mismatches, and" ^0
+str(genuine_bugs_the_reconciliation_caught) + " genuine bugs caught. It sums the amount column and not the currency column," ^0
+"across " + str(currencies_in_use) + " currencies with " + str(distinct_minor_unit_sizes) + " different minor unit sizes, so the " + str(invoices_with_lines_in_more_than_one_currency) ^0
+"invoices mixing currencies - " + str(mixed_per_myriad) + " per ten thousand - pass by adding unlike units." ^0
