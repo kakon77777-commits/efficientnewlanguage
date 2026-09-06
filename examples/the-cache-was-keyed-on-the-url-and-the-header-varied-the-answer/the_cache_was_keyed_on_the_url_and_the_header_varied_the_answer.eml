@@ -1,0 +1,156 @@
+# Self-authored for the EML case corpus (no external origin). The cache key is
+# the full URL with query parameters sorted and allowlisted, the hit rate is
+# ninety-four percent, and purges on deploy are verified. What the key omits is
+# computed below.
+#
+# The cache key was designed rather than defaulted. Query parameters are sorted
+# so two orderings of the same request share an entry; only six parameters are
+# allowlisted, so tracking parameters cannot fragment the cache into millions
+# of single-use entries; and the purge that runs on deploy is verified by
+# refetching rather than assumed. The hit rate is ninety-four percent and the
+# origin load reflects it.
+#
+# The key is built from the URL. Three request headers change the body the
+# origin produces, none of them appears in the key, and the origin sets no
+# Vary, so the first response to arrive is served to everyone.
+#
+# Two point one million responses a day depend on one of those headers.
+
+84000000 => responses_per_day
+78960000 => responses_served_from_cache
+6 => query_parameters_allowlisted
+1 => key_orderings_after_sorting
+3 => headers_the_body_depends_on
+0 => headers_in_the_cache_key
+0 => vary_headers_set_by_the_origin
+2100000 => responses_whose_body_depends_on_such_a_header
+310000 => responses_served_a_body_built_for_another_header_value
+
+int(responses_served_from_cache * 10000 / responses_per_day) => hit_rate_per_myriad
+int(responses_served_a_body_built_for_another_header_value * 10000 / responses_per_day) => wrong_variant_per_myriad
+responses_whose_body_depends_on_such_a_header - responses_served_a_body_built_for_another_header_value => header_dependent_responses_that_happened_to_match
+
+"responses per day               : " + str(responses_per_day) ^0
+"  served from cache             : " + str(responses_served_from_cache) ^0
+"  hit rate                      : " + str(hit_rate_per_myriad) + " per ten thousand" ^0
+"" ^0
+"query parameters allowlisted    : " + str(query_parameters_allowlisted) ^0
+"key orderings after sorting     : " + str(key_orderings_after_sorting) ^0
+"headers the body depends on     : " + str(headers_the_body_depends_on) ^0
+"  in the cache key              : " + str(headers_in_the_cache_key) ^0
+"  declared by a Vary            : " + str(vary_headers_set_by_the_origin) ^0
+"" ^0
+"responses depending on such a header : " + str(responses_whose_body_depends_on_such_a_header) ^0
+"  that happened to match        : " + str(header_dependent_responses_that_happened_to_match) ^0
+"  built for another value       : " + str(responses_served_a_body_built_for_another_header_value) ^0
+"  share of all responses        : " + str(wrong_variant_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the key design verified ----
+
+"the cache key" ^0
+"  query parameters : sorted, so one request has" ^0
+"    " + str(key_orderings_after_sorting) + " key rather than one per ordering" ^0
+"  parameters allowlisted : " + str(query_parameters_allowlisted) + ", so tracking parameters" ^0
+"    cannot fragment the cache" ^0
+"  purge on deploy : verified by refetching, not assumed" ^0
+"  hit rate : " + str(hit_rate_per_myriad) + " per ten thousand" ^0
+"  verdict : KEYED" ^0
+"" ^0
+"  an allowlist rather than a denylist is the choice that" ^0
+"  keeps this hit rate, and it was made on purpose" ^0
+"" ^0
+
+# ---- what the key is built from ----
+
+"the inputs to the key" ^0
+"  the path            : in the key" ^0
+"  allowlisted query   : in the key" ^0
+"  everything else in the query : deliberately excluded," ^0
+"    and correctly" ^0
+"  the headers         : " + str(headers_in_the_cache_key) + " of " + str(headers_the_body_depends_on) + " that change the body" ^0
+"  who would declare that dependency : the origin, with a" ^0
+"    Vary header" ^0
+"  Vary headers it sets : " + str(vary_headers_set_by_the_origin) ^0
+"" ^0
+"  the key is a complete description of the URL and the" ^0
+"  response is not a function of the URL alone" ^0
+"" ^0
+# ---- why most of them look right ----
+
+# The majority header value wins the race to populate each entry, and the
+# majority of requests carry it, so most header-dependent responses match by
+# coincidence. The coincidence rate is high enough that the wrong ones read as
+# individual reports rather than a class.
+"the ones that match" ^0
+"  responses depending on a header : " + str(responses_whose_body_depends_on_such_a_header) ^0
+"  of those, matching by coincidence : " + str(header_dependent_responses_that_happened_to_match) ^0
+"  why : whichever value populated the entry is the" ^0
+"    common one, and most requests carry it" ^0
+"  what that makes the wrong ones look like : a handful of" ^0
+"    unrelated reports" ^0
+"  what they are : " + str(responses_served_a_body_built_for_another_header_value) + " a day" ^0
+"" ^0
+
+# ---- what a cache hit is a claim about ----
+
+"one hit" ^0
+"  the claim : this stored response is the response the" ^0
+"    origin would produce for this request" ^0
+"  what makes that true : the request and the stored one" ^0
+"    agree on everything the origin reads" ^0
+"  what the cache compares : the key" ^0
+"  what the origin reads : the key, plus " + str(headers_the_body_depends_on) + " headers" ^0
+"  who is supposed to close that gap : the origin, by" ^0
+"    declaring Vary" ^0
+"" ^0
+
+# ---- why the hit rate cannot show it ----
+
+"the hit rate" ^0
+"  what it measures : entries found" ^0
+"  what a wrong-variant response is : an entry found" ^0
+"  so its effect on the rate : raises it" ^0
+"  hit rate now : " + str(hit_rate_per_myriad) + " per ten thousand" ^0
+"  a correctness metric on variants : none defined" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same key, with the origin declaring Vary on the three headers and the
+# cache including them. Entries multiply and the hit rate falls; that fall is
+# the cost of the answer being right.
+headers_the_body_depends_on => nc_headers_in_the_cache_key
+0 => nc_responses_served_a_body_built_for_another_header_value
+8900 => nc_hit_rate_per_myriad
+
+"null control - Vary is declared and the key includes it" ^0
+"  headers in the key : " + str(nc_headers_in_the_cache_key) ^0
+"  wrong-variant responses : " + str(nc_responses_served_a_body_built_for_another_header_value) ^0
+"  hit rate : " + str(nc_hit_rate_per_myriad) + " per ten thousand, down from " + str(hit_rate_per_myriad) ^0
+"  the cache did not get worse; the number went down" ^0
+"  because it had been counting responses that were found" ^0
+"  and wrong" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a well-designed cache key guarantees" ^0
+"  two requests with the same key get the same response :" ^0
+"    exactly, and the key was designed so that the right" ^0
+"    requests share one" ^0
+"  a cached response is the right response : not" ^0
+"    addressed; that holds when the key names everything" ^0
+"    the answer depends on, which is a fact about the" ^0
+"    origin, not about the key" ^0
+"" ^0
+"a cache is a memo table for a function, so its correctness" ^0
+"is a claim about the function's arguments; a key that is" ^0
+"carefully complete over the URL is complete over the URL" ^0
+"" ^0
+
+"The key is designed rather than defaulted: parameters sorted to " + str(key_orderings_after_sorting) + " ordering," ^0
+"only " + str(query_parameters_allowlisted) + " allowlisted so tracking cannot fragment it, purges verified by" ^0
+"refetching, and a " + str(hit_rate_per_myriad) + " per ten thousand hit rate. It is built from the URL while" ^0
+str(headers_the_body_depends_on) + " headers change the body, with " + str(headers_in_the_cache_key) + " in the key and " + str(vary_headers_set_by_the_origin) + " Vary declared, so" ^0
+str(responses_served_a_body_built_for_another_header_value) + " responses a day - " + str(wrong_variant_per_myriad) + " per ten thousand - are hits built for someone else." ^0

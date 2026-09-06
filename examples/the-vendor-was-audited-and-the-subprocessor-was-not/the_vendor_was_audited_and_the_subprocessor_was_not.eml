@@ -1,0 +1,163 @@
+# Self-authored for the EML case corpus (no external origin). Every vendor is
+# audited annually, the reports are read rather than filed, and two vendors
+# were rejected on the strength of it. How far the audit reaches is computed
+# below.
+#
+# The vendor review is not a checkbox. The audit report is read by someone who
+# understands what its scope section excludes; the security questionnaire is
+# answered by the vendor's engineers rather than returned by their sales team;
+# the penetration test summary is requested and read; the data processing
+# agreement names specific terms instead of incorporating a policy by
+# reference; it is redone annually; and two vendors were turned down because of
+# what it found.
+#
+# The audit covers the party the contract is with. That party has its own
+# subprocessors, listed in an appendix the agreement lets it change on thirty
+# days' notice.
+#
+# The notice goes to a shared mailbox.
+
+84 => vendors
+84 => vendors_audited_this_year
+2 => vendors_rejected_on_the_audit
+310 => subprocessors_named_in_the_appendices
+0 => subprocessors_audited
+1 => contractual_hops_the_audit_covers
+2 => hops_the_data_travels
+30 => notice_days_for_a_subprocessor_change
+41 => subprocessor_changes_notified_last_year
+0 => objections_raised
+0 => mailbox_rules_routing_the_notice_to_a_person
+
+subprocessors_named_in_the_appendices - subprocessors_audited => subprocessors_not_audited
+hops_the_data_travels - contractual_hops_the_audit_covers => hops_beyond_the_audit
+int(subprocessors_audited * 10000 / subprocessors_named_in_the_appendices) => audited_per_myriad
+int(subprocessor_changes_notified_last_year * 10000 / subprocessors_named_in_the_appendices) => annual_churn_per_myriad
+
+"vendors                         : " + str(vendors) ^0
+"  audited this year             : " + str(vendors_audited_this_year) ^0
+"  rejected on the audit         : " + str(vendors_rejected_on_the_audit) ^0
+"" ^0
+"subprocessors named in appendices : " + str(subprocessors_named_in_the_appendices) ^0
+"  audited                       : " + str(subprocessors_audited) ^0
+"  not audited                   : " + str(subprocessors_not_audited) ^0
+"  share audited                 : " + str(audited_per_myriad) + " per ten thousand" ^0
+"" ^0
+"contractual hops the audit covers : " + str(contractual_hops_the_audit_covers) ^0
+"hops the data travels             : " + str(hops_the_data_travels) ^0
+"  beyond the audit                : " + str(hops_beyond_the_audit) ^0
+"" ^0
+"notice days for a change        : " + str(notice_days_for_a_subprocessor_change) ^0
+"changes notified last year      : " + str(subprocessor_changes_notified_last_year) ^0
+"  annual churn                  : " + str(annual_churn_per_myriad) + " per ten thousand" ^0
+"objections raised               : " + str(objections_raised) ^0
+"mailbox rules routing it to a person : " + str(mailbox_rules_routing_the_notice_to_a_person) ^0
+"" ^0
+
+# ---- what the audit verified ----
+
+"the vendor review" ^0
+"  the report : read, including what its scope excludes" ^0
+"  the questionnaire : answered by their engineers" ^0
+"  the penetration test summary : requested and read" ^0
+"  the agreement : specific terms, not a policy by" ^0
+"    reference" ^0
+"  cadence : annual" ^0
+"  vendors rejected because of it : " + str(vendors_rejected_on_the_audit) ^0
+"  verdict : AUDITED" ^0
+"" ^0
+"  reading the scope section is the part that separates" ^0
+"  this from collecting certificates, and it is done" ^0
+"" ^0
+# ---- what a contract can reach ----
+
+"the scope of the review" ^0
+"  who it examines : the party the contract is with" ^0
+"  who processes the data : that party, and whoever it" ^0
+"    engages" ^0
+"  where those are listed : an appendix to the agreement" ^0
+"  what the agreement says about changing it : notice," ^0
+"    " + str(notice_days_for_a_subprocessor_change) + " days, not approval" ^0
+"  so the review reaches : " + str(contractual_hops_the_audit_covers) + " hop of " + str(hops_the_data_travels) ^0
+"" ^0
+"  the audit is complete over its population and the" ^0
+"  population is defined by who signed, not by who holds" ^0
+"" ^0
+
+# ---- the appendix is not nothing ----
+
+# The list exists, it is accurate, and the vendor maintains it honestly. Being
+# named on it is a real disclosure; it is the transparency the agreement was
+# written to produce.
+"the appendix" ^0
+"  exists and is accurate : yes" ^0
+"  maintained honestly by the vendor : yes" ^0
+"  names " + str(subprocessors_named_in_the_appendices) + " parties : yes" ^0
+"  what it is : a disclosure" ^0
+"  what it is not : a review" ^0
+"  parties on it that were reviewed : " + str(subprocessors_audited) ^0
+"" ^0
+
+# ---- what notice does ----
+
+# Notice creates a window in which an objection is possible, and the window is
+# real. An objection has to be raised by someone who read the notice.
+"one notice" ^0
+"  sent by the vendor : yes, within the agreed window" ^0
+"  arrives where : a shared mailbox" ^0
+"  rules routing it to a person : " + str(mailbox_rules_routing_the_notice_to_a_person) ^0
+"  changes notified last year : " + str(subprocessor_changes_notified_last_year) ^0
+"  objections raised          : " + str(objections_raised) ^0
+"  what a zero objection rate could mean : every change" ^0
+"    was acceptable, or none was read" ^0
+"  what distinguishes those : a record of a decision," ^0
+"    which does not exist" ^0
+"" ^0
+
+# ---- what the annual cadence measures against ----
+
+"the annual re-review" ^0
+"  vendors re-reviewed : " + str(vendors_audited_this_year) ^0
+"  what it re-examines : the same party" ^0
+"  subprocessor changes in the year : " + str(subprocessor_changes_notified_last_year) ^0
+"  churn against the named set : " + str(annual_churn_per_myriad) + " per ten thousand" ^0
+"  does the re-review diff the appendix against last year :" ^0
+"    it is not a step in the review" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same review, with the agreement requiring the terms to flow down, a
+# sample of subprocessors examined, and changes gated on approval rather than
+# notice.
+subprocessors_named_in_the_appendices => nc_subprocessors_covered_by_flowed_down_terms
+hops_the_data_travels => nc_hops_the_review_covers
+
+"null control - terms flow down and changes need approval" ^0
+"  vendors rejected on the audit : " + str(vendors_rejected_on_the_audit) + ", unchanged" ^0
+"  subprocessors covered by the terms : " + str(nc_subprocessors_covered_by_flowed_down_terms) ^0
+"  hops the review covers : " + str(nc_hops_the_review_covers) ^0
+"  the audit did not get more rigorous; the obligation" ^0
+"  started travelling as far as the data" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a thorough vendor audit guarantees" ^0
+"  this vendor meets the standard : exactly, examined" ^0
+"    rather than certified, and " + str(vendors_rejected_on_the_audit) + " failed it" ^0
+"  the data is handled to that standard : not addressed;" ^0
+"    the audit follows the contract and the data follows" ^0
+"    the processing" ^0
+"" ^0
+"diligence is bounded by privity; each hop is a party who" ^0
+"chose the next one, and an obligation that is not written to" ^0
+"flow down stops at the first signature while the data does" ^0
+"not" ^0
+"" ^0
+
+"The review is the real kind: scope sections read, questionnaires answered by" ^0
+"engineers, penetration summaries requested, specific terms rather than a policy" ^0
+"by reference, annually, with " + str(vendors_rejected_on_the_audit) + " vendors rejected. It reaches " + str(contractual_hops_the_audit_covers) + " of " + str(hops_the_data_travels) + " hops," ^0
+"so " + str(subprocessors_not_audited) + " of " + str(subprocessors_named_in_the_appendices) + " named subprocessors are unexamined - " + str(audited_per_myriad) + " per ten thousand" ^0
+"audited - and " + str(subprocessor_changes_notified_last_year) + " changes arrived last year on notice, drawing " + str(objections_raised) + " objections." ^0

@@ -1,0 +1,153 @@
+# Self-authored for the EML case corpus (no external origin). Backups are not
+# merely taken, they are restored weekly and the restored copy is checksummed,
+# counted and smoke-tested. Which recovery that rehearses is computed below.
+#
+# The drill is far past what most teams do. A backup that has never been
+# restored is a file, and this one is restored every week by an automated job:
+# checksums verified against the source, row counts compared table by table,
+# and the application booted against the restored copy and driven through a
+# smoke suite. Fifty-two drills this year, fifty-two passed, and the published
+# recovery time objective is the time the drill actually takes.
+#
+# The drill restores the whole snapshot into a freshly provisioned empty
+# cluster. Every recovery anyone has needed this year was partial - one table,
+# or one time range, into a cluster that is up and serving.
+#
+# The backup is a physical snapshot, so a partial restore goes the long way.
+
+52 => drills_this_year
+52 => drills_that_passed
+40 => published_rto_minutes
+6 => data_recovery_incidents_this_year
+0 => incidents_needing_a_full_cluster_restore
+0 => drills_that_restore_into_a_cluster_holding_data
+0 => drills_that_extract_a_single_table
+390 => measured_partial_restore_minutes
+
+data_recovery_incidents_this_year - incidents_needing_a_full_cluster_restore => incidents_needing_a_partial_restore
+measured_partial_restore_minutes - published_rto_minutes => minutes_beyond_the_published_rto
+int(measured_partial_restore_minutes * 100 / published_rto_minutes) => partial_as_percent_of_the_published_figure
+int(drills_that_extract_a_single_table * 10000 / drills_this_year) => drills_rehearsing_the_used_path_per_myriad
+
+"drills this year                : " + str(drills_this_year) ^0
+"  passed                        : " + str(drills_that_passed) ^0
+"  restoring into a cluster holding data : " + str(drills_that_restore_into_a_cluster_holding_data) ^0
+"  extracting a single table     : " + str(drills_that_extract_a_single_table) ^0
+"  rehearsing the path used      : " + str(drills_rehearsing_the_used_path_per_myriad) + " per ten thousand" ^0
+"" ^0
+"data recovery incidents         : " + str(data_recovery_incidents_this_year) ^0
+"  needing a full cluster restore: " + str(incidents_needing_a_full_cluster_restore) ^0
+"  needing a partial restore     : " + str(incidents_needing_a_partial_restore) ^0
+"" ^0
+"published RTO, minutes          : " + str(published_rto_minutes) ^0
+"measured partial restore, minutes : " + str(measured_partial_restore_minutes) ^0
+"  beyond the published figure   : " + str(minutes_beyond_the_published_rto) ^0
+"  as a percent of it            : " + str(partial_as_percent_of_the_published_figure) ^0
+"" ^0
+
+# ---- what the drill verified ----
+
+"the restore drill" ^0
+"  frequency : weekly, automated" ^0
+"  checksums verified against the source : yes" ^0
+"  row counts compared table by table    : yes" ^0
+"  application booted against the copy   : yes, plus a" ^0
+"    smoke suite" ^0
+"  drills this year : " + str(drills_this_year) + ", passed " + str(drills_that_passed) ^0
+"  verdict : RESTORABLE" ^0
+"" ^0
+"  restoring rather than trusting the backup job is the" ^0
+"  whole difference, and this one boots the application" ^0
+"" ^0
+
+# ---- what the drill is a statement about ----
+
+"the rehearsed operation" ^0
+"  target        : a freshly provisioned empty cluster" ^0
+"  scope         : the whole snapshot" ^0
+"  concurrent load during it : none" ^0
+"  what it proves : the snapshot is complete, readable, and" ^0
+"    sufficient to stand the application up" ^0
+"  what a reader takes from the RTO : how long a recovery" ^0
+"    takes" ^0
+"" ^0
+"  the drill answers the question completely and the" ^0
+"  question is total loss, which has not happened" ^0
+"" ^0
+# ---- what the six incidents actually needed ----
+
+# None of them was a lost cluster. A bad migration wrote nulls over one column;
+# a job double-applied a day of events; a customer asked for their own rows
+# back. Each needed some rows as of some time, into a database that is up.
+"the six" ^0
+"  clusters lost this year : " + str(incidents_needing_a_full_cluster_restore) ^0
+"  incidents needing rows as of a time : " + str(incidents_needing_a_partial_restore) ^0
+"  target in each case : a cluster that is up and serving" ^0
+"  what the snapshot format allows : restore all of it" ^0
+"  so the procedure is : stand up a side cluster, restore" ^0
+"    everything, extract, copy across, reconcile" ^0
+"  minutes that took, measured once : " + str(measured_partial_restore_minutes) ^0
+"" ^0
+
+# ---- why the drill cannot surface this ----
+
+# Restoring into an empty cluster is strictly easier than restoring into a full
+# one, and the drill is not wrong about the thing it measures. It never
+# encounters an object that already exists, a sequence already past the
+# restored value, or a foreign key held by a row the snapshot does not contain.
+"what an empty target never presents" ^0
+"  an object that already exists : never" ^0
+"  a sequence already ahead of the restored rows : never" ^0
+"  a constraint held by a row not in the snapshot : never" ^0
+"  a decision about which copy of a row wins   : never" ^0
+"  drills that meet any of these : " + str(drills_that_restore_into_a_cluster_holding_data) ^0
+"" ^0
+
+# ---- what the published number is ----
+
+"the RTO" ^0
+"  where it came from : the drill, measured not estimated" ^0
+"  what it is the duration of : a full restore into an" ^0
+"    empty cluster" ^0
+"  what a reader plans with it : the recovery they will" ^0
+"    actually run" ^0
+"  measured duration of the one they ran : " + str(measured_partial_restore_minutes) + " minutes" ^0
+"  as a percent of the published figure : " + str(partial_as_percent_of_the_published_figure) ^0
+"" ^0
+
+# ---- null control ----
+
+# The same weekly job, alternating: half the drills extract one table as of one
+# timestamp into a cluster that is up and holding data.
+26 => nc_drills_that_extract_a_single_table
+26 => nc_drills_that_restore_into_a_cluster_holding_data
+
+"null control - half the drills rehearse a partial restore" ^0
+"  drills this year : " + str(drills_this_year) + ", unchanged" ^0
+"  extracting a single table : " + str(nc_drills_that_extract_a_single_table) ^0
+"  into a cluster holding data : " + str(nc_drills_that_restore_into_a_cluster_holding_data) ^0
+"  the backup did not become more restorable; the drill" ^0
+"  started rehearsing the recovery that gets requested" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a passing restore drill guarantees" ^0
+"  the snapshot is complete and readable : exactly, and" ^0
+"    verified by booting the application against it" ^0
+"  a recovery will go the way the drill went : not" ^0
+"    addressed; the drill fixes an initial state and a" ^0
+"    scope, and the recovery you get chooses both" ^0
+"" ^0
+"a rehearsal is only as representative as its starting" ^0
+"conditions; an empty target removes every conflict a" ^0
+"restore can have, so the drill that proves the data is good" ^0
+"is the one least able to tell you how the day will go" ^0
+"" ^0
+
+"The drill is real: weekly and automated, checksums against the source, row" ^0
+"counts table by table, the application booted and smoke-tested - " + str(drills_this_year) + " drills," ^0
+str(drills_that_passed) + " passed. It restores everything into an empty cluster, while all " + str(incidents_needing_a_partial_restore) ^0
+"recoveries needed this year were partial into a live one, rehearsed by" ^0
+str(drills_rehearsing_the_used_path_per_myriad) + " per ten thousand of the drills, and the one measured took " + str(measured_partial_restore_minutes) ^0
+"minutes against a published RTO of " + str(published_rto_minutes) + " - " + str(partial_as_percent_of_the_published_figure) + " percent of it." ^0

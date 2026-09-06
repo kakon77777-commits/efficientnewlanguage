@@ -1,0 +1,154 @@
+# Self-authored for the EML case corpus (no external origin). Access is decided
+# server-side by walking to the parent folder, with no client-side hiding, and
+# a red team found no way past it. What that walk decides is computed below.
+#
+# The authorisation is built correctly. There is one service that answers every
+# access question, so there is no second implementation to drift; the decision
+# is made on the server and the client is never trusted to hide anything; the
+# folder is walked on every request rather than cached into a token; and a
+# red-team engagement spent two weeks on it and found zero ways past the folder
+# check.
+#
+# The walk answers "may this principal reach this object THROUGH this folder".
+# A share link names the object directly, so the link is not a request the walk
+# is asked about; the link is itself the grant.
+#
+# Thirty-one thousand objects were moved into a restricted folder this year.
+
+2400000 => objects
+1 => authorisation_services
+0 => client_side_hiding
+0 => red_team_bypasses_of_the_folder_check
+14 => red_team_days
+31000 => objects_moved_into_a_restricted_folder_this_year
+4100 => those_that_already_had_a_direct_link
+0 => links_revoked_by_the_move
+0 => reconciliations_between_folder_acl_and_object_grants
+
+objects_moved_into_a_restricted_folder_this_year - those_that_already_had_a_direct_link => moves_with_no_pre_existing_link
+int(those_that_already_had_a_direct_link * 10000 / objects_moved_into_a_restricted_folder_this_year) => carried_a_link_per_myriad
+
+"objects                         : " + str(objects) ^0
+"authorisation services          : " + str(authorisation_services) ^0
+"client-side hiding              : " + str(client_side_hiding) ^0
+"red team days                   : " + str(red_team_days) ^0
+"  bypasses of the folder check  : " + str(red_team_bypasses_of_the_folder_check) ^0
+"" ^0
+"objects moved into a restricted folder : " + str(objects_moved_into_a_restricted_folder_this_year) ^0
+"  with no pre-existing link     : " + str(moves_with_no_pre_existing_link) ^0
+"  that already had a direct link: " + str(those_that_already_had_a_direct_link) ^0
+"  share                         : " + str(carried_a_link_per_myriad) + " per ten thousand" ^0
+"links revoked by the move       : " + str(links_revoked_by_the_move) ^0
+"reconciliations between the two : " + str(reconciliations_between_folder_acl_and_object_grants) ^0
+"" ^0
+
+# ---- what the check verified ----
+
+"the authorisation" ^0
+"  implementations : " + str(authorisation_services) + ", so there is nothing to drift" ^0
+"  decided where   : the server" ^0
+"  client-side hiding relied on : " + str(client_side_hiding) ^0
+"  folder walked per request or cached into a token :" ^0
+"    walked, every time" ^0
+"  red team : " + str(red_team_days) + " days, " + str(red_team_bypasses_of_the_folder_check) + " bypasses" ^0
+"  verdict : ENFORCED" ^0
+"" ^0
+"  one implementation walked fresh on every request is the" ^0
+"  design that makes a red-team zero mean something" ^0
+"" ^0
+
+# ---- what the walk is asked ----
+
+"the question the walk answers" ^0
+"  form : may this principal reach this object through" ^0
+"    this folder" ^0
+"  what it consults : the chain of parents" ^0
+"  what a share link is : a row naming the object" ^0
+"  does the link resolution walk the parents : no; there is" ^0
+"    nothing to walk, the grant names the object" ^0
+"  is that a bypass of the check : no; it is a different" ^0
+"    question, answered correctly by a different table" ^0
+"" ^0
+"  the folder is the thing everybody reasons about and the" ^0
+"  object has grants of its own that nothing compares to it" ^0
+"" ^0
+# ---- what a move means ----
+
+# Moving a document into the restricted folder is the action a person takes to
+# restrict it, and it does restrict it, for everyone arriving the way the
+# person is picturing.
+"the move" ^0
+"  what the person intends : this is now restricted" ^0
+"  what changes            : the parent, and therefore" ^0
+"    every answer the walk gives" ^0
+"  who loses access        : everyone reaching it by" ^0
+"    browsing" ^0
+"  who does not            : everyone holding a link" ^0
+"  links revoked by the move : " + str(links_revoked_by_the_move) ^0
+"  is the person told      : no; the move succeeded" ^0
+"" ^0
+
+# ---- why the red team found nothing ----
+
+# The engagement was scoped to the check, and the check has no holes. A link
+# held by someone who was legitimately given it is not an attack; it is the
+# feature working, against a folder that did not exist when it was issued.
+"the engagement" ^0
+"  scope : can the folder check be defeated" ^0
+"  answer: no, in " + str(red_team_days) + " days" ^0
+"  what a valid link is : not a defeat of the check" ^0
+"  who holds the links : people who were given them, at a" ^0
+"    time when giving them was correct" ^0
+"  what changed since : the folder, not the link" ^0
+"" ^0
+
+# ---- the two tables ----
+
+"where access lives" ^0
+"  the folder ACL      : consulted on every walk" ^0
+"  the object grants   : consulted when a link resolves" ^0
+"  a query joining them: " + str(reconciliations_between_folder_acl_and_object_grants) ^0
+"  which one an admin reviews : the folder, in the UI" ^0
+"  where the object grants appear in that UI : on the" ^0
+"    object, one at a time" ^0
+"  objects : " + str(objects) ^0
+"" ^0
+
+# ---- null control ----
+
+# The same authorisation, with a move re-evaluating every direct grant on the
+# object against the new parent and revoking the ones it would not allow.
+those_that_already_had_a_direct_link => nc_links_revoked_by_the_move
+0 => nc_objects_reachable_by_a_link_the_new_parent_forbids
+
+"null control - a move re-evaluates the object's own grants" ^0
+"  red team bypasses : " + str(red_team_bypasses_of_the_folder_check) + ", unchanged" ^0
+"  links revoked by the move : " + str(nc_links_revoked_by_the_move) ^0
+"  objects reachable by a link the parent forbids : " + str(nc_objects_reachable_by_a_link_the_new_parent_forbids) ^0
+"  the check did not get stricter; the action a person" ^0
+"  takes to restrict something started reaching the second" ^0
+"  way in" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what an inherited permission guarantees" ^0
+"  nobody reaches this object through this folder without" ^0
+"    the right : exactly, on every request, one" ^0
+"    implementation, red-teamed" ^0
+"  nobody reaches this object            : not addressed;" ^0
+"    inheritance is a statement about a path, and an" ^0
+"    object can be named without walking one" ^0
+"" ^0
+"a permission model computed by traversal is exactly as" ^0
+"complete as the set of ways to arrive; a direct reference" ^0
+"is not an attack on the traversal, it is a second door that" ^0
+"the traversal was never asked about" ^0
+"" ^0
+
+"Access is decided by " + str(authorisation_services) + " server-side service that walks the parents on every" ^0
+"request with " + str(client_side_hiding) + " reliance on client-side hiding, and " + str(red_team_days) + " red-team days found" ^0
+str(red_team_bypasses_of_the_folder_check) + " bypasses. A share link names the object instead of walking to it, so of" ^0
+str(objects_moved_into_a_restricted_folder_this_year) + " objects moved into a restricted folder this year, " + str(those_that_already_had_a_direct_link) + " - " + str(carried_a_link_per_myriad) + " per ten" ^0
+"thousand - carried a link the move did not touch, with " + str(links_revoked_by_the_move) + " revoked and" ^0
+str(reconciliations_between_folder_acl_and_object_grants) + " queries anywhere that compare the two tables." ^0

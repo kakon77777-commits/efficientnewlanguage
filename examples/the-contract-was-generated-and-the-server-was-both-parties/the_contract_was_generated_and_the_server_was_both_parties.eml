@@ -1,0 +1,157 @@
+# Self-authored for the EML case corpus (no external origin). Every endpoint has
+# a contract test, the contract is generated so it cannot drift from the code,
+# and twenty-three client repositories test against a mock built from it. Who
+# authored the expectations is computed below.
+#
+# The setup is well engineered. The contract is not a document somebody
+# maintains by hand, so it cannot go stale; it is regenerated from the server's
+# handler signatures on every build, so it is always an exact description of
+# what the server does; the mock the clients test against is built from that
+# same artifact, so no client is testing against a fiction; and a client whose
+# build fails on a contract change hears about it in CI rather than in
+# production.
+#
+# Both sides of the comparison are produced by one party. The contract is
+# generated from the server, so a server change regenerates the contract,
+# regenerates the mock, and the client's tests pass against the new one.
+#
+# In two years no contract test has ever failed.
+
+214 => endpoints
+214 => endpoints_with_a_contract_test
+23 => client_repositories
+0 => expectations_authored_by_a_consumer
+0 => contract_test_failures_in_two_years
+9 => server_changes_that_broke_a_client_in_production
+0 => those_the_contract_flagged
+6 => mean_days_from_the_change_to_the_client_noticing
+1 => parties_that_author_the_contract
+
+server_changes_that_broke_a_client_in_production - those_the_contract_flagged => breakages_the_contract_did_not_flag
+int(those_the_contract_flagged * 10000 / server_changes_that_broke_a_client_in_production) => flagged_per_myriad
+
+"endpoints                       : " + str(endpoints) ^0
+"  with a contract test          : " + str(endpoints_with_a_contract_test) ^0
+"client repositories             : " + str(client_repositories) ^0
+"parties authoring the contract  : " + str(parties_that_author_the_contract) ^0
+"expectations authored by a consumer : " + str(expectations_authored_by_a_consumer) ^0
+"" ^0
+"contract test failures in two years : " + str(contract_test_failures_in_two_years) ^0
+"server changes that broke a client  : " + str(server_changes_that_broke_a_client_in_production) ^0
+"  flagged by the contract       : " + str(those_the_contract_flagged) ^0
+"  not flagged                   : " + str(breakages_the_contract_did_not_flag) ^0
+"  share flagged                 : " + str(flagged_per_myriad) + " per ten thousand" ^0
+"mean days until the client noticed : " + str(mean_days_from_the_change_to_the_client_noticing) ^0
+"" ^0
+
+# ---- what the generation verified ----
+
+"the generated contract" ^0
+"  source : the server's handler signatures" ^0
+"  regenerated : on every build" ^0
+"  can it drift from the implementation : no, and that is" ^0
+"    a real property a hand-written one lacks" ^0
+"  endpoints covered : " + str(endpoints_with_a_contract_test) + " of " + str(endpoints) ^0
+"  clients testing against a fiction : none; the mock is" ^0
+"    built from the same artifact" ^0
+"  verdict : ACCURATE" ^0
+"" ^0
+"  generating it is the right answer to the problem it was" ^0
+"  chosen for, which was documents going stale" ^0
+"" ^0
+
+# ---- what the comparison compares ----
+
+"the contract test" ^0
+"  one side : the server's behaviour" ^0
+"  the other: the contract" ^0
+"  where the contract came from : the server's behaviour" ^0
+"  so what the test asks : whether the server agrees with" ^0
+"    itself" ^0
+"  what makes it green : regeneration, which runs first" ^0
+"  failures in two years : " + str(contract_test_failures_in_two_years) ^0
+"" ^0
+"  an agreement needs two parties and this one has " + str(parties_that_author_the_contract) ^0
+"" ^0
+# ---- what a zero failure count means ----
+
+# Zero failures is consistent with two very different worlds: no breaking
+# changes were made, or the test cannot express one. The nine production
+# breakages settle which world this is.
+"reading the zero" ^0
+"  failures in two years : " + str(contract_test_failures_in_two_years) ^0
+"  world one : the server never made a breaking change" ^0
+"  world two : the test cannot represent one" ^0
+"  what distinguishes them : whether any breaking change" ^0
+"    occurred" ^0
+"  server changes that broke a client : " + str(server_changes_that_broke_a_client_in_production) ^0
+"  therefore the world is : the second" ^0
+"" ^0
+
+# ---- what the clients' green builds mean ----
+
+# The client's suite runs against a mock regenerated from the new server. It
+# passes because the mock now returns what the server now returns, which is the
+# thing the client needed to be warned about.
+"one client build after a server change" ^0
+"  mock rebuilt from the new contract : yes" ^0
+"  client tests run against it : yes" ^0
+"  result : green" ^0
+"  what the client's own code expects : whatever it" ^0
+"    expected before, unchanged" ^0
+"  where the mismatch first appears : production," ^0
+"    " + str(mean_days_from_the_change_to_the_client_noticing) + " days later on average" ^0
+"" ^0
+
+# ---- what a consumer expectation would add ----
+
+# A consumer-authored expectation is a statement the server cannot regenerate.
+# It is the only part of the arrangement that can disagree with the server, and
+# there are none.
+"the missing side" ^0
+"  expectations authored by a consumer : " + str(expectations_authored_by_a_consumer) ^0
+"  what such an expectation is : a claim the server did" ^0
+"    not write and cannot rewrite" ^0
+"  client repositories that could publish one : " + str(client_repositories) ^0
+"  what would then be possible : a red build on the" ^0
+"    server, caused by a client" ^0
+"  what is possible now : a red build caused by nobody" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same pipeline, with each consumer publishing the expectations it actually
+# relies on and the server's build verified against their union.
+client_repositories => nc_repositories_publishing_expectations
+server_changes_that_broke_a_client_in_production => nc_breakages_caught_before_release
+
+"null control - the consumers author their own side" ^0
+"  endpoints covered : " + str(endpoints_with_a_contract_test) + ", unchanged" ^0
+"  repositories publishing expectations : " + str(nc_repositories_publishing_expectations) ^0
+"  breakages caught before release : " + str(nc_breakages_caught_before_release) ^0
+"  the contract did not become more accurate; it acquired" ^0
+"  a second author, which is what made it an agreement" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a generated contract guarantees" ^0
+"  the contract describes the server exactly : always, and" ^0
+"    it cannot go stale, which is more than a document" ^0
+"    would give" ^0
+"  the server has not broken its consumers : not" ^0
+"    addressed; that is a claim about what someone else" ^0
+"    depends on, and nothing here records it" ^0
+"" ^0
+"a check is only as strong as the independence of its two" ^0
+"sides; deriving one from the other removes the maintenance" ^0
+"cost and the disagreement at the same time, and the" ^0
+"disagreement was the product" ^0
+"" ^0
+
+"The contract is generated from the server's handlers on every build, so it" ^0
+"cannot go stale, covers " + str(endpoints_with_a_contract_test) + " of " + str(endpoints) + " endpoints, and gives " + str(client_repositories) + " client repositories" ^0
+"a mock that is never a fiction. Both sides of the comparison come from" ^0
+str(parties_that_author_the_contract) + " party, with " + str(expectations_authored_by_a_consumer) + " expectations written by a consumer, so it has failed" ^0
+str(contract_test_failures_in_two_years) + " times in two years and flagged " + str(those_the_contract_flagged) + " of " + str(server_changes_that_broke_a_client_in_production) + " changes that broke a client -" ^0
+str(flagged_per_myriad) + " per ten thousand - each found in production " + str(mean_days_from_the_change_to_the_client_noticing) + " days later." ^0

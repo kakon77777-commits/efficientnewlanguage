@@ -1,0 +1,160 @@
+# Self-authored for the EML case corpus (no external origin). The upload limit
+# is enforced at the edge while the body streams, so an oversized request is
+# refused without being buffered. What the limit is a limit on is computed
+# below.
+#
+# The enforcement is done the right way round. The limit is applied to the
+# stream rather than after the body is read, so a large upload costs the edge
+# a counter and not a buffer; it returns a documented status with a message
+# that says the actual limit rather than a generic error; it is applied before
+# authentication so an unauthenticated caller cannot spend memory; and in two
+# years nothing has got past it.
+#
+# The limit counts bytes that ARRIVE. The endpoint accepts gzip and the work is
+# done on the decompressed content, so ten megabytes on the wire is bounded and
+# what it expands to is not.
+#
+# Nothing in the request path bounds the decompressed size.
+
+10 => upload_limit_mb
+0 => bypasses_of_the_upload_limit
+8 => typical_compression_ratio
+1000 => achievable_compression_ratio
+2048 => worker_memory_mb
+240000 => requests_per_day
+34 => worker_restarts_from_memory_exhaustion_last_month
+0 => limits_on_decompressed_size
+
+upload_limit_mb * typical_compression_ratio => typical_decompressed_mb
+upload_limit_mb * achievable_compression_ratio => worst_case_decompressed_mb
+int(upload_limit_mb * 10000 / worst_case_decompressed_mb) => bounded_share_per_myriad
+int(worst_case_decompressed_mb / worker_memory_mb) => worst_case_as_multiples_of_worker_memory
+
+"upload limit, MB                : " + str(upload_limit_mb) ^0
+"bypasses in two years           : " + str(bypasses_of_the_upload_limit) ^0
+"limits on decompressed size     : " + str(limits_on_decompressed_size) ^0
+"" ^0
+"typical compression ratio       : " + str(typical_compression_ratio) ^0
+"  typical decompressed, MB      : " + str(typical_decompressed_mb) ^0
+"achievable compression ratio    : " + str(achievable_compression_ratio) ^0
+"  worst case decompressed, MB   : " + str(worst_case_decompressed_mb) ^0
+"" ^0
+"worker memory, MB               : " + str(worker_memory_mb) ^0
+"  worst case as multiples of it : " + str(worst_case_as_multiples_of_worker_memory) ^0
+"the enforced limit bounds       : " + str(bounded_share_per_myriad) + " per ten thousand of it" ^0
+"" ^0
+"requests per day                : " + str(requests_per_day) ^0
+"worker restarts from memory exhaustion : " + str(worker_restarts_from_memory_exhaustion_last_month) ^0
+"" ^0
+
+# ---- what the enforcement verified ----
+
+"the upload limit" ^0
+"  applied to : the stream, while it arrives" ^0
+"  cost of an oversized request : a counter, not a buffer" ^0
+"  applied before authentication : yes, so an anonymous" ^0
+"    caller cannot spend memory" ^0
+"  the error : a documented status naming the real limit" ^0
+"  bypasses in two years : " + str(bypasses_of_the_upload_limit) ^0
+"  verdict : ENFORCED" ^0
+"" ^0
+"  counting the stream rather than the buffered body is the" ^0
+"  difference between a limit and a slower way to run out" ^0
+"  of memory, and this one counts the stream" ^0
+"" ^0
+
+# ---- what it counts ----
+
+"the quantity bounded" ^0
+"  what the counter measures : bytes received" ^0
+"  what the handler allocates for : bytes after inflation" ^0
+"  what relates the two : a ratio chosen by the sender" ^0
+"  typical ratio : " + str(typical_compression_ratio) ^0
+"  achievable ratio : " + str(achievable_compression_ratio) ^0
+"  limits on the second quantity : " + str(limits_on_decompressed_size) ^0
+"" ^0
+"  the bounded quantity is real, is the one the network" ^0
+"  cares about, and is not the one the process spends" ^0
+"" ^0
+# ---- who picks the ratio ----
+
+# The ratio is not a property of the system; it is a property of the payload,
+# and the payload comes from the caller. The limit is enforced against a
+# quantity the caller does not choose, and the cost is set by one they do.
+"the two quantities" ^0
+"  bytes on the wire : bounded at " + str(upload_limit_mb) + " MB, by us" ^0
+"  bytes after inflation : chosen by the sender" ^0
+"  typical, MB       : " + str(typical_decompressed_mb) ^0
+"  worst case, MB    : " + str(worst_case_decompressed_mb) ^0
+"  worker memory, MB : " + str(worker_memory_mb) ^0
+"  worst case in units of worker memory : " + str(worst_case_as_multiples_of_worker_memory) ^0
+"" ^0
+
+# ---- accepting gzip is right ----
+
+# The endpoint accepts compressed bodies because clients upload text and the
+# saving is large and real. Refusing compression would be a worse system. The
+# decision that is missing is not whether to accept it but what to bound.
+"accepting compression" ^0
+"  why : the payloads are text and the saving is real" ^0
+"  typical ratio seen : " + str(typical_compression_ratio) ^0
+"  should the endpoint stop accepting it : no" ^0
+"  what is missing : a bound on the second quantity" ^0
+"  bounds that exist on it : " + str(limits_on_decompressed_size) ^0
+"" ^0
+
+# ---- what the restarts look like ----
+
+# A worker that exhausts memory is killed and replaced, the request fails, the
+# caller retries, and the restart is counted against capacity rather than
+# against any request.
+"the thirty-four restarts" ^0
+"  attributed to : memory pressure, in the capacity" ^0
+"    dashboard" ^0
+"  attributed to a request : none; the process is gone" ^0
+"    before it can log which one" ^0
+"  what the upload limit metric shows : every request" ^0
+"    under " + str(upload_limit_mb) + " MB, which is true" ^0
+"  requests a day : " + str(requests_per_day) ^0
+"  what a reader concludes : the service needs more memory" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same streaming enforcement, with the decompressor given a byte budget so
+# it stops and errors rather than inflating past it.
+worst_case_decompressed_mb => nc_worst_case_without_the_budget_mb
+1 => nc_limits_on_decompressed_size
+0 => nc_worker_restarts_from_memory_exhaustion
+
+"null control - the decompressor has a budget too" ^0
+"  bypasses of the upload limit : " + str(bypasses_of_the_upload_limit) + ", unchanged" ^0
+"  limits on decompressed size : " + str(nc_limits_on_decompressed_size) ^0
+"  worst case without it, MB : " + str(nc_worst_case_without_the_budget_mb) ^0
+"  worker restarts from memory exhaustion : " + str(nc_worker_restarts_from_memory_exhaustion) ^0
+"  the edge limit did not change; a second bound appeared" ^0
+"  on the quantity that is actually spent" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a streaming upload limit guarantees" ^0
+"  no request body larger than the limit is read : exactly," ^0
+"    without buffering, before authentication, for two" ^0
+"    years" ^0
+"  no request costs more than the limit : not addressed;" ^0
+"    the limit is denominated in received bytes and the" ^0
+"    work is denominated in something else" ^0
+"" ^0
+"a resource limit protects the resource it is denominated in;" ^0
+"where a transformation sits between the measured quantity and" ^0
+"the spent one, the caller chooses the exchange rate, and a" ^0
+"limit on one side is a limit on one side" ^0
+"" ^0
+
+"The limit is enforced the right way round: on the stream rather than the" ^0
+"buffered body, before authentication, returning a documented status naming the" ^0
+"real limit, with " + str(bypasses_of_the_upload_limit) + " bypasses in two years. It counts received bytes, and the" ^0
+"work happens after inflation at a ratio the sender picks, so " + str(upload_limit_mb) + " MB becomes" ^0
+str(typical_decompressed_mb) + " MB typically and " + str(worst_case_decompressed_mb) + " at " + str(achievable_compression_ratio) + " to one - " + str(worst_case_as_multiples_of_worker_memory) + " times a worker's memory," ^0
+"with the enforced bound covering " + str(bounded_share_per_myriad) + " per ten thousand of it." ^0

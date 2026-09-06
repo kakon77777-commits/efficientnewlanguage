@@ -1,0 +1,160 @@
+# Self-authored for the EML case corpus (no external origin). The licence file
+# is signed, verified against a public key at install, bound to a hardware
+# fingerprint, and the installer refuses without a valid one. How many running
+# machines verified it is computed below.
+#
+# The check is properly built. The licence is a signed document rather than a
+# key that can be typed from a forum post; the signature is verified against a
+# public key compiled into the installer rather than one fetched at runtime;
+# expiry is enforced rather than warned about; and the installer exits without
+# installing when verification fails. Forty licences, forty installs, forty
+# signature verifications, none skipped.
+#
+# The check runs at INSTALL and records that it passed. The customer builds one
+# machine image by running the installer once and the autoscaling group clones
+# it, so the recorded result is copied along with everything else.
+#
+# Two thousand one hundred forty machines are running the software.
+
+40 => licences_purchased
+40 => installs_performed
+0 => running_machines_that_verified
+0 => installs_without_a_valid_licence
+40 => signature_verifications_that_ran
+2140 => machines_running_the_software
+0 => fingerprint_checks_after_install
+0 => runtime_verifications_of_the_signature
+1 => times_the_installer_runs_per_machine_image
+
+machines_running_the_software - running_machines_that_verified => machines_that_never_verified_anything
+int(running_machines_that_verified * 10000 / machines_running_the_software) => verified_per_myriad
+
+"licences purchased              : " + str(licences_purchased) ^0
+"installs performed              : " + str(installs_performed) ^0
+"  without a valid licence       : " + str(installs_without_a_valid_licence) ^0
+"signature verifications that ran: " + str(signature_verifications_that_ran) ^0
+"" ^0
+"machines running the software   : " + str(machines_running_the_software) ^0
+"  that verified                 : " + str(running_machines_that_verified) ^0
+"  build machines that installed : " + str(installs_performed) + ", none of them in this fleet" ^0
+"  that never verified anything  : " + str(machines_that_never_verified_anything) ^0
+"  share verified                : " + str(verified_per_myriad) + " per ten thousand" ^0
+"" ^0
+"installer runs per machine image: " + str(times_the_installer_runs_per_machine_image) ^0
+"fingerprint checks after install: " + str(fingerprint_checks_after_install) ^0
+"runtime verifications           : " + str(runtime_verifications_of_the_signature) ^0
+"" ^0
+
+# ---- what the check verified ----
+
+"the licence check" ^0
+"  the licence is : a signed document, not a typed key" ^0
+"  the public key comes from : the installer binary, not" ^0
+"    a runtime fetch" ^0
+"  expiry : enforced, not warned about" ^0
+"  on failure : the installer exits without installing" ^0
+"  verifications that ran : " + str(signature_verifications_that_ran) ^0
+"  installs without a valid licence : " + str(installs_without_a_valid_licence) ^0
+"  verdict : VERIFIED" ^0
+"" ^0
+"  a compiled-in public key and a hard refusal are the two" ^0
+"  choices that make this hard to defeat, and both are made" ^0
+"" ^0
+
+# ---- what install time is ----
+
+"the moment of the check" ^0
+"  when it runs : once, while installing" ^0
+"  what it writes : a record that it passed" ^0
+"  where that record lives : the filesystem" ^0
+"  what the customer does with that filesystem : bakes it" ^0
+"    into a machine image" ^0
+"  what the autoscaling group does with the image : clones" ^0
+"    it, " + str(machines_running_the_software) + " times" ^0
+"  what a clone re-checks : " + str(runtime_verifications_of_the_signature) ^0
+"" ^0
+"  the check is unforgeable and it is a statement about an" ^0
+"  event, and the event happened once" ^0
+"" ^0
+# ---- nobody is cheating ----
+
+# The customer is not evading anything. Baking an image and scaling it is the
+# recommended way to run this software, it is in the vendor's own deployment
+# guide, and the customer's platform team has never touched the licence file.
+"the customer" ^0
+"  bakes an image and scales it : yes" ^0
+"  is that documented by the vendor : yes, as the" ^0
+"    recommended deployment" ^0
+"  has anyone modified the licence file : no" ^0
+"  has anyone bypassed the installer : no" ^0
+"  is the deployment within the agreement : that is a" ^0
+"    question about the agreement, and the check does not" ^0
+"    answer it either way" ^0
+"" ^0
+
+# ---- what the hardware fingerprint bound ----
+
+# The fingerprint is read during install and compared to the licence. In an
+# image build it is the fingerprint of the build machine, which is not any of
+# the machines that later run the software.
+"the fingerprint" ^0
+"  read when : during install" ^0
+"  read on which machine : the one building the image" ^0
+"  compared to the licence : yes, and it matched" ^0
+"  machines later running the software : " + str(machines_running_the_software) ^0
+"  of those, machines whose fingerprint was ever read :" ^0
+"    " + str(running_machines_that_verified) ^0
+"  re-reads after install : " + str(fingerprint_checks_after_install) ^0
+"" ^0
+
+# ---- what the compliance report says ----
+
+"the vendor's report" ^0
+"  licences sold        : " + str(licences_purchased) ^0
+"  installs recorded    : " + str(installs_performed) ^0
+"  failed verifications : " + str(installs_without_a_valid_licence) ^0
+"  what the report concludes : full compliance" ^0
+"  what it counts        : installs" ^0
+"  what the agreement is priced on : running instances" ^0
+"  instances the report can see : " + str(running_machines_that_verified) + " of " + str(machines_running_the_software) ^0
+"" ^0
+
+# ---- null control ----
+
+# The same signed licence, verified at process start against a fingerprint read
+# at that moment, rather than a marker read from disk.
+machines_running_the_software => nc_machines_that_verify
+0 => nc_machines_that_never_verified
+
+"null control - the check runs when the process starts" ^0
+"  installs without a valid licence : " + str(installs_without_a_valid_licence) + ", unchanged" ^0
+"  machines that verify : " + str(nc_machines_that_verify) ^0
+"  machines that never verified : " + str(nc_machines_that_never_verified) ^0
+"  the cryptography did not get stronger; the check moved" ^0
+"  from an event that happens once to a state that" ^0
+"  persists" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what an install-time licence check guarantees" ^0
+"  this installation was authorised : exactly, with a" ^0
+"    signature that cannot be forged and a refusal that" ^0
+"    cannot be skipped" ^0
+"  this software is running under a licence : not" ^0
+"    addressed; the check is an event and running is a" ^0
+"    state, and the filesystem carrying the result is" ^0
+"    copyable" ^0
+"" ^0
+"a check performed once produces a fact about that moment," ^0
+"which is then stored; storing it makes it duplicable, so the" ^0
+"strength of the verification bounds forgery and says nothing" ^0
+"about multiplicity" ^0
+"" ^0
+
+"The check is properly built: a signed licence, a public key compiled into the" ^0
+"installer, expiry enforced, and a refusal to install on failure - " + str(signature_verifications_that_ran) ^0
+"verifications, " + str(installs_without_a_valid_licence) + " installs without a valid licence. It runs once per image and" ^0
+"the result is baked into the filesystem, so of " + str(machines_running_the_software) + " machines running the" ^0
+"software " + str(machines_that_never_verified_anything) + " never verified anything - " + str(verified_per_myriad) + " per ten thousand did - with" ^0
+str(fingerprint_checks_after_install) + " fingerprint re-reads and a compliance report that counts installs." ^0

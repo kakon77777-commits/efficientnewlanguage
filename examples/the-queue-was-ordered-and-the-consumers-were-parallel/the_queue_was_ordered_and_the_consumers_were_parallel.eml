@@ -1,0 +1,160 @@
+# Self-authored for the EML case corpus (no external origin). The log is
+# ordered per partition and the producer partitions by entity, so every event
+# for one entity arrives in order. What happens after arrival is computed below.
+#
+# The partitioning was designed, not defaulted. A round-robin producer would
+# spread one entity's events across forty-eight partitions and order would be
+# meaningless; partitioning by entity id puts them all on one partition, where
+# the log is a real ordered log. The broker's own out-of-order metric has read
+# zero since the day it was turned on.
+#
+# Ordering is a property of DELIVERY. The consumer takes a batch of five
+# hundred off its partition and hands each message to one of eight worker
+# threads, and eight threads finish in the order their work finishes.
+#
+# Forty-one thousand entities a day have two events inside one batch.
+
+48 => partitions
+1 => partitions_a_given_entity_lands_on
+0 => out_of_order_deliveries_measured
+8 => consumer_threads_per_partition
+500 => prefetch_batch_size
+12000000 => events_per_day
+41000 => entities_with_two_events_in_one_batch
+8900 => pairs_applied_in_the_reverse_order
+0 => metrics_on_the_order_events_are_applied_in
+1 => threads_the_first_event_of_a_pair_occupies
+
+consumer_threads_per_partition - threads_the_first_event_of_a_pair_occupies => threads_the_second_event_can_land_on
+2 => events_in_one_such_pair
+entities_with_two_events_in_one_batch => pairs_at_risk
+pairs_at_risk * events_in_one_such_pair => events_in_those_pairs
+int(events_in_those_pairs * 10000 / events_per_day) => at_risk_per_myriad
+int(pairs_applied_in_the_reverse_order * 10000 / pairs_at_risk) => reversed_per_myriad_of_pairs
+
+"partitions                      : " + str(partitions) ^0
+"partitions one entity lands on  : " + str(partitions_a_given_entity_lands_on) ^0
+"out-of-order deliveries measured: " + str(out_of_order_deliveries_measured) ^0
+"" ^0
+"consumer threads per partition  : " + str(consumer_threads_per_partition) ^0
+"prefetch batch size             : " + str(prefetch_batch_size) ^0
+"threads the second event can land on : " + str(threads_the_second_event_can_land_on) ^0
+"" ^0
+"events per day                  : " + str(events_per_day) ^0
+"entities with two in one batch  : " + str(entities_with_two_events_in_one_batch) ^0
+"  events in those pairs         : " + str(events_in_those_pairs) ^0
+"  share of events               : " + str(at_risk_per_myriad) + " per ten thousand" ^0
+"pairs applied in reverse order  : " + str(pairs_applied_in_the_reverse_order) ^0
+"  share of those pairs          : " + str(reversed_per_myriad_of_pairs) + " per ten thousand" ^0
+"metrics on application order    : " + str(metrics_on_the_order_events_are_applied_in) ^0
+"" ^0
+
+# ---- what the partitioning verified ----
+
+"the ordering design" ^0
+"  producer partitions by : entity id, deliberately" ^0
+"  the alternative rejected : round robin, which would" ^0
+"    spread one entity across " + str(partitions) + " partitions" ^0
+"  partitions one entity lands on : " + str(partitions_a_given_entity_lands_on) ^0
+"  the log within a partition : genuinely ordered" ^0
+"  out-of-order deliveries : " + str(out_of_order_deliveries_measured) ^0
+"  verdict : ORDERED" ^0
+"" ^0
+"  choosing the partition key for ordering rather than for" ^0
+"  balance is the decision that makes any of this possible" ^0
+"" ^0
+
+# ---- where the guarantee ends ----
+
+"the boundary" ^0
+"  what the broker promises : the order you receive them in" ^0
+"  where that promise ends  : the moment the consumer has" ^0
+"    them" ^0
+"  what the consumer does next : hands " + str(prefetch_batch_size) + " messages to" ^0
+"    " + str(consumer_threads_per_partition) + " threads" ^0
+"  what decides the order they finish in : how long each" ^0
+"    one takes" ^0
+"  is that a violation of the broker guarantee : no; the" ^0
+"    guarantee was kept in full" ^0
+"" ^0
+"  delivery order and application order are two orders, and" ^0
+"  the design bought the first one exactly" ^0
+"" ^0
+# ---- why the parallelism is there ----
+
+# One thread per partition preserves application order and caps throughput at
+# one message at a time per partition. The pool was added because that cap was
+# real and the backlog was real. It is not a mistake; it is the second half of
+# a decision whose first half was about order.
+"the thread pool" ^0
+"  why it exists : one thread per partition could not keep" ^0
+"    up and the backlog was measured" ^0
+"  what it bought : throughput" ^0
+"  what it cost   : the order the partitioning bought" ^0
+"  were the two decisions made together : no; the" ^0
+"    partitioning predates the pool by a year" ^0
+"" ^0
+
+# ---- what a pair looks like ----
+
+# The create and the update for one entity are delivered in order, milliseconds
+# apart, into the same batch. One thread gets the create, another gets the
+# update, and the update's handler is the shorter one.
+"one reversed pair" ^0
+"  delivered in order : yes" ^0
+"  in the same batch  : yes" ^0
+"  threads they land on : two different ones" ^0
+"  what decides which finishes first : the handler, not" ^0
+"    the log" ^0
+"  what the entity ends up holding : the earlier state" ^0
+"  what an error log shows : nothing; both handlers" ^0
+"    succeeded" ^0
+"" ^0
+
+# ---- why nothing measures it ----
+
+"the two metrics" ^0
+"  out-of-order deliveries : measured, " + str(out_of_order_deliveries_measured) + ", and correct" ^0
+"  out-of-order applications : " + str(metrics_on_the_order_events_are_applied_in) + " metrics exist" ^0
+"  what the first one watches : the broker" ^0
+"  where the reordering happens : after the broker" ^0
+"  how the " + str(pairs_applied_in_the_reverse_order) + " were counted : a one-off audit against" ^0
+"    each entity's own version column, run once" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same pool, with messages dispatched to a thread chosen by a hash of the
+# entity id, so two events for one entity always take the same thread.
+consumer_threads_per_partition => nc_consumer_threads_per_partition
+0 => nc_pairs_applied_in_the_reverse_order
+
+"null control - the thread is chosen by entity, not by turn" ^0
+"  out-of-order deliveries : " + str(out_of_order_deliveries_measured) + ", unchanged" ^0
+"  consumer threads : " + str(nc_consumer_threads_per_partition) + ", unchanged, so throughput is kept" ^0
+"  pairs applied in reverse : " + str(nc_pairs_applied_in_the_reverse_order) ^0
+"  the ordering guarantee did not get stronger; the same" ^0
+"  key that chose the partition started choosing the thread" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a per-partition ordering guarantee gives" ^0
+"  events for one entity are delivered in order : exactly," ^0
+"    and the partition key was chosen to make it true" ^0
+"  events for one entity take effect in order   : not" ^0
+"    addressed; the guarantee ends where the consumer" ^0
+"    begins, and the consumer is a pool" ^0
+"" ^0
+"an ordering guarantee names a place where the order holds;" ^0
+"it is inherited by whatever reads there in one thread, and" ^0
+"any fan-out after that point re-decides the order using" ^0
+"something that is not the log" ^0
+"" ^0
+
+"The partition key was chosen for ordering rather than balance, so one entity's" ^0
+"events all land on " + str(partitions_a_given_entity_lands_on) + " of " + str(partitions) + " partitions and the broker has measured " + str(out_of_order_deliveries_measured) ^0
+"out-of-order deliveries. The consumer hands each batch of " + str(prefetch_batch_size) + " to " + str(consumer_threads_per_partition) + " threads, so" ^0
+"of " + str(entities_with_two_events_in_one_batch) + " entities a day with two events in one batch - " + str(at_risk_per_myriad) + " per ten thousand of" ^0
+"events - " + str(pairs_applied_in_the_reverse_order) + ", or " + str(reversed_per_myriad_of_pairs) + " per ten thousand of them, take effect backwards," ^0
+"watched by " + str(metrics_on_the_order_events_are_applied_in) + " metrics." ^0
