@@ -1,0 +1,157 @@
+# Self-authored for the EML case corpus (no external origin). Budget alerts are
+# configured at two thresholds, tested with a real charge, and routed to a
+# person who acknowledges them. What they can move with is computed below.
+#
+# The alerting is set up properly. There are two thresholds rather than one, so
+# there is a warning before the wall; the configuration was tested by pushing a
+# synthetic charge through and watching the alert arrive, rather than trusting
+# the console; it is routed to a named person rather than a distribution list;
+# and that person acknowledges. Nobody here was careless.
+#
+# The alert fires on SPEND. The account is on a three-year committed-use
+# agreement, so the invoice is the commitment whether the capacity is used or
+# not, and spend is constant by construction.
+#
+# Utilisation went from eighty-two percent to thirty-one after a migration.
+
+2 => alert_thresholds_configured
+1 => synthetic_charge_tests
+1 => named_people_who_acknowledge
+36 => commitment_months
+420000 => monthly_commitment_dollars
+82 => utilisation_percent_before
+31 => utilisation_percent_after
+100 => a_whole_percent
+7 => months_since_the_migration
+0 => alerts_that_fired
+0 => alerts_configured_on_utilisation
+0 => month_over_month_spend_variance_dollars
+
+a_whole_percent - utilisation_percent_after => unused_percent_after
+utilisation_percent_before - utilisation_percent_after => utilisation_percentage_points_lost
+int(monthly_commitment_dollars * unused_percent_after / a_whole_percent) => monthly_dollars_for_unused_capacity
+monthly_dollars_for_unused_capacity * months_since_the_migration => dollars_for_unused_capacity_since
+
+"alert thresholds configured     : " + str(alert_thresholds_configured) ^0
+"synthetic charge tests          : " + str(synthetic_charge_tests) ^0
+"named people who acknowledge    : " + str(named_people_who_acknowledge) ^0
+"alerts that fired               : " + str(alerts_that_fired) ^0
+"" ^0
+"commitment months               : " + str(commitment_months) ^0
+"monthly commitment, dollars     : " + str(monthly_commitment_dollars) ^0
+"month over month spend variance : " + str(month_over_month_spend_variance_dollars) ^0
+"" ^0
+"utilisation before, percent     : " + str(utilisation_percent_before) ^0
+"utilisation after, percent      : " + str(utilisation_percent_after) ^0
+"  points lost                   : " + str(utilisation_percentage_points_lost) ^0
+"  unused after, percent         : " + str(unused_percent_after) ^0
+"" ^0
+"monthly dollars for unused capacity : " + str(monthly_dollars_for_unused_capacity) ^0
+"months since the migration          : " + str(months_since_the_migration) ^0
+"  dollars since                     : " + str(dollars_for_unused_capacity_since) ^0
+"alerts configured on utilisation    : " + str(alerts_configured_on_utilisation) ^0
+"" ^0
+
+# ---- what the alerting verified ----
+
+"the budget alerts" ^0
+"  thresholds : " + str(alert_thresholds_configured) + ", so there is a warning before the" ^0
+"    wall rather than only a wall" ^0
+"  tested by : pushing a synthetic charge and watching it" ^0
+"    arrive, not by reading the console" ^0
+"  routed to : a named person, not a list" ^0
+"  acknowledged : yes" ^0
+"  verdict : CONFIGURED AND WORKING" ^0
+"" ^0
+"  testing the alert with a real charge is the step that" ^0
+"  separates this from a checkbox, and it was done" ^0
+"" ^0
+
+# ---- what the alert watches ----
+
+"the monitored quantity" ^0
+"  what fires the alert : spend crossing a threshold" ^0
+"  what determines spend : the commitment, for " + str(commitment_months) ^0
+"    months" ^0
+"  what changes when capacity goes unused : nothing on the" ^0
+"    invoice" ^0
+"  month over month variance : " + str(month_over_month_spend_variance_dollars) ^0
+"  so the number the alert watches : cannot move" ^0
+"" ^0
+"  the alert is correctly wired to a quantity that this" ^0
+"  contract holds constant" ^0
+"" ^0
+# ---- the commitment was a good decision ----
+
+# The three-year agreement was taken deliberately and it saved real money
+# against on-demand pricing. It is not the mistake here. It is the reason the
+# instrument stopped being able to move.
+"the commitment" ^0
+"  taken deliberately : yes, against on-demand pricing" ^0
+"  did it save money at the time : yes" ^0
+"  is it the mistake : no" ^0
+"  what it does to spend : fixes it for " + str(commitment_months) + " months" ^0
+"  what it does to the alert : leaves it correctly wired" ^0
+"    to a constant" ^0
+"" ^0
+
+# ---- what the migration changed ----
+
+# The migration was also right: the workload moved to a service that suits it
+# better and runs faster. It reduced the capacity needed and could not reduce
+# the capacity bought.
+"the migration" ^0
+"  moved the workload to : something that suits it better" ^0
+"  was that right : yes, on its own terms" ^0
+"  capacity needed after : lower" ^0
+"  capacity bought after : the same" ^0
+"  utilisation, before and after : " + str(utilisation_percent_before) + " and " + str(utilisation_percent_after) ^0
+"  what appeared on the invoice : nothing" ^0
+"" ^0
+
+# ---- the number that would have moved ----
+
+"utilisation" ^0
+"  is it measured : yes, the provider reports it" ^0
+"  is it on a dashboard : yes" ^0
+"  alerts configured on it : " + str(alerts_configured_on_utilisation) ^0
+"  what it would have shown : " + str(utilisation_percentage_points_lost) + " points, in one month" ^0
+"  what nobody was watching for : a number going down" ^0
+"  dollars behind those points, so far : " + str(dollars_for_unused_capacity_since) ^0
+"" ^0
+
+# ---- null control ----
+
+# The same alerting, with a threshold on utilisation as well as on spend, and
+# the commitment renewal gated on the utilisation trend.
+2 => nc_alerts_configured_on_utilisation
+1 => nc_alerts_that_would_have_fired
+
+"null control - a threshold on utilisation too" ^0
+"  spend thresholds : " + str(alert_thresholds_configured) + ", unchanged" ^0
+"  utilisation thresholds : " + str(nc_alerts_configured_on_utilisation) ^0
+"  alerts that fire in the migration month : " + str(nc_alerts_that_would_have_fired) ^0
+"  the alerting did not get better; it acquired a threshold" ^0
+"  on a quantity this contract lets move" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a working budget alert guarantees" ^0
+"  spend crossing a threshold is noticed : exactly, tested" ^0
+"    with a real charge and acknowledged by a person" ^0
+"  waste is noticed : not addressed; the alert is" ^0
+"    denominated in spend, and this contract decouples" ^0
+"    spend from consumption" ^0
+"" ^0
+"an alert can only report on a quantity that varies; a" ^0
+"contract that fixes the monitored quantity does not break" ^0
+"the alert, it removes the alert's subject, and a silent" ^0
+"alert is what correct configuration looks like" ^0
+"" ^0
+
+"The alerting is done properly: " + str(alert_thresholds_configured) + " thresholds rather than one, tested by pushing a" ^0
+"real charge through, routed to " + str(named_people_who_acknowledge) + " named person who acknowledges. It fires on" ^0
+"spend, which a " + str(commitment_months) + "-month commitment holds at " + str(month_over_month_spend_variance_dollars) + " variance, so utilisation" ^0
+"falling from " + str(utilisation_percent_before) + " to " + str(utilisation_percent_after) + " percent produced " + str(alerts_that_fired) + " alerts while " + str(monthly_dollars_for_unused_capacity) ^0
+"dollars a month bought nothing - " + str(dollars_for_unused_capacity_since) + " over " + str(months_since_the_migration) + " months." ^0

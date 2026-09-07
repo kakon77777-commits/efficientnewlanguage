@@ -1,0 +1,149 @@
+# Self-authored for the EML case corpus (no external origin). A nightly
+# reconciliation compares the operational database to the warehouse and has
+# reported no discrepancy in two years. Which two things it compares is computed
+# below.
+#
+# The reconciliation is not a formality. It runs every night without exception,
+# it compares row counts and a per-column checksum rather than a count alone, it
+# fails loudly rather than logging, it is paged on, and when the extract once
+# died halfway it caught that within the hour.
+#
+# It runs as the last step of the pipeline that does the copy. Its two operands
+# are the batch that was read and the batch that was written, both held by the
+# same process, so a row the extract never selected is in neither.
+#
+# Forty-one thousand rows a night are excluded by the extract's filter.
+
+730 => nightly_reconciliations
+0 => discrepancies_reported_in_two_years
+1 => processes_that_both_copy_and_compare
+2 => systems_the_reconciliation_names
+1 => systems_it_reads_independently
+41000 => rows_the_extract_filter_excludes_per_night
+0 => queries_that_read_the_warehouse_back
+1 => half_finished_extracts_it_caught
+
+systems_the_reconciliation_names - systems_it_reads_independently => systems_it_takes_on_trust
+int(systems_it_reads_independently * 10000 / systems_the_reconciliation_names) => independently_read_per_myriad
+
+"nightly reconciliations         : " + str(nightly_reconciliations) ^0
+"discrepancies reported          : " + str(discrepancies_reported_in_two_years) ^0
+"half-finished extracts it caught: " + str(half_finished_extracts_it_caught) ^0
+"" ^0
+"systems it names                : " + str(systems_the_reconciliation_names) ^0
+"  read independently            : " + str(systems_it_reads_independently) ^0
+"  taken on trust                : " + str(systems_it_takes_on_trust) ^0
+"  share read independently      : " + str(independently_read_per_myriad) + " per ten thousand" ^0
+"" ^0
+"processes that both copy and compare : " + str(processes_that_both_copy_and_compare) ^0
+"queries that read the warehouse back : " + str(queries_that_read_the_warehouse_back) ^0
+"rows the extract filter excludes nightly : " + str(rows_the_extract_filter_excludes_per_night) ^0
+"" ^0
+
+# ---- what the reconciliation verified ----
+
+"the nightly check" ^0
+"  runs : every night, no exceptions" ^0
+"  compares : row counts and a per-column checksum, not a" ^0
+"    count alone" ^0
+"  on mismatch : fails loudly and pages" ^0
+"  caught, once : an extract that died halfway" ^0
+"  discrepancies since : " + str(discrepancies_reported_in_two_years) ^0
+"  verdict : CONSISTENT" ^0
+"" ^0
+"  a per-column checksum rather than a row count is the" ^0
+"  expensive choice and it is the one that caught the" ^0
+"  half-finished extract" ^0
+"" ^0
+
+# ---- what its two operands are ----
+
+"the comparison" ^0
+"  named as : the operational database against the" ^0
+"    warehouse" ^0
+"  actually held : the batch that was read and the batch" ^0
+"    that was written, in one process" ^0
+"  where both came from : the same extract query" ^0
+"  what a row outside that query is : absent from both" ^0
+"  reads of the warehouse after the write : " + str(queries_that_read_the_warehouse_back) ^0
+"" ^0
+"  the check compares the pipeline to itself, which is why" ^0
+"  it caught a pipeline that stopped and cannot see one" ^0
+"  that never started on a row" ^0
+"" ^0
+# ---- what it can and cannot disagree about ----
+
+"the two kinds of failure" ^0
+"  the write failed after the read : both operands differ," ^0
+"    the check is red, and this happened once" ^0
+"  the read never selected the row : both operands agree," ^0
+"    because neither contains it" ^0
+"  the check's population : the extract's result set" ^0
+"  the question asked of it : whether the warehouse holds" ^0
+"    what the database holds" ^0
+"  rows outside the result set nightly : " + str(rows_the_extract_filter_excludes_per_night) ^0
+"" ^0
+
+# ---- why the filter exists ----
+
+# The extract filter is not a bug. It excludes soft-deleted rows, test tenants,
+# and rows whose partition has already been archived, and each exclusion was
+# deliberate and correct when it was added.
+"the excluded rows" ^0
+"  soft-deleted        : excluded on purpose" ^0
+"  test tenants        : excluded on purpose" ^0
+"  already archived    : excluded on purpose" ^0
+"  was each exclusion right when added : yes" ^0
+"  is the set of them reviewed : it is a WHERE clause" ^0
+"  does any report say the warehouse is a subset : no; the" ^0
+"    reconciliation says the two agree" ^0
+"" ^0
+
+# ---- what a reader takes from two years ----
+
+"the record" ^0
+"  nights run       : " + str(nightly_reconciliations) ^0
+"  discrepancies    : " + str(discrepancies_reported_in_two_years) ^0
+"  what an analyst concludes : the warehouse is the" ^0
+"    database, and can be queried instead of it" ^0
+"  what is true : the warehouse is the extract, and the" ^0
+"    extract is the reconciliation's definition of the" ^0
+"    database" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same check, with the second operand read back out of the warehouse by a
+# separate job that takes its row set from the source table rather than from
+# the extract query.
+systems_the_reconciliation_names => nc_systems_it_reads_independently
+rows_the_extract_filter_excludes_per_night => nc_rows_it_would_now_see
+
+"null control - the second side is read back independently" ^0
+"  per-column checksum : unchanged" ^0
+"  systems read independently : " + str(nc_systems_it_reads_independently) ^0
+"  rows now inside the comparison : " + str(nc_rows_it_would_now_see) + " more" ^0
+"  the check did not get stricter; its second operand" ^0
+"  stopped being a variable the first operand wrote" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a green reconciliation guarantees" ^0
+"  the copy matched what was read : exactly, by checksum," ^0
+"    every night, and it caught a truncated run" ^0
+"  the two systems agree          : not addressed; both" ^0
+"    sides came from one query, and a comparison cannot" ^0
+"    disagree about a row neither side was given" ^0
+"" ^0
+"a consistency check is only as strong as the independence of" ^0
+"how its two sides were obtained; a check that runs inside" ^0
+"the pipeline it checks can detect the pipeline stopping and" ^0
+"never what the pipeline was told to ignore" ^0
+"" ^0
+
+"The reconciliation runs every night, compares a per-column checksum rather than" ^0
+"a row count, pages on failure, and caught an extract that died halfway - " + str(discrepancies_reported_in_two_years) ^0
+"discrepancies in " + str(nightly_reconciliations) + " nights. It is the last step of the copy, so of the" ^0
+str(systems_the_reconciliation_names) + " systems it names it reads " + str(systems_it_reads_independently) + " independently - " + str(independently_read_per_myriad) + " per ten thousand -" ^0
+"and the " + str(rows_the_extract_filter_excludes_per_night) + " rows a night its own filter excludes are in neither operand." ^0

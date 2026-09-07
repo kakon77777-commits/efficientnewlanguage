@@ -1,0 +1,147 @@
+# Self-authored for the EML case corpus (no external origin). A policy engine
+# sits in the admission path, refuses non-compliant resources rather than
+# reporting them, has no exemption mechanism, and has blocked nineteen hundred
+# creations. Which resources it has seen is computed below.
+#
+# The enforcement is genuine. It is in the admission path rather than a report
+# somebody reads on Friday, so a non-compliant resource is not created at all;
+# there is no annotation that opts a workload out, so there is no quiet path
+# around it; the rules are the ones the security review asked for rather than
+# whatever the default bundle contained; and it has refused nineteen hundred
+# creations, each of which someone then fixed.
+#
+# The engine runs on create and update. A resource that predates the policy, and
+# has not been touched since, has never been evaluated.
+#
+# Twenty thousand six hundred of them have not.
+
+1900 => creations_blocked_by_the_policy
+0 => exemption_annotations_available
+0 => bypasses_of_the_admission_path
+24000 => resources_total
+3400 => resources_created_or_updated_since_the_policy
+0 => scheduled_audits_of_existing_resources
+1 => policy_engines_in_the_admission_path
+
+resources_total - resources_created_or_updated_since_the_policy => resources_never_evaluated
+int(resources_created_or_updated_since_the_policy * 10000 / resources_total) => evaluated_per_myriad
+int(resources_never_evaluated * 10000 / resources_total) => never_evaluated_per_myriad
+
+"policy engines in the admission path : " + str(policy_engines_in_the_admission_path) ^0
+"creations blocked               : " + str(creations_blocked_by_the_policy) ^0
+"exemption annotations available : " + str(exemption_annotations_available) ^0
+"bypasses of the admission path  : " + str(bypasses_of_the_admission_path) ^0
+"" ^0
+"resources                       : " + str(resources_total) ^0
+"  created or updated since      : " + str(resources_created_or_updated_since_the_policy) ^0
+"  never evaluated               : " + str(resources_never_evaluated) ^0
+"  share evaluated               : " + str(evaluated_per_myriad) + " per ten thousand" ^0
+"  share never evaluated         : " + str(never_evaluated_per_myriad) + " per ten thousand" ^0
+"scheduled audits of existing resources : " + str(scheduled_audits_of_existing_resources) ^0
+"" ^0
+
+# ---- what the engine verified ----
+
+"the policy engine" ^0
+"  where it runs : the admission path" ^0
+"  on non-compliance : refuses; the resource is not" ^0
+"    created" ^0
+"  exemption annotation : " + str(exemption_annotations_available) + ", so there is no quiet path" ^0
+"    around it" ^0
+"  the rules : the ones the security review asked for, not" ^0
+"    a default bundle" ^0
+"  creations refused : " + str(creations_blocked_by_the_policy) + ", each then fixed" ^0
+"  verdict : ENFORCED AT THE DOOR" ^0
+"" ^0
+"  refusing rather than reporting, with no exemption, is" ^0
+"  what makes this enforcement instead of advice" ^0
+"" ^0
+
+# ---- when it runs ----
+
+"the trigger" ^0
+"  evaluated on : create and update" ^0
+"  a resource created after the policy : evaluated" ^0
+"  a resource updated after the policy : evaluated" ^0
+"  a resource older than the policy, untouched : never" ^0
+"  is that a gap in the rules : no; the rules are correct" ^0
+"    and nothing has asked them about these" ^0
+"  resources in that state : " + str(resources_never_evaluated) ^0
+"" ^0
+"  the engine is complete over the events it hooks and the" ^0
+"  fleet is a state rather than a stream of events" ^0
+"" ^0
+# ---- the compliance number ----
+
+"what gets reported" ^0
+"  policy violations in production : none" ^0
+"  is that figure correct : yes, over what was evaluated" ^0
+"  what was evaluated : " + str(resources_created_or_updated_since_the_policy) + " of " + str(resources_total) ^0
+"  what a reader hears : the fleet is compliant" ^0
+"  what is claimed : nothing non-compliant was admitted" ^0
+"  the difference : " + str(resources_never_evaluated) + " resources" ^0
+"" ^0
+
+# ---- the untouched ones are the old ones ----
+
+# The resources that have not been created or updated since the policy are, by
+# construction, the oldest and least maintained. They are the population most
+# likely to violate the rules and the one the mechanism cannot reach.
+"which resources are in the gap" ^0
+"  selected by : not having changed" ^0
+"  therefore : the oldest, and the least maintained" ^0
+"  likelihood of violating the rules : higher than the" ^0
+"    evaluated set, not lower" ^0
+"  what would bring one in : any edit at all" ^0
+"  what discourages editing them : they work, and nobody" ^0
+"    owns them" ^0
+"" ^0
+
+# ---- what a migration would reveal ----
+
+"the day one of them is edited" ^0
+"  the edit : something small and unrelated" ^0
+"  what admission does : evaluates the whole resource" ^0
+"  likely outcome : refused" ^0
+"  what the engineer sees : a policy failure on a change" ^0
+"    that did not cause it" ^0
+"  when the violation began : before the policy existed" ^0
+"  when it is discovered : now, by accident" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same rules, evaluated on a schedule against every existing resource as
+# well as at admission, reporting rather than deleting.
+resources_total => nc_resources_evaluated
+0 => nc_resources_never_evaluated
+1 => nc_scheduled_audits_of_existing_resources
+
+"null control - the same rules run on a schedule too" ^0
+"  admission enforcement : unchanged, still refusing" ^0
+"  scheduled audits : " + str(nc_scheduled_audits_of_existing_resources) ^0
+"  resources evaluated : " + str(nc_resources_evaluated) ^0
+"  never evaluated : " + str(nc_resources_never_evaluated) ^0
+"  the policy did not change; it stopped being asked only" ^0
+"  about things that were changing anyway" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what admission-time enforcement guarantees" ^0
+"  nothing non-compliant is admitted : exactly, with no" ^0
+"    exemption and no bypass, " + str(creations_blocked_by_the_policy) + " times over" ^0
+"  nothing non-compliant exists : not addressed; the" ^0
+"    engine is bound to an event and existence is not one" ^0
+"" ^0
+"a control on a transition evaluates whatever crosses it, so" ^0
+"its coverage is the change rate rather than the population;" ^0
+"the resources it never sees are selected for not changing," ^0
+"which is the same thing as being old" ^0
+"" ^0
+
+"The engine sits in the admission path, refuses rather than reports, offers" ^0
+str(exemption_annotations_available) + " exemption annotations, has " + str(bypasses_of_the_admission_path) + " bypasses, and blocked " + str(creations_blocked_by_the_policy) + " creations that" ^0
+"were then fixed. It evaluates on create and update, so " + str(resources_created_or_updated_since_the_policy) + " of " + str(resources_total) + " resources" ^0
+"have been seen - " + str(evaluated_per_myriad) + " per ten thousand - and the " + str(resources_never_evaluated) + " that have not," ^0
+str(never_evaluated_per_myriad) + " per ten thousand, are the ones nobody has touched, audited by " + str(scheduled_audits_of_existing_resources) + " jobs." ^0

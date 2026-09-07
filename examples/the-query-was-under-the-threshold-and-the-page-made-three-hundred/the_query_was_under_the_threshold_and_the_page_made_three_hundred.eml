@@ -1,0 +1,146 @@
+# Self-authored for the EML case corpus (no external origin). The slow-query log
+# has a fifty millisecond threshold and has not recorded an entry in a month.
+# What one page render costs is computed below.
+#
+# The threshold is well chosen and the logging is real. Fifty milliseconds is
+# not a placeholder; it was set from the distribution rather than picked round,
+# every query the application issues goes through the instrumented client so
+# there is no path that avoids the log, the log is read, and three genuine
+# missing indexes were found and fixed with it last year.
+#
+# The threshold is applied to a QUERY. A page render issues three hundred and
+# one of them, each one honestly fast, and nothing measures the row that a
+# reader actually waits for.
+#
+# The budget for a page is two hundred milliseconds.
+
+50 => slow_query_threshold_ms
+0 => queries_over_the_threshold_last_month
+3 => missing_indexes_found_with_the_log_last_year
+4 => mean_query_ms
+301 => queries_per_page_render
+200 => page_budget_ms
+0 => metrics_on_queries_per_render
+12 => pages_of_this_shape
+
+queries_per_page_render * mean_query_ms => database_ms_per_page
+database_ms_per_page - page_budget_ms => ms_over_the_page_budget
+int(mean_query_ms * 10000 / slow_query_threshold_ms) => each_query_per_myriad_of_the_threshold
+int(page_budget_ms * 10000 / database_ms_per_page) => budget_per_myriad_of_the_cost
+
+"slow-query threshold, ms        : " + str(slow_query_threshold_ms) ^0
+"queries over it last month      : " + str(queries_over_the_threshold_last_month) ^0
+"missing indexes found with it   : " + str(missing_indexes_found_with_the_log_last_year) ^0
+"" ^0
+"mean query, ms                  : " + str(mean_query_ms) ^0
+"  as a share of the threshold   : " + str(each_query_per_myriad_of_the_threshold) + " per ten thousand" ^0
+"queries per page render         : " + str(queries_per_page_render) ^0
+"database time per page, ms      : " + str(database_ms_per_page) ^0
+"" ^0
+"page budget, ms                 : " + str(page_budget_ms) ^0
+"  over it by                    : " + str(ms_over_the_page_budget) ^0
+"  budget as a share of the cost : " + str(budget_per_myriad_of_the_cost) + " per ten thousand" ^0
+"metrics on queries per render   : " + str(metrics_on_queries_per_render) ^0
+"pages of this shape             : " + str(pages_of_this_shape) ^0
+"" ^0
+
+# ---- what the threshold verified ----
+
+"the slow-query log" ^0
+"  threshold : " + str(slow_query_threshold_ms) + " ms, set from the distribution" ^0
+"  paths that avoid it : none; every query goes through" ^0
+"    the instrumented client" ^0
+"  is the log read : yes" ^0
+"  missing indexes it found : " + str(missing_indexes_found_with_the_log_last_year) ^0
+"  entries last month : " + str(queries_over_the_threshold_last_month) ^0
+"  verdict : FAST" ^0
+"" ^0
+"  every query in this system is genuinely fast and the log" ^0
+"  is why three of them stopped being slow" ^0
+"" ^0
+
+# ---- what the threshold is applied to ----
+
+"the unit measured" ^0
+"  what carries a duration : one query" ^0
+"  what a reader waits for : one render" ^0
+"  queries in one render   : " + str(queries_per_page_render) ^0
+"  each of them under the threshold : yes, by " + str(each_query_per_myriad_of_the_threshold) ^0
+"    per ten thousand of it" ^0
+"  their sum against the page budget : " + str(database_ms_per_page) + " against " + str(page_budget_ms) ^0
+"" ^0
+"  no query is slow and the page is, and both statements" ^0
+"  are about the same milliseconds" ^0
+"" ^0
+# ---- why lowering the threshold does not help ----
+
+# A four millisecond query is not a defect and a threshold that flags it would
+# flag every query in the system. The quantity that is wrong is not any query's
+# duration; it is how many of them one render issues.
+"lowering the threshold" ^0
+"  to catch a " + str(mean_query_ms) + " ms query it must be below " + str(mean_query_ms) + " ms" ^0
+"  queries it would then flag : all of them" ^0
+"  defects it would identify  : none; the query is fine" ^0
+"  what is actually wrong : the count, which is " + str(queries_per_page_render) ^0
+"  a threshold on a count : " + str(metrics_on_queries_per_render) + " exist" ^0
+"" ^0
+
+# ---- how the count gets there ----
+
+# The list renders a row per item and each row asks for its own related record.
+# Every one of those calls is a correct call, written by someone who could not
+# see the loop from inside the row.
+"where " + str(queries_per_page_render) + " comes from" ^0
+"  the list query           : 1" ^0
+"  a related record per row : one call each" ^0
+"  is any of those calls wrong : no" ^0
+"  is the loop visible from the row : no; the row is a" ^0
+"    component and it asks for what it needs" ^0
+"  pages with this shape : " + str(pages_of_this_shape) ^0
+"" ^0
+
+# ---- what the database sees ----
+
+"from the database side" ^0
+"  queries per second : high, and all of them cheap" ^0
+"  slow queries       : " + str(queries_over_the_threshold_last_month) ^0
+"  connection pool    : busy, which reads as healthy" ^0
+"  what a database dashboard shows : a well-tuned system" ^0
+"  what it is asked   : how long each query takes" ^0
+"  what it is not asked : how many arrived for one render" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same threshold, plus a per-request counter that fails the build when a
+# render issues more queries than a stated bound.
+1 => nc_metrics_on_queries_per_render
+2 => nc_queries_per_page_render
+
+"null control - a bound on queries per render" ^0
+"  slow-query threshold : " + str(slow_query_threshold_ms) + " ms, unchanged" ^0
+"  metrics on queries per render : " + str(nc_metrics_on_queries_per_render) ^0
+"  queries per render after the fix : " + str(nc_queries_per_page_render) ^0
+"  no query got faster; the number of them became a" ^0
+"  quantity something is allowed to complain about" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what an empty slow-query log guarantees" ^0
+"  no single query is slow : exactly, over every query the" ^0
+"    application issues, with no unlogged path" ^0
+"  the application is fast : not addressed; the threshold" ^0
+"    is applied per query and the wait is per request" ^0
+"" ^0
+"a per-item bound bounds each item and says nothing about" ^0
+"how many items there are; the composition is where the cost" ^0
+"lives, and it is exactly the quantity a per-item instrument" ^0
+"cannot represent" ^0
+"" ^0
+
+"The threshold is set from the distribution rather than picked, no query path" ^0
+"avoids the log, and it found " + str(missing_indexes_found_with_the_log_last_year) + " missing indexes and has been empty for a month." ^0
+"It is applied to one query, each of which runs in " + str(mean_query_ms) + " ms - " + str(each_query_per_myriad_of_the_threshold) + " per ten" ^0
+"thousand of the threshold - while a render issues " + str(queries_per_page_render) + " of them for " + str(database_ms_per_page) + " ms against" ^0
+"a " + str(page_budget_ms) + " ms budget, " + str(budget_per_myriad_of_the_cost) + " per ten thousand of the cost, on " + str(pages_of_this_shape) + " pages." ^0

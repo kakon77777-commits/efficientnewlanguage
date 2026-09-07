@@ -1,0 +1,155 @@
+# Self-authored for the EML case corpus (no external origin). Availability is
+# measured from twelve regions every thirty seconds and from the real error
+# rate, and credits were paid the two times it was missed. What counts as
+# available is computed below.
+#
+# The measurement is honest, which is rarer than having an SLA. It is not
+# self-reported from the load balancer alone: synthetic probes run from twelve
+# regions on a thirty second interval, the real request stream is counted
+# alongside them, the two are reconciled, and when the target was missed the
+# credits were paid without the customer having to ask.
+#
+# Available means a response with a success status inside the timeout. A
+# response that returns quickly, with the right shape, and an empty list where
+# there should be rows, is a success status inside the timeout.
+#
+# One point nine million responses a day come from the degraded path.
+
+9995 => availability_target_per_myriad
+12 => probe_regions
+30 => probe_interval_seconds
+2 => times_the_target_was_missed
+2 => times_credits_were_paid
+84000000 => responses_per_day
+1900000 => responses_from_the_degraded_path
+0 => checks_in_the_sla_definition_about_the_body
+0 => degraded_responses_counted_as_unavailable
+
+responses_per_day - responses_from_the_degraded_path => responses_carrying_a_real_answer
+int(responses_from_the_degraded_path * 10000 / responses_per_day) => degraded_per_myriad
+10000 => a_whole_per_myriad
+a_whole_per_myriad - availability_target_per_myriad => error_budget_per_myriad
+int(degraded_per_myriad / error_budget_per_myriad) => degraded_share_in_error_budgets
+
+"availability target             : " + str(availability_target_per_myriad) + " per ten thousand" ^0
+"probe regions                   : " + str(probe_regions) ^0
+"probe interval, seconds         : " + str(probe_interval_seconds) ^0
+"times the target was missed     : " + str(times_the_target_was_missed) ^0
+"times credits were paid         : " + str(times_credits_were_paid) ^0
+"" ^0
+"responses per day               : " + str(responses_per_day) ^0
+"  carrying a real answer        : " + str(responses_carrying_a_real_answer) ^0
+"  from the degraded path        : " + str(responses_from_the_degraded_path) ^0
+"  share                         : " + str(degraded_per_myriad) + " per ten thousand" ^0
+"  counted as unavailable        : " + str(degraded_responses_counted_as_unavailable) ^0
+"" ^0
+"checks in the SLA about the body: " + str(checks_in_the_sla_definition_about_the_body) ^0
+"error budget                    : " + str(error_budget_per_myriad) + " per ten thousand" ^0
+"  the degraded share is         : " + str(degraded_share_in_error_budgets) + " whole error budgets" ^0
+"" ^0
+
+# ---- what the measurement verified ----
+
+"the availability measurement" ^0
+"  source : synthetic probes plus the real request stream" ^0
+"  probe regions : " + str(probe_regions) + ", not one" ^0
+"  interval, seconds : " + str(probe_interval_seconds) ^0
+"  are the two sources reconciled : yes" ^0
+"  self-reported from the load balancer alone : no" ^0
+"  credits paid without being asked : " + str(times_credits_were_paid) + " of " + str(times_the_target_was_missed) ^0
+"  verdict : MEASURED HONESTLY" ^0
+"" ^0
+"  paying before being asked is the part that makes the" ^0
+"  number trustworthy, and it was done" ^0
+"" ^0
+
+# ---- what available is defined as ----
+
+"the definition" ^0
+"  a response with a success status : available" ^0
+"  inside the timeout : available" ^0
+"  with the right shape : not part of the definition" ^0
+"  with the right contents : not part of the definition" ^0
+"  clauses about the body : " + str(checks_in_the_sla_definition_about_the_body) ^0
+"  what a probe asserts : that a response came back" ^0
+"" ^0
+"  the definition is precise and it is a definition about" ^0
+"  the envelope" ^0
+"" ^0
+# ---- the degraded path is deliberate ----
+
+# When a downstream is unhealthy the service returns an empty result rather than
+# an error, and that was argued for and chosen. An error propagates a partial
+# outage into a page that will not render; an empty list renders. The decision
+# was right and it is also what makes the outage invisible.
+"the degraded path" ^0
+"  when it engages : a downstream is unhealthy" ^0
+"  what it returns : an empty result, quickly" ^0
+"  why that was chosen : an error would break the render" ^0
+"    for a partial outage" ^0
+"  is that the wrong choice : no" ^0
+"  what status it carries : success" ^0
+"  what the SLA counts it as : available" ^0
+"" ^0
+
+# ---- what a probe would have to do ----
+
+"the probe" ^0
+"  asserts : a response, a status, a latency" ^0
+"  what it would need to catch this : a known fixture whose" ^0
+"    expected contents it can compare against" ^0
+"  does the probe have one : no; it requests a real path" ^0
+"    and reads the status" ^0
+"  is that a defect in the probe : it answers the question" ^0
+"    the SLA asks" ^0
+"  regions running it : " + str(probe_regions) + ", all reading the same field" ^0
+"" ^0
+
+# ---- what the customer counts ----
+
+"the two ledgers" ^0
+"  ours   : responses returned, " + str(responses_per_day) + " a day" ^0
+"  theirs : answers that were right" ^0
+"  responses from the degraded path : " + str(responses_from_the_degraded_path) ^0
+"  counted against the target : " + str(degraded_responses_counted_as_unavailable) ^0
+"  the error budget : " + str(error_budget_per_myriad) + " per ten thousand" ^0
+"  the degraded share : " + str(degraded_per_myriad) + " per ten thousand, which is" ^0
+"    " + str(degraded_share_in_error_budgets) + " whole error budgets" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same measurement, with the probe requesting a fixture whose contents are
+# known and asserting them, and the degraded path setting a header the counter
+# reads.
+responses_from_the_degraded_path => nc_degraded_responses_counted_as_unavailable
+1 => nc_checks_in_the_sla_definition_about_the_body
+
+"null control - the probe asserts a known answer" ^0
+"  probe regions : " + str(probe_regions) + ", unchanged" ^0
+"  checks about the body : " + str(nc_checks_in_the_sla_definition_about_the_body) ^0
+"  degraded responses counted as unavailable : " + str(nc_degraded_responses_counted_as_unavailable) ^0
+"  the measurement did not get more honest; it started" ^0
+"  ranging over the thing the customer receives" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what an availability number guarantees" ^0
+"  a response came back, in time, from " + str(probe_regions) + " regions :" ^0
+"    exactly, measured independently and paid out on" ^0
+"  the service worked : not addressed; availability is" ^0
+"    denominated in responses and the customer's question" ^0
+"    is denominated in answers" ^0
+"" ^0
+"a service level is a promise about a measurable quantity, so" ^0
+"choosing the quantity is the whole design; a status code is" ^0
+"measurable everywhere and correctness is measurable only" ^0
+"where someone wrote down what the answer should be" ^0
+"" ^0
+
+"The measurement is honest: synthetic probes from " + str(probe_regions) + " regions every " + str(probe_interval_seconds) + " seconds" ^0
+"reconciled against the real request stream, and credits paid " + str(times_credits_were_paid) + " of " + str(times_the_target_was_missed) + " times" ^0
+"without being asked. Available means a success status inside the timeout, with" ^0
+str(checks_in_the_sla_definition_about_the_body) + " clauses about the body, so " + str(responses_from_the_degraded_path) + " responses a day carrying an empty result -" ^0
+str(degraded_per_myriad) + " per ten thousand, or " + str(degraded_share_in_error_budgets) + " whole error budgets - count as available." ^0

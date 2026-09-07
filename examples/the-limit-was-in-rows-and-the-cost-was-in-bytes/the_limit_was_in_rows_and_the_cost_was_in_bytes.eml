@@ -1,0 +1,154 @@
+# Self-authored for the EML case corpus (no external origin). The export
+# endpoint caps a result at ten thousand rows, enforced in the query rather than
+# after it, and there is no way to ask for more. What ten thousand rows weigh is
+# computed below.
+#
+# The cap is enforced where it should be. It is applied as a limit in the SQL
+# rather than by truncating a result the database already materialised, so the
+# database does not do the work either; there is no page-size parameter a caller
+# can raise; the response says it was truncated instead of silently returning
+# less; and a test asserts the count.
+#
+# The cap counts ROWS. Each row carries a document column whose size spans four
+# orders of magnitude, so the same ten thousand rows are twenty megabytes or
+# ninety-five gigabytes depending on which tenant asked.
+#
+# Nothing bounds the response in bytes.
+
+10000 => row_limit
+2 => median_row_kb
+9500 => p99_row_kb
+512000 => response_budget_kb
+0 => limits_on_response_bytes
+0 => callers_who_can_raise_the_row_limit
+12000 => exports_per_day
+41 => exports_that_exceeded_the_budget_last_month
+
+row_limit * median_row_kb => median_response_kb
+row_limit * p99_row_kb => worst_case_response_kb
+int(response_budget_kb * 10000 / worst_case_response_kb) => budget_per_myriad_of_the_worst_case
+int(worst_case_response_kb / median_response_kb) => worst_case_in_multiples_of_the_median
+
+"row limit                       : " + str(row_limit) ^0
+"callers who can raise it        : " + str(callers_who_can_raise_the_row_limit) ^0
+"limits on response bytes        : " + str(limits_on_response_bytes) ^0
+"" ^0
+"median row, KB                  : " + str(median_row_kb) ^0
+"  median response, KB           : " + str(median_response_kb) ^0
+"p99 row, KB                     : " + str(p99_row_kb) ^0
+"  worst case response, KB       : " + str(worst_case_response_kb) ^0
+"  as multiples of the median    : " + str(worst_case_in_multiples_of_the_median) ^0
+"" ^0
+"response budget, KB             : " + str(response_budget_kb) ^0
+"  as a share of the worst case  : " + str(budget_per_myriad_of_the_worst_case) + " per ten thousand" ^0
+"exports per day                 : " + str(exports_per_day) ^0
+"  that exceeded the budget      : " + str(exports_that_exceeded_the_budget_last_month) ^0
+"" ^0
+
+# ---- what the cap verified ----
+
+"the row cap" ^0
+"  applied as : a limit in the query" ^0
+"  so the database materialises : only what is returned" ^0
+"  a page-size parameter a caller can raise : " + str(callers_who_can_raise_the_row_limit) ^0
+"  silent truncation : no; the response says it truncated" ^0
+"  asserted by a test : yes" ^0
+"  verdict : CAPPED" ^0
+"" ^0
+"  pushing the limit into the query rather than truncating" ^0
+"  afterwards is the difference between a cap and a" ^0
+"  politeness, and it is done" ^0
+"" ^0
+
+# ---- what a row costs ----
+
+"the unit counted" ^0
+"  what the cap counts : rows" ^0
+"  what a response costs : bytes, to serialise, to buffer," ^0
+"    to transfer" ^0
+"  what relates them : a document column chosen by the" ^0
+"    tenant" ^0
+"  median row : " + str(median_row_kb) + " KB" ^0
+"  p99 row    : " + str(p99_row_kb) + " KB" ^0
+"  bounds on the second quantity : " + str(limits_on_response_bytes) ^0
+"" ^0
+"  the counted quantity is uniform and the spent one spans" ^0
+"  four orders of magnitude" ^0
+"" ^0
+# ---- why the median tells you nothing ----
+
+# Every load test, every staging run, and every developer's own export lands
+# near the median, because most tenants store small documents. The distribution
+# has a tail and the tail is a tenant, not a request.
+"where the testing lands" ^0
+"  a developer's own export : near the median" ^0
+"  the load test's fixture  : near the median" ^0
+"  staging data             : near the median" ^0
+"  median response, KB      : " + str(median_response_kb) ^0
+"  what selects the tail : which tenant asked, not which" ^0
+"    request" ^0
+"  worst case in multiples of the median : " + str(worst_case_in_multiples_of_the_median) ^0
+"" ^0
+
+# ---- the cap is doing something ----
+
+# Without it a tenant with four million rows would export four million rows, and
+# that is the failure the cap was written for. It works. The failure it was not
+# written for is a tenant with ten thousand large ones.
+"what the cap prevents" ^0
+"  a four million row export : prevented" ^0
+"  was that the observed failure : yes, and it stopped" ^0
+"  a ten thousand row export of large documents : allowed" ^0
+"  is that within the cap : exactly within it" ^0
+"  exports over the budget last month : " + str(exports_that_exceeded_the_budget_last_month) ^0
+"  of " + str(exports_per_day) + " a day" ^0
+"" ^0
+
+# ---- what the error looks like ----
+
+"when it goes wrong" ^0
+"  the query : returns, inside its own timeout" ^0
+"  the row count : exactly " + str(row_limit) + ", as promised" ^0
+"  the serialiser : allocates until the process is killed" ^0
+"  the caller sees : a connection that closed" ^0
+"  the export log records : a request that started" ^0
+"  the row cap metric shows : compliance" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same cap, with the serialiser stopping at a byte budget and the response
+# truncating on whichever bound is reached first.
+1 => nc_limits_on_response_bytes
+response_budget_kb => nc_worst_case_response_kb
+0 => nc_exports_that_exceeded_the_budget
+
+"null control - a byte budget beside the row cap" ^0
+"  row limit : " + str(row_limit) + ", unchanged" ^0
+"  limits on response bytes : " + str(nc_limits_on_response_bytes) ^0
+"  worst case response, KB : " + str(nc_worst_case_response_kb) ^0
+"  exports over the budget : " + str(nc_exports_that_exceeded_the_budget) ^0
+"  the cap did not get lower; a second bound appeared on" ^0
+"  the quantity the response is made of" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a row cap guarantees" ^0
+"  no response contains more than " + str(row_limit) + " rows : exactly," ^0
+"    enforced in the query, with no parameter to raise it" ^0
+"  no response is too large : not addressed; the cap is" ^0
+"    denominated in rows and the resource is denominated" ^0
+"    in bytes" ^0
+"" ^0
+"a bound on a count bounds the count; where each item has a" ^0
+"size the caller controls, the count and the cost are related" ^0
+"by a factor nobody bounded, and the bound that exists is" ^0
+"tightest exactly where it was never needed" ^0
+"" ^0
+
+"The cap is enforced in the query rather than after it, with " + str(callers_who_can_raise_the_row_limit) + " ways for a caller" ^0
+"to raise it and an explicit truncation flag in the response. It counts rows," ^0
+"and a row is " + str(median_row_kb) + " KB at the median and " + str(p99_row_kb) + " at p99, so " + str(row_limit) + " rows are " + str(median_response_kb) ^0
+"KB or " + str(worst_case_response_kb) + " - " + str(worst_case_in_multiples_of_the_median) + " times as much - against a " + str(response_budget_kb) + " KB budget the cap" ^0
+"covers " + str(budget_per_myriad_of_the_worst_case) + " per ten thousand of, with " + str(limits_on_response_bytes) + " bounds on bytes anywhere." ^0
