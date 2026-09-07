@@ -71,7 +71,19 @@ import { dirname, join, relative } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
 const BASELINE = join(here, 'semantic-monitor.baseline.json');
-const LEDGER = join(here, 'semantic-monitor.jsonl');
+// `--ledger <path>` redirects the append-only record. The default is the
+// committed ledger and nothing but an explicit flag changes it: a flag is
+// visible in the invocation and in a process list, where an environment
+// variable would let a misconfigured runner silently divert the record of
+// what ran. It exists because tests/semantic-monitor.test.ts drills this
+// script for real - run, accept-refused, accept - and a drill that writes
+// the real ledger puts eleven lines of rehearsal into the record of what
+// actually happened, on every suite run.
+const ledgerIndex = process.argv.indexOf('--ledger');
+const LEDGER =
+  ledgerIndex !== -1 && process.argv[ledgerIndex + 1]
+    ? process.argv[ledgerIndex + 1]
+    : join(here, 'semantic-monitor.jsonl');
 
 /** EML's own protocol id. Not borrowed from anywhere — see the header note. */
 const LEDGER_PROTO = 'eml-monitor-v1';
