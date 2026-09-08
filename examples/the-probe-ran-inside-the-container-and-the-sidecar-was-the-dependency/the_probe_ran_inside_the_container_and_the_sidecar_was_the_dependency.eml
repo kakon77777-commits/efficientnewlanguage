@@ -1,0 +1,143 @@
+# Self-authored for the EML case corpus (no external origin). The liveness probe
+# executes inside the container, exercises a real code path rather than a static
+# handler, and has restarted forty-one genuinely wedged processes. What it can
+# observe is computed below.
+#
+# The probe is the good kind. It is not a handler that returns 200 unless the
+# process is dead, which restarts nothing that was ever going to fail; it runs a
+# small real query through the same connection pool the request path uses, so a
+# wedged pool is visible; it has a timeout of its own; and it has restarted
+# forty-one processes that were genuinely stuck, each confirmed from the logs.
+#
+# The probe runs INSIDE the application container. Every outbound call the
+# application makes goes through a sidecar proxy in the same pod, and the probe
+# reaches its database through the sidecar too.
+#
+# When the sidecar is the thing that is wedged, the probe fails with it.
+
+41 => processes_restarted_while_genuinely_wedged
+1 => containers_the_probe_runs_inside
+1 => sidecars_in_the_pod
+2 => containers_in_the_pod
+0 => probes_that_run_outside_the_application_container
+0 => probes_targeting_the_sidecar_directly
+9 => sidecar_wedges_last_year
+9 => sidecar_wedges_where_the_probe_also_failed
+0 => sidecar_wedges_the_probe_distinguished
+
+containers_in_the_pod - containers_the_probe_runs_inside => containers_the_probe_does_not_observe
+int(containers_the_probe_runs_inside * 10000 / containers_in_the_pod) => observed_per_myriad
+sidecar_wedges_last_year - sidecar_wedges_the_probe_distinguished => wedges_reported_as_an_application_failure
+
+"processes restarted while wedged: " + str(processes_restarted_while_genuinely_wedged) ^0
+"containers in the pod           : " + str(containers_in_the_pod) ^0
+"  the probe runs inside         : " + str(containers_the_probe_runs_inside) ^0
+"  it does not observe           : " + str(containers_the_probe_does_not_observe) ^0
+"  share observed                : " + str(observed_per_myriad) + " per ten thousand" ^0
+"probes running outside the app container : " + str(probes_that_run_outside_the_application_container) ^0
+"probes targeting the sidecar directly    : " + str(probes_targeting_the_sidecar_directly) ^0
+"" ^0
+"sidecar wedges last year        : " + str(sidecar_wedges_last_year) ^0
+"  where the probe also failed   : " + str(sidecar_wedges_where_the_probe_also_failed) ^0
+"  the probe distinguished       : " + str(sidecar_wedges_the_probe_distinguished) ^0
+"  reported as an app failure    : " + str(wedges_reported_as_an_application_failure) ^0
+"" ^0
+
+# ---- what the probe verified ----
+
+"the liveness probe" ^0
+"  what it is not : a handler returning 200 unless the" ^0
+"    process is dead" ^0
+"  what it runs   : a small real query, through the same" ^0
+"    connection pool the request path uses" ^0
+"  so a wedged pool is : visible" ^0
+"  does it have its own timeout : yes" ^0
+"  processes it restarted while genuinely stuck : " ^0
+"    " + str(processes_restarted_while_genuinely_wedged) + ", each confirmed from the logs" ^0
+"  verdict : EXERCISES A REAL PATH" ^0
+"" ^0
+"  sharing the request path's pool rather than answering" ^0
+"  from a static handler is what makes this probe useful" ^0
+"" ^0
+
+# ---- what it shares with the thing it is testing ----
+
+"the probe's own path" ^0
+"  where it executes : the application container" ^0
+"  how its query leaves the pod : through the sidecar" ^0
+"  which the application also uses : the same one" ^0
+"  so a wedged sidecar affects : both" ^0
+"  containers the probe can report on : " + str(containers_the_probe_runs_inside) + " of " + str(containers_in_the_pod) ^0
+"  probes targeting the sidecar : " + str(probes_targeting_the_sidecar_directly) ^0
+"" ^0
+"  the probe is inside the failure domain it reports on," ^0
+"  which is why it can see a wedged pool and cannot say" ^0
+"  which of two containers is wedged" ^0
+"" ^0
+
+# ---- what the restart does ----
+
+# A failing probe restarts the application container. When the sidecar is the
+# problem the restart is real, fast, and aimed at the wrong container - and the
+# new process fails its first probe for the same reason.
+"the remediation" ^0
+"  what a failed probe restarts : the application" ^0
+"    container" ^0
+"  what was wedged in those " + str(sidecar_wedges_last_year) + " cases : the sidecar" ^0
+"  does the restart clear it : no" ^0
+"  what the new process does : fails its first probe, for" ^0
+"    the same reason" ^0
+"  what that produces : a restart loop attributed to the" ^0
+"    application" ^0
+"  cases the probe distinguished : " + str(sidecar_wedges_the_probe_distinguished) ^0
+"" ^0
+
+# ---- why the incident record says the application ----
+
+"the evidence a responder sees" ^0
+"  probe failures : yes, on the application container" ^0
+"  restarts       : yes, of the application container" ^0
+"  sidecar metrics: exported, on a different dashboard" ^0
+"  a signal that separates them : " + str(probes_that_run_outside_the_application_container) ^0
+"  so the first hypothesis is : the application" ^0
+"  wedges recorded that way : " + str(wedges_reported_as_an_application_failure) + " of " + str(sidecar_wedges_last_year) ^0
+"" ^0
+
+# ---- null control ----
+
+# The same probe, plus one that runs outside the pod and one that targets the
+# sidecar's own admin port, so the two containers can disagree.
+1 => nc_probes_that_run_outside_the_application_container
+1 => nc_probes_targeting_the_sidecar_directly
+sidecar_wedges_last_year => nc_sidecar_wedges_distinguished
+
+"null control - a probe that is not inside the failure" ^0
+"  processes restarted while wedged : " + str(processes_restarted_while_genuinely_wedged) + ", unchanged" ^0
+"  probes outside the application container : " ^0
+"    " + str(nc_probes_that_run_outside_the_application_container) ^0
+"  probes targeting the sidecar : " + str(nc_probes_targeting_the_sidecar_directly) ^0
+"  sidecar wedges distinguished : " + str(nc_sidecar_wedges_distinguished) ^0
+"  the probe did not get better; a second observer appeared" ^0
+"  that does not share the failure" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a real-path liveness probe guarantees" ^0
+"  this process can still do work : exactly, through the" ^0
+"    same pool the request path uses" ^0
+"  this process is the one that is broken : not addressed;" ^0
+"    the probe travels the application's path and reports" ^0
+"    a failure anywhere along it as the application's" ^0
+"" ^0
+"a probe that shares a dependency with the thing it tests" ^0
+"cannot attribute; making it exercise a real path is what" ^0
+"gives it power and is exactly what puts it inside the" ^0
+"failure domain, and the remediation is aimed by the label" ^0
+"" ^0
+
+"The probe runs a real query through the request path's own pool rather than" ^0
+"answering from a static handler, and it has restarted " + str(processes_restarted_while_genuinely_wedged) + " genuinely wedged" ^0
+"processes. It executes in " + str(containers_the_probe_runs_inside) + " of " + str(containers_in_the_pod) + " containers and leaves through the sidecar," ^0
+"so all " + str(sidecar_wedges_last_year) + " sidecar wedges last year failed the probe too - " + str(sidecar_wedges_the_probe_distinguished) + " were" ^0
+"distinguished, and " + str(wedges_reported_as_an_application_failure) + " were recorded as application failures." ^0

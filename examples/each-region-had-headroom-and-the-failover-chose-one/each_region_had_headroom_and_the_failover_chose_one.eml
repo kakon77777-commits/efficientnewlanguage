@@ -1,0 +1,137 @@
+# Self-authored for the EML case corpus (no external origin). Every region runs
+# at sixty percent and the capacity plan requires forty percent headroom in
+# each, checked weekly. What a failover asks for is computed below.
+#
+# The headroom rule is real capacity planning. It is not a number somebody
+# remembered; it is checked weekly against measured peak rather than average,
+# it is enforced by refusing to schedule new load into a region above the line,
+# it has forced two capacity purchases, and every one of the four regions is
+# inside it today.
+#
+# The rule is per REGION. A regional failover moves one region's traffic onto
+# the others, and the headroom that receives it is the headroom of the regions
+# that are left, not of the fleet.
+#
+# The routing policy sends a failed region's traffic to its nearest neighbour.
+
+4 => regions
+60 => utilisation_percent_per_region
+40 => required_headroom_percent
+100 => a_whole_percent
+4 => regions_inside_the_rule
+2 => capacity_purchases_the_rule_forced
+1 => regions_a_failover_sends_traffic_to
+0 => checks_on_the_post_failover_figure
+
+a_whole_percent - utilisation_percent_per_region => actual_headroom_percent
+utilisation_percent_per_region * regions_a_failover_sends_traffic_to => percent_arriving_at_the_neighbour
+utilisation_percent_per_region + percent_arriving_at_the_neighbour => neighbour_utilisation_after_failover
+neighbour_utilisation_after_failover - a_whole_percent => percent_over_capacity
+regions - regions_a_failover_sends_traffic_to => regions_not_receiving_the_traffic
+
+"regions                         : " + str(regions) ^0
+"utilisation per region, percent : " + str(utilisation_percent_per_region) ^0
+"required headroom, percent      : " + str(required_headroom_percent) ^0
+"actual headroom, percent        : " + str(actual_headroom_percent) ^0
+"regions inside the rule         : " + str(regions_inside_the_rule) ^0
+"capacity purchases it forced    : " + str(capacity_purchases_the_rule_forced) ^0
+"" ^0
+"regions a failover sends traffic to : " + str(regions_a_failover_sends_traffic_to) ^0
+"  regions not receiving it      : " + str(regions_not_receiving_the_traffic) ^0
+"  percent arriving there        : " + str(percent_arriving_at_the_neighbour) ^0
+"  its utilisation after         : " + str(neighbour_utilisation_after_failover) ^0
+"  over capacity by, percent     : " + str(percent_over_capacity) ^0
+"checks on the post-failover figure : " + str(checks_on_the_post_failover_figure) ^0
+"" ^0
+
+# ---- what the rule verified ----
+
+"the headroom rule" ^0
+"  measured against : peak, not average" ^0
+"  checked          : weekly" ^0
+"  enforced by      : refusing to schedule new load into a" ^0
+"    region above the line" ^0
+"  capacity purchases it forced : " + str(capacity_purchases_the_rule_forced) ^0
+"  regions inside it today : " + str(regions_inside_the_rule) + " of " + str(regions) ^0
+"  verdict : HEADROOM EXISTS" ^0
+"" ^0
+"  measuring peak rather than average, and refusing new" ^0
+"  load rather than warning, is what makes this a rule" ^0
+"" ^0
+
+# ---- what the rule is per ----
+
+"the unit of the guarantee" ^0
+"  what has " + str(actual_headroom_percent) + " percent spare : each region" ^0
+"  what a failover needs spare : the regions that remain" ^0
+"  how many receive the traffic : " + str(regions_a_failover_sends_traffic_to) + ", by routing policy" ^0
+"  what arrives there : " + str(percent_arriving_at_the_neighbour) + " percent of a region" ^0
+"  what it holds : " + str(actual_headroom_percent) + " percent" ^0
+"  the difference : " + str(percent_over_capacity) + " percent" ^0
+"" ^0
+"  the headroom is real in every region and the arithmetic" ^0
+"  that consumes it adds across regions" ^0
+"" ^0
+
+# ---- the fleet number looks fine ----
+
+# Across four regions there is a hundred and sixty percent of a region spare
+# against sixty percent needing a home. Stated as a fleet total the failover is
+# comfortable, and no traffic is ever routed as a fleet total.
+"the fleet arithmetic" ^0
+"  regions : " + str(regions) ^0
+"  spare per region, percent : " + str(actual_headroom_percent) ^0
+"  traffic needing a home : " + str(utilisation_percent_per_region) + " percent of one region" ^0
+"  is there enough spare in total : comfortably" ^0
+"  is any of it where the traffic goes : " + str(regions_a_failover_sends_traffic_to) + " region's worth" ^0
+"  what routes traffic : a policy, not a total" ^0
+"" ^0
+
+# ---- what the weekly check reads ----
+
+"the weekly check" ^0
+"  what it computes : utilisation and headroom, per region" ^0
+"  is every figure correct : yes" ^0
+"  does it model the loss of a region : " + str(checks_on_the_post_failover_figure) + " times" ^0
+"  what such a model needs : the routing policy, which is" ^0
+"    in a different system" ^0
+"  so the two facts live : apart, and neither is wrong" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same rule, evaluated on the post-failover distribution: each region must
+# hold its own load plus whatever the routing policy would send it.
+regions => nc_regions_receiving_a_share
+0 => nc_percent_over_capacity
+1 => nc_checks_on_the_post_failover_figure
+
+"null control - headroom is checked after the failover" ^0
+"  measured against peak : unchanged" ^0
+"  checks on the post-failover figure : " + str(nc_checks_on_the_post_failover_figure) ^0
+"  regions sharing a failed region's load : " + str(nc_regions_receiving_a_share) ^0
+"  over capacity by, percent : " + str(nc_percent_over_capacity) ^0
+"  no region gained capacity; the rule started being" ^0
+"  evaluated on the state it exists for" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what per-region headroom guarantees" ^0
+"  each region can absorb its own growth : exactly," ^0
+"    measured on peak and enforced by refusal" ^0
+"  the fleet can absorb a region's loss : not addressed;" ^0
+"    the rule is a predicate on one region and a failover" ^0
+"    is a statement about a redistribution" ^0
+"" ^0
+"a per-element margin is consumed by an event that moves load" ^0
+"between elements, so the guarantee holds exactly where it is" ^0
+"stated and the quantity that matters is a sum the rule never" ^0
+"forms" ^0
+"" ^0
+
+"The rule is real capacity planning: measured on peak, checked weekly, enforced" ^0
+"by refusing new load, and it forced " + str(capacity_purchases_the_rule_forced) + " purchases - all " + str(regions_inside_the_rule) + " regions are inside" ^0
+"it. It is stated per region, and the routing policy sends a failed region's" ^0
+str(utilisation_percent_per_region) + " percent to " + str(regions_a_failover_sends_traffic_to) + " neighbour holding " + str(actual_headroom_percent) + " percent spare, which is " + str(percent_over_capacity) ^0
+"percent over, checked " + str(checks_on_the_post_failover_figure) + " times by the weekly review." ^0

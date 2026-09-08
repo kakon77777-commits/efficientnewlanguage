@@ -1,0 +1,141 @@
+# Self-authored for the EML case corpus (no external origin). A change above two
+# hundred lines needs a second approver from another team, enforced in the
+# pipeline, and that review has found twelve real problems. Which changes it
+# sees is computed below.
+#
+# The gate is real change management. It is not a form somebody signs after the
+# fact: the pipeline refuses to deploy without the second approval, the second
+# approver must be outside the authoring team so it is not a colleague nodding,
+# the requirement cannot be waived by the author, and the reviews have found
+# twelve genuine problems in a hundred and forty escalated changes.
+#
+# The threshold is LINES CHANGED. A one-line change to a constant can change
+# behaviour for every user, and a nine-hundred-line rename cannot.
+#
+# Fourteen of last year's seventeen change-caused incidents came from below it.
+
+200 => line_threshold
+8400 => changes_per_year
+1100 => changes_above_the_threshold
+140 => changes_escalated_for_review
+12 => real_problems_the_review_found
+0 => waivers_available_to_the_author
+14 => incidents_from_changes_below_the_threshold
+3 => incidents_from_changes_above_the_threshold
+
+changes_per_year - changes_above_the_threshold => changes_below_the_threshold
+incidents_from_changes_below_the_threshold + incidents_from_changes_above_the_threshold => change_caused_incidents
+int(incidents_from_changes_below_the_threshold * 10000 / change_caused_incidents) => incidents_from_below_per_myriad
+int(changes_above_the_threshold * 10000 / changes_per_year) => reviewed_share_per_myriad
+
+"line threshold                  : " + str(line_threshold) ^0
+"waivers available to the author : " + str(waivers_available_to_the_author) ^0
+"changes escalated for review    : " + str(changes_escalated_for_review) ^0
+"  real problems it found        : " + str(real_problems_the_review_found) ^0
+"" ^0
+"changes per year                : " + str(changes_per_year) ^0
+"  above the threshold           : " + str(changes_above_the_threshold) ^0
+"  below it                      : " + str(changes_below_the_threshold) ^0
+"  share the gate sees           : " + str(reviewed_share_per_myriad) + " per ten thousand" ^0
+"" ^0
+"change-caused incidents         : " + str(change_caused_incidents) ^0
+"  from changes above the threshold : " + str(incidents_from_changes_above_the_threshold) ^0
+"  from changes below it            : " + str(incidents_from_changes_below_the_threshold) ^0
+"  share from below                 : " + str(incidents_from_below_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the gate verified ----
+
+"the approval gate" ^0
+"  signed after the fact : no; the pipeline refuses to" ^0
+"    deploy without it" ^0
+"  who the second approver must be : outside the authoring" ^0
+"    team" ^0
+"  waivable by the author : " + str(waivers_available_to_the_author) ^0
+"  changes escalated : " + str(changes_escalated_for_review) ^0
+"  real problems found : " + str(real_problems_the_review_found) ^0
+"  verdict : ENFORCED, AND IT FINDS THINGS" ^0
+"" ^0
+"  requiring an approver from another team is what stops" ^0
+"  this being a colleague nodding, and it is why the twelve" ^0
+"  are real" ^0
+"" ^0
+
+# ---- what the threshold selects on ----
+
+"the selection rule" ^0
+"  what it measures : lines changed" ^0
+"  what it is used as : a proxy for how much behaviour" ^0
+"    could change" ^0
+"  a one-line change to a constant : below the line, and" ^0
+"    can change behaviour for everyone" ^0
+"  a nine-hundred-line rename : above the line, and cannot" ^0
+"  is the proxy wrong in one direction : it is wrong in" ^0
+"    both" ^0
+"" ^0
+"  the gate is complete over the changes it selects and the" ^0
+"  selection is on a quantity that is easy to count" ^0
+"" ^0
+
+# ---- the fourteen ----
+
+# Every one of them passed review, because none of them needed one. Each was a
+# small edit by someone competent, and small is the property the gate reads.
+"the incidents from below the line" ^0
+"  count : " + str(incidents_from_changes_below_the_threshold) + " of " + str(change_caused_incidents) ^0
+"  did any of them skip a required approval : none" ^0
+"  did any author act carelessly : the reviews after the" ^0
+"    fact say no" ^0
+"  what they had in common : fewer than " + str(line_threshold) + " lines" ^0
+"  what the gate would have to read to see them : what the" ^0
+"    lines do" ^0
+"" ^0
+
+# ---- why a lower threshold is not the fix ----
+
+"lowering the line" ^0
+"  to catch a one-line constant change : the threshold" ^0
+"    must be one line" ^0
+"  changes that would then escalate : " + str(changes_per_year) ^0
+"  approvers available : the same people" ^0
+"  what happens to review quality at that volume : it" ^0
+"    becomes the rubber stamp the rule was written against" ^0
+"  so the threshold is not too high : it is the wrong axis" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same gate, selecting on what the change touches rather than how big it
+# is: a change to a file on the risk register escalates at any size.
+17 => nc_incidents_the_gate_could_have_seen
+1 => nc_axes_the_gate_selects_on
+
+"null control - selection by blast radius, not by size" ^0
+"  second approver from another team : unchanged" ^0
+"  axes the gate selects on : " + str(nc_axes_the_gate_selects_on) + ", and it is not line count" ^0
+"  change-caused incidents the gate could see : " ^0
+"    " + str(nc_incidents_the_gate_could_have_seen) + " of " + str(change_caused_incidents) ^0
+"  the review did not get better; the rule that decides" ^0
+"  which changes reach it stopped counting characters" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a size-triggered approval guarantees" ^0
+"  every large change was reviewed by an outsider :" ^0
+"    exactly, unwaivable, and it found " + str(real_problems_the_review_found) + " real problems" ^0
+"  every risky change was reviewed : not addressed; the" ^0
+"    trigger is a count of lines and risk is a property of" ^0
+"    what they say" ^0
+"" ^0
+"a gate is only as good as the predicate that routes to it," ^0
+"and a predicate chosen for being cheap to evaluate selects" ^0
+"on a proxy; the proxy's errors are not random but sit" ^0
+"exactly where a small edit does something large" ^0
+"" ^0
+
+"The gate is real: the pipeline refuses to deploy without a second approver from" ^0
+"another team, " + str(waivers_available_to_the_author) + " waivers exist, and " + str(changes_escalated_for_review) + " escalations found " + str(real_problems_the_review_found) + " genuine" ^0
+"problems. It triggers on " + str(line_threshold) + " lines changed, so it sees " + str(reviewed_share_per_myriad) + " per ten thousand" ^0
+"of " + str(changes_per_year) + " changes a year, and " + str(incidents_from_changes_below_the_threshold) + " of " + str(change_caused_incidents) + " change-caused incidents -" ^0
+str(incidents_from_below_per_myriad) + " per ten thousand - came from changes too small to reach it." ^0

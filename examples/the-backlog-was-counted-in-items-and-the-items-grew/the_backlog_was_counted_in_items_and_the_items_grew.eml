@@ -1,0 +1,140 @@
+# Self-authored for the EML case corpus (no external origin). The backlog is
+# tracked as a count of unprocessed items, charted daily, and it has been flat
+# for a year. What a flat count means is computed below.
+#
+# Tracking it is better than not, and the chart is honest. The count is taken
+# from the store rather than from the worker's own opinion, it is charted daily
+# so a trend is visible rather than a snapshot, the target was agreed rather
+# than assumed, and the number has genuinely not moved: the backlog held between
+# eleven and thirteen thousand items every week of the year.
+#
+# The count is of ITEMS. An item is a document to be indexed, and the mean
+# document has grown from four kilobytes to thirty-one over the same year,
+# because the product started accepting attachments.
+#
+# The work is in the bytes.
+
+12000 => items_in_the_backlog
+4 => mean_item_kilobytes_a_year_ago
+31 => mean_item_kilobytes_now
+365 => days_charted
+0 => charts_of_the_backlog_in_bytes
+1 => targets_agreed_with_the_business
+0 => alerts_on_the_mean_item_size
+
+items_in_the_backlog * mean_item_kilobytes_a_year_ago => backlog_kilobytes_a_year_ago
+items_in_the_backlog * mean_item_kilobytes_now => backlog_kilobytes_now
+backlog_kilobytes_now - backlog_kilobytes_a_year_ago => kilobytes_added_with_no_change_in_the_count
+int(mean_item_kilobytes_now * 100 / mean_item_kilobytes_a_year_ago) => size_now_as_percent_of_then
+
+"items in the backlog            : " + str(items_in_the_backlog) ^0
+"days charted                    : " + str(days_charted) ^0
+"targets agreed with the business: " + str(targets_agreed_with_the_business) ^0
+"charts of the backlog in bytes  : " + str(charts_of_the_backlog_in_bytes) ^0
+"" ^0
+"mean item, KB a year ago        : " + str(mean_item_kilobytes_a_year_ago) ^0
+"mean item, KB now               : " + str(mean_item_kilobytes_now) ^0
+"  as a percent of then          : " + str(size_now_as_percent_of_then) ^0
+"alerts on the mean item size    : " + str(alerts_on_the_mean_item_size) ^0
+"" ^0
+"backlog KB a year ago           : " + str(backlog_kilobytes_a_year_ago) ^0
+"backlog KB now                  : " + str(backlog_kilobytes_now) ^0
+"  added while the count held flat : " + str(kilobytes_added_with_no_change_in_the_count) ^0
+"" ^0
+
+# ---- what the chart verified ----
+
+"the backlog chart" ^0
+"  where the number comes from : the store, not the" ^0
+"    worker's own opinion" ^0
+"  charted : daily, so a trend is visible rather than a" ^0
+"    snapshot" ^0
+"  target : agreed, not assumed" ^0
+"  days charted : " + str(days_charted) ^0
+"  has the number moved : no; between eleven and thirteen" ^0
+"    thousand every week" ^0
+"  verdict : STABLE, AND HONESTLY MEASURED" ^0
+"" ^0
+"  reading the count from the store rather than from the" ^0
+"  consumer is the difference between a metric and a" ^0
+"  self-report, and it was done" ^0
+"" ^0
+
+# ---- what an item is ----
+
+"the counted unit" ^0
+"  what one item is : a document to be indexed" ^0
+"  what indexing one costs : proportional to its bytes" ^0
+"  mean bytes a year ago : " + str(mean_item_kilobytes_a_year_ago) + " KB" ^0
+"  mean bytes now        : " + str(mean_item_kilobytes_now) + " KB" ^0
+"  why : the product started accepting attachments" ^0
+"  charts in bytes : " + str(charts_of_the_backlog_in_bytes) ^0
+"" ^0
+"  the count is exact and the unit it counts changed size" ^0
+"  underneath it" ^0
+"" ^0
+
+# ---- the flat line is the finding ----
+
+# Holding the count flat while each item grew by a factor means the workers
+# absorbed the growth. The chart records the absence of a change in a number
+# whose stability now costs eight times what it did.
+"what a flat line meant then and now" ^0
+"  a year ago : the workers keep up with the arrival rate" ^0
+"  now        : the workers keep up with an arrival rate" ^0
+"    carrying " + str(size_now_as_percent_of_then) + " percent of the bytes" ^0
+"  did anything about the chart change : no" ^0
+"  did anything about the system change : the work per" ^0
+"    item, by that factor" ^0
+"  bytes added while the line stayed flat : " ^0
+"    " + str(kilobytes_added_with_no_change_in_the_count) + " KB" ^0
+"" ^0
+
+# ---- what the target means now ----
+
+"the agreed target" ^0
+"  what it says : keep the backlog under a count" ^0
+"  when it was agreed : when an item was " + str(mean_item_kilobytes_a_year_ago) + " KB" ^0
+"  what it constrains today : a queue holding " ^0
+"    " + str(backlog_kilobytes_now) + " KB" ^0
+"  was the target renegotiated : it did not appear to need" ^0
+"    renegotiating; the number it names is inside it" ^0
+"  alerts on the quantity that moved : " ^0
+"    " + str(alerts_on_the_mean_item_size) ^0
+"" ^0
+
+# ---- null control ----
+
+# The same chart, with the backlog also plotted in bytes, and the target
+# expressed in the quantity the workers actually spend.
+1 => nc_charts_of_the_backlog_in_bytes
+1 => nc_alerts_on_the_mean_item_size
+
+"null control - plot the backlog in bytes as well" ^0
+"  items in the backlog : " + str(items_in_the_backlog) + ", unchanged and still exact" ^0
+"  charts in bytes : " + str(nc_charts_of_the_backlog_in_bytes) ^0
+"  alerts on the mean item size : " + str(nc_alerts_on_the_mean_item_size) ^0
+"  the count did not become wrong; a second line appeared" ^0
+"  in the unit the work is denominated in" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a flat backlog count guarantees" ^0
+"  the number of unprocessed items is not growing :" ^0
+"    exactly, measured from the store, charted daily for" ^0
+"    " + str(days_charted) + " days" ^0
+"  the backlog is not growing : not addressed; the count" ^0
+"    is in items and the work is in bytes, and nothing" ^0
+"    holds the conversion still" ^0
+"" ^0
+"a count is a measurement only while the thing counted keeps" ^0
+"its size; where the unit can grow, a flat line records that" ^0
+"the growth was absorbed rather than that it did not happen" ^0
+"" ^0
+
+"The chart is honestly built - read from the store rather than the worker, drawn" ^0
+"daily for " + str(days_charted) + " days against an agreed target - and the count has genuinely not" ^0
+"moved. It counts items, and the mean item went from " + str(mean_item_kilobytes_a_year_ago) + " KB to " + str(mean_item_kilobytes_now) + ", " ^0
+str(size_now_as_percent_of_then) + " percent of what it was, so " + str(kilobytes_added_with_no_change_in_the_count) + " KB entered the backlog while the" ^0
+"line stayed flat, under " + str(charts_of_the_backlog_in_bytes) + " charts in bytes and " + str(alerts_on_the_mean_item_size) + " alerts on the size." ^0

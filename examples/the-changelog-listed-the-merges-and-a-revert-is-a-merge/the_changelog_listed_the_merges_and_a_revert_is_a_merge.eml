@@ -1,0 +1,144 @@
+# Self-authored for the EML case corpus (no external origin). The changelog is
+# generated from merged pull requests rather than written by hand, so nothing
+# that shipped is missing from it. What "shipped" means to the generator is
+# computed below.
+#
+# Generating it was the right call. A hand-written changelog omits whatever the
+# author forgot, which is reliably the small fix that mattered to one customer;
+# this one is built from the merge commits themselves, groups by the label on
+# the pull request, links each entry to its diff, and it has not missed an entry
+# since it replaced the hand-written file two years ago.
+#
+# The generator's population is MERGES. A revert is a merge, so a change that
+# shipped and was taken back appears as two entries, and a change that was
+# reverted and re-landed appears as three.
+#
+# Forty-one of last year's entries describe work that is not in the product.
+
+1240 => entries_last_year
+41 => entries_describing_reverted_work
+2 => years_since_the_handwritten_file
+0 => entries_missed_since_then
+0 => entries_marked_as_reverted
+0 => generator_steps_that_read_the_revert_relation
+1 => populations_the_generator_ranges_over
+
+entries_last_year - entries_describing_reverted_work => entries_describing_shipped_work
+int(entries_describing_reverted_work * 10000 / entries_last_year) => stale_entries_per_myriad
+
+"entries last year               : " + str(entries_last_year) ^0
+"  describing work in the product: " + str(entries_describing_shipped_work) ^0
+"  describing reverted work      : " + str(entries_describing_reverted_work) ^0
+"  share                         : " + str(stale_entries_per_myriad) + " per ten thousand" ^0
+"  marked as reverted            : " + str(entries_marked_as_reverted) ^0
+"" ^0
+"years since the hand-written file : " + str(years_since_the_handwritten_file) ^0
+"entries missed since then         : " + str(entries_missed_since_then) ^0
+"populations the generator ranges over : " + str(populations_the_generator_ranges_over) ^0
+"generator steps reading the revert relation : " ^0
+"  " + str(generator_steps_that_read_the_revert_relation) ^0
+"" ^0
+
+# ---- what generating it verified ----
+
+"the generated changelog" ^0
+"  what a hand-written one omits : whatever the author" ^0
+"    forgot, reliably the small fix one customer needed" ^0
+"  what this is built from : the merge commits themselves" ^0
+"  grouping : by the label on the pull request" ^0
+"  each entry links to : its diff" ^0
+"  entries missed in " + str(years_since_the_handwritten_file) + " years : " + str(entries_missed_since_then) ^0
+"  verdict : NOTHING THAT MERGED IS MISSING" ^0
+"" ^0
+"  building it from the merges rather than from memory is" ^0
+"  the whole improvement, and the zero is real" ^0
+"" ^0
+
+# ---- what the population is ----
+
+"the generator's input" ^0
+"  what it enumerates : merges" ^0
+"  what a revert is : a merge" ^0
+"  what a re-land after a revert is : a third merge" ^0
+"  does the generator know which is which : it reads the" ^0
+"    title and the label, not the relation" ^0
+"  steps that read the revert relation : " ^0
+"    " + str(generator_steps_that_read_the_revert_relation) ^0
+"  entries describing work that is not there : " ^0
+"    " + str(entries_describing_reverted_work) ^0
+"" ^0
+"  the completeness claim is exact and it is a claim about" ^0
+"  merges, which is not the noun in the document's title" ^0
+"" ^0
+
+# ---- who reads it ----
+
+# A customer reading the release notes for a version takes each line as a
+# statement about what the product does. A support engineer searching it for a
+# fix finds the entry, quotes the version, and the fix is not there.
+"one stale entry" ^0
+"  what it says : this was fixed in this version" ^0
+"  was it merged in that version : yes" ^0
+"  was it reverted before the release : yes" ^0
+"  is there a second entry saying so : yes, worded as a" ^0
+"    change of its own" ^0
+"  do the two link to each other : " ^0
+"    " + str(entries_marked_as_reverted) + " entries carry the relation" ^0
+"  what a reader does with two unrelated lines : reads two" ^0
+"    changes" ^0
+"" ^0
+
+# ---- the revert is honest ----
+
+# Nobody hid anything. The revert was merged openly, with a title saying what
+# it reverted, and it appears in the changelog exactly as the generator was
+# built to make things appear.
+"the revert itself" ^0
+"  merged openly : yes" ^0
+"  titled as a revert : yes" ^0
+"  present in the changelog : yes, as an entry" ^0
+"  is the generator misreporting it : no" ^0
+"  is either entry false : no" ^0
+"  is their conjunction what a reader takes away : no" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same generator, resolving the revert relation: a reverted change and its
+# revert cancel, and a re-land restores one entry rather than adding a third.
+0 => nc_entries_describing_reverted_work
+1 => nc_generator_steps_that_read_the_revert_relation
+entries_describing_shipped_work => nc_entries_last_year
+
+"null control - the generator resolves reverts" ^0
+"  entries missed : " + str(entries_missed_since_then) + ", unchanged" ^0
+"  steps reading the revert relation : " ^0
+"    " + str(nc_generator_steps_that_read_the_revert_relation) ^0
+"  entries describing reverted work : " ^0
+"    " + str(nc_entries_describing_reverted_work) ^0
+"  entries last year : " + str(nc_entries_last_year) + ", down from " + str(entries_last_year) ^0
+"  the changelog did not lose anything; the count fell" ^0
+"  because it had been reporting a change and its undoing" ^0
+"  as two changes" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a generated changelog guarantees" ^0
+"  everything that merged appears : exactly, for " ^0
+"    " + str(years_since_the_handwritten_file) + " years, which a hand-written file never managed" ^0
+"  everything that appears is in the product : not" ^0
+"    addressed; the generator enumerates merges and the" ^0
+"    product is a state" ^0
+"" ^0
+"generating a document from an event log makes it complete" ^0
+"over events and silent about their composition; a change and" ^0
+"its reversal are two events and no change at all, and" ^0
+"nothing in the log says which pairs cancel" ^0
+"" ^0
+
+"Generating it from the merges rather than by hand is the right call and it has" ^0
+"missed " + str(entries_missed_since_then) + " entries in " + str(years_since_the_handwritten_file) + " years, grouped by label with a link to every diff." ^0
+"Its population is merges and a revert is a merge, so " + str(entries_describing_reverted_work) + " of " + str(entries_last_year) + " entries -" ^0
+str(stale_entries_per_myriad) + " per ten thousand - describe work that is not in the product, " + str(entries_marked_as_reverted) ^0
+"of them marked as such." ^0

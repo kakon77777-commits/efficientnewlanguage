@@ -1,0 +1,148 @@
+# Self-authored for the EML case corpus (no external origin). Capacity is
+# planned from seats sold, the model was fitted against two years of measured
+# load, and it has predicted the last six months within four percent. What a
+# seat is a proxy for is computed below.
+#
+# The planning model is properly built. It is not a spreadsheet of guesses: it
+# was fitted against two years of measured load rather than assumed to be
+# linear, it carries an explicit error bar, it is re-fitted quarterly against
+# what actually happened, and over the last six months it predicted peak load
+# within four percent. Capacity has been bought on it twice and both purchases
+# were the right size.
+#
+# The input is SEATS SOLD. A seat is a person with a licence, and load arrives
+# as concurrent sessions, which is people times devices times tabs.
+#
+# The mean seat opened 1.0 sessions two years ago and opens 2.7 now.
+
+10 => sessions_per_seat_then_tenths
+27 => sessions_per_seat_now_tenths
+10 => tenths_per_whole
+41000 => seats_sold
+4 => prediction_error_percent
+2 => years_the_model_was_fitted_over
+2 => capacity_purchases_made_on_it
+0 => inputs_to_the_model_measured_in_sessions
+0 => alerts_on_sessions_per_seat
+
+int(seats_sold * sessions_per_seat_then_tenths / tenths_per_whole) => sessions_the_model_was_fitted_on
+int(seats_sold * sessions_per_seat_now_tenths / tenths_per_whole) => sessions_now
+sessions_now - sessions_the_model_was_fitted_on => sessions_added_with_no_change_in_seats
+int(sessions_per_seat_now_tenths * 100 / sessions_per_seat_then_tenths) => sessions_per_seat_now_as_percent
+
+"seats sold                      : " + str(seats_sold) ^0
+"prediction error, percent       : " + str(prediction_error_percent) ^0
+"years the model was fitted over : " + str(years_the_model_was_fitted_over) ^0
+"capacity purchases made on it   : " + str(capacity_purchases_made_on_it) ^0
+"" ^0
+"sessions per seat then, tenths  : " + str(sessions_per_seat_then_tenths) ^0
+"sessions per seat now, tenths   : " + str(sessions_per_seat_now_tenths) ^0
+"  as a percent of then          : " + str(sessions_per_seat_now_as_percent) ^0
+"" ^0
+"sessions at the fitted rate     : " + str(sessions_the_model_was_fitted_on) ^0
+"sessions now                    : " + str(sessions_now) ^0
+"  added with no change in seats : " + str(sessions_added_with_no_change_in_seats) ^0
+"inputs measured in sessions     : " + str(inputs_to_the_model_measured_in_sessions) ^0
+"alerts on sessions per seat     : " + str(alerts_on_sessions_per_seat) ^0
+"" ^0
+
+# ---- what the model verified ----
+
+"the capacity model" ^0
+"  fitted against : " + str(years_the_model_was_fitted_over) + " years of measured load, not assumed" ^0
+"    to be linear" ^0
+"  carries an error bar : yes, explicit" ^0
+"  re-fitted : quarterly, against what happened" ^0
+"  prediction error over six months : " + str(prediction_error_percent) + " percent" ^0
+"  capacity purchases made on it : " + str(capacity_purchases_made_on_it) + ", both right-sized" ^0
+"  verdict : ACCURATE" ^0
+"" ^0
+"  re-fitting quarterly against outcomes rather than" ^0
+"  defending the original curve is the discipline that" ^0
+"  makes this model trustworthy, and it is followed" ^0
+"" ^0
+
+# ---- what the input is ----
+
+"the model's variable" ^0
+"  what it takes : seats sold" ^0
+"  what a seat is : a person with a licence" ^0
+"  what load is : concurrent sessions" ^0
+"  what relates them : people times devices times tabs" ^0
+"  is that ratio in the model : as a fitted constant" ^0
+"  inputs measured in sessions : " ^0
+"    " + str(inputs_to_the_model_measured_in_sessions) ^0
+"" ^0
+"  the model is accurate about the quantity it was fitted" ^0
+"  on and the conversion to the quantity that costs money" ^0
+"  is a constant somebody measured once" ^0
+"" ^0
+
+# ---- the constant moved ----
+
+# Two years ago a seat meant one session. Now it means two point seven, because
+# the product shipped a phone client and people keep a tab open at home. Nobody
+# changed the model; the world changed the coefficient it hard-codes.
+"the coefficient" ^0
+"  sessions per seat when fitted : " + str(sessions_per_seat_then_tenths) + " tenths" ^0
+"  sessions per seat now         : " + str(sessions_per_seat_now_tenths) + " tenths" ^0
+"  what changed : a phone client shipped and people leave" ^0
+"    a tab open at home" ^0
+"  did anyone edit the model : no" ^0
+"  did the quarterly re-fit absorb it : yes, which is why" ^0
+"    the predictions stayed good" ^0
+"  alerts on the coefficient itself : " ^0
+"    " + str(alerts_on_sessions_per_seat) ^0
+"" ^0
+
+# ---- why the accuracy is not the reassurance ----
+
+"what the four percent means" ^0
+"  what the model predicts : load, from seats" ^0
+"  is that prediction good : yes, within " + str(prediction_error_percent) + " percent" ^0
+"  what makes it good : quarterly re-fitting" ^0
+"  what re-fitting does : moves the coefficient after the" ^0
+"    load has already arrived" ^0
+"  so the model is : accurate about the past quarter" ^0
+"  what a sales forecast in seats implies about next year :" ^0
+"    a number computed with today's coefficient" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same model, taking sessions as its input and seats as a driver of
+# sessions, so the coefficient is a variable with its own trend and its own
+# alert rather than a constant that re-fitting quietly absorbs.
+1 => nc_inputs_to_the_model_measured_in_sessions
+1 => nc_alerts_on_sessions_per_seat
+
+"null control - sessions are an input, not a constant" ^0
+"  prediction error : " + str(prediction_error_percent) + " percent, unchanged" ^0
+"  inputs measured in sessions : " ^0
+"    " + str(nc_inputs_to_the_model_measured_in_sessions) ^0
+"  alerts on sessions per seat : " + str(nc_alerts_on_sessions_per_seat) ^0
+"  the model did not get more accurate; the quantity that" ^0
+"  had been moving under it became a thing with a trend" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what an accurate capacity model guarantees" ^0
+"  load can be predicted from seats, today : exactly," ^0
+"    within " + str(prediction_error_percent) + " percent, re-fitted quarterly" ^0
+"  seats predict load : not addressed; the model converts" ^0
+"    between two units by a coefficient it does not" ^0
+"    measure, and re-fitting hides that the coefficient is" ^0
+"    what moved" ^0
+"" ^0
+"a model stated in one unit and paid for in another is only" ^0
+"as stable as the conversion between them; re-fitting keeps" ^0
+"the predictions right and removes the evidence that the" ^0
+"relationship changed, which is the thing a plan is about" ^0
+"" ^0
+
+"The model was fitted against " + str(years_the_model_was_fitted_over) + " years of measured load, carries an error bar," ^0
+"is re-fitted quarterly, and predicted six months within " + str(prediction_error_percent) + " percent across " ^0
+str(capacity_purchases_made_on_it) + " right-sized purchases. Its input is seats and the load is sessions, and a" ^0
+"seat went from " + str(sessions_per_seat_then_tenths) + " to " + str(sessions_per_seat_now_tenths) + " tenths of a session - " + str(sessions_per_seat_now_as_percent) + " percent - so " ^0
+str(seats_sold) + " seats now carry " + str(sessions_added_with_no_change_in_seats) + " more sessions under " + str(alerts_on_sessions_per_seat) + " alerts." ^0
