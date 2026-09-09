@@ -1,0 +1,140 @@
+# Self-authored for the EML case corpus (no external origin). The daily
+# reconciliation between the processor's settlement file and the internal ledger
+# has balanced to the cent every day for four years. What balancing consists of
+# is computed below.
+#
+# The control is genuine. The reconciliation is run by a team that does not
+# report to the one that books the transactions; two people sign every day; the
+# match is to the cent rather than to a tolerance; and a day that does not
+# balance stops the close rather than being carried forward.
+#
+# A line that cannot be matched is posted to a suspense account, and suspense is
+# a ledger account like any other. Debits equal credits afterwards because the
+# posting is what makes them equal.
+
+214000 => settlement_lines_a_day
+213400 => lines_matched_automatically
+308 => lines_matched_by_hand
+292 => lines_posted_to_suspense
+1461 => days_balanced_in_four_years
+0 => days_that_did_not_balance
+2 => signatures_a_day
+21 => working_days_a_month
+900 => suspense_lines_cleared_a_month
+148000 => suspense_lines_open
+121000 => suspense_lines_older_than_ninety_days
+0 => reports_that_carry_the_suspense_balance
+
+settlement_lines_a_day - lines_matched_automatically => lines_not_matched_automatically
+lines_not_matched_automatically - lines_matched_by_hand => lines_left_for_suspense
+lines_posted_to_suspense * working_days_a_month => suspense_lines_arriving_a_month
+suspense_lines_arriving_a_month - suspense_lines_cleared_a_month => suspense_lines_added_a_month
+suspense_lines_open - suspense_lines_older_than_ninety_days => suspense_lines_under_ninety_days
+int(lines_matched_automatically * 10000 / settlement_lines_a_day) => auto_matched_per_myriad
+int(lines_posted_to_suspense * 10000 / settlement_lines_a_day) => posted_to_suspense_per_myriad
+int(suspense_lines_older_than_ninety_days * 10000 / suspense_lines_open) => aged_share_per_myriad
+
+"settlement lines a day          : " + str(settlement_lines_a_day) ^0
+"  matched automatically         : " + str(lines_matched_automatically) ^0
+"  matched by hand               : " + str(lines_matched_by_hand) ^0
+"  posted to suspense            : " + str(lines_posted_to_suspense) ^0
+"  left for suspense, by subtraction : " + str(lines_left_for_suspense) ^0
+"  auto-matched                  : " + str(auto_matched_per_myriad) + " per ten thousand" ^0
+"  to suspense                   : " + str(posted_to_suspense_per_myriad) + " per ten thousand" ^0
+"" ^0
+"days balanced in four years     : " + str(days_balanced_in_four_years) ^0
+"days that did not balance       : " + str(days_that_did_not_balance) ^0
+"signatures a day                : " + str(signatures_a_day) ^0
+"" ^0
+"suspense lines arriving a month : " + str(suspense_lines_arriving_a_month) ^0
+"  cleared a month               : " + str(suspense_lines_cleared_a_month) ^0
+"  added a month                 : " + str(suspense_lines_added_a_month) ^0
+"suspense lines open             : " + str(suspense_lines_open) ^0
+"  older than ninety days        : " + str(suspense_lines_older_than_ninety_days) ^0
+"  under ninety days             : " + str(suspense_lines_under_ninety_days) ^0
+"  aged share                    : " + str(aged_share_per_myriad) + " per ten thousand" ^0
+"reports carrying the balance    : " + str(reports_that_carry_the_suspense_balance) ^0
+"" ^0
+
+# ---- what the reconciliation verified ----
+
+"the daily reconciliation" ^0
+"  who runs it : a team that does not report to the one" ^0
+"    that books the transactions" ^0
+"  signatures : " + str(signatures_a_day) + ", every day" ^0
+"  tolerance : none; the match is to the cent" ^0
+"  a day that does not balance : stops the close rather" ^0
+"    than being carried forward" ^0
+"  days balanced : " + str(days_balanced_in_four_years) + " of " + str(days_balanced_in_four_years) ^0
+"  verdict : BALANCED" ^0
+"" ^0
+"  giving it to an independent team is the part almost" ^0
+"  nobody does, and it is why the " + str(days_that_did_not_balance) + " is worth reading" ^0
+"" ^0
+
+# ---- why the identity always holds ----
+
+"what balancing means here" ^0
+"  the claim : debits equal credits" ^0
+"  what happens to a line that will not match : it is" ^0
+"    posted to suspense" ^0
+"  is suspense a ledger account : yes, like any other" ^0
+"  so after the posting : debits equal credits" ^0
+"  what could make them differ : a line left unposted," ^0
+"    which the close does not permit" ^0
+"" ^0
+"  the residual has somewhere to go, and the place it goes" ^0
+"  is inside the sum being checked" ^0
+"" ^0
+
+# ---- what is in suspense ----
+
+"the suspense account" ^0
+"  lines open : " + str(suspense_lines_open) ^0
+"  older than ninety days : " + str(suspense_lines_older_than_ninety_days) + ", or " + str(aged_share_per_myriad) + " per ten" ^0
+"    thousand of the account" ^0
+"  arriving a month : " + str(suspense_lines_arriving_a_month) ^0
+"  cleared a month : " + str(suspense_lines_cleared_a_month) ^0
+"  so added a month : " + str(suspense_lines_added_a_month) ^0
+"  reports on which the balance appears : " + str(reports_that_carry_the_suspense_balance) ^0
+"" ^0
+"  the number that is free to move is the one the daily" ^0
+"  report does not carry" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same reconciliation, with the suspense balance and its ageing printed on
+# the same page as the word balanced.
+1461 => nc_days_balanced
+148000 => nc_suspense_lines_shown_on_the_report
+121000 => nc_aged_lines_shown_on_the_report
+
+"null control - print suspense beside the balance" ^0
+"  days balanced : " + str(nc_days_balanced) + ", unchanged" ^0
+"  suspense lines shown : " + str(nc_suspense_lines_shown_on_the_report) ^0
+"  of those, aged past ninety days : " + str(nc_aged_lines_shown_on_the_report) ^0
+"  the reconciliation did not weaken; the account that" ^0
+"  absorbs the residual stopped being off the page" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a ledger that balances guarantees" ^0
+"  debits equal credits : exactly, to the cent, " + str(days_balanced_in_four_years) + " days," ^0
+"    " + str(signatures_a_day) + " signatures, an independent team" ^0
+"  every transaction was understood : not addressed; a" ^0
+"    line nobody could explain becomes a balanced entry" ^0
+"    by being posted to suspense" ^0
+"" ^0
+"an identity that a posting restores is restored by the" ^0
+"posting; what it cost is the size and the age of the" ^0
+"account that took the difference, and the daily report" ^0
+"does not carry either" ^0
+"" ^0
+
+"An independent team signs the reconciliation twice a day, matching to the cent" ^0
+"with no tolerance, and " + str(days_balanced_in_four_years) + " days have balanced with " + str(days_that_did_not_balance) + " exceptions. Unmatched" ^0
+"lines are posted to suspense, which is inside the sum, so " + str(suspense_lines_arriving_a_month) + " arrive and " + str(suspense_lines_cleared_a_month) ^0
+"clear each month - " + str(suspense_lines_open) + " open, " + str(aged_share_per_myriad) + " per ten thousand of them past ninety days -" ^0
+"across " + str(reports_that_carry_the_suspense_balance) + " reports that say so." ^0

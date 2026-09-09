@@ -1,0 +1,152 @@
+# Self-authored for the EML case corpus (no external origin). The regional
+# failover is drilled every quarter with real traffic, timed end to end, and the
+# recovery time has been under half an hour every time. When the drills happen
+# is computed below.
+#
+# The drill is not a tabletop. Traffic is actually shifted to the secondary
+# region and served from it for an hour; the primary is actually made
+# unreachable rather than politely drained; the clock runs from the moment the
+# first alert fires to the moment error rates return to baseline; and a drill
+# that misses the target is a finding rather than a rounding.
+#
+# Every drill so far has begun on a weekday afternoon with the team assembled.
+# The event it stands in for does not choose its hour.
+
+16 => drills_run
+4 => years_of_drills
+22 => mean_drill_recovery_minutes
+9 => engineers_in_the_room_during_a_drill
+2 => engineers_reachable_at_0340_on_a_holiday
+31 => steps_in_the_failover_runbook
+6 => steps_that_require_a_second_approver
+2 => approvers_a_two_approver_step_needs
+1 => approvers_on_the_rota_at_night
+4 => decisions_the_runbook_leaves_to_judgement
+1 => real_failovers
+96 => real_failover_minutes
+0 => drills_begun_outside_working_hours
+
+engineers_in_the_room_during_a_drill - engineers_reachable_at_0340_on_a_holiday => engineers_the_drill_had_and_the_night_does_not
+steps_in_the_failover_runbook - steps_that_require_a_second_approver => steps_one_person_can_take
+# Approvers minus approvers. The earlier form here subtracted approvers from
+# steps, which is not a quantity: a step needing two people does not become
+# fractionally unblocked by one of them being awake. Every such step waits, and
+# what is short is a person.
+approvers_a_two_approver_step_needs - approvers_on_the_rota_at_night => approvers_short_at_night
+steps_that_require_a_second_approver => steps_that_wait_at_night
+real_failover_minutes - mean_drill_recovery_minutes => minutes_the_real_one_took_beyond_the_drill
+int(real_failover_minutes * 10000 / mean_drill_recovery_minutes) => real_against_drill_per_myriad
+int(engineers_reachable_at_0340_on_a_holiday * 10000 / engineers_in_the_room_during_a_drill) => roster_present_at_night_per_myriad
+int(steps_that_require_a_second_approver * 10000 / steps_in_the_failover_runbook) => steps_needing_two_per_myriad
+
+"drills run                      : " + str(drills_run) ^0
+"  years of drills               : " + str(years_of_drills) ^0
+"  begun outside working hours   : " + str(drills_begun_outside_working_hours) ^0
+"  mean recovery, minutes        : " + str(mean_drill_recovery_minutes) ^0
+"" ^0
+"engineers in the room, a drill  : " + str(engineers_in_the_room_during_a_drill) ^0
+"  reachable at 0340 on a holiday: " + str(engineers_reachable_at_0340_on_a_holiday) ^0
+"  the difference                : " + str(engineers_the_drill_had_and_the_night_does_not) ^0
+"  roster present at night       : " + str(roster_present_at_night_per_myriad) + " per ten thousand" ^0
+"" ^0
+"steps in the failover runbook   : " + str(steps_in_the_failover_runbook) ^0
+"  needing a second approver     : " + str(steps_that_require_a_second_approver) ^0
+"  share needing two             : " + str(steps_needing_two_per_myriad) + " per ten thousand" ^0
+"  approvers on the night rota   : " + str(approvers_on_the_rota_at_night) ^0
+"  approvers such a step needs   : " + str(approvers_a_two_approver_step_needs) ^0
+"  approvers short at night      : " + str(approvers_short_at_night) ^0
+"  steps that wait at night      : " + str(steps_that_wait_at_night) ^0
+"  one person can take           : " + str(steps_one_person_can_take) ^0
+"decisions left to judgement     : " + str(decisions_the_runbook_leaves_to_judgement) ^0
+"" ^0
+"real failovers                  : " + str(real_failovers) ^0
+"  minutes                       : " + str(real_failover_minutes) ^0
+"  beyond the drill mean         : " + str(minutes_the_real_one_took_beyond_the_drill) ^0
+"  against the drill             : " + str(real_against_drill_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the drill verified ----
+
+"the failover drill" ^0
+"  traffic : actually shifted and served from the" ^0
+"    secondary for an hour" ^0
+"  the primary : actually made unreachable, not drained" ^0
+"  the clock : from the first alert to error rates back" ^0
+"    at baseline" ^0
+"  a miss : recorded as a finding, not rounded" ^0
+"  runs : " + str(drills_run) + " over " + str(years_of_drills) + " years, mean " + str(mean_drill_recovery_minutes) + " minutes" ^0
+"  verdict : RECOVERS" ^0
+"" ^0
+"  making the primary genuinely unreachable rather than" ^0
+"  draining it is the part almost nobody does, and it is" ^0
+"  why the " + str(mean_drill_recovery_minutes) + " minutes are a measurement" ^0
+"" ^0
+
+# ---- what the drill held constant ----
+
+"the conditions every drill shared" ^0
+"  the hour : a weekday afternoon, " + str(drills_run) + " times out of " + str(drills_run) ^0
+"  who was present : " + str(engineers_in_the_room_during_a_drill) + ", in one room" ^0
+"  approvals : available immediately, in person" ^0
+"  the " + str(decisions_the_runbook_leaves_to_judgement) + " judgement calls : made by whoever knew" ^0
+"    most, without waiting" ^0
+"  drills begun outside those conditions : " ^0
+"    " + str(drills_begun_outside_working_hours) ^0
+"" ^0
+"  the system was varied and the people were not; the" ^0
+"  runbook's slowest steps are the ones with a person in" ^0
+"  them" ^0
+"" ^0
+
+# ---- what the night has instead ----
+
+"the same runbook at 0340 on a holiday" ^0
+"  engineers reachable : " + str(engineers_reachable_at_0340_on_a_holiday) ^0
+"  steps needing a second approver : " ^0
+"    " + str(steps_that_require_a_second_approver) ^0
+"  approvers on the rota : " + str(approvers_on_the_rota_at_night) ^0
+"  approvers short of what a step needs : " ^0
+"    " + str(approvers_short_at_night) ^0
+"  so steps that wait for somebody to wake : " ^0
+"    " + str(steps_that_wait_at_night) + ", all of them" ^0
+"  judgement calls, with the person who knew most asleep :" ^0
+"    " + str(decisions_the_runbook_leaves_to_judgement) ^0
+"  what the one real event took : " + str(real_failover_minutes) + " minutes" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same drill, one of the sixteen begun unannounced at 0300 on a holiday.
+1 => nc_drills_begun_outside_working_hours
+96 => nc_minutes_that_drill_took
+16 => nc_drills_run
+
+"null control - begin one drill unannounced, at night" ^0
+"  drills run : " + str(nc_drills_run) + ", unchanged" ^0
+"  begun outside working hours : " + str(nc_drills_begun_outside_working_hours) ^0
+"  minutes that one took : " + str(nc_minutes_that_drill_took) ^0
+"  the failover did not get slower; the condition the" ^0
+"  drills had all shared was allowed to vary" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what sixteen clean drills guarantee" ^0
+"  the failover completes with the team assembled :" ^0
+"    exactly, real traffic, real unreachability, mean" ^0
+"    " + str(mean_drill_recovery_minutes) + " minutes, " + str(years_of_drills) + " years" ^0
+"  the failover completes : not addressed; " + str(steps_that_wait_at_night) + " steps wait" ^0
+"    for an approver who is not on the rota and " ^0
+"    " + str(decisions_the_runbook_leaves_to_judgement) + " decisions wait for a person" ^0
+"" ^0
+"a rehearsal varies what it was built to vary; holding the" ^0
+"hour and the room constant across every run makes them one" ^0
+"observation repeated, and the untested variable is the one" ^0
+"the real event chooses" ^0
+"" ^0
+
+"Traffic is really shifted, the primary is really made unreachable, the clock" ^0
+"runs to baseline, and " + str(drills_run) + " drills over " + str(years_of_drills) + " years average " + str(mean_drill_recovery_minutes) + " minutes. All " + str(drills_run) ^0
+"began on a weekday afternoon with " + str(engineers_in_the_room_during_a_drill) + " people in a room, against " + str(engineers_reachable_at_0340_on_a_holiday) + " reachable at" ^0
+"0340 on a holiday, " + str(steps_that_wait_at_night) + " steps waiting for an absent approver - and the one real" ^0
+"failover took " + str(real_failover_minutes) + " minutes, " + str(real_against_drill_per_myriad) + " per ten thousand of the drill mean." ^0

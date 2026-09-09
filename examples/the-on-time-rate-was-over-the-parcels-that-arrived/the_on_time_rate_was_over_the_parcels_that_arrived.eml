@@ -1,0 +1,127 @@
+# Self-authored for the EML case corpus (no external origin). On-time delivery
+# has been measured the same way for five years, from a scan taken at the
+# customer's door, against a promise the customers themselves agreed. What a
+# delivery is is computed below.
+#
+# The measurement is honest. The timestamp comes from the handheld scanned at
+# the door rather than the driver's phone at the kerb; the promise is in the
+# customer's local time, not the depot's; the definition was written with the
+# customers and has not been changed to flatter a quarter; and it is audited
+# quarterly against the carrier's own records.
+#
+# A delivery exists when a parcel is scanned as delivered. A parcel that is lost
+# is not a late delivery; it is not a delivery.
+
+2460000 => parcels_accepted_a_month
+2431000 => parcels_scanned_as_delivered
+2392000 => deliveries_inside_the_promise
+4100 => parcels_lost_or_destroyed
+18600 => parcels_returned_to_sender
+6300 => parcels_still_in_the_network_past_the_promise
+5 => years_measured_the_same_way
+20 => quarterly_audits_passed
+0 => parcels_without_a_delivery_scan_in_the_denominator
+
+parcels_scanned_as_delivered - deliveries_inside_the_promise => deliveries_outside_the_promise
+parcels_accepted_a_month - parcels_scanned_as_delivered => parcels_that_never_became_a_delivery
+parcels_lost_or_destroyed + parcels_returned_to_sender => parcels_accounted_for_without_arriving
+parcels_accounted_for_without_arriving + parcels_still_in_the_network_past_the_promise => parcels_absent_from_the_denominator
+int(deliveries_inside_the_promise * 10000 / parcels_scanned_as_delivered) => on_time_over_deliveries_myriad
+int(deliveries_inside_the_promise * 10000 / parcels_accepted_a_month) => on_time_over_acceptances_myriad
+on_time_over_deliveries_myriad - on_time_over_acceptances_myriad => the_distance_between_the_two_myriad
+
+"parcels accepted a month        : " + str(parcels_accepted_a_month) ^0
+"  scanned as delivered          : " + str(parcels_scanned_as_delivered) ^0
+"  inside the promise            : " + str(deliveries_inside_the_promise) ^0
+"  outside it                    : " + str(deliveries_outside_the_promise) ^0
+"years measured the same way     : " + str(years_measured_the_same_way) ^0
+"quarterly audits passed         : " + str(quarterly_audits_passed) ^0
+"" ^0
+"on time, over deliveries        : " + str(on_time_over_deliveries_myriad) + " per ten thousand" ^0
+"on time, over acceptances       : " + str(on_time_over_acceptances_myriad) + " per ten thousand" ^0
+"  distance between the two      : " + str(the_distance_between_the_two_myriad) + " per ten thousand" ^0
+"" ^0
+"parcels that never became a delivery : " + str(parcels_that_never_became_a_delivery) ^0
+"  lost or destroyed             : " + str(parcels_lost_or_destroyed) ^0
+"  returned to sender            : " + str(parcels_returned_to_sender) ^0
+"  still in the network          : " + str(parcels_still_in_the_network_past_the_promise) ^0
+"  in the denominator            : " + str(parcels_without_a_delivery_scan_in_the_denominator) ^0
+"" ^0
+
+# ---- what the measurement verified ----
+
+"the on-time measurement" ^0
+"  timestamp : the handheld scanned at the door, not the" ^0
+"    driver's phone at the kerb" ^0
+"  clock : the customer's local time, not the depot's" ^0
+"  definition : written with the customers, unchanged for" ^0
+"    " + str(years_measured_the_same_way) + " years" ^0
+"  audits against the carrier's records : " + str(quarterly_audits_passed) + ", all passed" ^0
+"  verdict : ON TIME" ^0
+"" ^0
+"  scanning at the door rather than the kerb is the part" ^0
+"  almost nobody does, and it is why the " + str(deliveries_outside_the_promise) ^0
+"  late deliveries are counted at all" ^0
+"" ^0
+
+# ---- why the ratio has a floor ----
+
+"what can appear in each place" ^0
+"  numerator : parcels scanned as delivered, inside the" ^0
+"    promise" ^0
+"  denominator : parcels scanned as delivered" ^0
+"  what creates a row : the delivery scan" ^0
+"  what a lost parcel contributes : nothing; it is not a" ^0
+"    late delivery, it is not a delivery" ^0
+"  parcels in that state : " + str(parcels_absent_from_the_denominator) ^0
+"" ^0
+"  the worst outcome the operation has is the one outcome" ^0
+"  the ratio cannot express" ^0
+"" ^0
+
+# ---- what the customer of a lost parcel sees ----
+
+"a parcel that never arrived" ^0
+"  was it accepted : yes, and paid for" ^0
+"  was it late : the question does not apply; there is no" ^0
+"    delivery to be late" ^0
+"  does it appear in the on-time figure : no" ^0
+"  does it appear anywhere : in claims, " + str(parcels_lost_or_destroyed) + " of them" ^0
+"  do the two numbers meet on a page : no" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same operation, with the denominator changed to parcels accepted and every
+# undelivered parcel counted as outside the promise.
+2460000 => nc_denominator_parcels
+2392000 => nc_deliveries_inside_the_promise
+20 => nc_quarterly_audits_passed
+
+"null control - measure against what was accepted" ^0
+"  audits passed : " + str(nc_quarterly_audits_passed) + ", unchanged" ^0
+"  denominator : " + str(nc_denominator_parcels) + " parcels accepted" ^0
+"  inside the promise : " + str(nc_deliveries_inside_the_promise) ^0
+"  on time : " + str(on_time_over_acceptances_myriad) + " per ten thousand" ^0
+"  nothing about the deliveries changed; the parcels that" ^0
+"  were never delivered were given a place to appear" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a high on-time rate guarantees" ^0
+"  a parcel that arrived, arrived on time : exactly," ^0
+"    " + str(on_time_over_deliveries_myriad) + " per ten thousand of them, scanned at the door" ^0
+"  a parcel arrived : not addressed; a parcel that did" ^0
+"    not arrive never enters the ratio, in either place" ^0
+"" ^0
+"a rate whose denominator is created by the event in its" ^0
+"numerator has a floor built into it; the failures that" ^0
+"matter most are the ones that never make a row" ^0
+"" ^0
+
+"The timestamp is a door scan on the customer's clock, the definition was" ^0
+"agreed with them and has stood for " + str(years_measured_the_same_way) + " years, and " + str(quarterly_audits_passed) + " audits have passed." ^0
+"A delivery exists when a parcel is scanned, so " + str(parcels_absent_from_the_denominator) + " parcels a month are in" ^0
+"neither place and the figure reads " + str(on_time_over_deliveries_myriad) + " per ten thousand against " + str(on_time_over_acceptances_myriad) ^0
+"over what was accepted - " + str(the_distance_between_the_two_myriad) + " apart." ^0

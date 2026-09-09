@@ -1,0 +1,135 @@
+# Self-authored for the EML case corpus (no external origin). No notification
+# template reaches production without a security review, the review has run for
+# twenty-six months, and it has caught and fixed seven injections. What the
+# review reads is computed below.
+#
+# The review is real. Two reviewers sign every template against a written
+# checklist; a template cannot be referenced by any service until both have
+# signed; nineteen were sent back and rewritten rather than waved through; and
+# seven templates whose own text would have executed something were caught.
+#
+# What the reviewer opens is the template. What the recipient receives is the
+# template with values substituted into it, and the substitution happens after
+# every signature has been collected.
+
+340 => templates_in_the_catalogue
+2 => reviewers_per_template
+19 => templates_sent_back_and_rewritten
+26 => months_the_review_has_run
+7 => injections_found_in_template_text
+2180 => placeholders_across_all_templates
+96 => placeholders_rendered_without_escaping
+23 => templates_holding_at_least_one
+41 => unescaped_placeholders_a_stranger_can_fill
+0 => checklist_items_about_placeholder_escaping
+0 => reviews_that_rendered_the_template
+
+int(placeholders_across_all_templates / templates_in_the_catalogue) => placeholders_per_template
+placeholders_across_all_templates - placeholders_rendered_without_escaping => placeholders_that_escape
+templates_in_the_catalogue - templates_holding_at_least_one => templates_with_none
+int(placeholders_rendered_without_escaping * 10000 / placeholders_across_all_templates) => unescaped_per_myriad
+int(templates_holding_at_least_one * 10000 / templates_in_the_catalogue) => templates_affected_per_myriad
+
+"templates in the catalogue      : " + str(templates_in_the_catalogue) ^0
+"reviewers per template          : " + str(reviewers_per_template) ^0
+"sent back and rewritten         : " + str(templates_sent_back_and_rewritten) ^0
+"months the review has run       : " + str(months_the_review_has_run) ^0
+"injections found in the text    : " + str(injections_found_in_template_text) ^0
+"" ^0
+"placeholders across the catalogue : " + str(placeholders_across_all_templates) ^0
+"  per template, mean             : " + str(placeholders_per_template) ^0
+"  that escape                    : " + str(placeholders_that_escape) ^0
+"  rendered without escaping      : " + str(placeholders_rendered_without_escaping) ^0
+"  that a stranger can fill       : " + str(unescaped_placeholders_a_stranger_can_fill) ^0
+"  unescaped share                : " + str(unescaped_per_myriad) + " per ten thousand" ^0
+"" ^0
+"templates holding at least one  : " + str(templates_holding_at_least_one) ^0
+"  holding none                  : " + str(templates_with_none) ^0
+"  share affected                : " + str(templates_affected_per_myriad) + " per ten thousand" ^0
+"checklist items about escaping  : " + str(checklist_items_about_placeholder_escaping) ^0
+"reviews that rendered the file  : " + str(reviews_that_rendered_the_template) ^0
+"" ^0
+
+# ---- what the review verified ----
+
+"the template review" ^0
+"  signatures : " + str(reviewers_per_template) + " per template, and no service may" ^0
+"    reference a template until both are collected" ^0
+"  checklist : written, and applied to the text of the" ^0
+"    template as the reviewer reads it" ^0
+"  sent back rather than waved through : " + str(templates_sent_back_and_rewritten) ^0
+"  injections found in template text : " + str(injections_found_in_template_text) + ", all fixed" ^0
+"  months in place : " + str(months_the_review_has_run) ^0
+"  verdict : REVIEWED" ^0
+"" ^0
+"  blocking the reference until both signatures exist is" ^0
+"  the part almost nobody does, and it is why the " + str(injections_found_in_template_text) ^0
+"  were found before anything shipped" ^0
+"" ^0
+
+# ---- which object carries the answer ----
+
+"two objects" ^0
+"  what the reviewer opens : the template" ^0
+"  what the recipient receives : the template with " + str(placeholders_per_template) ^0
+"    values substituted into it" ^0
+"  when the substitution happens : after every signature" ^0
+"    has been collected" ^0
+"  what the checklist says about the substitution : " + str(checklist_items_about_placeholder_escaping) ^0
+"    items" ^0
+"  reviews that rendered the template to look : " + str(reviews_that_rendered_the_template) ^0
+"" ^0
+"  the reviewed object and the sent object differ by" ^0
+"  exactly the part a stranger writes" ^0
+"" ^0
+
+# ---- what an unescaped placeholder looks like ----
+
+"a placeholder that does not escape" ^0
+"  is the template text clean : yes, and both reviewers" ^0
+"    were right to sign it" ^0
+"  where does the value come from : a field the" ^0
+"    counterparty fills in" ^0
+"  is the field validated : for length, at the form" ^0
+"  is it escaped at render : no; escaping is chosen per" ^0
+"    placeholder and this one selects raw" ^0
+"  placeholders in that state : " + str(placeholders_rendered_without_escaping) ^0
+"  of those, fillable by a stranger : " + str(unescaped_placeholders_a_stranger_can_fill) ^0
+"" ^0
+
+# ---- null control ----
+
+# The same review, plus a render step: every template is filled with a probe
+# value and the output is diffed against the probe.
+placeholders_across_all_templates => nc_placeholders_rendered_and_diffed
+96 => nc_placeholders_that_emitted_the_probe_raw
+7 => nc_injections_found_in_template_text
+
+"null control - render every template with a probe value" ^0
+"  injections found in the text : " + str(nc_injections_found_in_template_text) + ", unchanged" ^0
+"  placeholders rendered and diffed : " + str(nc_placeholders_rendered_and_diffed) ^0
+"  that emitted the probe raw : " + str(nc_placeholders_that_emitted_the_probe_raw) ^0
+"  the review did not get better at reading templates; the" ^0
+"  object it reads stopped being the only one anybody" ^0
+"  looked at" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a fully reviewed catalogue guarantees" ^0
+"  every template's own text is free of injection :" ^0
+"    exactly, " + str(reviewers_per_template) + " signatures each, " + str(months_the_review_has_run) + " months, " + str(injections_found_in_template_text) + " found" ^0
+"  every message sent is free of injection : not" ^0
+"    addressed; the message is the template after" ^0
+"    substitution and nothing here renders one" ^0
+"" ^0
+"reviewing the form and shipping the filled-in form are" ^0
+"two readings of two objects; the signature is about the" ^0
+"one that was read" ^0
+"" ^0
+
+"Two reviewers sign every template against a written checklist, " + str(templates_sent_back_and_rewritten) + " were sent" ^0
+"back, and " + str(injections_found_in_template_text) + " injections in template text were caught in " + str(months_the_review_has_run) + " months. The values" ^0
+"are substituted after the last signature, so of " + str(placeholders_across_all_templates) + " placeholders " + str(placeholders_rendered_without_escaping) ^0
+"render unescaped - " + str(unescaped_per_myriad) + " per ten thousand, across " + str(templates_holding_at_least_one) + " templates - and " + str(unescaped_placeholders_a_stranger_can_fill) + " of them" ^0
+"take a value a stranger writes." ^0

@@ -1,0 +1,140 @@
+# Self-authored for the EML case corpus (no external origin). The database
+# upgrade was rehearsed twelve times on restored copies of production, timed to
+# the minute, with the rollback rehearsed alongside it. Which upgrade was
+# rehearsed is computed below.
+#
+# The rehearsal is serious. It runs against a copy restored from a real backup
+# rather than a seeded fixture, so the data volume and the index bloat are the
+# real ones; the clock is wall clock and the maintenance window was sized from
+# it; the rollback is rehearsed in the same session rather than assumed; and
+# nothing is signed off until a rehearsal has completed twice in a row.
+#
+# The rehearsal cluster runs the previous version. The fleet does not all run
+# the previous version.
+
+380 => clusters_in_the_fleet
+134 => clusters_on_the_previous_version
+118 => clusters_two_versions_behind
+92 => clusters_three_versions_behind
+36 => clusters_four_versions_behind
+12 => rehearsals_run
+84 => hours_of_rehearsal
+12 => rollbacks_rehearsed
+4 => upgrade_steps_present_in_the_fleet
+1 => upgrade_steps_the_rehearsal_covered
+1 => format_changes_between_three_versions_back_and_two
+0 => format_changes_between_the_previous_version_and_this_one
+
+clusters_in_the_fleet - clusters_on_the_previous_version => clusters_starting_somewhere_else
+clusters_two_versions_behind + clusters_three_versions_behind => clusters_at_least_two_behind
+clusters_at_least_two_behind + clusters_four_versions_behind => clusters_the_rehearsal_did_not_represent
+upgrade_steps_present_in_the_fleet - upgrade_steps_the_rehearsal_covered => upgrade_steps_never_rehearsed
+int(hours_of_rehearsal / rehearsals_run) => hours_per_rehearsal
+int(clusters_on_the_previous_version * 10000 / clusters_in_the_fleet) => represented_per_myriad
+int(upgrade_steps_the_rehearsal_covered * 10000 / upgrade_steps_present_in_the_fleet) => steps_covered_per_myriad
+
+"clusters in the fleet           : " + str(clusters_in_the_fleet) ^0
+"  on the previous version       : " + str(clusters_on_the_previous_version) ^0
+"  two versions behind           : " + str(clusters_two_versions_behind) ^0
+"  three versions behind         : " + str(clusters_three_versions_behind) ^0
+"  four versions behind          : " + str(clusters_four_versions_behind) ^0
+"  starting somewhere else       : " + str(clusters_starting_somewhere_else) ^0
+"  represented by the rehearsal  : " + str(represented_per_myriad) + " per ten thousand" ^0
+"" ^0
+"rehearsals run                  : " + str(rehearsals_run) ^0
+"  hours of rehearsal            : " + str(hours_of_rehearsal) ^0
+"  hours per rehearsal           : " + str(hours_per_rehearsal) ^0
+"  rollbacks rehearsed           : " + str(rollbacks_rehearsed) ^0
+"" ^0
+"upgrade steps in the fleet      : " + str(upgrade_steps_present_in_the_fleet) ^0
+"  the rehearsal covered         : " + str(upgrade_steps_the_rehearsal_covered) ^0
+"  never rehearsed               : " + str(upgrade_steps_never_rehearsed) ^0
+"  steps covered                 : " + str(steps_covered_per_myriad) + " per ten thousand" ^0
+"format changes, previous to this: " + str(format_changes_between_the_previous_version_and_this_one) ^0
+"format changes, three back to two : " + str(format_changes_between_three_versions_back_and_two) ^0
+"" ^0
+
+# ---- what the rehearsal verified ----
+
+"the upgrade rehearsal" ^0
+"  the copy : restored from a real backup, so the data" ^0
+"    volume and the index bloat are the real ones" ^0
+"  the clock : wall clock, and the maintenance window was" ^0
+"    sized from it, not estimated" ^0
+"  the rollback : rehearsed in the same session, not" ^0
+"    assumed" ^0
+"  sign-off : only after two consecutive clean runs" ^0
+"  runs : " + str(rehearsals_run) + ", " + str(hours_per_rehearsal) + " hours each" ^0
+"  verdict : REHEARSED" ^0
+"" ^0
+"  restoring a real backup rather than seeding a fixture" ^0
+"  is the part almost nobody does, and it is why the" ^0
+"  window is a measurement" ^0
+"" ^0
+
+# ---- which upgrade was rehearsed ----
+
+"the starting point" ^0
+"  what the rehearsal cluster runs : the previous version" ^0
+"  what the fleet runs : " + str(upgrade_steps_present_in_the_fleet) + " different starting versions" ^0
+"  clusters the rehearsal stands for : " + str(clusters_on_the_previous_version) ^0
+"  clusters it does not : " + str(clusters_the_rehearsal_did_not_represent) ^0
+"  format changes on the rehearsed step : " ^0
+"    " + str(format_changes_between_the_previous_version_and_this_one) ^0
+"  format changes on a step further back : " ^0
+"    " + str(format_changes_between_three_versions_back_and_two) ^0
+"" ^0
+"  twelve clean runs of one path are twelve pieces of" ^0
+"  evidence about that path" ^0
+"" ^0
+
+# ---- what an older cluster meets ----
+
+"a cluster three versions behind" ^0
+"  is the target version the same : yes" ^0
+"  is the procedure the same : yes, the runbook does not" ^0
+"    branch on the starting version" ^0
+"  does it cross a format change : yes, " ^0
+"    " + str(format_changes_between_three_versions_back_and_two) + " of them" ^0
+"  was that crossing rehearsed : no" ^0
+"  clusters in that position or older : " ^0
+"    " + str(clusters_three_versions_behind) + " plus " + str(clusters_four_versions_behind) ^0
+"" ^0
+
+# ---- null control ----
+
+# The same rehearsal, run once from every starting version present in the fleet.
+4 => nc_upgrade_steps_the_rehearsal_covered
+48 => nc_rehearsals_run
+380 => nc_clusters_represented
+
+"null control - rehearse from every version in the fleet" ^0
+"  hours per rehearsal : " + str(hours_per_rehearsal) + ", unchanged" ^0
+"  rehearsals run : " + str(nc_rehearsals_run) ^0
+"  upgrade steps covered : " + str(nc_upgrade_steps_the_rehearsal_covered) ^0
+"  clusters represented : " + str(nc_clusters_represented) ^0
+"  the rehearsal did not become more realistic; it was" ^0
+"  started from the places the fleet is actually in" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what twelve clean rehearsals guarantee" ^0
+"  the upgrade from the previous version works : exactly," ^0
+"    on real restored data, timed, with a rollback, twice" ^0
+"    consecutively" ^0
+"  the upgrade works : not addressed; " + str(clusters_starting_somewhere_else) + " of " + str(clusters_in_the_fleet) ^0
+"    clusters begin from a version no rehearsal began" ^0
+"    from" ^0
+"" ^0
+"a rehearsal is evidence about the run it rehearsed; a" ^0
+"fleet at four different versions is four upgrades, and" ^0
+"repeating one of them twelve times says nothing about the" ^0
+"other three" ^0
+"" ^0
+
+"The rehearsal restores a real backup, times the window on a wall clock, and" ^0
+"rehearses the rollback in the same session - " + str(rehearsals_run) + " runs, " + str(hours_of_rehearsal) + " hours. It starts from" ^0
+"the previous version, which " + str(clusters_on_the_previous_version) + " of " + str(clusters_in_the_fleet) + " clusters are on - " + str(represented_per_myriad) + " per ten" ^0
+"thousand - so " + str(upgrade_steps_the_rehearsal_covered) + " of " + str(upgrade_steps_present_in_the_fleet) + " upgrade paths was exercised and the format change" ^0
+"further back was met " + str(upgrade_steps_never_rehearsed) + " times short of a rehearsal." ^0

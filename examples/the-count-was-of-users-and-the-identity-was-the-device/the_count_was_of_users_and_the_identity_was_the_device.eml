@@ -1,0 +1,143 @@
+# Self-authored for the EML case corpus (no external origin). The daily active
+# user figure is deduplicated, bot-filtered, timezone-corrected and reconciled
+# against billing every month, and it has been computed the same way for
+# thirty-four months. What it counts one of is computed below.
+#
+# The pipeline is careful. Bot traffic is removed by a classifier that is
+# retrained quarterly and audited by hand; a day is the user's local day rather
+# than the server's; the same identity appearing twice in a day is counted once;
+# and the monthly reconciliation against billing has never drifted more than a
+# few parts in ten thousand.
+#
+# The identity it deduplicates on is the install. A person with a phone and a
+# laptop is two, and a tablet in a clinic waiting room is one.
+
+184000 => daily_active_identities
+34 => months_the_metric_has_run
+9200 => bot_identities_removed_a_day
+34 => monthly_reconciliations_against_billing
+51000 => identities_signed_in
+38000 => distinct_people_behind_them
+620 => shared_devices_identified
+24800 => people_behind_the_shared_devices
+0 => identities_resolved_to_a_person_by_the_pipeline
+
+daily_active_identities - identities_signed_in => identities_never_signed_in
+int(identities_signed_in * 10000 / daily_active_identities) => signed_in_per_myriad
+int(identities_signed_in * 10000 / distinct_people_behind_them) => identities_per_person_myriad
+int(identities_never_signed_in * 10000 / identities_per_person_myriad) => people_the_same_rate_would_imply
+people_the_same_rate_would_imply + distinct_people_behind_them => people_the_rate_would_imply_in_total
+# The subtraction below is only meaningful once the reported figure is read as
+# a count of people, which is what the sentence around it does and what this
+# case is about. Naming that step is the point: identities minus people is not
+# a quantity, and the line becomes one only by asserting they are the same
+# kind of thing.
+daily_active_identities => the_figure_reported_as_people
+the_figure_reported_as_people - people_the_rate_would_imply_in_total => the_gap_that_rate_would_open
+int(people_behind_the_shared_devices / shared_devices_identified) => people_per_shared_device
+
+"daily active identities         : " + str(daily_active_identities) ^0
+"bot identities removed a day    : " + str(bot_identities_removed_a_day) ^0
+"months computed the same way    : " + str(months_the_metric_has_run) ^0
+"reconciliations against billing : " + str(monthly_reconciliations_against_billing) ^0
+"identities resolved to a person : " + str(identities_resolved_to_a_person_by_the_pipeline) ^0
+"" ^0
+"identities signed in            : " + str(identities_signed_in) ^0
+"  distinct people behind them   : " + str(distinct_people_behind_them) ^0
+"  identities per person         : " + str(identities_per_person_myriad) + " per ten thousand" ^0
+"  signed-in share               : " + str(signed_in_per_myriad) + " per ten thousand" ^0
+"identities never signed in      : " + str(identities_never_signed_in) ^0
+"" ^0
+"shared devices identified       : " + str(shared_devices_identified) ^0
+"  people behind them            : " + str(people_behind_the_shared_devices) ^0
+"  people per shared device      : " + str(people_per_shared_device) ^0
+"" ^0
+
+# ---- what the pipeline verified ----
+
+"the active-user pipeline" ^0
+"  bots : removed by a classifier retrained quarterly and" ^0
+"    audited by hand, " + str(bot_identities_removed_a_day) + " a day" ^0
+"  a day : the user's local day, not the server's" ^0
+"  an identity seen twice : counted once" ^0
+"  reconciliation against billing : monthly, " + str(monthly_reconciliations_against_billing) + " of them," ^0
+"    never off by more than a few parts in ten thousand" ^0
+"  verdict : DEDUPLICATED" ^0
+"" ^0
+"  reconciling against billing every month is the part" ^0
+"  almost nobody does, and it is why the deduplication is" ^0
+"  known to work rather than assumed to" ^0
+"" ^0
+
+# ---- which object carries the answer ----
+
+"two objects" ^0
+"  what the pipeline deduplicates : the install" ^0
+"  what the sentence says : users" ^0
+"  a person with a phone and a laptop : two" ^0
+"  a tablet in a clinic waiting room : one, shared by" ^0
+"    " + str(people_per_shared_device) ^0
+"  identities the pipeline resolves to a person : " + str(identities_resolved_to_a_person_by_the_pipeline) ^0
+"" ^0
+"  deduplication is exact on the object it is given, and" ^0
+"  the object it is given is a device" ^0
+"" ^0
+
+# ---- what the signed-in part shows ----
+
+"where a person can be seen" ^0
+"  identities signed in : " + str(identities_signed_in) ^0
+"  distinct people behind them : " + str(distinct_people_behind_them) ^0
+"  so identities per person, here : " + str(identities_per_person_myriad) + " per ten" ^0
+"    thousand" ^0
+"  identities never signed in : " + str(identities_never_signed_in) ^0
+"  what the same rate would imply for them : " + str(people_the_same_rate_would_imply) ^0
+"  and in total : " + str(people_the_rate_would_imply_in_total) ^0
+"  read as people, the reported figure is : " + str(the_figure_reported_as_people) ^0
+"  distance between the two : " + str(the_gap_that_rate_would_open) ^0
+"" ^0
+"  that last figure is an extrapolation, not a" ^0
+"  measurement; the signed-in group is the part that could" ^0
+"  be checked and it is the part that chose to sign in" ^0
+"" ^0
+"  and the subtraction only parses because the reported" ^0
+"  figure was read as a count of people; identities minus" ^0
+"  people is not a quantity until somebody equates them," ^0
+"  which is the error this case is about" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same pipeline, over a period when an account was required to open the app
+# at all, so every identity carries a person.
+184000 => nc_identities_resolved_to_a_person
+9200 => nc_bot_identities_removed_a_day
+141900 => nc_distinct_people_a_day
+
+"null control - require an account, resolve every identity" ^0
+"  bots removed a day : " + str(nc_bot_identities_removed_a_day) + ", unchanged" ^0
+"  identities resolved to a person : " + str(nc_identities_resolved_to_a_person) ^0
+"  distinct people a day : " + str(nc_distinct_people_a_day) ^0
+"  the deduplication did not improve; it was handed the" ^0
+"  object the sentence had been about all along" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a clean active-user figure guarantees" ^0
+"  each active install is counted once : exactly, bots" ^0
+"    removed, local days, " + str(months_the_metric_has_run) + " months of the same method" ^0
+"  each active person is counted once : not addressed;" ^0
+"    the pipeline never holds a person, so it can neither" ^0
+"    merge two devices nor split one" ^0
+"" ^0
+"an exact count of one kind of thing is not an approximate" ^0
+"count of another kind; the error is not noise around the" ^0
+"figure, it is the figure being about something else" ^0
+"" ^0
+
+"Bots are removed by an audited classifier, days are local, repeats are merged," ^0
+"and " + str(monthly_reconciliations_against_billing) + " monthly reconciliations against billing agree. The identity is the" ^0
+"install, so " + str(identities_signed_in) + " signed-in identities stand for " + str(distinct_people_behind_them) + " people - " + str(identities_per_person_myriad) + " per" ^0
+"ten thousand - " + str(shared_devices_identified) + " shared devices stand for " + str(people_behind_the_shared_devices) + ", and " + str(identities_resolved_to_a_person_by_the_pipeline) + " of the " + str(daily_active_identities) ^0
+"are resolved to a person." ^0
