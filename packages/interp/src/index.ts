@@ -868,7 +868,74 @@ function runProgram(
     return result;
   };
 
+  /**
+   * Would CPython iterate this instance? That is NOT the same question as
+   * "is this one of the shapes this interpreter models", and conflating the
+   * two is the defect EMLP-RELAY-0100 caught in candidate v1: `iterableItems`
+   * returns null for every user instance, and v1 read that null as "not
+   * iterable" and said so out loud.
+   *
+   * A user class supplies iteration through `__iter__`/`__next__` or through
+   * the sequence protocol's `__getitem__`, and either can arrive as a method
+   * in the class body or as a class attribute bound at runtime. This
+   * interpreter does not dispatch dunders automatically (EML-LANG-2026 §7e)
+   * while the Python it generates does, so wherever such an entry point
+   * EXISTS the honest answer is a deferral. Claiming the object is not
+   * iterable is a wrong answer where the product's blanket defer was right.
+   *
+   * Both lookups are needed: searching only the class body misses a runtime
+   * `C.__getitem__ = f` binding, and searching only the class attributes
+   * misses an ordinary `def __getitem__` in the body.
+   */
+  const hasIterationProtocol = (v: Extract<PyVal, { k: 'instance' }>): boolean =>
+    ['__iter__', '__getitem__'].some(
+      (n) => findMethod(v.classDef as ClassDef, n) !== undefined || v.classAttrs.has(n));
+
+  // CPython's argument-count contract, per builtin, in CPython's own wording
+  // and carrying the actual N. Harvested from real CPython 3.14.5 rather than
+  // recalled, because the sentences differ per builtin AND per direction:
+  // `sum()` says "takes at least 1 positional argument" while a surplus sum
+  // says "takes at most 2 arguments", and `float` says "expected at most 1
+  // argument, got N" where `abs` says "takes exactly one argument (N given)".
+  // One shared sentence cannot be right for more than one of them, which is
+  // what need() was doing for four callers at once (EMLP-AUDIT-006, N2).
+  //
+  // This runs BEFORE any per-builtin body, so an arity decision is never
+  // reached through a conversion question or a deferral.
+  const checkArity = (name: string, n: number): void => {
+    switch (name) {
+      case 'abs': case 'len': case 'repr':
+        if (n !== 1) throw new PyError('TypeError', `${name}() takes exactly one argument (${n} given)`);
+        return;
+      case 'sum':
+        if (n === 0) throw new PyError('TypeError', 'sum() takes at least 1 positional argument (0 given)');
+        if (n > 2) throw new PyError('TypeError', `sum() takes at most 2 arguments (${n} given)`);
+        return;
+      case 'float':
+        if (n > 1) throw new PyError('TypeError', `float expected at most 1 argument, got ${n}`);
+        return;
+      case 'int':
+        if (n > 2) throw new PyError('TypeError', `int expected at most 2 arguments, got ${n}`);
+        return;
+      case 'str':
+        if (n > 3) throw new PyError('TypeError', `str expected at most 3 arguments, got ${n}`);
+        return;
+      case 'set':
+        if (n > 1) throw new PyError('TypeError', `set expected at most 1 argument, got ${n}`);
+        return;
+      case 'min': case 'max':
+        // Zero arguments and an empty iterable are different errors of
+        // different TYPES, and they used to reach one line inside minmax().
+        // Deciding arity here is what splits them.
+        if (n === 0) throw new PyError('TypeError', `${name} expected at least 1 argument, got 0`);
+        return;
+      default:
+        return;
+    }
+  };
+
   const callBuiltin = (name: string, args: PyVal[]): PyVal => {
+    checkArity(name, args.length);
     switch (name) {
       case 'abs': {
         const a = need(args, 0, name);
@@ -887,13 +954,41 @@ function runProgram(
         throw new PyError('TypeError', `object of type '${typeName(a)}' has no len()`);
       }
       case 'set': {
-        // Zero-arg only — `{}` is a dict literal (Python parity), so `set()` is
-        // the only way to spell an empty set; `set(iterable)` conversion is out
-        // of scope this round.
-        if (args.length > 0) throw new Unsupported('set(iterable)', 'converting an iterable to a set is not modeled yet');
-        return SET([]);
+        // FOUR regions, not two. `{}` is a dict literal (Python parity), so
+        // `set()` is the only way to spell an empty set; one iterable argument
+        // is a deliberate deferral; one NON-iterable argument is a TypeError
+        // CPython raises before any conversion question arises; and two or more
+        // is an arity error, already decided in checkArity above.
+        //
+        // A single `args.length > 0` collapsed all of these into one deferral
+        // whose stated reason - "converting an iterable to a set" - was true for
+        // exactly one of them and described something that was not happening
+        // for the other two.
+        // Three-valued, not boolean. v1 asked `iterableItems(sa)` and treated
+        // its null as "not iterable"; that answers only whether the shape is
+        // directly modeled here. See hasIterationProtocol above.
+        if (args.length === 0) return SET([]);
+        const sa = args[0]!;
+        if (iterableItems(sa)) {
+          throw new Unsupported('set(iterable)', 'converting an iterable to a set is not modeled yet');
+        }
+        if (sa.k === 'instance' && hasIterationProtocol(sa)) {
+          throw new Unsupported('set(iterable)', 'iterating a user-defined object is not modeled yet');
+        }
+        throw new PyError('TypeError', `'${typeName(sa)}' object is not iterable`);
       }
       case 'int': {
+        // Exactly two arguments is the base form, and it is DEFERRED rather
+        // than implemented. Measured: 0 of 741 corpus programs reach it, while
+        // implementing it means bases 0 and 2-36, prefix inference for base 0,
+        // underscore separators, whitespace, sign, and two exact message
+        // families - a wider untested message surface than the one this audit
+        // is about. Silently dropping the base produced the only wrong VALUE in
+        // the census; a stated refusal is the smaller and honest change.
+        // Three or more arguments is an arity error, decided in checkArity.
+        if (args.length === 2) {
+          throw new Unsupported('int(x, base)', 'the base argument is not modeled yet');
+        }
         const a = args[0] ?? INT(0n);
         if (a.k === 'int') return a;
         if (a.k === 'bool') return INT(a.v ? 1n : 0n);
@@ -919,6 +1014,15 @@ function runProgram(
       }
       case 'str': {
         if (args.length === 0) return STR('');
+        // Two and three arguments are CPython's bytes-DECODING form, not a
+        // surplus: `str expected at most 3 arguments` begins at four, and this
+        // census originally filed str("a","b") under arity because the answer
+        // agreed with that conclusion. The decoding path is deferred rather
+        // than implemented, for the same reason as int's base: 0 of 741 corpus
+        // programs reach it and it is a message surface, not a value.
+        if (args.length >= 2) {
+          throw new Unsupported('str(object, encoding[, errors])', 'the bytes decoding path is not modeled yet');
+        }
         const sv = need(args, 0, name);
         guardSetOrder(sv, 'str()');
         return STR(pyStr(sv));

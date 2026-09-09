@@ -163,3 +163,156 @@ describe('order-sensitive set operations defer instead of guessing', () => {
     expect(r.output).toBe('3\n');
   });
 });
+
+/**
+ * ARITY CONTRACT — EMLP-AUDIT-006.
+ *
+ * The census above covers argument SHAPES a test author would write, which is
+ * the same population `builtin-shapes.test.ts` already had: calls with the
+ * right number of arguments. Nineteen mutations showed the consequence — the
+ * arity check that four builtins depend on could be deleted entirely and all
+ * 51 cells stayed green.
+ *
+ * Every row here prints `str(e)`, so the comparison is against CPython's exact
+ * MESSAGE. A row that printed only the exception's type name would pass against
+ * any wording at all, and the wording is the point: CPython says "takes exactly
+ * one argument (2 given)" for abs, "expected at most 1 argument, got 2" for
+ * float, and "takes at least 1 positional argument" for a zero-argument sum
+ * where the surplus form says "takes at most 2 arguments". One shared sentence
+ * cannot be right for more than one of them.
+ *
+ * The legal rows — repr(42), str(), str("a"), int(), int("10"), float(), set()
+ * — are positive controls, not filler. Without them a fix that rejected every
+ * call to a builtin would turn this whole block green.
+ */
+const arityProbe = (call: string) =>
+  `try:\n    str(${call})^0\nexcept TypeError as e:\n    "TypeError: " + str(e)^0\nexcept ValueError as e:\n    "ValueError: " + str(e)^0`;
+
+describe.skipIf(!PYTHON)('builtin arity contract ≡ CPython (EMLP-AUDIT-006)', () => {
+  const CALLS: [string, string][] = [
+    // exactly-one builtins, both directions, and the N in the message
+    ['abs with no arguments', 'abs()'],
+    ['abs with two arguments', 'abs(1, 2)'],
+    ['len with no arguments', 'len()'],
+    ['len with two arguments', 'len([1], 2)'],
+    ['repr with one argument is LEGAL', 'repr(42)'],
+    ['repr with no arguments', 'repr()'],
+    ['repr with two arguments', 'repr(1, 2)'],
+    // str: 0 and 1 legal, 4+ is where arity begins
+    ['str with no arguments is LEGAL', 'str()'],
+    ['str with one argument is LEGAL', 'str("a")'],
+    ['str with four arguments', 'str("a", "b", "c", "d")'],
+    // sum: the two directions are worded differently in CPython
+    ['sum with no arguments', 'sum()'],
+    ['sum with three arguments', 'sum([1], 0, 9)'],
+    // int: 0 and 1 legal, 3+ is arity, decided before the base question
+    ['int with no arguments is LEGAL', 'int()'],
+    ['int with one argument is LEGAL', 'int("10")'],
+    ['int with three arguments', 'int("10", 2, 3)'],
+    // float
+    ['float with no arguments is LEGAL', 'float()'],
+    ['float with two arguments', 'float(1, 2)'],
+    // set: four regions, and the arity decision precedes the conversion one
+    ['set with no arguments is LEGAL', 'set()'],
+    ['set with one NON-iterable argument', 'set(1)'],
+    ['set with two arguments', 'set(1, 2)'],
+    // min/max: no arguments and an empty iterable are different TYPES
+    ['min with no arguments', 'min()'],
+    ['max with no arguments', 'max()'],
+    ['min of an empty iterable', 'min([])'],
+    ['max of an empty iterable', 'max([])'],
+  ];
+  for (const [label, call] of CALLS) {
+    it(label, () => {
+      const src = arityProbe(call);
+      const fwd = transpileEmlToPython(src);
+      expect(fwd.ok, `forward transpile failed: ${fwd.diagnostics.map((d) => d.code).join(',')}`).toBe(true);
+      expect(eml(src), `EML interpreter disagrees with CPython for: ${call}`).toBe(cpython(fwd.python));
+    });
+  }
+});
+
+/**
+ * The six shapes that DEFER rather than answer — EMLP-AUDIT-006, per the policy
+ * fixed in EMLP-RELAY-0097 section 2.
+ *
+ * `int(x, base)` at exactly two arguments and `str(object, encoding[, errors])`
+ * at exactly two or three are declined rather than implemented: no corpus
+ * program reaches either (0 of 741 call sites), and implementing them means a
+ * message surface nothing exercises. Declining is not the same as answering
+ * wrongly, and before this change `int("101", 2)` returned 101 where CPython
+ * returns 5 — the only wrong VALUE in the census.
+ *
+ * These rows exist so a later "improvement" that makes any of them merely
+ * ANSWER goes red instead of passing quietly.
+ */
+/**
+ * ITERABILITY OF A USER INSTANCE — EMLP-AUDIT-006 v2, from EMLP-RELAY-0100.
+ *
+ * Candidate v1 asked `iterableItems(x)` and read its null as "not iterable".
+ * That function answers whether the shape is one the interpreter models
+ * directly; it does not answer whether CPython would iterate the object
+ * through a user class's `__iter__`/`__next__` or the sequence protocol's
+ * `__getitem__`. The two sets are not equal, and v1 turned the product's
+ * honest deferral into a wrong answer for every instance in the gap.
+ *
+ * The decision is three-valued, so it needs rows on both sides of both
+ * boundaries. The two TypeError rows are the negative controls: without them a
+ * fix that deferred on every instance would look correct.
+ */
+describe.skipIf(!PYTHON)('a user instance is iterable when CPython says so (EMLP-AUDIT-006)', () => {
+  const NOT_ITERABLE: [string, string][] = [
+    ['an instance with no iteration protocol',
+     'class Plain:\n    def hello(self):\n        return 1\n\nPlain() => p\ntry:\n    str(len(set(p)))^0\nexcept TypeError as e:\n    "TypeError: " + str(e)^0'],
+    ['an instance with only __len__',
+     'class Sized:\n    def __len__(self):\n        return 3\n\nSized() => z\ntry:\n    str(len(set(z)))^0\nexcept TypeError as e:\n    "TypeError: " + str(e)^0'],
+  ];
+  for (const [label, src] of NOT_ITERABLE) {
+    it(label, () => {
+      const fwd = transpileEmlToPython(src);
+      expect(fwd.ok, `forward transpile failed: ${fwd.diagnostics.map((d) => d.code).join(',')}`).toBe(true);
+      expect(eml(src), `EML interpreter disagrees with CPython for: ${label}`).toBe(cpython(fwd.python));
+    });
+  }
+});
+
+describe('an instance that CPython WOULD iterate is deferred, not refused (EMLP-AUDIT-006)', () => {
+  const MUST_DEFER: [string, string][] = [
+    ['a class defining __iter__ and __next__',
+     'class EmptyIter:\n    def __iter__(self):\n        return self\n    def __next__(self):\n        raise StopIteration()\n\nEmptyIter() => it\nstr(len(set(it)))^0'],
+    ['a class defining __getitem__',
+     'class Seq:\n    def __getitem__(self, i):\n        if i < 3:\n            return i\n        raise IndexError()\n\nSeq() => s\nstr(len(set(s)))^0'],
+    // The entry point can also arrive at runtime. Searching only the class
+    // body misses this one; searching only the class attributes misses the
+    // two above.
+    ['a __getitem__ bound as a class attribute',
+     'class Assigned:\n    def marker(self):\n        return 0\n\ndef pick(self, i):\n    if i < 2:\n        return i\n    raise IndexError()\n\npick => Assigned.__getitem__\nAssigned() => a\nstr(len(set(a)))^0'],
+  ];
+  for (const [label, src] of MUST_DEFER) {
+    it(label, () => {
+      const r = interpret(src);
+      expect(r.ok, 'should not claim success').toBe(false);
+      expect(r.unsupported.length, 'should record why it declined').toBeGreaterThan(0);
+      expect(r.error, 'declining is not an error — it is a deferral').toBeUndefined();
+    });
+  }
+});
+
+describe('the shapes that decline rather than guess (EMLP-AUDIT-006)', () => {
+  const mustDefer: [string, string][] = [
+    ['int with a base', 'str(int("101", 2))^0'],
+    ['int with a base that rejects the literal', 'str(int("5", 2))^0'],
+    ['int with a base and a non-string', 'str(int(1, 2))^0'],
+    ['str with two arguments is the decoding path', 'str(str("a", "b"))^0'],
+    ['str with three arguments is the decoding path', 'str(str("a", "b", "c"))^0'],
+    ['set from an iterable', 'str(set([1, 2]))^0'],
+  ];
+  for (const [label, src] of mustDefer) {
+    it(label, () => {
+      const r = interpret(src);
+      expect(r.ok, 'should not claim success').toBe(false);
+      expect(r.unsupported.length, 'should record why it declined').toBeGreaterThan(0);
+      expect(r.error, 'declining is not an error — it is a deferral').toBeUndefined();
+    });
+  }
+});
