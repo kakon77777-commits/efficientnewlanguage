@@ -1,0 +1,136 @@
+# Self-authored for the EML case corpus (no external origin). Availability has
+# been above its target for twenty-two months, measured from real requests
+# rather than from a synthetic probe. What the number is an average over is
+# computed below.
+#
+# The measurement is sound. It counts real customer requests, not a prober
+# hitting a health endpoint; a request that returns an error counts as failed
+# even when the error is polite; the window is the calendar month the contract
+# names rather than a rolling one chosen afterwards; and maintenance is not
+# excluded.
+#
+# It is one ratio over every request from every tenant.
+
+1400 => tenants
+94000000 => requests_a_month
+28200 => requests_that_failed
+9990 => availability_target_per_myriad
+22 => months_the_target_has_been_met
+61 => tenants_with_any_failure_at_all
+21000 => that_tenants_requests_that_failed
+78000 => that_tenants_requests_in_the_month
+540 => minutes_that_tenants_shard_was_down
+0 => credits_paid_under_the_contract
+
+requests_a_month - requests_that_failed => requests_that_succeeded
+that_tenants_requests_in_the_month - that_tenants_requests_that_failed => that_tenants_requests_that_succeeded
+tenants - tenants_with_any_failure_at_all => tenants_that_saw_nothing
+int(requests_that_succeeded * 10000 / requests_a_month) => availability_across_everyone_per_myriad
+int(that_tenants_requests_that_succeeded * 10000 / that_tenants_requests_in_the_month) => that_tenants_own_availability_per_myriad
+int(that_tenants_requests_that_failed * 10000 / requests_that_failed) => share_of_all_failures_per_myriad
+
+"tenants                         : " + str(tenants) ^0
+"  with any failure at all       : " + str(tenants_with_any_failure_at_all) ^0
+"  that saw nothing              : " + str(tenants_that_saw_nothing) ^0
+"requests a month                : " + str(requests_a_month) ^0
+"  that failed                   : " + str(requests_that_failed) ^0
+"  that succeeded                : " + str(requests_that_succeeded) ^0
+"" ^0
+"availability target             : " + str(availability_target_per_myriad) + " per ten thousand" ^0
+"availability across everyone    : " + str(availability_across_everyone_per_myriad) + " per ten thousand" ^0
+"months the target has been met  : " + str(months_the_target_has_been_met) ^0
+"" ^0
+"one tenant" ^0
+"  minutes their shard was down  : " + str(minutes_that_tenants_shard_was_down) ^0
+"  their requests in the month   : " + str(that_tenants_requests_in_the_month) ^0
+"  of those, failed              : " + str(that_tenants_requests_that_failed) ^0
+"  their own availability        : " + str(that_tenants_own_availability_per_myriad) + " per ten thousand" ^0
+"  their share of all failures   : " + str(share_of_all_failures_per_myriad) + " per ten thousand" ^0
+"credits paid under the contract : " + str(credits_paid_under_the_contract) ^0
+"" ^0
+
+# ---- what the measurement verified ----
+
+"the availability measurement" ^0
+"  what it counts : real customer requests, not a prober" ^0
+"    on a health endpoint" ^0
+"  a polite error : counts as failed" ^0
+"  the window : the calendar month the contract names," ^0
+"    not a rolling one chosen afterwards" ^0
+"  maintenance : not excluded" ^0
+"  months met : " + str(months_the_target_has_been_met) ^0
+"  verdict : AVAILABLE" ^0
+"" ^0
+"  refusing to exclude maintenance is the part almost" ^0
+"  nobody does, and it is why " + str(availability_across_everyone_per_myriad) + " per ten thousand" ^0
+"  is comparable month to month" ^0
+"" ^0
+
+# ---- what one ratio can hold ----
+
+"the shape of the failures" ^0
+"  tenants that saw any failure : " ^0
+"    " + str(tenants_with_any_failure_at_all) + " of " + str(tenants) ^0
+"  failures belonging to a single tenant : " ^0
+"    " + str(that_tenants_requests_that_failed) + ", or " + str(share_of_all_failures_per_myriad) + " per ten thousand of them" ^0
+"  that tenant's own availability : " ^0
+"    " + str(that_tenants_own_availability_per_myriad) + " per ten thousand" ^0
+"  the figure everyone reads : " ^0
+"    " + str(availability_across_everyone_per_myriad) + " per ten thousand" ^0
+"  both are correct, and they are ratios over different" ^0
+"    populations of requests" ^0
+"" ^0
+"  a denominator of ninety-four million absorbs an outage" ^0
+"  that was the whole month for the people in it" ^0
+"" ^0
+
+# ---- what that tenant saw ----
+
+"nine hours on one shard" ^0
+"  what their users got : errors, for " + str(minutes_that_tenants_shard_was_down) + " minutes" ^0
+"  what the status page said : available" ^0
+"  what the contract measures : the figure across" ^0
+"    everyone" ^0
+"  so credits owed : " + str(credits_paid_under_the_contract) ^0
+"  was the measurement wrong : no. It is a correct ratio," ^0
+"    and the tenant is inside its denominator" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same measurement, computed per tenant and then reported as the number of
+# tenants below the target rather than as one ratio.
+9997 => nc_availability_across_everyone_per_myriad
+6 => nc_tenants_below_the_target
+1400 => nc_tenants_measured
+
+"null control - one figure per tenant, then count them" ^0
+"  tenants measured : " + str(nc_tenants_measured) + ", unchanged" ^0
+"  availability across everyone : " ^0
+"    " + str(nc_availability_across_everyone_per_myriad) + ", unchanged" ^0
+"  tenants below the target : " + str(nc_tenants_below_the_target) ^0
+"  no request changed outcome; the question stopped being" ^0
+"  asked once for everybody at the same time" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a met availability target guarantees" ^0
+"  " + str(availability_across_everyone_per_myriad) + " per ten thousand of all requests succeeded :" ^0
+"    exactly, from real traffic, maintenance included," ^0
+"    " + str(months_the_target_has_been_met) + " months" ^0
+"  every customer was served : not addressed; one tenant" ^0
+"    ran at " + str(that_tenants_own_availability_per_myriad) + " per ten thousand and carried " ^0
+"    " + str(share_of_all_failures_per_myriad) + " per ten thousand of the month's failures" ^0
+"" ^0
+"an average is a true statement about a population and no" ^0
+"statement about a member; when the failures are not spread" ^0
+"the way the denominator is, the figure and the experience" ^0
+"are about different things" ^0
+"" ^0
+
+"It counts real requests, calls a polite error a failure, uses the contract's" ^0
+"calendar month and excludes no maintenance - " + str(availability_across_everyone_per_myriad) + " per ten thousand, " + str(months_the_target_has_been_met) ^0
+"months running. It is one ratio over " + str(requests_a_month) + " requests, so one tenant's " ^0
+"" + str(minutes_that_tenants_shard_was_down) + " minutes gave them " + str(that_tenants_own_availability_per_myriad) + " per ten thousand and " + str(share_of_all_failures_per_myriad) + " per ten thousand of" ^0
+"every failure, against " + str(credits_paid_under_the_contract) + " credits." ^0

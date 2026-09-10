@@ -1,0 +1,139 @@
+# Self-authored for the EML case corpus (no external origin). The refund rate
+# has been at or below its historical level for nineteen months, and it is
+# measured carefully. What it is an average over is computed below.
+#
+# The measurement is good. A refund counts against the month the order was
+# placed rather than the month it was granted, so a slow refund cannot hide in
+# the next period; partial refunds count in proportion rather than as a whole or
+# not at all; goodwill credits are counted as refunds rather than filed
+# elsewhere; and the historical level was computed over three years rather than
+# from a convenient quarter.
+#
+# It is one ratio over every order.
+
+168000 => orders_a_month
+2100 => refunds_a_month
+130 => historical_rate_per_myriad
+19 => months_at_or_below_it
+9400 => orders_through_the_new_checkout
+1580 => refunds_from_those_orders
+0 => dashboards_split_by_checkout_flow
+5 => months_the_new_checkout_has_been_live
+
+orders_a_month - orders_through_the_new_checkout => orders_through_the_old_checkout
+refunds_a_month - refunds_from_those_orders => refunds_from_the_old_checkout
+int(refunds_a_month * 10000 / orders_a_month) => refund_rate_per_myriad
+int(refunds_from_those_orders * 10000 / orders_through_the_new_checkout) => new_checkout_rate_per_myriad
+int(refunds_from_the_old_checkout * 10000 / orders_through_the_old_checkout) => old_checkout_rate_per_myriad
+int(refunds_from_those_orders * 10000 / refunds_a_month) => new_checkouts_share_of_refunds_per_myriad
+int(orders_through_the_new_checkout * 10000 / orders_a_month) => new_checkouts_share_of_orders_per_myriad
+historical_rate_per_myriad - refund_rate_per_myriad => improvement_against_history_per_myriad
+
+"orders a month                  : " + str(orders_a_month) ^0
+"refunds a month                 : " + str(refunds_a_month) ^0
+"  refund rate                   : " + str(refund_rate_per_myriad) + " per ten thousand" ^0
+"historical rate                 : " + str(historical_rate_per_myriad) + " per ten thousand" ^0
+"  better than history by        : " + str(improvement_against_history_per_myriad) + " per ten thousand" ^0
+"months at or below it           : " + str(months_at_or_below_it) ^0
+"" ^0
+"orders through the new checkout : " + str(orders_through_the_new_checkout) ^0
+"  share of orders               : " + str(new_checkouts_share_of_orders_per_myriad) + " per ten thousand" ^0
+"  refunds from those orders     : " + str(refunds_from_those_orders) ^0
+"  share of refunds              : " + str(new_checkouts_share_of_refunds_per_myriad) + " per ten thousand" ^0
+"  their refund rate             : " + str(new_checkout_rate_per_myriad) + " per ten thousand" ^0
+"" ^0
+"orders through the old checkout : " + str(orders_through_the_old_checkout) ^0
+"  refunds from those            : " + str(refunds_from_the_old_checkout) ^0
+"  their refund rate             : " + str(old_checkout_rate_per_myriad) + " per ten thousand" ^0
+"" ^0
+"months the new checkout is live : " + str(months_the_new_checkout_has_been_live) ^0
+"dashboards split by flow        : " + str(dashboards_split_by_checkout_flow) ^0
+"" ^0
+
+# ---- what the measurement verified ----
+
+"the refund rate" ^0
+"  a refund counts against : the month the order was" ^0
+"    placed, so a slow one cannot hide in the next period" ^0
+"  a partial refund : counts in proportion" ^0
+"  a goodwill credit : counts as a refund" ^0
+"  the historical level : three years, not a convenient" ^0
+"    quarter" ^0
+"  months at or below it : " + str(months_at_or_below_it) ^0
+"  verdict : NORMAL" ^0
+"" ^0
+"  attributing a refund to the order's own month is the" ^0
+"  part almost nobody does, and it is why " ^0
+"  " + str(refund_rate_per_myriad) + " per ten thousand is comparable to history" ^0
+"" ^0
+
+# ---- the two flows inside the one ratio ----
+
+"orders are not all the same kind of order" ^0
+"  new checkout, share of orders : " ^0
+"    " + str(new_checkouts_share_of_orders_per_myriad) + " per ten thousand" ^0
+"  new checkout, share of refunds : " ^0
+"    " + str(new_checkouts_share_of_refunds_per_myriad) + " per ten thousand" ^0
+"  its own rate : " + str(new_checkout_rate_per_myriad) + " per ten thousand" ^0
+"  the old flow's rate : " + str(old_checkout_rate_per_myriad) + " per ten thousand" ^0
+"  the figure everyone reads : " ^0
+"    " + str(refund_rate_per_myriad) + " per ten thousand, better than history" ^0
+"" ^0
+"  the aggregate improved while one cohort ran at many" ^0
+"  times the other, because the cohort is small and the" ^0
+"  denominator is not" ^0
+"" ^0
+
+# ---- what the improvement is made of ----
+
+"how a figure improves while a part worsens" ^0
+"  the old flow is the bulk : " + str(orders_through_the_old_checkout) + " orders" ^0
+"  its rate is below history : " ^0
+"    " + str(old_checkout_rate_per_myriad) + " per ten thousand" ^0
+"  the new flow adds : " + str(refunds_from_those_orders) + " refunds on " ^0
+"    " + str(orders_through_the_new_checkout) + " orders" ^0
+"  the sum lands at : " + str(refund_rate_per_myriad) + " per ten thousand" ^0
+"  months this has been true : " ^0
+"    " + str(months_the_new_checkout_has_been_live) ^0
+"  dashboards that would show it : " ^0
+"    " + str(dashboards_split_by_checkout_flow) ^0
+"" ^0
+
+# ---- null control ----
+
+# The same measurement, reported once per checkout flow rather than once for
+# the shop.
+125 => nc_refund_rate_for_the_shop_per_myriad
+1680 => nc_new_checkout_rate_per_myriad
+32 => nc_old_checkout_rate_per_myriad
+
+"null control - one rate per flow" ^0
+"  rate for the shop : " + str(nc_refund_rate_for_the_shop_per_myriad) + ", unchanged" ^0
+"  new checkout : " + str(nc_new_checkout_rate_per_myriad) + " per ten thousand" ^0
+"  old checkout : " + str(nc_old_checkout_rate_per_myriad) + " per ten thousand" ^0
+"  no order changed and no refund was reclassified; the" ^0
+"  question stopped being asked once for both flows" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a normal refund rate guarantees" ^0
+"  refunds across all orders are at or below the three-" ^0
+"    year level : exactly, attributed to the order's own" ^0
+"    month, partials in proportion, goodwill included," ^0
+"    " + str(months_at_or_below_it) + " months" ^0
+"  no part of the shop is going wrong : not addressed;" ^0
+"    one flow with " + str(new_checkouts_share_of_orders_per_myriad) + " per ten thousand of orders" ^0
+"    carries " + str(new_checkouts_share_of_refunds_per_myriad) + " per ten thousand of refunds" ^0
+"" ^0
+"an aggregate can improve while every part of it worsens," ^0
+"and it can hold steady while one part is the whole story;" ^0
+"the shape inside the ratio is a second measurement, and" ^0
+"nothing here takes it" ^0
+"" ^0
+
+"Refunds are attributed to the order's own month, partials count in proportion," ^0
+"goodwill counts, and history is three years - " + str(refund_rate_per_myriad) + " per ten thousand against " ^0
+"" + str(historical_rate_per_myriad) + ", " + str(months_at_or_below_it) + " months. One flow with " + str(new_checkouts_share_of_orders_per_myriad) + " per ten thousand of orders holds " ^0
+"" + str(new_checkouts_share_of_refunds_per_myriad) + " per ten thousand of the refunds, running at " + str(new_checkout_rate_per_myriad) + " against " + str(old_checkout_rate_per_myriad) + " for" ^0
+"the rest, across " + str(dashboards_split_by_checkout_flow) + " dashboards that split them." ^0

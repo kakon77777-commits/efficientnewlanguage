@@ -1,0 +1,146 @@
+# Self-authored for the EML case corpus (no external origin). The classifier
+# decides a document only when it is confident, and everything below the
+# threshold goes to a person. Where the confidence comes from is computed below.
+#
+# The gate is well built. The threshold was chosen on a held-out set rather than
+# picked; the abstention rate is on a dashboard, so a model that quietly stops
+# abstaining is visible; abstentions go to a real queue with a real service
+# level rather than to a folder; and a sample of the automatic decisions is
+# adjudicated by hand every day, so the error rate is measured and not assumed.
+#
+# The confidence is the model's own, and it was calibrated on the distribution
+# the model was trained on.
+
+52000 => documents_a_day
+85 => abstention_threshold_times_one_hundred
+4160 => documents_sent_to_a_human
+400 => automatic_decisions_audited_a_day
+6 => errors_found_in_that_audit
+26 => months_the_gate_has_run
+3100 => documents_a_day_from_a_source_added_after_calibration
+210 => those_that_abstained
+300 => of_those_audited
+74 => errors_found_among_them
+93 => mean_confidence_on_that_source_times_one_hundred
+0 => calibration_sets_drawn_after_the_new_source_arrived
+
+documents_a_day - documents_sent_to_a_human => documents_decided_automatically
+int(documents_sent_to_a_human * 10000 / documents_a_day) => abstained_per_myriad
+int(errors_found_in_that_audit * 10000 / automatic_decisions_audited_a_day) => error_rate_overall_per_myriad
+int(errors_found_among_them * 10000 / of_those_audited) => error_rate_new_source_per_myriad
+int(those_that_abstained * 10000 / documents_a_day_from_a_source_added_after_calibration) => abstained_new_source_per_myriad
+error_rate_new_source_per_myriad - error_rate_overall_per_myriad => rate_difference_per_myriad
+abstained_per_myriad - abstained_new_source_per_myriad => abstention_difference_per_myriad
+
+"documents a day                 : " + str(documents_a_day) ^0
+"  sent to a human               : " + str(documents_sent_to_a_human) ^0
+"  decided automatically         : " + str(documents_decided_automatically) ^0
+"  abstained                     : " + str(abstained_per_myriad) + " per ten thousand" ^0
+"threshold, times one hundred    : " + str(abstention_threshold_times_one_hundred) ^0
+"months the gate has run         : " + str(months_the_gate_has_run) ^0
+"" ^0
+"automatic decisions audited     : " + str(automatic_decisions_audited_a_day) ^0
+"  errors found                  : " + str(errors_found_in_that_audit) ^0
+"  error rate                    : " + str(error_rate_overall_per_myriad) + " per ten thousand" ^0
+"" ^0
+"documents from the new source   : " + str(documents_a_day_from_a_source_added_after_calibration) ^0
+"  audited                       : " + str(of_those_audited) ^0
+"  errors found                  : " + str(errors_found_among_them) ^0
+"  error rate                    : " + str(error_rate_new_source_per_myriad) + " per ten thousand" ^0
+"  mean confidence, times hundred: " + str(mean_confidence_on_that_source_times_one_hundred) ^0
+"  abstained                     : " + str(abstained_new_source_per_myriad) + " per ten thousand" ^0
+"calibration sets drawn since    : " + str(calibration_sets_drawn_after_the_new_source_arrived) ^0
+"" ^0
+"the two rates, as a difference" ^0
+"  error, new source less overall: " + str(rate_difference_per_myriad) + " per ten thousand" ^0
+"  abstention, overall less new  : " + str(abstention_difference_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the gate verified ----
+
+"the abstention gate" ^0
+"  the threshold : chosen on a held-out set, not picked" ^0
+"  the abstention rate : on a dashboard, so a model that" ^0
+"    quietly stops abstaining is visible" ^0
+"  where abstentions go : a real queue with a real" ^0
+"    service level, not a folder" ^0
+"  the automatic decisions : " + str(automatic_decisions_audited_a_day) + " adjudicated by hand" ^0
+"    every day, so the error rate is measured" ^0
+"  verdict : GATED" ^0
+"" ^0
+"  adjudicating a daily sample of the AUTOMATIC decisions" ^0
+"  is the part almost nobody does, and it is why the " ^0
+"  " + str(error_rate_overall_per_myriad) + " per ten thousand is a measurement" ^0
+"" ^0
+
+# ---- whose word the confidence is ----
+
+"what the number in the gate is" ^0
+"  who produces it : the model" ^0
+"  what it is : how well the input matched what the model" ^0
+"    learned, expressed as certainty" ^0
+"  what it was calibrated against : the distribution the" ^0
+"    model was trained on" ^0
+"  calibration sets drawn since the new source arrived : " ^0
+"    " + str(calibration_sets_drawn_after_the_new_source_arrived) ^0
+"  so on an input unlike that distribution : the number" ^0
+"    is produced by the same machinery that is wrong" ^0
+"" ^0
+"  the gate asks the model whether to trust the model" ^0
+"" ^0
+
+# ---- the source that arrived after ----
+
+"documents from a form layout nobody calibrated on" ^0
+"  error rate there : " + str(error_rate_new_source_per_myriad) + " per ten thousand" ^0
+"  error rate overall : " + str(error_rate_overall_per_myriad) + " per ten thousand" ^0
+"  so the difference : " + str(rate_difference_per_myriad) + " per ten thousand" ^0
+"  mean confidence there : " + str(mean_confidence_on_that_source_times_one_hundred) + ", against a" ^0
+"    threshold of " + str(abstention_threshold_times_one_hundred) ^0
+"  abstention there : " + str(abstained_new_source_per_myriad) + " per ten thousand" ^0
+"  abstention overall : " + str(abstained_per_myriad) + " per ten thousand" ^0
+"" ^0
+"  it abstains LESS on the source it is wronger about," ^0
+"  by " + str(abstention_difference_per_myriad) + " per ten thousand, and that is not a" ^0
+"  malfunction - it is what a confidence calibrated" ^0
+"  elsewhere says here" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same gate, recalibrated on a sample that includes the new source.
+2900 => nc_new_source_documents_that_abstain
+4160 => nc_documents_sent_to_a_human_from_the_old_sources
+1 => nc_calibration_sets_drawn_since
+
+"null control - recalibrate on a sample that includes it" ^0
+"  abstentions from the old sources : " ^0
+"    " + str(nc_documents_sent_to_a_human_from_the_old_sources) + ", unchanged" ^0
+"  calibration sets drawn since : " + str(nc_calibration_sets_drawn_since) ^0
+"  new-source documents that now abstain : " ^0
+"    " + str(nc_new_source_documents_that_abstain) + " of " + str(documents_a_day_from_a_source_added_after_calibration) ^0
+"  the model did not get better; the number the gate reads" ^0
+"  was made to be about the documents it is reading" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a confidence gate guarantees" ^0
+"  a document the model is unsure about goes to a person" ^0
+"    : exactly, threshold " + str(abstention_threshold_times_one_hundred) + ", " + str(months_the_gate_has_run) + " months, rate on a" ^0
+"    dashboard, queue with a service level" ^0
+"  a document the model is wrong about goes to a person :" ^0
+"    not addressed; the gate reads the model's own" ^0
+"    certainty, and being wrong without doubt is the" ^0
+"    failure it cannot see" ^0
+"" ^0
+"a self-reported certainty is a measurement of fit to what" ^0
+"was seen before; where that fit is worst the report is" ^0
+"least able to say so, and nothing here asks anyone else" ^0
+"" ^0
+
+"The threshold came from a held-out set, abstentions go to a queue with a" ^0
+"service level, and " + str(automatic_decisions_audited_a_day) + " automatic decisions are adjudicated by hand daily at " ^0
+"" + str(error_rate_overall_per_myriad) + " per ten thousand error. The confidence is the model's own, calibrated before" ^0
+"a source that now sends " + str(documents_a_day_from_a_source_added_after_calibration) + " documents a day: there it errs at " + str(error_rate_new_source_per_myriad) + " per ten" ^0
+"thousand while abstaining " + str(abstention_difference_per_myriad) + " per ten thousand LESS than it does elsewhere." ^0

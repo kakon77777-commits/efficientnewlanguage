@@ -1,0 +1,137 @@
+# Self-authored for the EML case corpus (no external origin). The expense audit
+# draws a genuine random sample every quarter, and the sampling is the part it
+# gets right. What the sample is a sample of is computed below.
+#
+# The sampling is honest. The draw is from a seeded generator whose seed is
+# published afterwards, so nobody can choose the rows; it is a simple random
+# sample rather than whoever the auditor happens to know; the sample size was
+# derived from a stated confidence rather than picked round; and every drawn row
+# is examined, with no substitutions when one is inconvenient.
+#
+# It samples rows. The money is not distributed the way the rows are.
+
+184000 => expense_rows_a_quarter
+1200 => rows_drawn
+94 => rows_with_a_finding
+14 => quarters_the_method_has_run
+0 => rows_substituted_for_being_inconvenient
+41000000 => total_value_a_quarter
+34200000 => value_in_the_largest_two_hundred_rows
+760000 => value_covered_by_the_sample
+200 => the_largest_rows
+3 => of_those_largest_rows_that_the_sample_happened_to_draw
+
+expense_rows_a_quarter - rows_drawn => rows_not_drawn
+total_value_a_quarter - value_in_the_largest_two_hundred_rows => value_in_everything_else
+the_largest_rows - of_those_largest_rows_that_the_sample_happened_to_draw => largest_rows_the_sample_missed
+int(rows_drawn * 10000 / expense_rows_a_quarter) => rows_sampled_per_myriad
+int(value_covered_by_the_sample * 10000 / total_value_a_quarter) => value_sampled_per_myriad
+int(value_in_the_largest_two_hundred_rows * 10000 / total_value_a_quarter) => value_in_the_largest_rows_per_myriad
+int(rows_with_a_finding * 10000 / rows_drawn) => finding_rate_per_myriad
+
+"expense rows a quarter          : " + str(expense_rows_a_quarter) ^0
+"  drawn                         : " + str(rows_drawn) ^0
+"  not drawn                     : " + str(rows_not_drawn) ^0
+"  rows sampled                  : " + str(rows_sampled_per_myriad) + " per ten thousand" ^0
+"  rows substituted              : " + str(rows_substituted_for_being_inconvenient) ^0
+"rows with a finding             : " + str(rows_with_a_finding) ^0
+"  finding rate                  : " + str(finding_rate_per_myriad) + " per ten thousand" ^0
+"quarters the method has run     : " + str(quarters_the_method_has_run) ^0
+"" ^0
+"total value a quarter           : " + str(total_value_a_quarter) ^0
+"  in the largest " + str(the_largest_rows) + " rows          : " + str(value_in_the_largest_two_hundred_rows) ^0
+"  in everything else            : " + str(value_in_everything_else) ^0
+"  concentrated in the largest   : " + str(value_in_the_largest_rows_per_myriad) + " per ten thousand" ^0
+"" ^0
+"value covered by the sample     : " + str(value_covered_by_the_sample) ^0
+"  value sampled                 : " + str(value_sampled_per_myriad) + " per ten thousand" ^0
+"largest rows the sample drew    : " + str(of_those_largest_rows_that_the_sample_happened_to_draw) ^0
+"  that it missed                : " + str(largest_rows_the_sample_missed) ^0
+"" ^0
+
+# ---- what the sampling verified ----
+
+"the expense audit's sample" ^0
+"  the draw : a seeded generator whose seed is published" ^0
+"    afterwards, so nobody chooses the rows" ^0
+"  the method : simple random, not whoever the auditor" ^0
+"    knows" ^0
+"  the size : derived from a stated confidence, not" ^0
+"    picked round" ^0
+"  substitutions when a row is inconvenient : " ^0
+"    " + str(rows_substituted_for_being_inconvenient) ^0
+"  quarters run this way : " + str(quarters_the_method_has_run) ^0
+"  verdict : SAMPLED" ^0
+"" ^0
+"  publishing the seed afterwards is the part almost" ^0
+"  nobody does, and it is why the " + str(rows_drawn) + " are not a" ^0
+"  selection" ^0
+"" ^0
+
+# ---- the two populations ----
+
+"rows and money are not the same population" ^0
+"  rows sampled : " + str(rows_sampled_per_myriad) + " per ten thousand" ^0
+"  value sampled : " + str(value_sampled_per_myriad) + " per ten thousand" ^0
+"  value sitting in " + str(the_largest_rows) + " rows : " ^0
+"    " + str(value_in_the_largest_rows_per_myriad) + " per ten thousand of the quarter" ^0
+"  chance a uniform draw of " + str(rows_drawn) + " catches a given" ^0
+"    one of them : the same as for any other row" ^0
+"  of those " + str(the_largest_rows) + ", drawn : " + str(of_those_largest_rows_that_the_sample_happened_to_draw) ^0
+"  missed : " + str(largest_rows_the_sample_missed) ^0
+"" ^0
+"  a sample that is uniform over rows is by construction" ^0
+"  not uniform over value, and the value is what the audit" ^0
+"  is for" ^0
+"" ^0
+
+# ---- what the finding rate is a rate of ----
+
+"the number the report leads with" ^0
+"  rows with a finding : " + str(rows_with_a_finding) + " of " + str(rows_drawn) ^0
+"  so the finding rate : " + str(finding_rate_per_myriad) + " per ten thousand" ^0
+"  what it estimates : the share of ROWS with a problem" ^0
+"  what the reader takes it for : the share of MONEY at" ^0
+"    risk" ^0
+"  what would estimate that : a draw weighted by value," ^0
+"    which is not this one" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same audit, with the sample drawn with probability proportional to value
+# and the largest rows examined outright.
+1200 => nc_rows_drawn
+200 => nc_largest_rows_examined_outright
+9100 => nc_value_sampled_per_myriad
+
+"null control - draw proportional to value, take the top outright" ^0
+"  rows drawn : " + str(nc_rows_drawn) + ", unchanged" ^0
+"  largest rows examined outright : " ^0
+"    " + str(nc_largest_rows_examined_outright) ^0
+"  value sampled : " + str(nc_value_sampled_per_myriad) + " per ten thousand" ^0
+"  the draw did not become less random; it stopped being" ^0
+"  uniform over the wrong thing" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a clean random sample guarantees" ^0
+"  an unbiased estimate of the share of rows with a" ^0
+"    problem : exactly, seeded, published, " ^0
+"    " + str(rows_substituted_for_being_inconvenient) + " substitutions, " + str(quarters_the_method_has_run) + " quarters" ^0
+"  an estimate of the money at risk : not addressed; the" ^0
+"    draw is uniform over rows and " ^0
+"    " + str(value_in_the_largest_rows_per_myriad) + " per ten thousand of the value is in " ^0
+"    " + str(the_largest_rows) + " of them" ^0
+"" ^0
+"a sample is unbiased with respect to the thing it was" ^0
+"drawn over; a quantity distributed differently from that" ^0
+"thing is estimated by the sample only by coincidence" ^0
+"" ^0
+
+"The seed is published afterwards, the draw is simple random, the size comes" ^0
+"from a stated confidence and " + str(rows_substituted_for_being_inconvenient) + " rows were substituted in " + str(quarters_the_method_has_run) + " quarters. It" ^0
+"is uniform over rows - " + str(rows_sampled_per_myriad) + " per ten thousand of them - which is " + str(value_sampled_per_myriad) + " per ten" ^0
+"thousand of the value, because " + str(value_in_the_largest_rows_per_myriad) + " per ten thousand of it sits in " + str(the_largest_rows) ^0
+"rows of which the sample drew " + str(of_those_largest_rows_that_the_sample_happened_to_draw) + "." ^0

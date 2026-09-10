@@ -1,0 +1,133 @@
+# Self-authored for the EML case corpus (no external origin). Nothing deploys
+# without a signed provenance statement naming its source commit, its builder
+# image and every step that ran, and the admission controller refuses anything
+# that does not verify. Who writes the statement is computed below.
+#
+# The control is real. Verification happens in the admission controller, so a
+# deploy that skips it does not reach the cluster; the signing identity is
+# short-lived and lives in an HSM rather than in a variable; every signature is
+# written to a transparency log; and thirty-seven deploys a month are actually
+# refused rather than warned about.
+#
+# The statement is produced by the build, and signed with the build's own key.
+
+4600 => artifacts_attested_a_month
+1900 => deploys_a_month
+37 => deploys_refused_for_a_bad_attestation
+19 => months_the_control_has_run
+11 => fields_in_the_statement
+0 => fields_any_other_party_can_contradict
+4600 => transparency_log_entries_a_month
+0 => log_entries_anyone_has_read_back
+0 => independent_rebuilds_a_month
+6 => minutes_an_independent_rebuild_would_cost
+
+fields_in_the_statement - fields_any_other_party_can_contradict => fields_only_the_build_can_speak_to
+transparency_log_entries_a_month - log_entries_anyone_has_read_back => log_entries_nobody_has_read
+artifacts_attested_a_month * minutes_an_independent_rebuild_would_cost => minutes_to_rebuild_a_months_output
+int(minutes_to_rebuild_a_months_output / 60) => hours_to_rebuild_a_months_output
+int(deploys_refused_for_a_bad_attestation * 10000 / deploys_a_month) => refused_per_myriad
+
+"artifacts attested a month      : " + str(artifacts_attested_a_month) ^0
+"deploys a month                 : " + str(deploys_a_month) ^0
+"  refused for a bad attestation : " + str(deploys_refused_for_a_bad_attestation) ^0
+"  refused share                 : " + str(refused_per_myriad) + " per ten thousand" ^0
+"months the control has run      : " + str(months_the_control_has_run) ^0
+"" ^0
+"fields in the statement         : " + str(fields_in_the_statement) ^0
+"  any other party can contradict: " + str(fields_any_other_party_can_contradict) ^0
+"  only the build can speak to   : " + str(fields_only_the_build_can_speak_to) ^0
+"" ^0
+"transparency log entries a month: " + str(transparency_log_entries_a_month) ^0
+"  anyone has read back          : " + str(log_entries_anyone_has_read_back) ^0
+"  nobody has read               : " + str(log_entries_nobody_has_read) ^0
+"" ^0
+"independent rebuilds a month    : " + str(independent_rebuilds_a_month) ^0
+"  minutes one would cost        : " + str(minutes_an_independent_rebuild_would_cost) ^0
+"  hours for a month's output    : " + str(hours_to_rebuild_a_months_output) ^0
+"" ^0
+
+# ---- what the control verified ----
+
+"the provenance control" ^0
+"  where it runs : the admission controller, so a deploy" ^0
+"    that skips it does not reach the cluster" ^0
+"  the key : short-lived, in an HSM, not in a variable" ^0
+"  every signature : written to a transparency log" ^0
+"  deploys refused a month : " + str(deploys_refused_for_a_bad_attestation) + ", refused and not warned" ^0
+"  months in place : " + str(months_the_control_has_run) ^0
+"  verdict : ATTESTED" ^0
+"" ^0
+"  refusing in the admission controller rather than in the" ^0
+"  pipeline is the part almost nobody does, and it is why" ^0
+"  the " + str(deploys_refused_for_a_bad_attestation) + " a month are refusals" ^0
+"" ^0
+
+# ---- whose word the statement is ----
+
+"what the signature establishes" ^0
+"  who wrote the statement : the build" ^0
+"  what it says : this is the commit I read and these are" ^0
+"    the steps I ran" ^0
+"  who signed it : the same build, with its own identity" ^0
+"  fields another party could contradict : " ^0
+"    " + str(fields_any_other_party_can_contradict) ^0
+"  so a build that is wrong about itself : signs that" ^0
+"" ^0
+"  the signature proves who is speaking; it cannot make" ^0
+"  the speaker a witness to itself" ^0
+"" ^0
+
+# ---- what the transparency log adds ----
+
+"the log" ^0
+"  entries a month : " + str(transparency_log_entries_a_month) ^0
+"  what an entry proves : that this statement existed at" ^0
+"    this time and has not been altered since" ^0
+"  what it does not prove : that the statement was true" ^0
+"    when it was written" ^0
+"  entries anyone has read back : " + str(log_entries_anyone_has_read_back) ^0
+"  so entries nobody has read : " + str(log_entries_nobody_has_read) ^0
+"" ^0
+"  an append-only record of unchecked claims is an" ^0
+"  append-only record of unchecked claims" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same control, plus a second builder that rebuilds each artifact from the
+# same commit and compares digests.
+4600 => nc_independent_rebuilds_a_month
+2 => nc_artifacts_whose_rebuild_did_not_match
+37 => nc_deploys_refused_for_a_bad_attestation
+
+"null control - rebuild independently, compare digests" ^0
+"  deploys refused for a bad attestation : " ^0
+"    " + str(nc_deploys_refused_for_a_bad_attestation) + ", unchanged" ^0
+"  independent rebuilds a month : " + str(nc_independent_rebuilds_a_month) ^0
+"  artifacts whose rebuild did not match : " ^0
+"    " + str(nc_artifacts_whose_rebuild_did_not_match) ^0
+"  the signature check did not get stricter; a second" ^0
+"  party was given something to say" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a verified attestation guarantees" ^0
+"  the artifact carries a statement its builder signed," ^0
+"    unaltered since : exactly, in the admission" ^0
+"    controller, logged, " + str(months_the_control_has_run) + " months" ^0
+"  the artifact is what the statement says : not" ^0
+"    addressed; the statement's author is the thing it" ^0
+"    describes, and " + str(independent_rebuilds_a_month) + " rebuilds a month contradict it" ^0
+"" ^0
+"a signature answers who said it and whether it changed;" ^0
+"neither question is whether it was true, and nothing here" ^0
+"asks a second party" ^0
+"" ^0
+
+"Verification runs in the admission controller, the key is short-lived and in an" ^0
+"HSM, every signature is logged, and " + str(deploys_refused_for_a_bad_attestation) + " deploys a month are refused - " + str(refused_per_myriad) + " per" ^0
+"ten thousand. The build writes the statement and signs it, so " + str(fields_only_the_build_can_speak_to) + " of " + str(fields_in_the_statement) ^0
+"fields have no other party who could contradict them, " + str(log_entries_nobody_has_read) + " log entries have never" ^0
+"been read back, and a rebuild that would settle it costs " + str(minutes_an_independent_rebuild_would_cost) + " minutes." ^0

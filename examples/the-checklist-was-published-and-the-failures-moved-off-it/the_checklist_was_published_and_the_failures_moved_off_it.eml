@@ -1,0 +1,141 @@
+# Self-authored for the EML case corpus (no external origin). The internal audit
+# checklist was published so teams could prepare, and findings per audit fell by
+# three quarters in the two years since. What moved is computed below.
+#
+# Publishing it was the right call and the audit is well run. An audit that
+# surprises people measures preparation, not practice; the checklist is
+# evidence-based, each item traceable to a real past incident; auditors rotate
+# so no team is read by the same person twice; and a finding must cite the
+# artifact it was found in rather than an opinion.
+#
+# The checklist names sixty things. The audit looks for those sixty things.
+
+64 => audits_a_year
+60 => items_on_the_published_checklist
+2 => years_since_publication
+1240 => findings_in_the_year_before_publication
+310 => findings_last_year
+0 => items_added_to_the_checklist_since_publication
+19 => incidents_last_year_whose_cause_was_on_the_checklist
+27 => incidents_last_year_whose_cause_was_not
+54 => incidents_in_the_year_before_publication
+41 => that_years_incidents_whose_cause_was_on_the_checklist
+
+findings_in_the_year_before_publication - findings_last_year => findings_that_stopped_being_found
+incidents_last_year_whose_cause_was_on_the_checklist + incidents_last_year_whose_cause_was_not => incidents_last_year
+incidents_in_the_year_before_publication - that_years_incidents_whose_cause_was_on_the_checklist => that_years_incidents_off_the_checklist
+incidents_last_year - incidents_in_the_year_before_publication => change_in_incidents
+int(findings_last_year * 10000 / findings_in_the_year_before_publication) => findings_remaining_per_myriad
+int(incidents_last_year_whose_cause_was_on_the_checklist * 10000 / incidents_last_year) => on_checklist_causes_now_per_myriad
+int(that_years_incidents_whose_cause_was_on_the_checklist * 10000 / incidents_in_the_year_before_publication) => on_checklist_causes_before_per_myriad
+
+"audits a year                   : " + str(audits_a_year) ^0
+"items on the published checklist: " + str(items_on_the_published_checklist) ^0
+"years since publication         : " + str(years_since_publication) ^0
+"items added since               : " + str(items_added_to_the_checklist_since_publication) ^0
+"" ^0
+"findings, year before           : " + str(findings_in_the_year_before_publication) ^0
+"findings, last year             : " + str(findings_last_year) ^0
+"  that stopped being found      : " + str(findings_that_stopped_being_found) ^0
+"  remaining                     : " + str(findings_remaining_per_myriad) + " per ten thousand" ^0
+"" ^0
+"incidents, year before          : " + str(incidents_in_the_year_before_publication) ^0
+"  cause on the checklist        : " + str(that_years_incidents_whose_cause_was_on_the_checklist) ^0
+"  cause off it                  : " + str(that_years_incidents_off_the_checklist) ^0
+"  on-checklist share            : " + str(on_checklist_causes_before_per_myriad) + " per ten thousand" ^0
+"incidents, last year            : " + str(incidents_last_year) ^0
+"  cause on the checklist        : " + str(incidents_last_year_whose_cause_was_on_the_checklist) ^0
+"  cause off it                  : " + str(incidents_last_year_whose_cause_was_not) ^0
+"  on-checklist share            : " + str(on_checklist_causes_now_per_myriad) + " per ten thousand" ^0
+"change in incidents             : " + str(change_in_incidents) ^0
+"" ^0
+
+# ---- what the audit verified ----
+
+"the internal audit" ^0
+"  the checklist : published, so an audit measures" ^0
+"    practice rather than surprise" ^0
+"  each item : traceable to a real past incident, not to" ^0
+"    an opinion" ^0
+"  the auditors : rotated, so no team is read twice by" ^0
+"    the same person" ^0
+"  a finding : must cite the artifact it was found in" ^0
+"  audits a year : " + str(audits_a_year) ^0
+"  verdict : AUDITED" ^0
+"" ^0
+"  publishing the checklist is the right call, and" ^0
+"  requiring a finding to cite an artifact is the part" ^0
+"  almost nobody does" ^0
+"" ^0
+
+# ---- what the population did with it ----
+
+"the sixty items, once they were known" ^0
+"  what a team can now do : fix exactly those sixty" ^0
+"    things before the auditor arrives" ^0
+"  findings that stopped being found : " ^0
+"    " + str(findings_that_stopped_being_found) ^0
+"  items added since publication : " ^0
+"    " + str(items_added_to_the_checklist_since_publication) ^0
+"  so the list a team prepares against : the same sixty," ^0
+"    for two years" ^0
+"" ^0
+"  the criteria became the target, and a target is met" ^0
+"  rather than exceeded" ^0
+"" ^0
+
+# ---- what the incidents say ----
+
+"causes, before and after" ^0
+"  incidents whose cause was on the list, before : " ^0
+"    " + str(that_years_incidents_whose_cause_was_on_the_checklist) + " of " + str(incidents_in_the_year_before_publication) + ", " + str(on_checklist_causes_before_per_myriad) + " per ten thousand" ^0
+"  incidents whose cause was on the list, last year : " ^0
+"    " + str(incidents_last_year_whose_cause_was_on_the_checklist) + " of " + str(incidents_last_year) + ", " + str(on_checklist_causes_now_per_myriad) + " per ten thousand" ^0
+"  so the checklist's own items : are genuinely being" ^0
+"    fixed, and that is a real result" ^0
+"  incidents whose cause was off the list : " ^0
+"    " + str(that_years_incidents_off_the_checklist) + " before, " + str(incidents_last_year_whose_cause_was_not) + " last year" ^0
+"  total incidents : " + str(change_in_incidents) ^0
+"" ^0
+
+# ---- null control ----
+
+# The same audit, with a quarter of each visit spent on whatever the auditor
+# judges worth looking at, off the list and unannounced.
+310 => nc_findings_from_the_published_items
+118 => nc_findings_from_the_unannounced_quarter
+0 => nc_items_added_to_the_published_list
+
+"null control - spend a quarter of each audit off the list" ^0
+"  items added to the published list : " ^0
+"    " + str(nc_items_added_to_the_published_list) + ", unchanged" ^0
+"  findings from the published items : " ^0
+"    " + str(nc_findings_from_the_published_items) + ", unchanged" ^0
+"  findings from the unannounced quarter : " ^0
+"    " + str(nc_findings_from_the_unannounced_quarter) ^0
+"  no team got worse; the auditor stopped only looking" ^0
+"  where the teams had been told to expect them" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a falling finding count guarantees" ^0
+"  the sixty published items are being done : exactly," ^0
+"    " + str(audits_a_year) + " audits a year, findings down to " ^0
+"    " + str(findings_remaining_per_myriad) + " per ten thousand, and the incidents caused" ^0
+"    by those items fell with them" ^0
+"  the estate is safer : not addressed; the list has not" ^0
+"    moved in " + str(years_since_publication) + " years and incidents whose cause is off it" ^0
+"    went from " + str(that_years_incidents_off_the_checklist) + " to " + str(incidents_last_year_whose_cause_was_not) ^0
+"" ^0
+"published criteria are a promise about where you will" ^0
+"look; a population that can read them improves exactly" ^0
+"there, and the measurement cannot distinguish that from" ^0
+"improving" ^0
+"" ^0
+
+"The checklist is evidence-based, auditors rotate, findings must cite an" ^0
+"artifact, and " + str(findings_that_stopped_being_found) + " findings stopped being found across " + str(audits_a_year) + " audits a year. The" ^0
+"sixty items have not changed in " + str(years_since_publication) + " years: incidents caused by them fell from " ^0
+"" + str(that_years_incidents_whose_cause_was_on_the_checklist) + " to " + str(incidents_last_year_whose_cause_was_on_the_checklist) + ", incidents caused by anything else went " + str(that_years_incidents_off_the_checklist) + " to " ^0
+"" + str(incidents_last_year_whose_cause_was_not) + ", and the total moved by " + str(change_in_incidents) + "." ^0

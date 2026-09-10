@@ -1,0 +1,146 @@
+# Self-authored for the EML case corpus (no external origin). Line coverage on
+# the semantics packages has been above its eighty-five percent target for nine
+# quarters, and the gate that enforces it is real. What rose with it is computed
+# below.
+#
+# The gate is properly built. Coverage is measured on the semantics packages
+# rather than diluted across the whole repository; a pull request that lowers it
+# fails rather than warns; generated files are excluded by an explicit list
+# somebody maintains rather than by a pattern that quietly grows; and the number
+# comes from the same run that executes the tests.
+#
+# It counts lines a test caused to run. A line runs whether or not anything
+# looked at what it did.
+
+84000 => lines_of_semantics
+8500 => coverage_target_per_myriad
+8620 => coverage_now_per_myriad
+9 => quarters_the_target_has_been_met
+6400 => tests
+610 => tests_with_no_assertion_at_all
+290 => assertions_per_hundred_tests_when_the_target_arrived
+142 => assertions_per_hundred_tests_now
+4100 => mutants_killed_per_myriad
+0 => mutation_runs_that_gate_a_merge
+
+tests - tests_with_no_assertion_at_all => tests_that_assert_something
+assertions_per_hundred_tests_when_the_target_arrived - assertions_per_hundred_tests_now => assertions_per_hundred_tests_lost
+# NOT a subtraction. Coverage is per ten thousand LINES; the mutation score is
+# per ten thousand MUTANTS. Different denominators over different populations,
+# so their difference is not a quantity in any unit - and the fact that both are
+# written 'per ten thousand' is exactly what makes subtracting them feel
+# available. They are reported side by side instead.
+coverage_now_per_myriad - coverage_target_per_myriad => coverage_above_the_target
+int(tests_with_no_assertion_at_all * 10000 / tests) => tests_asserting_nothing_per_myriad
+
+"lines of semantics              : " + str(lines_of_semantics) ^0
+"coverage target                 : " + str(coverage_target_per_myriad) + " per ten thousand" ^0
+"  coverage now                  : " + str(coverage_now_per_myriad) + " per ten thousand" ^0
+"  above the target by           : " + str(coverage_above_the_target) ^0
+"quarters the target has been met: " + str(quarters_the_target_has_been_met) ^0
+"" ^0
+"tests                           : " + str(tests) ^0
+"  with no assertion at all      : " + str(tests_with_no_assertion_at_all) ^0
+"  that assert something         : " + str(tests_that_assert_something) ^0
+"  asserting nothing             : " + str(tests_asserting_nothing_per_myriad) + " per ten thousand" ^0
+"assertions per hundred tests" ^0
+"  when the target arrived       : " + str(assertions_per_hundred_tests_when_the_target_arrived) ^0
+"  now                           : " + str(assertions_per_hundred_tests_now) ^0
+"  lost                          : " + str(assertions_per_hundred_tests_lost) ^0
+"" ^0
+"mutants killed                  : " + str(mutants_killed_per_myriad) + " per ten thousand" ^0
+"  coverage, per ten thousand lines : " + str(coverage_now_per_myriad) ^0
+"  mutants killed, per ten thousand mutants : " + str(mutants_killed_per_myriad) ^0
+"mutation runs that gate a merge : " + str(mutation_runs_that_gate_a_merge) ^0
+"" ^0
+
+# ---- what the gate verified ----
+
+"the coverage gate" ^0
+"  scope : the semantics packages, not diluted across the" ^0
+"    whole repository" ^0
+"  a pull request that lowers it : fails, not warns" ^0
+"  exclusions : an explicit list somebody maintains, not" ^0
+"    a pattern that quietly grows" ^0
+"  the number : from the same run that executes the tests" ^0
+"  quarters met : " + str(quarters_the_target_has_been_met) ^0
+"  verdict : COVERED" ^0
+"" ^0
+"  keeping the exclusion list explicit is the part almost" ^0
+"  nobody does, and it is why " + str(coverage_now_per_myriad) + " per ten thousand" ^0
+"  is about the code it claims to be about" ^0
+"" ^0
+
+# ---- what the number counts ----
+
+"what raises coverage" ^0
+"  a line counts when : a test caused it to run" ^0
+"  what a test must do to make a line run : call it" ^0
+"  what a test must do to make a line CHECKED : assert" ^0
+"    something about what it did" ^0
+"  tests that do the first and not the second : " ^0
+"    " + str(tests_with_no_assertion_at_all) ^0
+"  assertions per hundred tests, then and now : " ^0
+"    " + str(assertions_per_hundred_tests_when_the_target_arrived) + " and " + str(assertions_per_hundred_tests_now) ^0
+"" ^0
+"  the cheapest way to raise the number is to run more" ^0
+"  lines, and running is the half it counts" ^0
+"" ^0
+
+# ---- a second instrument, not gating anything ----
+
+"mutation score, measured but not enforced" ^0
+"  what it asks : if the code is changed, does a test" ^0
+"    notice" ^0
+"  mutants killed : " + str(mutants_killed_per_myriad) + " per ten thousand" ^0
+"  coverage : " + str(coverage_now_per_myriad) + " per ten thousand" ^0
+"  the distance between them : not a quantity;" ^0
+"    one is a fraction of lines and the other a" ^0
+"    fraction of mutants; they share a suffix and" ^0
+"    not a denominator" ^0
+"  merges gated on it : " + str(mutation_runs_that_gate_a_merge) ^0
+"  which of the two a pull request must satisfy : the" ^0
+"    one that counts running" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same repository, with the merge gated on mutation score instead and
+# coverage merely reported.
+4100 => nc_mutants_killed_per_myriad_at_the_moment_of_the_switch
+8620 => nc_coverage_per_myriad_at_the_same_moment
+1 => nc_mutation_runs_that_gate_a_merge
+
+"null control - gate on the second instrument instead" ^0
+"  coverage at the switch : " ^0
+"    " + str(nc_coverage_per_myriad_at_the_same_moment) + ", unchanged" ^0
+"  mutants killed at the switch : " ^0
+"    " + str(nc_mutants_killed_per_myriad_at_the_moment_of_the_switch) + ", unchanged" ^0
+"  merges gated on it : " + str(nc_mutation_runs_that_gate_a_merge) ^0
+"  no test changed on the day of the switch; the quantity" ^0
+"  a pull request has to move stopped being the one that" ^0
+"  counts execution" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a met coverage target guarantees" ^0
+"  " + str(coverage_now_per_myriad) + " per ten thousand of semantics lines are executed by" ^0
+"    the suite : exactly, measured in the run itself," ^0
+"    enforced on every pull request, " + str(quarters_the_target_has_been_met) + " quarters" ^0
+"  the suite would notice if they were wrong : not" ^0
+"    addressed; " + str(tests_with_no_assertion_at_all) + " tests assert nothing, and the second" ^0
+"    instrument reads " + str(mutants_killed_per_myriad) + " over a" ^0
+"    different population" ^0
+"" ^0
+"a number under a gate is a number under pressure; when two" ^0
+"actions raise it and only one of them is the point, the" ^0
+"cheaper one is what a population does" ^0
+"" ^0
+
+"Coverage is scoped to the semantics packages, exclusions are an explicit list," ^0
+"a pull request that lowers it fails, and the target has held " + str(quarters_the_target_has_been_met) + " quarters at " ^0
+"" + str(coverage_now_per_myriad) + " per ten thousand. It counts lines run, so assertions per hundred tests went " ^0
+"" + str(assertions_per_hundred_tests_when_the_target_arrived) + " to " + str(assertions_per_hundred_tests_now) + ", " + str(tests_with_no_assertion_at_all) + " of " + str(tests) + " tests assert nothing, and the mutation score" ^0
+"reads " + str(mutants_killed_per_myriad) + " per ten thousand mutants, which is not " + str(coverage_now_per_myriad) + " minus" ^0
+"anything, across " + str(mutation_runs_that_gate_a_merge) + " gated runs." ^0

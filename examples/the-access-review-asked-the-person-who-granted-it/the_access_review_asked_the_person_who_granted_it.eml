@@ -1,0 +1,137 @@
+# Self-authored for the EML case corpus (no external origin). Every entitlement
+# is re-approved by its owner every quarter, eleven quarters running, and an
+# entitlement nobody answers for is revoked automatically. Who the owner is is
+# computed below.
+#
+# The process is enforced rather than requested. It runs in the identity tool,
+# not in a spreadsheet; a reviewer who does not respond does not stall the
+# quarter, because silence revokes; the definitions of each entitlement are
+# shown next to it rather than assumed known; and one thousand two hundred and
+# forty entitlements were actually removed last quarter.
+#
+# The reviewer for an entitlement is the manager who asked for it.
+
+46000 => entitlements
+380 => reviewers
+11 => quarters_completed
+0 => entitlements_not_reviewed
+1240 => entitlements_revoked_last_quarter
+90 => revoked_by_a_reviewer_saying_no
+340 => reviewers_who_are_the_original_requester
+41000 => entitlements_approved_in_a_single_bulk_action
+2 => median_seconds_per_decision
+7 => access_incidents_involving_a_recertified_entitlement
+
+entitlements_revoked_last_quarter - revoked_by_a_reviewer_saying_no => revoked_by_silence
+entitlements - entitlements_approved_in_a_single_bulk_action => entitlements_decided_one_at_a_time
+reviewers - reviewers_who_are_the_original_requester => reviewers_reviewing_somebody_elses_request
+entitlements * median_seconds_per_decision => seconds_of_deciding_in_a_quarter
+int(seconds_of_deciding_in_a_quarter / 3600) => hours_of_deciding_in_a_quarter
+int(entitlements_approved_in_a_single_bulk_action * 10000 / entitlements) => bulk_approved_per_myriad
+int(reviewers_who_are_the_original_requester * 10000 / reviewers) => self_reviewing_per_myriad
+int(revoked_by_a_reviewer_saying_no * 10000 / entitlements) => revoked_by_decision_per_myriad
+
+"entitlements                    : " + str(entitlements) ^0
+"  not reviewed                  : " + str(entitlements_not_reviewed) ^0
+"  approved in one bulk action   : " + str(entitlements_approved_in_a_single_bulk_action) ^0
+"  decided one at a time         : " + str(entitlements_decided_one_at_a_time) ^0
+"  bulk-approved                 : " + str(bulk_approved_per_myriad) + " per ten thousand" ^0
+"quarters completed              : " + str(quarters_completed) ^0
+"" ^0
+"reviewers                       : " + str(reviewers) ^0
+"  who requested it themselves   : " + str(reviewers_who_are_the_original_requester) ^0
+"  reviewing somebody else's     : " + str(reviewers_reviewing_somebody_elses_request) ^0
+"  self-reviewing                : " + str(self_reviewing_per_myriad) + " per ten thousand" ^0
+"median seconds per decision     : " + str(median_seconds_per_decision) ^0
+"  hours of deciding a quarter   : " + str(hours_of_deciding_in_a_quarter) ^0
+"" ^0
+"revoked last quarter            : " + str(entitlements_revoked_last_quarter) ^0
+"  by a reviewer saying no       : " + str(revoked_by_a_reviewer_saying_no) ^0
+"  by silence                    : " + str(revoked_by_silence) ^0
+"  revoked by a decision         : " + str(revoked_by_decision_per_myriad) + " per ten thousand" ^0
+"incidents on a recertified one  : " + str(access_incidents_involving_a_recertified_entitlement) ^0
+"" ^0
+
+# ---- what the process verified ----
+
+"the quarterly recertification" ^0
+"  where it runs : the identity tool, not a spreadsheet" ^0
+"  silence : revokes, so a reviewer who does not answer" ^0
+"    cannot stall the quarter" ^0
+"  what a reviewer sees : the entitlement's definition" ^0
+"    beside it, not a code" ^0
+"  removed last quarter : " + str(entitlements_revoked_last_quarter) ^0
+"  quarters completed : " + str(quarters_completed) ^0
+"  verdict : RECERTIFIED" ^0
+"" ^0
+"  making silence revoke rather than stall is the part" ^0
+"  almost nobody does, and it is why the " + str(revoked_by_silence) ^0
+"  came off without anyone chasing them" ^0
+"" ^0
+
+# ---- whose judgement is being reviewed ----
+
+"who is asked about each entitlement" ^0
+"  the reviewer : the manager who requested it" ^0
+"  what the question is : should this person still have" ^0
+"    what you asked for them to have" ^0
+"  so the judgement under review and the judgement doing" ^0
+"    the reviewing : the same person's" ^0
+"  reviewers reviewing somebody else's request : " ^0
+"    " + str(reviewers_reviewing_somebody_elses_request) + " of " + str(reviewers) ^0
+"  median time to decide : " + str(median_seconds_per_decision) + " seconds" ^0
+"" ^0
+"  the control asks the requester to disagree with" ^0
+"  themselves, once a quarter, in bulk" ^0
+"" ^0
+
+# ---- what the revocations were ----
+
+"the " + str(entitlements_revoked_last_quarter) + " that came off" ^0
+"  because a reviewer looked and said no : " ^0
+"    " + str(revoked_by_a_reviewer_saying_no) ^0
+"  because nobody answered : " + str(revoked_by_silence) ^0
+"  so the mechanism that removed most of them : the" ^0
+"    absence of a reviewer, not the presence of one" ^0
+"  entitlements a reviewer looked at and kept : the rest" ^0
+"  incidents involving one of those : " ^0
+"    " + str(access_incidents_involving_a_recertified_entitlement) ^0
+"" ^0
+
+# ---- null control ----
+
+# The same process, with each entitlement assigned to a reviewer in a different
+# reporting line from the one that requested it.
+830 => nc_revoked_by_a_reviewer_saying_no
+46000 => nc_entitlements_reviewed
+380 => nc_reviewers
+
+"null control - review somebody else's request" ^0
+"  entitlements reviewed : " + str(nc_entitlements_reviewed) + ", unchanged" ^0
+"  reviewers : " + str(nc_reviewers) + ", unchanged" ^0
+"  revoked by a reviewer saying no : " ^0
+"    " + str(nc_revoked_by_a_reviewer_saying_no) ^0
+"  nothing about the entitlements changed; the person" ^0
+"  answering stopped being the person answered about" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a completed recertification guarantees" ^0
+"  every entitlement was re-approved by its owner :" ^0
+"    exactly, " + str(entitlements) + " of them, " + str(quarters_completed) + " quarters, " + str(entitlements_not_reviewed) + " skipped" ^0
+"  every entitlement is still needed : not addressed; the" ^0
+"    owner is the person who asked for it, and " ^0
+"    " + str(bulk_approved_per_myriad) + " per ten thousand were approved in one action" ^0
+"" ^0
+"a review whose reviewer is the requester measures whether" ^0
+"the requester has changed their mind; the number that can" ^0
+"vary is what somebody else would have said, and nothing" ^0
+"here asks them" ^0
+"" ^0
+
+"It runs in the identity tool, silence revokes rather than stalls, definitions" ^0
+"are shown beside each entitlement, and " + str(entitlements_revoked_last_quarter) + " came off last quarter. The reviewer" ^0
+"is the manager who requested it - " + str(self_reviewing_per_myriad) + " per ten thousand of reviewers - so " ^0
+"" + str(revoked_by_silence) + " of the " + str(entitlements_revoked_last_quarter) + " went by nobody answering, " + str(revoked_by_a_reviewer_saying_no) + " by somebody saying no, and " ^0
+"" + str(entitlements_approved_in_a_single_bulk_action) + " were approved in a single click at " + str(median_seconds_per_decision) + " seconds a decision." ^0
