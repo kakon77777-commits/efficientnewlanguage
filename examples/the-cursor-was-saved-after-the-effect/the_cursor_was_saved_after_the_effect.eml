@@ -1,0 +1,107 @@
+# Self-authored for the EML case corpus (no external origin). The poller has
+# processed every record in order without skipping one, and the ordering is
+# correct. What the saved cursor and the effect straddle is computed below.
+#
+# The poller is careful. It reads a batch in order; it never advances the cursor
+# past a record it has not handled; it resumes from the saved cursor on restart;
+# and it never skips, so no record is lost.
+#
+# The cursor is saved after the batch's effects, and the two are not atomic.
+
+800000 => records_processed
+500 => batch_size
+12 => crashes_between_the_effect_and_the_save
+
+crashes_between_the_effect_and_the_save * batch_size => records_replayed
+records_processed + records_replayed => effects_applied
+effects_applied - records_processed => duplicate_effects
+int(duplicate_effects * 10000 / records_processed) => duplicate_effect_per_myriad
+0 => records_skipped
+
+"records processed               : " + str(records_processed) ^0
+"  skipped                       : " + str(records_skipped) ^0
+"batch size                      : " + str(batch_size) ^0
+"crashes between effect and save : " + str(crashes_between_the_effect_and_the_save) ^0
+"records replayed                : " + str(records_replayed) ^0
+"" ^0
+"effects applied                 : " + str(effects_applied) ^0
+"  duplicate effects             : " + str(duplicate_effects) ^0
+"duplicate effect rate           : " + str(duplicate_effect_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the poller verified ----
+
+"the poller" ^0
+"  reads : a batch, in order" ^0
+"  the cursor : never advances past an unhandled record" ^0
+"  on restart : resumes from the saved cursor" ^0
+"  skips : none, so no record is lost" ^0
+"  records missed : " + str(records_skipped) ^0
+"  verdict : NONE LOST, IN ORDER" ^0
+"" ^0
+"  never advancing past an unhandled record is the part" ^0
+"  done right here, and it is why nothing is skipped" ^0
+"" ^0
+
+# ---- where the crash lands ----
+
+"the order of the two writes" ^0
+"  first : the batch's effects are applied" ^0
+"  then : the cursor is saved past the batch" ^0
+"  between them : a window with no atomicity" ^0
+"  a crash in that window : loses the cursor save, keeps" ^0
+"    the effects" ^0
+"  on resume : the batch is read again and its effects" ^0
+"    reapplied" ^0
+"  records replayed per crash : " + str(batch_size) + ", the whole batch" ^0
+"" ^0
+
+# ---- what a downstream count sees ----
+
+"the downstream of the effect" ^0
+"  records the poller believes it processed : " ^0
+"    " + str(records_processed) ^0
+"  effects that actually landed : " + str(effects_applied) ^0
+"  duplicates : " + str(duplicate_effects) ^0
+"  was a record skipped : no; not-lost is the property" ^0
+"    the poller guarantees" ^0
+"  was a record applied twice : yes, a batch per crash," ^0
+"    " + str(duplicate_effect_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same crashes, with the effect and the cursor advance written in one
+# transaction so they commit or roll back together.
+12 => nc_crashes
+0 => nc_duplicate_effects
+0 => nc_records_skipped
+
+"null control - effect and cursor in one transaction" ^0
+"  crashes : " + str(nc_crashes) + ", unchanged" ^0
+"  duplicate effects : " + str(nc_duplicate_effects) ^0
+"  records skipped : " + str(nc_records_skipped) ^0
+"  no crash and no ordering changed; the effect and the" ^0
+"  cursor stopped being two writes with a gap between them" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a never-skipping poller guarantees" ^0
+"  no record is lost : exactly, the cursor never passes an" ^0
+"    unhandled record and resume reads from it" ^0
+"  each record is processed once : not addressed; the" ^0
+"    cursor is advanced after the effect and not atomically" ^0
+"    with it, so a crash in the gap replays the batch - " ^0
+"    " + str(crashes_between_the_effect_and_the_save) + " crashes reapplied " + str(duplicate_effects) + " effects" ^0
+"" ^0
+
+"at-least-once and at-most-once are two guarantees, and a cursor saved after the" ^0
+"effect buys the first by giving up the second; exactly-once needs the effect" ^0
+"and the checkpoint to be the same commit, not two in an order" ^0
+"" ^0
+
+"The poller never skips: the cursor trails the handled record and resume reads" ^0
+"from it - nothing is lost. The cursor saves after the effects, not atomically," ^0
+"so " + str(crashes_between_the_effect_and_the_save) + " crashes replayed a batch each, " + str(duplicate_effects) + " duplicate effects, " ^0
+"" + str(duplicate_effect_per_myriad) + " per ten thousand, against " + str(records_skipped) + " skipped." ^0

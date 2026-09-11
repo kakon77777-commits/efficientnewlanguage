@@ -1,0 +1,115 @@
+# Self-authored for the EML case corpus (no external origin). The dashboard p99
+# latency has been under the 300 ms SLO all quarter, and each per-shard number
+# it combines is true. How the one figure is combined is computed below.
+#
+# The measurement is careful per shard. Each shard computes its p99 from its own
+# real request latencies, over the full window, not a sample; the histogram
+# buckets are fine near the tail; and the SLO is checked every minute.
+#
+# The one number on the dashboard is the mean of the shards' p99s.
+
+20 => shards
+19 => typical_shards
+180 => typical_shard_p99_ms
+1 => hot_shards
+950 => hot_shard_p99_ms
+300 => slo_ms
+940 => pooled_p99_ms
+20000000 => requests_total
+1000000 => hot_shard_requests
+
+typical_shards * typical_shard_p99_ms + hot_shards * hot_shard_p99_ms => sum_of_the_shard_p99s
+int(sum_of_the_shard_p99s / shards) => reported_p99_ms
+slo_ms - reported_p99_ms => headroom_the_dashboard_shows_ms
+pooled_p99_ms - slo_ms => amount_the_pool_is_over_the_slo_ms
+int(hot_shard_requests * 10000 / requests_total) => hot_shard_share_of_traffic_per_myriad
+
+"shards                          : " + str(shards) ^0
+"  typical shard p99             : " + str(typical_shard_p99_ms) + " ms" ^0
+"  hot shard p99                 : " + str(hot_shard_p99_ms) + " ms" ^0
+"sum of the shard p99s           : " + str(sum_of_the_shard_p99s) + " ms" ^0
+"reported p99 (mean of them)     : " + str(reported_p99_ms) + " ms" ^0
+"SLO                             : " + str(slo_ms) + " ms" ^0
+"  headroom the dashboard shows  : " + str(headroom_the_dashboard_shows_ms) + " ms" ^0
+"" ^0
+"pooled p99 (over all requests)  : " + str(pooled_p99_ms) + " ms" ^0
+"  over the SLO by               : " + str(amount_the_pool_is_over_the_slo_ms) + " ms" ^0
+"hot shard share of traffic      : " + str(hot_shard_share_of_traffic_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the per-shard measurement verified ----
+
+"the per-shard p99" ^0
+"  computed from : each shard's real latencies" ^0
+"  over : the full window, not a sample" ^0
+"  tail buckets : fine-grained" ^0
+"  checked : every minute against the SLO" ^0
+"  shards inside their own p99 budget : all " + str(shards) ^0
+"  verdict : WITHIN SLO" ^0
+"" ^0
+"  fine tail buckets are the part almost nobody funds, and" ^0
+"  they are why each shard's p99 is itself trustworthy" ^0
+"" ^0
+
+# ---- how the one figure was combined ----
+
+"the mean of the p99s" ^0
+"  what was averaged : twenty per-shard 99th percentiles" ^0
+"  what a mean of quantiles is : not a quantile of the" ^0
+"    pool; the 99th percentile is not additive" ^0
+"  the hot shard in the mean : one term of twenty, so its" ^0
+"    950 is diluted to " + str(reported_p99_ms) + " ms" ^0
+"  the hot shard in the pool : " ^0
+"    " + str(hot_shard_share_of_traffic_per_myriad) + " per ten thousand of requests, all slow" ^0
+"  so the slowest one percent of the pool : lands inside" ^0
+"    that shard, at " + str(pooled_p99_ms) + " ms" ^0
+"" ^0
+
+# ---- what a caller on the hot shard sees ----
+
+"the callers of the hot shard" ^0
+"  their p99 : " + str(hot_shard_p99_ms) + " ms" ^0
+"  what the dashboard shows : " + str(reported_p99_ms) + " ms, within SLO" ^0
+"  their share of all requests : " ^0
+"    " + str(hot_shard_share_of_traffic_per_myriad) + " per ten thousand" ^0
+"  is any single number wrong : no; each shard p99 is" ^0
+"    correct, and the mean of them is correctly computed" ^0
+"  the pooled p99 they are inside : " + str(pooled_p99_ms) + " ms" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same latencies, with the p99 taken over the merged set of all requests
+# instead of over the per-shard summaries.
+218 => nc_mean_of_the_shard_p99s_ms
+940 => nc_pooled_p99_ms
+1 => nc_shards_that_hold_the_pooled_tail
+
+"null control - one p99 over the merged requests" ^0
+"  mean of the shard p99s : " + str(nc_mean_of_the_shard_p99s_ms) + " ms, unchanged" ^0
+"  pooled p99 : " + str(nc_pooled_p99_ms) + " ms" ^0
+"  shards holding the pooled tail : " ^0
+"    " + str(nc_shards_that_hold_the_pooled_tail) ^0
+"  no latency changed; the combining step stopped averaging" ^0
+"  summaries and started ranking the requests" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a p99 under the SLO guarantees" ^0
+"  each shard's own p99 is under budget : exactly, all " ^0
+"    " + str(shards) + " of them, from real latencies over the full window" ^0
+"  the 99th percentile request is under budget : not" ^0
+"    addressed; the figure is the mean of twenty per-shard" ^0
+"    p99s, and a quantile of a pool is not the mean of the" ^0
+"    quantiles - pooled, it is " + str(pooled_p99_ms) + " ms" ^0
+"" ^0
+"a percentile is a rank over a set, and the mean of the ranks" ^0
+"of subsets is a different number; when one subset holds the" ^0
+"whole tail, averaging its rank away is what hides it" ^0
+"" ^0
+
+"Each shard's p99 is real, over the full window, with fine tail buckets -" ^0
+"" + str(reported_p99_ms) + " ms against a " + str(slo_ms) + " ms SLO. The dashboard averages the twenty p99s, and a" ^0
+"quantile is not additive, so the hot shard's " + str(hot_shard_p99_ms) + " ms - " + str(hot_shard_share_of_traffic_per_myriad) + " per ten" ^0
+"thousand of traffic - puts the pooled p99 at " + str(pooled_p99_ms) + " ms, " + str(amount_the_pool_is_over_the_slo_ms) + " ms over." ^0

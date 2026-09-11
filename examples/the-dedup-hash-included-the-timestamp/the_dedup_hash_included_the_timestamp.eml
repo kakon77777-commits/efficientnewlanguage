@@ -1,0 +1,112 @@
+# Self-authored for the EML case corpus (no external origin). The event store
+# deduplicates by content hash, and the hashing is correct. What the hash is
+# taken over is computed below.
+#
+# The dedup is built carefully. The hash is a strong one; two records with the
+# same bytes always get the same key; the key is the primary key, so a repeat is
+# rejected at insert; and the store is exactly-once by construction on that key.
+#
+# The hash is taken over the whole record, and the record carries received_at.
+
+4000000 => events_received
+90000 => true_duplicates
+200 => duplicates_removed
+
+events_received - true_duplicates => distinct_events_by_payload
+true_duplicates - duplicates_removed => duplicates_that_survived
+events_received - duplicates_removed => events_stored
+int(duplicates_removed * 10000 / true_duplicates) => dedup_effectiveness_per_myriad
+int(duplicates_that_survived * 10000 / events_stored) => survivors_per_myriad_of_the_store
+
+"events received                 : " + str(events_received) ^0
+"true duplicates among them      : " + str(true_duplicates) ^0
+"  removed by the dedup          : " + str(duplicates_removed) ^0
+"  that survived                 : " + str(duplicates_that_survived) ^0
+"distinct events by payload      : " + str(distinct_events_by_payload) ^0
+"events stored                   : " + str(events_stored) ^0
+"" ^0
+"dedup effectiveness             : " + str(dedup_effectiveness_per_myriad) + " per ten thousand" ^0
+"survivors in the store          : " + str(survivors_per_myriad_of_the_store) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the dedup verified ----
+
+"the content-hash dedup" ^0
+"  hash : a strong one" ^0
+"  same bytes : always the same key" ^0
+"  the key : the primary key, repeats rejected at insert" ^0
+"  guarantee on that key : exactly-once by construction" ^0
+"  identical records that collided correctly : all of them" ^0
+"  verdict : DEDUPLICATED" ^0
+"" ^0
+"  making the hash the primary key is the part done right" ^0
+"  here, and it is why an exact byte-repeat cannot land" ^0
+"  twice" ^0
+"" ^0
+
+# ---- what the hash is over ----
+
+"the bytes the hash covers" ^0
+"  what is included : the whole record" ^0
+"  what the whole record carries : received_at, stamped on" ^0
+"    arrival" ^0
+"  so the same event sent twice : arrives at two instants" ^0
+"    and hashes to two keys" ^0
+"  what same-bytes means here : same payload AND same" ^0
+"    receive time, which a resend never has" ^0
+"  duplicates the key could catch : only exact-instant" ^0
+"    collisions, " + str(duplicates_removed) + " of them" ^0
+"" ^0
+
+# ---- what a consumer counts ----
+
+"the consumer reading the store" ^0
+"  events it treats as distinct : " + str(events_stored) ^0
+"  true duplicates hidden among them : " ^0
+"    " + str(duplicates_that_survived) ^0
+"  is the hash wrong : no; it is correct over the bytes it" ^0
+"    was given" ^0
+"  were those bytes the identity of the event : no; the" ^0
+"    timestamp made every resend unique" ^0
+"  dedup that actually happened : " ^0
+"    " + str(dedup_effectiveness_per_myriad) + " per ten thousand of the duplicates" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same events, hashed over the payload and a stable event id only, with
+# received_at excluded from the key.
+200 => nc_removed_when_the_key_had_the_timestamp
+90000 => nc_removed_when_the_key_is_the_payload
+0 => nc_events_whose_payload_changed
+
+"null control - hash the payload, not the arrival time" ^0
+"  removed with timestamp in the key : " ^0
+"    " + str(nc_removed_when_the_key_had_the_timestamp) ^0
+"  removed with the payload as the key : " ^0
+"    " + str(nc_removed_when_the_key_is_the_payload) ^0
+"  events whose payload changed : " + str(nc_events_whose_payload_changed) ^0
+"  no event and no hash function changed; the key stopped" ^0
+"  covering the field that a resend always changes" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a content-hash dedup guarantees" ^0
+"  identical bytes are stored once : exactly, the hash is" ^0
+"    the primary key and repeats are rejected at insert" ^0
+"  each event is stored once : not addressed; the dedup key" ^0
+"    hashes the whole record, and the record carries the" ^0
+"    receive timestamp, so the same event arriving twice" ^0
+"    gets two keys - " + str(duplicates_that_survived) + " of " + str(true_duplicates) + " duplicates survived" ^0
+"" ^0
+
+"a hash is an identity over the bytes it is given, and dedup wants identity over" ^0
+"the event; a field that changes on every arrival belongs outside the key, or" ^0
+"the key distinguishes exactly the copies it should merge" ^0
+"" ^0
+
+"The hash is strong and is the primary key, so identical bytes cannot land" ^0
+"twice - correct on its inputs. It covers received_at, so a resend hashes anew:" ^0
+"" + str(duplicates_that_survived) + " of " + str(true_duplicates) + " duplicates survived, and the dedup caught " + str(dedup_effectiveness_per_myriad) + " per ten" ^0
+"thousand of what it was there to catch." ^0

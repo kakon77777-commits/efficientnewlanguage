@@ -1,0 +1,110 @@
+# Self-authored for the EML case corpus (no external origin). The nightly backup
+# has reported success with zero errors for the whole quarter, and every count
+# it reports is true. What it never enumerated is computed below.
+#
+# The job is careful. It checksums each file after writing it; it fails loudly
+# on a single write error; it stores three copies in two regions; and it emails
+# a per-run report with the file count and the byte total.
+#
+# It backs up the paths on an include list, and reports over those paths.
+
+12 => directories_on_the_include_list
+480000 => files_enumerated
+480000 => files_written
+0 => write_errors
+15 => directories_on_disk
+61000 => files_in_the_unlisted_directories
+
+directories_on_disk - directories_on_the_include_list => directories_never_enumerated
+files_enumerated + files_in_the_unlisted_directories => files_on_disk
+int(files_written * 10000 / files_on_disk) => fraction_of_disk_backed_up_per_myriad
+int(files_in_the_unlisted_directories * 10000 / files_on_disk) => fraction_never_a_candidate_per_myriad
+
+"directories on the include list : " + str(directories_on_the_include_list) ^0
+"directories on disk             : " + str(directories_on_disk) ^0
+"  never enumerated              : " + str(directories_never_enumerated) ^0
+"files enumerated                : " + str(files_enumerated) ^0
+"  written                       : " + str(files_written) ^0
+"  write errors                  : " + str(write_errors) ^0
+"files in the unlisted dirs      : " + str(files_in_the_unlisted_directories) ^0
+"files on disk                   : " + str(files_on_disk) ^0
+"fraction of disk backed up      : " + str(fraction_of_disk_backed_up_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the backup verified ----
+
+"the backup job" ^0
+"  after each write : it checksums the file" ^0
+"  on a write error : it fails the whole run" ^0
+"  copies kept : three, in two regions" ^0
+"  report : file count and byte total, emailed" ^0
+"  write errors this quarter : " + str(write_errors) ^0
+"  verdict : SUCCESS" ^0
+"" ^0
+"  checksumming every written file is the part almost" ^0
+"  nobody does, and it is why the byte total is trusted" ^0
+"" ^0
+
+# ---- what the count was over ----
+
+"the files the job saw" ^0
+"  files it enumerated : " + str(files_enumerated) ^0
+"  files it wrote : " + str(files_written) + ", all verified" ^0
+"  where the list comes from : twelve configured paths" ^0
+"  directories on disk not on the list : " ^0
+"    " + str(directories_never_enumerated) ^0
+"  files in those directories : " + str(files_in_the_unlisted_directories) ^0
+"  their chance to succeed or fail : none; they were" ^0
+"    never candidates" ^0
+"" ^0
+
+# ---- what is not in any copy ----
+
+"the three unlisted directories" ^0
+"  added : last quarter, after the include list was set" ^0
+"  files they hold : " + str(files_in_the_unlisted_directories) ^0
+"  copies of them in the backup : 0" ^0
+"  errors the job raised about them : 0; an unenumerated" ^0
+"    file cannot error" ^0
+"  fraction of the disk that was never a candidate : " ^0
+"    " + str(fraction_never_a_candidate_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same job, enumerating from the filesystem root and reporting the
+# directories it found but was not configured to copy.
+0 => nc_write_errors
+3 => nc_directories_found_but_not_configured
+61000 => nc_files_it_would_flag_as_uncovered
+
+"null control - enumerate from the root, report the gap" ^0
+"  write errors : " + str(nc_write_errors) + ", unchanged" ^0
+"  directories found but not configured : " ^0
+"    " + str(nc_directories_found_but_not_configured) ^0
+"  files it would flag as uncovered : " ^0
+"    " + str(nc_files_it_would_flag_as_uncovered) ^0
+"  no file changed and no copy was made; the job stopped" ^0
+"  taking its own include list as the definition of all" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a successful backup guarantees" ^0
+"  every file it enumerated is written and checksummed :" ^0
+"    exactly, " + str(files_written) + " of them, zero errors" ^0
+"  every file is backed up : not addressed; the job reports" ^0
+"    on the files it enumerated, and three directories were" ^0
+"    never on the include list, so their " + str(files_in_the_unlisted_directories) + " files" ^0
+"    were never candidates to succeed or to fail" ^0
+"" ^0
+"a job's success is a statement about the work it took on, and" ^0
+"the work it took on was chosen by a list; the files outside" ^0
+"the list are not failures, they are absences, and a report of" ^0
+"errors cannot show an absence" ^0
+"" ^0
+
+"It checksums every written file, fails on one error, and keeps three copies -" ^0
+"" + str(files_written) + " files, zero errors, SUCCESS. It enumerates an include list of twelve" ^0
+"paths, so three directories added later were never seen: " + str(files_in_the_unlisted_directories) + " files, " ^0
+"" + str(fraction_never_a_candidate_per_myriad) + " per ten thousand of the disk, in " + str(directories_never_enumerated) + " directories no copy holds." ^0

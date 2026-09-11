@@ -1,0 +1,105 @@
+# Self-authored for the EML case corpus (no external origin). Every line on the
+# invoice run is correct to the cent, and so is each rounding. What the total is
+# a sum of is computed below.
+#
+# The rounding is done properly per row. Each amount is rounded half-up to the
+# nearest cent; the rule is the same for every row; no row is truncated; and the
+# rounded figure on each line is exactly what the customer is billed for.
+#
+# The reported total is the sum of the rounded lines.
+
+90000 => rows
+4500037 => reported_total_cents
+4500012 => correct_total_cents
+5 => max_row_error_tenths_of_a_cent
+
+reported_total_cents - correct_total_cents => difference_cents
+int(rows * max_row_error_tenths_of_a_cent / 10) => worst_case_drift_cents
+int(difference_cents * 10000 / correct_total_cents) => difference_per_myriad_of_the_total
+int(reported_total_cents / 100) => reported_total_dollars
+
+"rows                            : " + str(rows) ^0
+"each row correct to             : the cent, half-up" ^0
+"" ^0
+"reported total (sum of rounded) : " + str(reported_total_cents) + " cents" ^0
+"correct total (sum then round)  : " + str(correct_total_cents) + " cents" ^0
+"  difference                    : " + str(difference_cents) + " cents" ^0
+"  as a share of the total       : " + str(difference_per_myriad_of_the_total) + " per ten thousand" ^0
+"worst case if errors aligned    : " + str(worst_case_drift_cents) + " cents" ^0
+"" ^0
+
+# ---- what the per-row rounding verified ----
+
+"the per-row rounding" ^0
+"  rule : round half-up to the nearest cent" ^0
+"  applied to : every row, identically" ^0
+"  truncation : none" ^0
+"  what the customer is billed per line : the rounded" ^0
+"    figure, exactly" ^0
+"  rows off by more than half a cent : 0" ^0
+"  verdict : EVERY LINE CORRECT" ^0
+"" ^0
+"  billing each line at exactly its rounded figure is the" ^0
+"  part almost nobody disputes, and it is why the lines are" ^0
+"  not in question" ^0
+"" ^0
+
+# ---- what the sum of them is ----
+
+"the total" ^0
+"  how it was formed : the rounded lines, added" ^0
+"  what rounding does under addition : it does not" ^0
+"    distribute; the error of a sum is not the sum of" ^0
+"    rounded parts" ^0
+"  each row's leftover : at most half a cent, either way" ^0
+"  across " + str(rows) + " rows : the leftovers do not cancel" ^0
+"  the gap they leave : " + str(difference_cents) + " cents" ^0
+"" ^0
+
+# ---- what reconciliation sees ----
+
+"the reconciliation against the source" ^0
+"  reported total : " + str(reported_total_cents) + " cents" ^0
+"  total from the unrounded amounts : " ^0
+"    " + str(correct_total_cents) + " cents" ^0
+"  which line is wrong : none" ^0
+"  where the " + str(difference_cents) + " cents lives : between the lines," ^0
+"    in the order of the two operations" ^0
+"  dollars reported : " + str(reported_total_dollars) ^0
+"" ^0
+
+# ---- null control ----
+
+# The same amounts, summed at full precision and rounded once at the end.
+4500037 => nc_sum_of_rounded_cents
+4500012 => nc_sum_then_rounded_cents
+0 => nc_rows_that_changed
+
+"null control - sum first, round once" ^0
+"  sum of rounded rows : " + str(nc_sum_of_rounded_cents) + ", unchanged" ^0
+"  sum then rounded : " + str(nc_sum_then_rounded_cents) + " cents" ^0
+"  rows whose own figure changed : " + str(nc_rows_that_changed) ^0
+"  no amount and no rounding rule changed; only the order" ^0
+"  of summing and rounding did, and the total moved" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what correct-to-the-cent rows guarantee" ^0
+"  each line is within half a cent of its true amount :" ^0
+"    exactly, all " + str(rows) + " of them, one rule, no truncation" ^0
+"  the total is correct to the cent : not addressed; each" ^0
+"    row was rounded before the sum, and rounding does not" ^0
+"    distribute over addition - summing first and rounding" ^0
+"    once gives a total " + str(difference_cents) + " cents lower" ^0
+"" ^0
+
+"rounding and addition do not commute; a column of individually correct figures" ^0
+"has a correct-looking total that is not the total of the figures, and the gap" ^0
+"is the leftover cents that had nowhere to cancel" ^0
+"" ^0
+
+"Every line is rounded half-up and billed at exactly that figure - no line is" ^0
+"wrong. The total is the sum of the rounded lines, and rounding does not" ^0
+"distribute over a sum, so it reads " + str(reported_total_cents) + " cents against a correct " ^0
+"" + str(correct_total_cents) + " - a " + str(difference_cents) + "-cent gap that lives between the rows, not in any of them." ^0

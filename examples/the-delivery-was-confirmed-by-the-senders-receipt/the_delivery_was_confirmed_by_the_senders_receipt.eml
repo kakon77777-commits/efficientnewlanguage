@@ -1,0 +1,114 @@
+# Self-authored for the EML case corpus (no external origin). The delivery rate
+# has been at 100 per hundred for the whole quarter, and every delivery it
+# counts is real. What a delivery is counted at is computed below.
+#
+# The pipeline is instrumented well. Every send emits a structured event; the
+# events are collected without sampling; a send that throws is caught and
+# counted as failed; and the rate is reconciled against the send log nightly.
+#
+# The delivery event is emitted by the sender, when it hands off to the carrier.
+
+900000 => messages_sent
+900000 => receipts_emitted
+900000 => deliveries_reported
+10000 => reported_delivery_per_myriad
+861000 => recipient_acknowledgements
+39000 => bounced_after_the_handoff
+
+int(recipient_acknowledgements * 10000 / messages_sent) => real_delivery_per_myriad
+int(bounced_after_the_handoff * 10000 / messages_sent) => lost_after_handoff_per_myriad
+messages_sent - recipient_acknowledgements => messages_never_acknowledged
+
+"messages sent                   : " + str(messages_sent) ^0
+"  receipts emitted              : " + str(receipts_emitted) ^0
+"  deliveries reported           : " + str(deliveries_reported) ^0
+"reported delivery rate          : " + str(reported_delivery_per_myriad) + " per ten thousand" ^0
+"" ^0
+"recipient acknowledgements      : " + str(recipient_acknowledgements) ^0
+"  never acknowledged            : " + str(messages_never_acknowledged) ^0
+"bounced after the handoff       : " + str(bounced_after_the_handoff) ^0
+"real delivery rate              : " + str(real_delivery_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the metric verified ----
+
+"the delivery metric" ^0
+"  every send : emits a structured event" ^0
+"  collection : no sampling" ^0
+"  a send that throws : caught and counted as failed" ^0
+"  reconciliation : against the send log, nightly" ^0
+"  deliveries reported : " + str(deliveries_reported) ^0
+"  verdict : DELIVERED" ^0
+"" ^0
+"  counting a thrown send as failed is the part almost" ^0
+"  nobody does, and it is why the rate is trusted not to" ^0
+"  quietly drop errors" ^0
+"" ^0
+
+# ---- what the receipt is emitted at ----
+
+"the delivery event" ^0
+"  who writes it : the sender" ^0
+"  when : at handoff to the carrier" ^0
+"  what it proves : the carrier accepted the message" ^0
+"  what it does not observe : anything the carrier does" ^0
+"    after accepting it" ^0
+"  messages that bounced past that point : " ^0
+"    " + str(bounced_after_the_handoff) ^0
+"  acknowledgements from the recipient : counted here? no" ^0
+"" ^0
+
+# ---- what the recipient got ----
+
+"the recipient side" ^0
+"  messages that acknowledged arrival : " ^0
+"    " + str(recipient_acknowledgements) ^0
+"  messages with no acknowledgement : " ^0
+"    " + str(messages_never_acknowledged) ^0
+"  what the dashboard shows for those : DELIVERED" ^0
+"  bounces the sender's receipt recorded : 0; the receipt" ^0
+"    was already written" ^0
+"  real delivery once acks are counted : " ^0
+"    " + str(real_delivery_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same rate, counted from recipient acknowledgements rather than from the
+# sender's handoff receipt.
+10000 => nc_handoff_delivery_per_myriad
+9566 => nc_ack_delivery_per_myriad
+39000 => nc_messages_the_ack_view_calls_undelivered
+
+"null control - count acknowledgements, not handoffs" ^0
+"  handoff-based delivery : " + str(nc_handoff_delivery_per_myriad) + ", unchanged" ^0
+"  ack-based delivery : " ^0
+"    " + str(nc_ack_delivery_per_myriad) + " per ten thousand" ^0
+"  messages the ack view calls undelivered : " ^0
+"    " + str(nc_messages_the_ack_view_calls_undelivered) ^0
+"  no message moved; the count stopped being taken at the" ^0
+"  moment the sender let go and started at the moment the" ^0
+"  recipient caught" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a 100 per hundred delivery rate guarantees" ^0
+"  every message was handed to the carrier : exactly, all " ^0
+"    " + str(messages_sent) + ", each with a receipt, thrown sends counted" ^0
+"    as failed" ^0
+"  every message reached the recipient : not addressed;" ^0
+"    the receipt is written by the sender at handoff, and " ^0
+"    " + str(bounced_after_the_handoff) + " messages bounced after the point the receipt" ^0
+"    records" ^0
+"" ^0
+"a receipt is written by whoever holds the thing when it is" ^0
+"written, and a sender writes its receipt when it lets go; the" ^0
+"event proves the release, not the arrival, and the two are" ^0
+"separated by everyone downstream" ^0
+"" ^0
+
+"Every send emits an unsampled event and a throw counts as failed - " + str(reported_delivery_per_myriad) + " per" ^0
+"ten thousand delivered. The receipt is written by the sender at handoff, so " ^0
+"" + str(bounced_after_the_handoff) + " messages bounced past it uncounted, leaving real delivery at " ^0
+"" + str(real_delivery_per_myriad) + " per ten thousand against " + str(messages_never_acknowledged) + " never acknowledged." ^0

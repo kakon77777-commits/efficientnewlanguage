@@ -1,0 +1,112 @@
+# Self-authored for the EML case corpus (no external origin). The queue delivers
+# each message to the handler exactly once, and that property holds. Where the
+# handler's effect lands relative to it is computed below.
+#
+# The delivery guarantee is real. The broker assigns each message an offset;
+# the handler commits the offset only after it returns; a redelivery on restart
+# is deduplicated by offset; so the handler's function runs once per message.
+#
+# The handler's effect is an email, sent to a third party before the offset
+# commits.
+
+1200000 => messages
+1200000 => broker_deliveries_to_the_handler
+450 => crashes_after_the_email_before_the_commit
+
+crashes_after_the_email_before_the_commit => redeliveries_on_restart
+messages + redeliveries_on_restart => emails_sent
+emails_sent - messages => duplicate_emails
+int(duplicate_emails * 10000 / messages) => duplicate_effect_per_myriad
+0 => duplicate_handler_returns
+
+"messages                        : " + str(messages) ^0
+"broker deliveries to handler    : " + str(broker_deliveries_to_the_handler) ^0
+"  duplicate handler returns     : " + str(duplicate_handler_returns) ^0
+"crashes after email, pre-commit : " + str(crashes_after_the_email_before_the_commit) ^0
+"redeliveries on restart         : " + str(redeliveries_on_restart) ^0
+"" ^0
+"emails sent                     : " + str(emails_sent) ^0
+"  duplicates                    : " + str(duplicate_emails) ^0
+"duplicate effect rate           : " + str(duplicate_effect_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what exactly-once verified ----
+
+"the exactly-once delivery" ^0
+"  each message : gets a broker offset" ^0
+"  the offset commits : only after the handler returns" ^0
+"  a redelivery on restart : deduplicated by offset" ^0
+"  so the handler runs : once per message" ^0
+"  duplicate handler invocations that completed : " ^0
+"    " + str(duplicate_handler_returns) ^0
+"  verdict : DELIVERED EXACTLY ONCE" ^0
+"" ^0
+"  committing the offset only after the return is the part" ^0
+"  done right here, and it is why no message is processed" ^0
+"  to completion twice" ^0
+"" ^0
+
+# ---- where the effect sits ----
+
+"the handler's effect" ^0
+"  what it is : an email to a third party" ^0
+"  when it is sent : inside the handler, before the return" ^0
+"  what commits after it : the offset" ^0
+"  a crash between the send and the commit : leaves the" ^0
+"    offset uncommitted and the email already gone" ^0
+"  what the broker does then : redeliver, correctly, by" ^0
+"    its own guarantee" ^0
+"  what the redelivery does : send the email again" ^0
+"" ^0
+
+# ---- what the recipient gets ----
+
+"the recipient of the emails" ^0
+"  messages that concerned them : counted once by the" ^0
+"    broker" ^0
+"  emails they received : " + str(emails_sent) ^0
+"  duplicates : " + str(duplicate_emails) ^0
+"  did the broker break its promise : no; delivery to the" ^0
+"    handler was exactly once" ^0
+"  what was not once : the effect, which lives outside the" ^0
+"    offset the promise is about" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same crashes, with the email replaced by an outbox row written in the same
+# transaction as the offset commit and sent by a separate relay.
+450 => nc_crashes
+0 => nc_duplicate_emails
+450 => nc_outbox_rows_rolled_back_with_the_offset
+
+"null control - an outbox committed with the offset" ^0
+"  crashes : " + str(nc_crashes) + ", unchanged" ^0
+"  duplicate emails : " + str(nc_duplicate_emails) ^0
+"  outbox rows rolled back with the offset : " ^0
+"    " + str(nc_outbox_rows_rolled_back_with_the_offset) ^0
+"  no crash and no delivery guarantee changed; the effect" ^0
+"  moved inside the transaction the offset commits in" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what exactly-once delivery guarantees" ^0
+"  the handler runs once per message : exactly, offsets" ^0
+"    committed after the return, redeliveries deduplicated" ^0
+"  each message causes its effect once : not addressed;" ^0
+"    exactly-once is a property of delivery to the handler," ^0
+"    and the effect is an email sent before the commit - " ^0
+"    " + str(crashes_after_the_email_before_the_commit) + " crashes between the send and the commit sent " ^0
+"    " + str(duplicate_emails) + " duplicate emails" ^0
+"" ^0
+
+"exactly-once names the boundary the broker controls - delivery to the handler;" ^0
+"an effect outside that boundary is at-least-once no matter what the broker" ^0
+"promises, because the promise ends where the handler's side effects begin" ^0
+"" ^0
+
+"Delivery is exactly-once: offsets commit after the return and redeliveries" ^0
+"dedupe - the handler runs once. The email is sent before the commit, outside" ^0
+"that boundary, so " + str(crashes_after_the_email_before_the_commit) + " crashes in the gap sent " + str(duplicate_emails) + " duplicate emails, " ^0
+"" + str(duplicate_effect_per_myriad) + " per ten thousand of the messages." ^0

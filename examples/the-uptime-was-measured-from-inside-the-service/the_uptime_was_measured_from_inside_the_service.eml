@@ -1,0 +1,111 @@
+# Self-authored for the EML case corpus (no external origin). The uptime monitor
+# recorded no failed checks all month, and every check it recorded is true. What
+# it could not record is computed below.
+#
+# The monitoring is set up carefully. It checks once a minute; a failed check
+# pages on-call; the threshold for "down" is a single miss, not a streak; and
+# the history is kept for a year so trends are visible.
+#
+# The monitor process runs on the same rack as the service it watches.
+
+43200 => checks_in_the_month
+43055 => checks_that_ran
+0 => checks_that_recorded_a_failure
+10000 => reported_uptime_per_myriad
+145 => minutes_the_rack_lost_power
+0 => independent_off_rack_monitors
+
+checks_in_the_month - checks_that_ran => checks_that_never_ran
+int(checks_that_ran * 10000 / checks_in_the_month) => fraction_of_minutes_observed_per_myriad
+checks_in_the_month - minutes_the_rack_lost_power => minutes_the_service_was_up
+int(minutes_the_service_was_up * 10000 / checks_in_the_month) => real_uptime_per_myriad
+
+"checks in the month             : " + str(checks_in_the_month) ^0
+"  that ran                      : " + str(checks_that_ran) ^0
+"  that never ran                : " + str(checks_that_never_ran) ^0
+"  that recorded a failure       : " + str(checks_that_recorded_a_failure) ^0
+"reported uptime                 : " + str(reported_uptime_per_myriad) + " per ten thousand" ^0
+"" ^0
+"minutes the rack lost power     : " + str(minutes_the_rack_lost_power) ^0
+"minutes the service was up      : " + str(minutes_the_service_was_up) ^0
+"real uptime                     : " + str(real_uptime_per_myriad) + " per ten thousand" ^0
+"off-rack monitors               : " + str(independent_off_rack_monitors) ^0
+"" ^0
+
+# ---- what the monitor verified ----
+
+"the uptime monitor" ^0
+"  how often : once a minute" ^0
+"  on a failed check : it pages on-call" ^0
+"  threshold for down : one miss, not a streak" ^0
+"  history kept : a year" ^0
+"  checks that recorded a failure : " + str(checks_that_recorded_a_failure) ^0
+"  verdict : UP" ^0
+"" ^0
+"  paging on a single miss is the part almost nobody dares" ^0
+"  to configure, and it is why a gap here is trusted" ^0
+"" ^0
+
+# ---- what a gap in the record was read as ----
+
+"the missing checks" ^0
+"  minutes with no check recorded : " ^0
+"    " + str(checks_that_never_ran) ^0
+"  why they are missing : the monitor lost power with the" ^0
+"    service, on the same rack" ^0
+"  how the dashboard reads a gap : as up, not as unknown" ^0
+"  fraction of minutes actually observed : " ^0
+"    " + str(fraction_of_minutes_observed_per_myriad) + " per ten thousand" ^0
+"  monitors that would have survived the outage : " ^0
+"    " + str(independent_off_rack_monitors) ^0
+"" ^0
+
+# ---- what happened in the gap ----
+
+"the outage the monitor slept through" ^0
+"  minutes the rack was dark : " + str(minutes_the_rack_lost_power) ^0
+"  checks that fired during it : 0" ^0
+"  pages sent : 0" ^0
+"  what the year of history shows there : nothing, which" ^0
+"    renders as up" ^0
+"  real uptime once the gap is counted down : " ^0
+"    " + str(real_uptime_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same monitor, run from a second region, with a gap in the record treated
+# as unknown rather than as up.
+10000 => nc_same_rack_uptime_per_myriad
+9966 => nc_off_rack_uptime_per_myriad
+145 => nc_minutes_the_off_rack_monitor_would_have_flagged
+
+"null control - a monitor off the rack, gaps as unknown" ^0
+"  same-rack uptime : " + str(nc_same_rack_uptime_per_myriad) + ", unchanged" ^0
+"  off-rack uptime : " ^0
+"    " + str(nc_off_rack_uptime_per_myriad) + " per ten thousand" ^0
+"  minutes it would have flagged : " ^0
+"    " + str(nc_minutes_the_off_rack_monitor_would_have_flagged) ^0
+"  nothing about the outage changed; the recorder stopped" ^0
+"  sharing the failure it was there to catch" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a month of clean checks guarantees" ^0
+"  every check that ran returned healthy : exactly, all " ^0
+"    " + str(checks_that_ran) + " of them, paging armed on a single miss" ^0
+"  the service was up : not addressed; the monitor shares" ^0
+"    the rack, so the one event that takes the service down" ^0
+"    takes the recorder with it, and " + str(checks_that_never_ran) + " missing" ^0
+"    checks read as up rather than as unknown" ^0
+"" ^0
+"a recorder inside the failure domain cannot report the" ^0
+"failure that stops it; the absence of a bad record is not a" ^0
+"good record, unless something survived to write it" ^0
+"" ^0
+
+"It checks every minute, pages on a single miss, and keeps a year of history -" ^0
+"" + str(reported_uptime_per_myriad) + " per ten thousand, no failure recorded. The monitor is on the same rack," ^0
+"so " + str(minutes_the_rack_lost_power) + " minutes of lost power left " + str(checks_that_never_ran) + " checks unrun and unpaged, read as up," ^0
+"putting real uptime at " + str(real_uptime_per_myriad) + " per ten thousand under " + str(independent_off_rack_monitors) + " off-rack monitors." ^0

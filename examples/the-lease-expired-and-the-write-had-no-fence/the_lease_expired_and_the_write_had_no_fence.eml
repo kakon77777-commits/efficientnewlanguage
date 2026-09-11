@@ -1,0 +1,110 @@
+# Self-authored for the EML case corpus (no external origin). The distributed
+# lock hands out a lease, and the lease logic is correct. What the store checks
+# when a write arrives is computed below.
+#
+# The lease is well designed. Only one holder has it at a time; the holder does
+# real work only while it believes the lease is valid; it renews well before
+# expiry; and a holder that cannot renew stops trying.
+#
+# The store accepts any write. It does not check a fencing token.
+
+240000 => writes_in_the_day
+90 => holders_that_paused_past_expiry
+6 => stale_writes_that_reached_the_store
+0 => stale_writes_the_store_rejected
+15 => lease_seconds
+23 => the_longest_pause_seconds
+
+the_longest_pause_seconds - lease_seconds => seconds_over_the_lease
+int(stale_writes_that_reached_the_store * 10000 / holders_that_paused_past_expiry) => stale_write_rate_among_late_wakeups_per_myriad
+stale_writes_that_reached_the_store - stale_writes_the_store_rejected => stale_writes_that_landed
+
+"writes in the day               : " + str(writes_in_the_day) ^0
+"holders that paused past expiry : " + str(holders_that_paused_past_expiry) ^0
+"lease length                    : " + str(lease_seconds) + " seconds" ^0
+"  the longest pause             : " + str(the_longest_pause_seconds) + " seconds" ^0
+"  over the lease by             : " + str(seconds_over_the_lease) + " seconds" ^0
+"" ^0
+"stale writes that reached store : " + str(stale_writes_that_reached_the_store) ^0
+"  the store rejected            : " + str(stale_writes_the_store_rejected) ^0
+"  that landed                   : " + str(stale_writes_that_landed) ^0
+"among late wakeups              : " + str(stale_write_rate_among_late_wakeups_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the lease verified ----
+
+"the lease logic" ^0
+"  holders at once : one" ^0
+"  work while not holding : none the holder starts" ^0
+"  renewal : well before expiry" ^0
+"  on a failed renewal : the holder stops trying" ^0
+"  holders that overlapped by their own clock : 0" ^0
+"  verdict : ONE HOLDER" ^0
+"" ^0
+"  stopping work on a failed renewal is the part done" ^0
+"  right here, and it is why the holder is not the problem" ^0
+"" ^0
+
+# ---- what a paused holder still does ----
+
+"the holder that paused" ^0
+"  what paused it : a stop-the-world it did not choose" ^0
+"  how long : " + str(the_longest_pause_seconds) + " seconds, past a " + str(lease_seconds) + "-second lease" ^0
+"  what it holds when it wakes : a write it prepared" ^0
+"    before the pause" ^0
+"  what it does : sends that write, believing it still" ^0
+"    holds the lease" ^0
+"  what it cannot know : that someone took over at " ^0
+"    " + str(seconds_over_the_lease) + " seconds past expiry" ^0
+"" ^0
+
+# ---- what the store does with it ----
+
+"the store receiving the stale write" ^0
+"  what it checks : that the write is well-formed" ^0
+"  what it does not check : a fencing token that would" ^0
+"    say the sender's lease is current" ^0
+"  stale writes it let through : " + str(stale_writes_that_landed) ^0
+"  who they overwrote : the new holder's work" ^0
+"  what a fence would have done : rejected each as stale" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same pauses, with a monotonically increasing fencing token stamped on the
+# lease and checked by the store on every write.
+90 => nc_holders_that_paused_past_expiry
+0 => nc_stale_writes_that_land
+6 => nc_stale_writes_the_fence_rejects
+
+"null control - a fencing token the store checks" ^0
+"  holders that paused past expiry : " ^0
+"    " + str(nc_holders_that_paused_past_expiry) + ", unchanged" ^0
+"  stale writes that land : " + str(nc_stale_writes_that_land) ^0
+"  stale writes the fence rejects : " ^0
+"    " + str(nc_stale_writes_the_fence_rejects) ^0
+"  no pause and no lease changed; the store started" ^0
+"  refusing a write from a holder whose token is old" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a correct lease guarantees" ^0
+"  at most one holder believes it holds the lease at once :" ^0
+"    exactly, by every clock, renewals well before expiry" ^0
+"  only the current holder writes : not addressed; the" ^0
+"    store accepts any write, and a holder that paused past" ^0
+"    its lease still writes when it wakes - " + str(stale_writes_that_landed) + " writes" ^0
+"    from expired holders landed because no fencing token" ^0
+"    was checked" ^0
+"" ^0
+
+"a lease bounds who believes they are the holder, not who can write; the belief" ^0
+"is enforced at the holder and the write is accepted at the store, and only a" ^0
+"token the store checks closes the gap a pause opens between them" ^0
+"" ^0
+
+"The lease is correct: one holder, renews early, stops on a failed renewal. The" ^0
+"store checks no fence, so a holder paused " + str(seconds_over_the_lease) + " seconds past a " + str(lease_seconds) + "-second lease" ^0
+"still wrote on waking - " + str(stale_writes_that_landed) + " stale writes landed over the new holder, " ^0
+"" + str(stale_write_rate_among_late_wakeups_per_myriad) + " per ten thousand of the late wakeups." ^0

@@ -1,0 +1,108 @@
+# Self-authored for the EML case corpus (no external origin). Every charge went
+# through an idempotent endpoint, and the server's dedup is correct. What the
+# key is per is computed below.
+#
+# The server side is right. It stores each idempotency key it has seen; a repeat
+# of a stored key returns the first result instead of charging again; the store
+# is durable; and the window is long enough to cover any retry.
+#
+# The client mints a fresh key for every attempt, including retries.
+
+50000 => payments_intended
+3800 => retries_that_fired
+50000 => distinct_payments
+
+payments_intended + retries_that_fired => keys_the_client_minted
+keys_the_client_minted => keys_the_server_had_never_seen
+keys_the_client_minted => charges_made
+charges_made - distinct_payments => duplicate_charges
+int(duplicate_charges * 10000 / distinct_payments) => overcharge_per_myriad
+0 => dedup_hits_on_a_retry
+
+"payments intended               : " + str(payments_intended) ^0
+"retries that fired              : " + str(retries_that_fired) ^0
+"keys the client minted          : " + str(keys_the_client_minted) ^0
+"  the server had never seen     : " + str(keys_the_server_had_never_seen) ^0
+"dedup hits on a retry           : " + str(dedup_hits_on_a_retry) ^0
+"" ^0
+"charges made                    : " + str(charges_made) ^0
+"distinct payments intended      : " + str(distinct_payments) ^0
+"duplicate charges               : " + str(duplicate_charges) ^0
+"overcharge rate                 : " + str(overcharge_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the server verified ----
+
+"the idempotent endpoint" ^0
+"  stores : every key it has seen" ^0
+"  on a repeat of a stored key : returns the first result" ^0
+"  store durability : durable" ^0
+"  window : longer than any retry" ^0
+"  keys correctly deduplicated : every repeat that arrived" ^0
+"  verdict : IDEMPOTENT" ^0
+"" ^0
+"  returning the stored result rather than recomputing is" ^0
+"  the part done right here, and it is why a repeated key" ^0
+"  is safe" ^0
+"" ^0
+
+# ---- what the key is per ----
+
+"the key the dedup is on" ^0
+"  what makes two requests the same : an equal key" ^0
+"  who chooses the key : the client, per attempt" ^0
+"  what the client does on a retry : mint a new one" ^0
+"  so a retry of one payment : arrives as a key the server" ^0
+"    has never seen" ^0
+"  retries that looked like repeats to the server : " ^0
+"    " + str(dedup_hits_on_a_retry) ^0
+"" ^0
+
+# ---- what the account sees ----
+
+"the account being charged" ^0
+"  payments it authorized : " + str(distinct_payments) ^0
+"  charges that landed : " + str(charges_made) ^0
+"  duplicates : " + str(duplicate_charges) ^0
+"  did the server misbehave : no; every distinct key was" ^0
+"    a distinct request as far as it could tell" ^0
+"  the safety it was promised : " + str(overcharge_per_myriad) + " per ten thousand" ^0
+"    of intended payments charged twice" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same retries, with the key derived from the payment (amount, payee, and a
+# client-side request id) so a retry carries the same key.
+50000 => nc_distinct_payments
+0 => nc_duplicate_charges
+3800 => nc_retries_now_deduplicated
+
+"null control - key derived from the payment, not minted" ^0
+"  distinct payments : " + str(nc_distinct_payments) + ", unchanged" ^0
+"  duplicate charges : " + str(nc_duplicate_charges) ^0
+"  retries now deduplicated : " + str(nc_retries_now_deduplicated) ^0
+"  no server logic changed; the key stopped being new on" ^0
+"  each attempt and started being a property of the payment" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what an idempotent endpoint guarantees" ^0
+"  the same key twice charges once : exactly, from a" ^0
+"    durable store with a long window" ^0
+"  each payment happens once : not addressed; dedup is by" ^0
+"    the key, and the client mints a new key on every" ^0
+"    retry, so " + str(retries_that_fired) + " retries became " + str(retries_that_fired) + " keys the" ^0
+"    server had never seen and " + str(duplicate_charges) + " extra charges" ^0
+"" ^0
+
+"idempotency is a property of a key, and safety is a property of the payment" ^0
+"only when the key is a property of the payment; a key minted per attempt makes" ^0
+"every retry a new request the dedup cannot recognize" ^0
+"" ^0
+
+"The server stores every key and returns the first result on a repeat - correct" ^0
+"idempotence. The client mints a new key per attempt, so " + str(retries_that_fired) + " retries were " ^0
+"" + str(retries_that_fired) + " unseen keys and " + str(duplicate_charges) + " duplicate charges, " + str(overcharge_per_myriad) + " per ten thousand of" ^0
+"intended payments, under " + str(dedup_hits_on_a_retry) + " retries the dedup recognized." ^0

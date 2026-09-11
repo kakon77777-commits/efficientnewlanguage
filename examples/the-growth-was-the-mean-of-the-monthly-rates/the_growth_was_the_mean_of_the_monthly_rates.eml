@@ -1,0 +1,117 @@
+# Self-authored for the EML case corpus (no external origin). The average monthly
+# growth rate is reported correctly, and each monthly figure is a true rate. What
+# the annual number is a combination of is computed below.
+#
+# The monthly rates are computed properly. Each month's growth is the close over
+# the prior close minus one; the same denominator convention is used every month;
+# no month is dropped; and the reporting is audited against the ledger.
+#
+# The annual figure is the mean of the monthly rates, times twelve.
+
+12 => months
+1000000 => value_start
+1180000 => value_end
+200 => reported_mean_monthly_per_myriad
+
+reported_mean_monthly_per_myriad * months => annualized_naive_per_myriad
+int((value_end - value_start) * 10000 / value_start) => true_twelve_month_return_per_myriad
+annualized_naive_per_myriad - true_twelve_month_return_per_myriad => overstatement_per_myriad
+
+# A two-month illustration of why: a 50% fall then a 50% rise.
+5000 => a_down_month_per_myriad
+5000 => an_up_month_per_myriad
+int(10000 * (10000 - a_down_month_per_myriad) / 10000) => value_after_the_fall_per_myriad
+int(value_after_the_fall_per_myriad * (10000 + an_up_month_per_myriad) / 10000) => value_after_the_rise_per_myriad
+value_after_the_rise_per_myriad - 10000 => compounded_net_of_the_two_per_myriad
+
+"months                          : " + str(months) ^0
+"value start                     : " + str(value_start) ^0
+"value end                       : " + str(value_end) ^0
+"" ^0
+"reported mean monthly growth    : " + str(reported_mean_monthly_per_myriad) + " per ten thousand" ^0
+"annualized by times twelve      : " + str(annualized_naive_per_myriad) + " per ten thousand" ^0
+"true twelve-month return        : " + str(true_twelve_month_return_per_myriad) + " per ten thousand" ^0
+"  overstatement                 : " + str(overstatement_per_myriad) + " per ten thousand" ^0
+"" ^0
+"a 50 percent fall then rise" ^0
+"  mean of the two months        : 0 per ten thousand" ^0
+"  compounded net                : " + str(compounded_net_of_the_two_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the monthly figures verified ----
+
+"the monthly growth rates" ^0
+"  each month : close over prior close, minus one" ^0
+"  denominator convention : the same every month" ^0
+"  months dropped : none" ^0
+"  audited against : the ledger" ^0
+"  months with a correct rate : all " + str(months) ^0
+"  verdict : EACH MONTH CORRECT" ^0
+"" ^0
+"  keeping one denominator convention across the year is" ^0
+"  the part almost nobody holds to, and it is why the" ^0
+"  monthly figures are comparable" ^0
+"" ^0
+
+# ---- how the year was combined ----
+
+"the mean of the rates, times twelve" ^0
+"  what it assumes : that growth adds" ^0
+"  what growth does : compounds; each month multiplies" ^0
+"    the last, it does not add to it" ^0
+"  a down month and an up month of equal size : average" ^0
+"    to zero and compound to a loss" ^0
+"  that loss here : " + str(compounded_net_of_the_two_per_myriad) + " per ten thousand" ^0
+"  so the mean times twelve : overstates by " ^0
+"    " + str(overstatement_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the ledger shows ----
+
+"the ledger, start to end" ^0
+"  value at the start : " + str(value_start) ^0
+"  value at the end : " + str(value_end) ^0
+"  the only return that happened : " ^0
+"    " + str(true_twelve_month_return_per_myriad) + " per ten thousand" ^0
+"  the reported annual figure : " ^0
+"    " + str(annualized_naive_per_myriad) + " per ten thousand" ^0
+"  is any monthly rate wrong : no; the combining is" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same monthly rates, compounded into a twelve-month figure instead of
+# averaged and scaled.
+2400 => nc_mean_times_twelve_per_myriad
+1800 => nc_compounded_return_per_myriad
+0 => nc_monthly_rates_changed
+
+"null control - compound the rates, do not average them" ^0
+"  mean times twelve : " + str(nc_mean_times_twelve_per_myriad) + ", unchanged" ^0
+"  compounded return : " + str(nc_compounded_return_per_myriad) + " per ten thousand" ^0
+"  monthly rates changed : " + str(nc_monthly_rates_changed) ^0
+"  no month's figure moved; the combining stopped adding" ^0
+"  the rates and started multiplying them" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a reported average monthly growth guarantees" ^0
+"  each month grew by its stated rate : exactly, one" ^0
+"    convention, no month dropped, audited" ^0
+"  the year grew by twelve times the average : not" ^0
+"    addressed; growth compounds, and the arithmetic mean of" ^0
+"    the monthly rates times twelve is not the twelve-month" ^0
+"    return - the value went " + str(value_start) + " to " + str(value_end) + ", which is" ^0
+"    " + str(true_twelve_month_return_per_myriad) + " per ten thousand, not " + str(annualized_naive_per_myriad) ^0
+"" ^0
+
+"a rate is a ratio between two levels, and ratios chain by multiplication; the" ^0
+"mean of a set of them scaled by their count is an answer to a question about" ^0
+"sums, which growth is not" ^0
+"" ^0
+
+"Each monthly rate is correct, one convention, none dropped, audited. The year" ^0
+"is the mean times twelve, and growth compounds - so the ledger's own " ^0
+"" + str(value_start) + " to " + str(value_end) + " is " + str(true_twelve_month_return_per_myriad) + " per ten thousand, while the report says " ^0
+"" + str(annualized_naive_per_myriad) + ", an overstatement of " + str(overstatement_per_myriad) + " per ten thousand." ^0
