@@ -1,0 +1,110 @@
+# Self-authored for the EML case corpus (no external origin). The job is 90 per
+# hundred done and the ETA says ten minutes, and the arithmetic is right. What
+# the ETA assumes is computed below.
+#
+# The progress bar is honest about what it counts. It counts real completed work
+# units, not a fabricated percentage; it updates from the actual count each tick;
+# the rate is the true average so far; and the ETA is remaining over that rate.
+#
+# The ETA assumes the remaining work runs at the average rate.
+
+1000 => total_units
+900 => done_units
+90 => elapsed_minutes
+1 => rate_on_the_remaining_units_per_minute
+
+total_units - done_units => remaining_units
+int(done_units / elapsed_minutes) => average_rate_so_far_per_minute
+int(remaining_units / average_rate_so_far_per_minute) => reported_eta_minutes
+int(remaining_units / rate_on_the_remaining_units_per_minute) => true_remaining_minutes
+true_remaining_minutes - reported_eta_minutes => underestimate_minutes
+
+"total units                     : " + str(total_units) ^0
+"done units                      : " + str(done_units) ^0
+"  remaining                     : " + str(remaining_units) ^0
+"elapsed                         : " + str(elapsed_minutes) + " minutes" ^0
+"average rate so far             : " + str(average_rate_so_far_per_minute) + " units per minute" ^0
+"reported ETA                    : " + str(reported_eta_minutes) + " minutes" ^0
+"" ^0
+"rate on the remaining units     : " + str(rate_on_the_remaining_units_per_minute) + " per minute" ^0
+"true remaining time             : " + str(true_remaining_minutes) + " minutes" ^0
+"  underestimate                 : " + str(underestimate_minutes) + " minutes" ^0
+"" ^0
+
+# ---- what the progress bar verified ----
+
+"the progress bar" ^0
+"  counts : real completed units" ^0
+"  updates : from the actual count each tick" ^0
+"  rate : the true average so far" ^0
+"  ETA : remaining over that rate" ^0
+"  units genuinely done : " + str(done_units) ^0
+"  verdict : 90 PERCENT DONE, ETA TEN MINUTES" ^0
+"" ^0
+"  counting real units rather than a fabricated percentage" ^0
+"  is the part done right here, and it is why 90 percent" ^0
+"  is true" ^0
+"" ^0
+
+# ---- what the ETA assumes ----
+
+"the extrapolation" ^0
+"  what it projects : the average rate onto the remainder" ^0
+"  what inflated that average : the first 900 units were" ^0
+"    the easy ones" ^0
+"  what the remainder is : the 100 hard ones, at " ^0
+"    " + str(rate_on_the_remaining_units_per_minute) + " per minute" ^0
+"  so remaining time is : " + str(true_remaining_minutes) + " minutes, not " + str(reported_eta_minutes) ^0
+"  the average is a fact about the past : projected as a" ^0
+"    fact about the future" ^0
+"" ^0
+
+# ---- what the caller waiting sees ----
+
+"the caller watching the bar" ^0
+"  what the ETA promised : " + str(reported_eta_minutes) + " minutes" ^0
+"  what the tail actually takes : " + str(true_remaining_minutes) + " minutes" ^0
+"  the underestimate : " + str(underestimate_minutes) + " minutes" ^0
+"  is the percentage wrong : no; 900 of 1000 are done" ^0
+"  is the ETA wrong : the arithmetic is right and the" ^0
+"    assumption behind it is not" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same job, with the ETA computed from the rate over a trailing window of
+# recent units rather than the average since the start.
+10 => nc_eta_from_the_lifetime_average_minutes
+100 => nc_eta_from_the_recent_rate_minutes
+1 => nc_estimates_that_change
+
+"null control - ETA from the recent rate, not the lifetime average" ^0
+"  ETA from the lifetime average : " ^0
+"    " + str(nc_eta_from_the_lifetime_average_minutes) + " minutes, unchanged" ^0
+"  ETA from the recent rate : " ^0
+"    " + str(nc_eta_from_the_recent_rate_minutes) + " minutes" ^0
+"  estimates that change : " + str(nc_estimates_that_change) ^0
+"  no unit and no count changed; the rate used stopped" ^0
+"  being the one the easy units inflated" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a 90-percent bar with a ten-minute ETA guarantees" ^0
+"  900 of 1000 units are done : exactly, real units," ^0
+"    updated each tick, true average rate" ^0
+"  the job finishes in the ETA : not addressed; the ETA" ^0
+"    extrapolates the average rate, and the remaining 100" ^0
+"    are the slow ones the average was inflated by the fast" ^0
+"    ones - they take " + str(true_remaining_minutes) + " minutes" ^0
+"" ^0
+
+"an average rate is a summary of the work already done, and the work left is" ^0
+"exactly the work not in that summary; projecting the past rate onto a remainder" ^0
+"of a different kind is the assumption, not the measurement" ^0
+"" ^0
+
+"It counts real units and divides remaining by the true average - 90 percent," ^0
+"ETA " + str(reported_eta_minutes) + " minutes. The average was inflated by the easy first 900, and the" ^0
+"remaining 100 run at " + str(rate_on_the_remaining_units_per_minute) + " per minute, so the tail takes " + str(true_remaining_minutes) + " minutes, " ^0
+"" + str(underestimate_minutes) + " past the ETA." ^0

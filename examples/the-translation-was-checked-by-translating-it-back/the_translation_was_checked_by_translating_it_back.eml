@@ -1,0 +1,109 @@
+# Self-authored for the EML case corpus (no external origin). The translation
+# passed its round-trip check on 97 of every 100 sentences, and the check is
+# real. What does the translating back is computed below.
+#
+# The check is run on everything. Every sentence is translated back to the
+# source and compared; the comparison is not fuzzy-graded into a pass; a
+# mismatch is queued for human review; and the pass rate is tracked per release.
+#
+# The back-translation uses the same model as the forward translation.
+
+5000 => sentences
+4850 => back_translation_matched
+620 => mistranslations_a_human_found
+40 => of_those_the_back_translation_caught
+
+int(back_translation_matched * 10000 / sentences) => round_trip_match_per_myriad
+sentences - mistranslations_a_human_found => sentences_actually_faithful
+int(sentences_actually_faithful * 10000 / sentences) => true_fidelity_per_myriad
+mistranslations_a_human_found - of_those_the_back_translation_caught => mistranslations_that_round_tripped_cleanly
+
+"sentences                       : " + str(sentences) ^0
+"  back-translation matched      : " + str(back_translation_matched) ^0
+"round-trip match rate           : " + str(round_trip_match_per_myriad) + " per ten thousand" ^0
+"" ^0
+"mistranslations a human found   : " + str(mistranslations_a_human_found) ^0
+"  the back-translation caught   : " + str(of_those_the_back_translation_caught) ^0
+"  that round-tripped cleanly    : " + str(mistranslations_that_round_tripped_cleanly) ^0
+"true fidelity                   : " + str(true_fidelity_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the round-trip verified ----
+
+"the round-trip check" ^0
+"  coverage : every sentence" ^0
+"  comparison : exact, not fuzzy-graded into a pass" ^0
+"  on a mismatch : queued for human review" ^0
+"  tracked : per release" ^0
+"  sentences that matched on return : " + str(back_translation_matched) ^0
+"  verdict : FAITHFUL" ^0
+"" ^0
+"  refusing to fuzzy-grade the comparison is the part" ^0
+"  almost nobody holds to, and it is why a match is not" ^0
+"  quietly inflated" ^0
+"" ^0
+
+# ---- what does the translating back ----
+
+"the back-translation" ^0
+"  model forward : the translation model" ^0
+"  model back : the same one" ^0
+"  a systematic error it makes : it makes in reverse too" ^0
+"  so a wrong rendering : is translated back to the" ^0
+"    original wrongly-but-consistently, and matches" ^0
+"  mistranslations that survived the round trip : " ^0
+"    " + str(mistranslations_that_round_tripped_cleanly) ^0
+"" ^0
+
+# ---- what a reader of the target gets ----
+
+"the reader in the target language" ^0
+"  sentences a human judged wrong : " ^0
+"    " + str(mistranslations_a_human_found) ^0
+"  of those the check flagged : " ^0
+"    " + str(of_those_the_back_translation_caught) ^0
+"  is the round-trip metric wrong : no; the strings do" ^0
+"    match on return" ^0
+"  what a match means here : the model agrees with itself," ^0
+"    not that the meaning survived" ^0
+"  true fidelity to a human : " + str(true_fidelity_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same sentences, back-translated by a different model so the reverse pass
+# does not repeat the forward pass's errors.
+9700 => nc_round_trip_same_model_per_myriad
+8804 => nc_round_trip_different_model_per_myriad
+580 => nc_mistranslations_it_would_flag
+
+"null control - back-translate with a different model" ^0
+"  round-trip, same model : " + str(nc_round_trip_same_model_per_myriad) + ", unchanged" ^0
+"  round-trip, a different model : " ^0
+"    " + str(nc_round_trip_different_model_per_myriad) + " per ten thousand" ^0
+"  mistranslations it would flag : " ^0
+"    " + str(nc_mistranslations_it_would_flag) ^0
+"  no sentence changed; the reverse pass stopped sharing" ^0
+"  the forward pass's blind spots" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a passing round-trip check guarantees" ^0
+"  the sentence returns to its original : exactly, on " ^0
+"    " + str(back_translation_matched) + " of " + str(sentences) + ", exact comparison, humans on the rest" ^0
+"  the translation is faithful : not addressed; the check" ^0
+"    translates back with the same model, which repeats its" ^0
+"    own errors in reverse, so " + str(mistranslations_that_round_tripped_cleanly) + " of them round-trip" ^0
+"    cleanly" ^0
+"" ^0
+
+"a round trip through one model tests the model against itself, and a systematic" ^0
+"error is exactly what a system does the same way every time; the return journey" ^0
+"undoes the mistake it also makes" ^0
+"" ^0
+
+"Every sentence is back-translated and compared exactly, mismatches sent to" ^0
+"humans - " + str(round_trip_match_per_myriad) + " per ten thousand match. The back-translation is the same model," ^0
+"so it repeats its own errors in reverse: " + str(mistranslations_that_round_tripped_cleanly) + " mistranslations round-tripped" ^0
+"cleanly, leaving true fidelity at " + str(true_fidelity_per_myriad) + " per ten thousand." ^0

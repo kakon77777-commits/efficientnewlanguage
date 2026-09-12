@@ -1,0 +1,105 @@
+# Self-authored for the EML case corpus (no external origin). The daily active
+# count is computed correctly every day, and no event is counted twice. What
+# defines the day it lands in is computed below.
+#
+# The counting is careful. Each event is counted once; the boundaries are exactly
+# 24 hours apart; the query is inclusive at the start and exclusive at the end,
+# so no event falls in two days or none; and the total across days equals the
+# total events.
+#
+# The day boundary is the server's midnight, and the users are nine hours ahead.
+
+48000 => events_counted_today_server
+5200 => late_evening_events_in_the_users_next_day
+9 => hours_the_users_are_ahead
+0 => events_double_counted
+
+events_counted_today_server - late_evening_events_in_the_users_next_day => events_that_are_truly_today_for_the_user
+events_that_are_truly_today_for_the_user + late_evening_events_in_the_users_next_day => events_total_unchanged
+int(late_evening_events_in_the_users_next_day * 10000 / events_counted_today_server) => misassigned_per_myriad
+
+"events counted today (server)   : " + str(events_counted_today_server) ^0
+"  double counted                : " + str(events_double_counted) ^0
+"users' hours ahead              : " + str(hours_the_users_are_ahead) ^0
+"" ^0
+"of today's count, truly the user's today : " + str(events_that_are_truly_today_for_the_user) ^0
+"in the user's next day already  : " + str(late_evening_events_in_the_users_next_day) ^0
+"  misassigned                   : " + str(misassigned_per_myriad) + " per ten thousand" ^0
+"total events (either framing)   : " + str(events_total_unchanged) ^0
+"" ^0
+
+# ---- what the counting verified ----
+
+"the daily count" ^0
+"  each event : counted once" ^0
+"  boundaries : exactly 24 hours apart" ^0
+"  the window : inclusive start, exclusive end" ^0
+"  total across days : equals total events" ^0
+"  events double counted or dropped : " + str(events_double_counted) ^0
+"  verdict : COUNTED CLEANLY" ^0
+"" ^0
+"  an inclusive-start exclusive-end window is the part" ^0
+"  done right here, and it is why no event lands in two" ^0
+"  days or in none" ^0
+"" ^0
+
+# ---- what defines the day ----
+
+"the boundary the count uses" ^0
+"  which midnight : the server's" ^0
+"  where the users are : nine hours ahead" ^0
+"  so a user's late evening : is already the next day for" ^0
+"    them while it is still today on the server" ^0
+"  events in that window : " + str(late_evening_events_in_the_users_next_day) ^0
+"  what moved them : not a miscount, a different midnight" ^0
+"" ^0
+
+# ---- what a per-user report shows ----
+
+"the day as the user lived it" ^0
+"  events the server calls today : " + str(events_counted_today_server) ^0
+"  events the user calls today : " ^0
+"    " + str(events_that_are_truly_today_for_the_user) ^0
+"  the difference : " + str(late_evening_events_in_the_users_next_day) + ", pushed a day forward" ^0
+"  is any event lost : no; the total is the same either" ^0
+"    way" ^0
+"  is any event in the right day : only if the user keeps" ^0
+"    the server's clock" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same events, bucketed by each user's local midnight rather than the
+# server's.
+48000 => nc_server_framed_today
+42800 => nc_user_framed_today
+5200 => nc_events_that_move_days
+
+"null control - bucket by the user's local midnight" ^0
+"  server-framed today : " + str(nc_server_framed_today) + ", unchanged in size" ^0
+"  user-framed today : " + str(nc_user_framed_today) ^0
+"  events that move to another day : " + str(nc_events_that_move_days) ^0
+"  no event was added or dropped; the boundary moved from" ^0
+"  the server's clock to the user's" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a clean daily count guarantees" ^0
+"  each event is counted once in exactly one day : exactly," ^0
+"    24-hour boundaries, half-open window, totals reconcile" ^0
+"  each event is in the day it happened : not addressed;" ^0
+"    the boundary is server midnight and the users are nine" ^0
+"    hours ahead, so " + str(late_evening_events_in_the_users_next_day) + " of their late-evening events land" ^0
+"    in the next server day" ^0
+"" ^0
+
+"a count is clean when its buckets partition the events, and a day is a bucket" ^0
+"defined by a midnight; whose midnight is a choice, and the wrong one puts an" ^0
+"event in a real bucket that is not its own" ^0
+"" ^0
+
+"Each event is counted once in a half-open 24-hour window, totals reconcile - no" ^0
+"miscount. The boundary is the server's midnight and the users are " + str(hours_the_users_are_ahead) + " hours" ^0
+"ahead, so " + str(late_evening_events_in_the_users_next_day) + " late-evening events sit in the wrong calendar day, " ^0
+"" + str(misassigned_per_myriad) + " per ten thousand, with " + str(events_double_counted) + " actually lost." ^0

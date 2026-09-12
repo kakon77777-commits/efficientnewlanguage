@@ -1,0 +1,110 @@
+# Self-authored for the EML case corpus (no external origin). Every committed
+# transaction left the account non-negative, and each check is real. What two
+# concurrent withdrawals each validated against is computed below.
+#
+# The invariant is enforced properly per transaction. Each withdrawal reads the
+# balance, refuses if the debit would take it below zero, and only then commits;
+# the check and the debit are in one transaction; and every committed state on
+# record is non-negative.
+#
+# Two withdrawals ran concurrently, and each read the balance before either
+# committed.
+
+100 => starting_balance
+80 => withdrawal_one
+80 => withdrawal_two
+100 => balance_each_withdrawal_read
+0 => committed_states_that_were_negative
+
+balance_each_withdrawal_read - withdrawal_one => balance_one_validated_against
+balance_each_withdrawal_read - withdrawal_two => balance_two_validated_against
+starting_balance - withdrawal_one - withdrawal_two => final_balance
+0 - final_balance => the_overdraft
+
+"starting balance                : " + str(starting_balance) ^0
+"withdrawal one                  : " + str(withdrawal_one) ^0
+"withdrawal two                  : " + str(withdrawal_two) ^0
+"balance each withdrawal read    : " + str(balance_each_withdrawal_read) ^0
+"" ^0
+"one validated against           : " + str(balance_one_validated_against) + " remaining, allowed" ^0
+"two validated against           : " + str(balance_two_validated_against) + " remaining, allowed" ^0
+"committed states that were negative : " + str(committed_states_that_were_negative) ^0
+"final balance                   : " + str(final_balance) ^0
+"the overdraft                   : " + str(the_overdraft) ^0
+"" ^0
+
+# ---- what each transaction verified ----
+
+"the non-negative check" ^0
+"  each withdrawal : reads the balance first" ^0
+"  refuses if : the debit would go below zero" ^0
+"  check and debit : in one transaction" ^0
+"  committed states on record : all non-negative" ^0
+"  transactions that each passed the check : both" ^0
+"  verdict : NEVER NEGATIVE, PER COMMIT" ^0
+"" ^0
+"  putting the check and the debit in one transaction is" ^0
+"  the part done right here, and it is why no single" ^0
+"  transaction leaves a bad state" ^0
+"" ^0
+
+# ---- what the two read ----
+
+"the two concurrent withdrawals" ^0
+"  what one read : " + str(balance_each_withdrawal_read) + ", enough for " + str(withdrawal_one) ^0
+"  what two read : " + str(balance_each_withdrawal_read) + ", enough for " + str(withdrawal_two) ^0
+"  when they read it : before either had committed" ^0
+"  so each validated against : a balance the other was" ^0
+"    about to spend" ^0
+"  the check each passed : true of the state it saw," ^0
+"    false of the state it made" ^0
+"" ^0
+
+# ---- what the account ends at ----
+
+"the account after both commit" ^0
+"  what each commit left, in isolation : non-negative" ^0
+"  what the two together left : " + str(final_balance) ^0
+"  the overdraft : " + str(the_overdraft) ^0
+"  did any transaction break its own check : no" ^0
+"  what was violated : a property of the pair, which" ^0
+"    neither transaction was checking" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same two withdrawals, serialized by a lock on the balance so the second
+# reads what the first committed.
+0 => nc_overdraft_when_serialized
+60 => nc_overdraft_when_concurrent
+1 => nc_withdrawals_the_second_check_would_refuse
+
+"null control - serialize on the balance" ^0
+"  overdraft when serialized : " + str(nc_overdraft_when_serialized) ^0
+"  overdraft when concurrent : " + str(nc_overdraft_when_concurrent) ^0
+"  withdrawals the second check would now refuse : " ^0
+"    " + str(nc_withdrawals_the_second_check_would_refuse) ^0
+"  no amount and no check changed; the second read stopped" ^0
+"  seeing a balance the first was about to spend" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a per-commit non-negative invariant guarantees" ^0
+"  every committed state is non-negative : exactly, check" ^0
+"    and debit in one transaction, all commits clean" ^0
+"  the balance never goes negative : not addressed; each" ^0
+"    withdrawal validated against the balance it read, and" ^0
+"    two interleaved reads both saw " + str(balance_each_withdrawal_read) + ", so both committed" ^0
+"    and left " + str(final_balance) ^0
+"" ^0
+
+"an invariant checked per transaction holds for each transaction against the" ^0
+"state it saw; concurrency means the state it saw is not the state it commits" ^0
+"into, and the property of the sequence is not the property of any step" ^0
+"" ^0
+
+"Each withdrawal checks and debits in one transaction and every committed state" ^0
+"is non-negative - no step breaks the rule. Two ran concurrently and both read " ^0
+"" + str(balance_each_withdrawal_read) + " before either committed, so both were allowed and the account ended at " ^0
+"" + str(final_balance) + ", an overdraft of " + str(the_overdraft) + " no single commit created." ^0

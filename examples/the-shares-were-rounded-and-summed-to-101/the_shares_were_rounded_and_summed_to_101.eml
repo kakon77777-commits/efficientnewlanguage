@@ -1,0 +1,108 @@
+# Self-authored for the EML case corpus (no external origin). Three shares of a
+# whole are each rounded to a correct whole percent, and each rounding is right.
+# What they sum to is computed below.
+#
+# The rounding is done properly per share. Each true share is rounded half-up to
+# the nearest whole percent; the same rule is used for all three; none is
+# truncated; and each displayed percent is within half a point of its true share.
+#
+# The three true shares sum to exactly the whole.
+
+3350 => share_a_per_myriad
+3350 => share_b_per_myriad
+3300 => share_c_per_myriad
+
+share_a_per_myriad + share_b_per_myriad + share_c_per_myriad => true_total_per_myriad
+int((share_a_per_myriad + 50) / 100) => share_a_percent
+int((share_b_per_myriad + 50) / 100) => share_b_percent
+int((share_c_per_myriad + 50) / 100) => share_c_percent
+share_a_percent + share_b_percent + share_c_percent => rounded_shares_sum_percent
+int(true_total_per_myriad / 100) => true_total_percent
+rounded_shares_sum_percent - true_total_percent => the_excess_percent
+
+"share A                         : " + str(share_a_per_myriad) + " per ten thousand" ^0
+"share B                         : " + str(share_b_per_myriad) + " per ten thousand" ^0
+"share C                         : " + str(share_c_per_myriad) + " per ten thousand" ^0
+"true total                      : " + str(true_total_per_myriad) + " per ten thousand" ^0
+"" ^0
+"share A rounded                 : " + str(share_a_percent) + " percent" ^0
+"share B rounded                 : " + str(share_b_percent) + " percent" ^0
+"share C rounded                 : " + str(share_c_percent) + " percent" ^0
+"rounded shares sum to           : " + str(rounded_shares_sum_percent) + " percent" ^0
+"true total                      : " + str(true_total_percent) + " percent" ^0
+"  the excess                    : " + str(the_excess_percent) + " percent" ^0
+"" ^0
+
+# ---- what the per-share rounding verified ----
+
+"the per-share rounding" ^0
+"  rule : round half-up to the nearest whole percent" ^0
+"  applied to : all three, identically" ^0
+"  truncation : none" ^0
+"  each displayed percent : within half a point of its" ^0
+"    share" ^0
+"  shares off by more than half a point : 0" ^0
+"  verdict : EACH SHARE CORRECT" ^0
+"" ^0
+"  holding half-up for every share is the part done right" ^0
+"  here, and it is why no single percent is misrounded" ^0
+"" ^0
+
+# ---- what they sum to ----
+
+"the sum of the rounded shares" ^0
+"  what it should be : 100, the whole" ^0
+"  what it is : " + str(rounded_shares_sum_percent) ^0
+"  why : two shares at exactly 33.5 each round up" ^0
+"  what rounding does to a sum : it does not preserve it;" ^0
+"    the roundings do not cancel" ^0
+"  the invariant broken : the parts add to the whole" ^0
+"" ^0
+
+# ---- what a reader of the breakdown sees ----
+
+"the reader of the breakdown" ^0
+"  the three percents shown : " + str(share_a_percent) + ", " + str(share_b_percent) + ", " + str(share_c_percent) ^0
+"  their sum : " + str(rounded_shares_sum_percent) ^0
+"  is any single share wrong : no; each is the correct" ^0
+"    rounding of its value" ^0
+"  is the breakdown consistent : no; it claims " + str(the_excess_percent) + " point" ^0
+"    more than exists" ^0
+"  where the extra point is : in no share, between them" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same shares, with the last one shown as the remainder after the others so
+# the displayed parts sum to the whole by construction.
+101 => nc_independent_rounding_sum_percent
+100 => nc_largest_remainder_sum_percent
+0 => nc_shares_whose_value_changed
+
+"null control - show the last as the remainder" ^0
+"  independent rounding sum : " + str(nc_independent_rounding_sum_percent) + " percent" ^0
+"  largest-remainder sum : " + str(nc_largest_remainder_sum_percent) + " percent" ^0
+"  shares whose value changed : " + str(nc_shares_whose_value_changed) ^0
+"  no share's value changed; one figure became the whole" ^0
+"  minus the others rather than an independent rounding" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what correctly rounded shares guarantee" ^0
+"  each share is within half a point of its value : exactly," ^0
+"    half-up, same rule, none truncated" ^0
+"  the shares account for the whole : not addressed; each" ^0
+"    share was rounded independently, and three that truly" ^0
+"    sum to 100 round to " + str(share_a_percent) + "+" + str(share_b_percent) + "+" + str(share_c_percent) + " = " + str(rounded_shares_sum_percent) + "," ^0
+"    because rounding does not preserve a sum" ^0
+"" ^0
+
+"rounding each part keeps each part honest and lets their total drift; the" ^0
+"constraint that parts sum to a whole is a property of the set, and rounding" ^0
+"them one at a time is blind to it" ^0
+"" ^0
+
+"Each share is rounded half-up, same rule, within half a point - none is wrong." ^0
+"Two sit at exactly 33.5 and round up, so the parts sum to " + str(rounded_shares_sum_percent) + " where the whole" ^0
+"is " + str(true_total_percent) + ": " + str(the_excess_percent) + " point that is in no share and breaks parts-sum-to-the-whole." ^0

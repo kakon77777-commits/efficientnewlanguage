@@ -1,0 +1,104 @@
+# Self-authored for the EML case corpus (no external origin). The dashboard data
+# has been under its three-second freshness SLA all quarter, and the number is
+# real. What instant freshness is measured from is computed below.
+#
+# The freshness metric is honest about the pipeline. It times from when the
+# record was published to when it is read; it uses a monotonic clock so the
+# figure cannot go negative; it is measured on every read, not sampled; and the
+# SLA is enforced with an alert.
+#
+# Freshness is measured from publish time, and the source lags publish.
+
+3 => publish_to_read_seconds
+60 => freshness_sla_seconds
+1800 => event_to_publish_lag_seconds
+
+publish_to_read_seconds + event_to_publish_lag_seconds => event_to_read_seconds
+event_to_read_seconds - publish_to_read_seconds => age_the_metric_cannot_see_seconds
+freshness_sla_seconds - publish_to_read_seconds => headroom_the_metric_shows_seconds
+event_to_read_seconds - freshness_sla_seconds => amount_the_true_age_is_over_sla_seconds
+
+"publish-to-read                 : " + str(publish_to_read_seconds) + " seconds" ^0
+"freshness SLA                   : " + str(freshness_sla_seconds) + " seconds" ^0
+"  headroom the metric shows     : " + str(headroom_the_metric_shows_seconds) + " seconds" ^0
+"" ^0
+"event-to-publish lag            : " + str(event_to_publish_lag_seconds) + " seconds" ^0
+"event-to-read (true age)        : " + str(event_to_read_seconds) + " seconds" ^0
+"  age the metric cannot see     : " + str(age_the_metric_cannot_see_seconds) + " seconds" ^0
+"  true age over the SLA by      : " + str(amount_the_true_age_is_over_sla_seconds) + " seconds" ^0
+"" ^0
+
+# ---- what the freshness metric verified ----
+
+"the freshness metric" ^0
+"  times from : publish to read" ^0
+"  clock : monotonic, cannot go negative" ^0
+"  measured on : every read, not sampled" ^0
+"  enforced by : an alert on the SLA" ^0
+"  reads inside the SLA : all of them" ^0
+"  verdict : FRESH" ^0
+"" ^0
+"  measuring on every read rather than sampling is the" ^0
+"  part done right here, and it is why the three seconds is" ^0
+"  not a lucky sample" ^0
+"" ^0
+
+# ---- what instant it starts from ----
+
+"the clock's start point" ^0
+"  when the timer starts : at publish" ^0
+"  when the event happened : " + str(event_to_publish_lag_seconds) + " seconds before publish" ^0
+"  what the pipeline's own speed measures : the pipeline," ^0
+"    not the world" ^0
+"  so a fast pipeline on stale input : reads as fresh" ^0
+"  the age nobody is timing : " + str(age_the_metric_cannot_see_seconds) + " seconds" ^0
+"" ^0
+
+# ---- what a decision on the data sees ----
+
+"the action taken on the dashboard" ^0
+"  what it assumes : the data is " + str(publish_to_read_seconds) + " seconds old" ^0
+"  what it is acting on : a " + str(event_to_read_seconds) + "-second-old world" ^0
+"  over the SLA the action trusts by : " ^0
+"    " + str(amount_the_true_age_is_over_sla_seconds) + " seconds" ^0
+"  is the freshness figure wrong : no; publish-to-read is" ^0
+"    exactly three seconds" ^0
+"  is it the age the decision needs : no" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same reads, with freshness timed from the event timestamp carried on each
+# record rather than from publish time.
+3 => nc_publish_based_seconds
+1803 => nc_event_based_seconds
+1 => nc_sla_breaches_it_would_show
+
+"null control - time from the event, not from publish" ^0
+"  publish-based freshness : " + str(nc_publish_based_seconds) + " seconds, unchanged" ^0
+"  event-based freshness : " + str(nc_event_based_seconds) + " seconds" ^0
+"  SLA breaches it would show : " + str(nc_sla_breaches_it_would_show) ^0
+"  no record and no clock changed; the start point moved" ^0
+"  from when the pipeline emitted to when the world acted" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a met freshness SLA guarantees" ^0
+"  the record is read soon after it is published : exactly," ^0
+"    " + str(publish_to_read_seconds) + " seconds, monotonic, every read, alerted" ^0
+"  the data reflects a recent world : not addressed; age is" ^0
+"    measured from publish, and the source lags publish by" ^0
+"    " + str(event_to_publish_lag_seconds) + " seconds, so an event is " + str(event_to_read_seconds) + " seconds old when" ^0
+"    it looks " + str(publish_to_read_seconds) ^0
+"" ^0
+
+"freshness is an interval, and an interval is only as good as the instant it" ^0
+"starts from; timing from publish measures how fast the pipeline forgets, not" ^0
+"how recently the world was seen" ^0
+"" ^0
+
+"It times publish-to-read on a monotonic clock, every read, alerted - " + str(publish_to_read_seconds) + " seconds," ^0
+"under SLA. The clock starts at publish, which lags the event by " + str(event_to_publish_lag_seconds) + " seconds, so" ^0
+"the data acted on is " + str(event_to_read_seconds) + " seconds old - " + str(amount_the_true_age_is_over_sla_seconds) + " over the SLA - while the metric" ^0
+"reads " + str(publish_to_read_seconds) + "." ^0

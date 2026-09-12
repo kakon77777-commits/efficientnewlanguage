@@ -1,0 +1,109 @@
+# Self-authored for the EML case corpus (no external origin). The daily
+# reconciliation has matched to the cent for the whole quarter, and the match is
+# real. What the two sides of it are is computed below.
+#
+# The reconciliation is run properly. It compares two totals, not one; it runs
+# every day, unattended; a mismatch of a single cent halts settlement; and the
+# result is logged with both figures.
+#
+# The second total is an export generated from the first.
+
+4200 => accounts
+88400000 => ledger_total_cents
+88400000 => export_total_cents
+0 => discrepancy_the_reconciliation_found
+88815000 => bank_statement_total_cents
+415000 => pending_transactions_excluded_from_both_cents
+
+ledger_total_cents - export_total_cents => reconciliation_gap_cents
+bank_statement_total_cents - ledger_total_cents => true_gap_against_the_bank_cents
+int(true_gap_against_the_bank_cents * 10000 / bank_statement_total_cents) => true_gap_per_myriad
+1 => independent_sources_in_the_comparison
+
+"accounts                        : " + str(accounts) ^0
+"ledger total                    : " + str(ledger_total_cents) + " cents" ^0
+"export total                    : " + str(export_total_cents) + " cents" ^0
+"  reconciliation gap            : " + str(reconciliation_gap_cents) + " cents" ^0
+"  discrepancies found           : " + str(discrepancy_the_reconciliation_found) ^0
+"" ^0
+"bank statement total            : " + str(bank_statement_total_cents) + " cents" ^0
+"  pending excluded from both    : " + str(pending_transactions_excluded_from_both_cents) + " cents" ^0
+"  true gap against the bank     : " + str(true_gap_against_the_bank_cents) + " cents" ^0
+"  as a share of the bank total  : " + str(true_gap_per_myriad) + " per ten thousand" ^0
+"independent sources compared    : " + str(independent_sources_in_the_comparison) ^0
+"" ^0
+
+# ---- what the reconciliation verified ----
+
+"the reconciliation" ^0
+"  compares : two totals, not one" ^0
+"  runs : every day, unattended" ^0
+"  on a one-cent mismatch : halts settlement" ^0
+"  logs : both figures" ^0
+"  days it matched : all of them" ^0
+"  verdict : RECONCILED" ^0
+"" ^0
+"  halting on a single cent is the part almost nobody" ^0
+"  dares to wire up, and it is why a match here is trusted" ^0
+"" ^0
+
+# ---- what the two sides share ----
+
+"the two totals" ^0
+"  the first : the ledger" ^0
+"  the second : an export generated from the ledger" ^0
+"  what that makes the match : the ledger against itself" ^0
+"  a row missing from the ledger : is missing from the" ^0
+"    export too, so the two still agree" ^0
+"  pending transactions in neither : " ^0
+"    " + str(pending_transactions_excluded_from_both_cents) + " cents" ^0
+"" ^0
+
+# ---- what the bank shows ----
+
+"the statement from the bank" ^0
+"  its total : " + str(bank_statement_total_cents) + " cents" ^0
+"  the reconciled total : " + str(ledger_total_cents) + " cents" ^0
+"  the gap : " + str(true_gap_against_the_bank_cents) + " cents" ^0
+"  what the daily match said about it : nothing; the bank" ^0
+"    is not one of the two sides" ^0
+"  where the gap lives : the pending class excluded from" ^0
+"    the ledger and therefore from its export" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same reconciliation, with the second total taken from the bank feed
+# instead of from an export of the ledger.
+0 => nc_ledger_vs_export_gap_cents
+415000 => nc_ledger_vs_bank_gap_cents
+1 => nc_discrepancies_it_would_raise
+
+"null control - reconcile against the bank, not an export" ^0
+"  ledger vs its export : " + str(nc_ledger_vs_export_gap_cents) + " cents, unchanged" ^0
+"  ledger vs the bank : " + str(nc_ledger_vs_bank_gap_cents) + " cents" ^0
+"  discrepancies it would raise : " + str(nc_discrepancies_it_would_raise) ^0
+"  no figure changed; the second source stopped being" ^0
+"  derived from the first" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a matched reconciliation guarantees" ^0
+"  the two totals compared are equal : exactly, to the" ^0
+"    cent, every day, settlement halted otherwise" ^0
+"  the books are correct : not addressed; the export is" ^0
+"    generated from the ledger, so the two agree by" ^0
+"    construction, and " + str(pending_transactions_excluded_from_both_cents) + " cents excluded from both" ^0
+"    is invisible to their comparison" ^0
+"" ^0
+
+"a comparison is evidence only between independent sources; two views of one" ^0
+"source agree because they are one source, and the error they share is the one" ^0
+"error the match can never surface" ^0
+"" ^0
+
+"It compares two totals daily and halts on a one-cent gap - matched all quarter." ^0
+"The second total is an export of the ledger, so it is the ledger against itself:" ^0
+"" + str(pending_transactions_excluded_from_both_cents) + " cents of pending sits in neither, and the bank shows a " + str(true_gap_against_the_bank_cents) + "-cent gap" ^0
+"the match could not see, " + str(true_gap_per_myriad) + " per ten thousand, under " + str(independent_sources_in_the_comparison) + " independent source." ^0

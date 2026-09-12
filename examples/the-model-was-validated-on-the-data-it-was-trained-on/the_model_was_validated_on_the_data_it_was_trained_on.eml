@@ -1,0 +1,108 @@
+# Self-authored for the EML case corpus (no external origin). The classifier
+# scored 98 per hundred at validation, and the score is real. What set it was
+# scored on is computed below.
+#
+# The evaluation is done carefully. Accuracy is computed on real labels, not the
+# model's own guesses; the metric is checked against a confusion matrix; the
+# threshold was fixed before scoring; and the number is signed off before
+# release.
+#
+# The rows it was scored on are the rows it was trained on.
+
+40000 => rows_scored
+40000 => rows_trained_on
+0 => holdout_rows_held_back
+9820 => in_sample_accuracy_per_myriad
+12000 => unseen_rows_from_a_later_batch
+8730 => out_of_sample_accuracy_per_myriad
+
+in_sample_accuracy_per_myriad - out_of_sample_accuracy_per_myriad => generalization_gap_per_myriad
+int(in_sample_accuracy_per_myriad * rows_scored / 10000) => rows_called_right_in_sample
+int(out_of_sample_accuracy_per_myriad * unseen_rows_from_a_later_batch / 10000) => unseen_rows_called_right
+
+"rows scored                     : " + str(rows_scored) ^0
+"rows trained on                 : " + str(rows_trained_on) ^0
+"  held back for validation      : " + str(holdout_rows_held_back) ^0
+"in-sample accuracy              : " + str(in_sample_accuracy_per_myriad) + " per ten thousand" ^0
+"" ^0
+"unseen rows from a later batch  : " + str(unseen_rows_from_a_later_batch) ^0
+"out-of-sample accuracy          : " + str(out_of_sample_accuracy_per_myriad) + " per ten thousand" ^0
+"  generalization gap            : " + str(generalization_gap_per_myriad) + " per ten thousand" ^0
+"unseen rows called right        : " + str(unseen_rows_called_right) ^0
+"" ^0
+
+# ---- what the evaluation verified ----
+
+"the validation" ^0
+"  accuracy on : real labels, not the model's guesses" ^0
+"  checked against : a confusion matrix" ^0
+"  threshold : fixed before scoring" ^0
+"  sign-off : before release" ^0
+"  rows called right : " + str(rows_called_right_in_sample) ^0
+"  verdict : ACCURATE" ^0
+"" ^0
+"  fixing the threshold before scoring is the part almost" ^0
+"  nobody resists moving, and it is why the number was not" ^0
+"  tuned to itself" ^0
+"" ^0
+
+# ---- what set it was scored on ----
+
+"the scoring set" ^0
+"  which rows : the training rows" ^0
+"  rows held back for a fair test : " ^0
+"    " + str(holdout_rows_held_back) ^0
+"  what a model can do to those rows : memorize them" ^0
+"  so a high score on them : measures recall of the" ^0
+"    training set, not skill on new data" ^0
+"  what it does not measure : generalization" ^0
+"" ^0
+
+# ---- what a later batch shows ----
+
+"the rows the model never saw" ^0
+"  count : " + str(unseen_rows_from_a_later_batch) ^0
+"  accuracy on them : " + str(out_of_sample_accuracy_per_myriad) + " per ten thousand" ^0
+"  the validation figure : " + str(in_sample_accuracy_per_myriad) + " per ten thousand" ^0
+"  the drop : " + str(generalization_gap_per_myriad) + " per ten thousand" ^0
+"  is the validation number wrong : no; it is a correct" ^0
+"    in-sample accuracy" ^0
+"  is it the number a buyer thinks they are getting : no" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same model, scored on a holdout split withheld from training before the
+# metric is computed.
+9820 => nc_in_sample_per_myriad
+8730 => nc_holdout_per_myriad
+1 => nc_number_that_changes_meaning
+
+"null control - score on a withheld holdout" ^0
+"  in-sample accuracy : " + str(nc_in_sample_per_myriad) + ", unchanged" ^0
+"  holdout accuracy : " + str(nc_holdout_per_myriad) + " per ten thousand" ^0
+"  numbers that change meaning : " + str(nc_number_that_changes_meaning) ^0
+"  no row and no label changed; the scoring set stopped" ^0
+"  being the set the model had already seen" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a high validation accuracy guarantees" ^0
+"  the model reproduces the labels it was scored on :" ^0
+"    exactly, real labels, fixed threshold, signed off" ^0
+"  the model generalizes : not addressed; the accuracy was" ^0
+"    measured on the rows it was fit to, and a model can" ^0
+"    memorize those - on " + str(unseen_rows_from_a_later_batch) + " unseen rows it scores " ^0
+"    " + str(out_of_sample_accuracy_per_myriad) ^0
+"" ^0
+
+"a score on the training set measures memory, and a score on held-out data" ^0
+"measures skill; the two coincide only for a model that did not overfit, which" ^0
+"is the very thing the in-sample number cannot tell you" ^0
+"" ^0
+
+"Accuracy is on real labels against a confusion matrix, threshold fixed, signed" ^0
+"off - " + str(in_sample_accuracy_per_myriad) + " per ten thousand. It was scored on its own training rows, which a" ^0
+"model can memorize, so " + str(unseen_rows_from_a_later_batch) + " unseen rows score " + str(out_of_sample_accuracy_per_myriad) + ", a gap of " ^0
+"" + str(generalization_gap_per_myriad) + " per ten thousand under " + str(holdout_rows_held_back) + " rows held back." ^0

@@ -1,0 +1,105 @@
+# Self-authored for the EML case corpus (no external origin). The two pressure
+# sensors have agreed within one unit all year, and the agreement is real. What
+# they were zeroed against is computed below.
+#
+# The redundancy is designed well. There are two independent sensors, not one;
+# they are read on separate channels; a disagreement beyond a threshold raises
+# an alarm; and the readings are logged side by side.
+#
+# Both were zeroed against the same reference block at install.
+
+1012 => sensor_a_reading_mbar
+1012 => sensor_b_reading_mbar
+2 => disagreement_alarm_threshold_mbar
+7 => the_shared_reference_drift_mbar
+1 => independent_references
+
+sensor_a_reading_mbar - sensor_b_reading_mbar => the_disagreement_mbar
+sensor_a_reading_mbar - the_shared_reference_drift_mbar => true_pressure_mbar
+sensor_a_reading_mbar - true_pressure_mbar => error_both_sensors_share_mbar
+
+"sensor A                        : " + str(sensor_a_reading_mbar) + " mbar" ^0
+"sensor B                        : " + str(sensor_b_reading_mbar) + " mbar" ^0
+"  disagreement                  : " + str(the_disagreement_mbar) + " mbar" ^0
+"  alarm threshold               : " + str(disagreement_alarm_threshold_mbar) + " mbar" ^0
+"" ^0
+"shared reference drift          : " + str(the_shared_reference_drift_mbar) + " mbar" ^0
+"true pressure                   : " + str(true_pressure_mbar) + " mbar" ^0
+"error both sensors share        : " + str(error_both_sensors_share_mbar) + " mbar" ^0
+"independent references          : " + str(independent_references) ^0
+"" ^0
+
+# ---- what the redundancy verified ----
+
+"the two-sensor check" ^0
+"  sensors : two, not one" ^0
+"  channels : separate" ^0
+"  on a disagreement past two mbar : alarm" ^0
+"  logging : side by side" ^0
+"  the disagreement seen : " + str(the_disagreement_mbar) + " mbar" ^0
+"  verdict : SENSORS AGREE" ^0
+"" ^0
+"  separate channels are the part done right here, and" ^0
+"  they are why a single wiring fault cannot fake agreement" ^0
+"" ^0
+
+# ---- what they share ----
+
+"the calibration behind both" ^0
+"  what each was zeroed against : one reference block" ^0
+"  when : at install, together" ^0
+"  what the block has since done : drifted by seven mbar" ^0
+"  so both sensors : carry the same seven-mbar offset" ^0
+"  what their agreement proves : that they share it, not" ^0
+"    that either is right" ^0
+"" ^0
+
+# ---- what the process actually saw ----
+
+"the pressure in the vessel" ^0
+"  what both sensors read : " + str(sensor_a_reading_mbar) + " mbar" ^0
+"  what it truly was : " + str(true_pressure_mbar) + " mbar" ^0
+"  the shared error : " + str(error_both_sensors_share_mbar) + " mbar, above the alarm" ^0
+"    threshold, but identical so unalarmed" ^0
+"  did a sensor fail : no; both are working and agree" ^0
+"  what agreement could not catch : an error in the thing" ^0
+"    both were measured against" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same two sensors, one re-zeroed against an independent reference so the
+# two calibrations no longer share a drift.
+0 => nc_disagreement_when_calibrations_shared
+7 => nc_disagreement_when_one_is_independent
+1 => nc_alarms_it_would_raise
+
+"null control - one sensor on an independent reference" ^0
+"  disagreement with a shared calibration : " ^0
+"    " + str(nc_disagreement_when_calibrations_shared) + " mbar, unchanged" ^0
+"  disagreement with an independent one : " ^0
+"    " + str(nc_disagreement_when_one_is_independent) + " mbar" ^0
+"  alarms it would raise : " + str(nc_alarms_it_would_raise) ^0
+"  no sensor changed; one stopped sharing the reference" ^0
+"  the other drifts with" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what two agreeing sensors guarantee" ^0
+"  the two independent channels read the same value :" ^0
+"    exactly, within one mbar, alarm armed past two" ^0
+"  the reading is accurate : not addressed; both sensors" ^0
+"    were zeroed against the same reference, so they share" ^0
+"    its " + str(the_shared_reference_drift_mbar) + "-mbar drift and agree at the wrong value" ^0
+"" ^0
+
+"redundancy catches a fault that is independent between the copies; a fault in" ^0
+"what they were both calibrated against is common to both, and agreement is" ^0
+"exactly what it produces" ^0
+"" ^0
+
+"Two sensors, separate channels, alarm past two mbar - agreed within one all" ^0
+"year. Both were zeroed against one reference block, which has drifted " + str(the_shared_reference_drift_mbar) + " mbar," ^0
+"so they agree at " + str(sensor_a_reading_mbar) + " while the vessel is at " + str(true_pressure_mbar) + ", a shared error above the" ^0
+"threshold under " + str(independent_references) + " independent reference." ^0

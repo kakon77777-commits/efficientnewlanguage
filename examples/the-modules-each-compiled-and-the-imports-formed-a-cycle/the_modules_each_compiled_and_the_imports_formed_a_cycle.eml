@@ -1,0 +1,112 @@
+# Self-authored for the EML case corpus (no external origin). Every module in
+# the build compiles on its own, and each compile is real. What the import graph
+# does is computed below.
+#
+# The build is checked per module. Each of the sixty modules compiles in
+# isolation; each declares its imports explicitly; the compiler errors on an
+# unresolved name; and a module that compiles is cached and not recompiled.
+#
+# Three modules import each other in a cycle.
+
+60 => modules
+60 => modules_that_compile_alone
+3 => modules_in_the_cycle
+0 => builds_that_failed
+1 => startups_that_read_a_half_initialized_module
+
+modules - modules_that_compile_alone => modules_that_failed_to_compile
+int(modules_in_the_cycle * 10000 / modules) => cycle_share_of_modules_per_myriad
+modules_in_the_cycle => modules_with_no_valid_initialization_order
+
+"modules                         : " + str(modules) ^0
+"  that compile alone            : " + str(modules_that_compile_alone) ^0
+"  that failed to compile        : " + str(modules_that_failed_to_compile) ^0
+"builds that failed              : " + str(builds_that_failed) ^0
+"" ^0
+"modules in the cycle            : " + str(modules_in_the_cycle) ^0
+"  as a share of all modules     : " + str(cycle_share_of_modules_per_myriad) + " per ten thousand" ^0
+"  with no valid init order      : " + str(modules_with_no_valid_initialization_order) ^0
+"startups reading a half-init module : " + str(startups_that_read_a_half_initialized_module) ^0
+"" ^0
+
+# ---- what per-module compilation verified ----
+
+"the per-module build" ^0
+"  each module : compiles in isolation" ^0
+"  imports : declared explicitly" ^0
+"  on an unresolved name : the compiler errors" ^0
+"  a compiled module : cached, not recompiled" ^0
+"  modules that compiled : all " + str(modules) ^0
+"  verdict : BUILDS CLEAN" ^0
+"" ^0
+"  erroring on an unresolved name is the part done right" ^0
+"  here, and it is why a missing symbol never slips" ^0
+"    through" ^0
+"" ^0
+
+# ---- what compiling alone cannot see ----
+
+"the import graph" ^0
+"  what a single compile sees : one module and its" ^0
+"    declared imports" ^0
+"  what it does not see : whether the imports form a cycle" ^0
+"  the three modules : each imports the next, the last" ^0
+"    imports the first" ^0
+"  a cycle in initialization : has no order that runs each" ^0
+"    module after its dependencies" ^0
+"  so one module at startup : reads another before it is" ^0
+"    initialized" ^0
+"" ^0
+
+# ---- what runs at startup ----
+
+"the program starting up" ^0
+"  modules loaded : all " + str(modules) ^0
+"  the cycle's init order : undefined; something must go" ^0
+"    first" ^0
+"  what the first of the cycle reads : a module still at" ^0
+"    its defaults" ^0
+"  startups that read a half-initialized module : " ^0
+"    " + str(startups_that_read_a_half_initialized_module) ^0
+"  did any module fail to compile : no; the fault is in" ^0
+"    the graph, which no compile sees" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same modules, checked by a build step that walks the import graph and
+# fails on a cycle before startup.
+0 => nc_cycles_the_per_module_build_reports
+1 => nc_cycles_the_graph_check_reports
+3 => nc_modules_it_would_name
+
+"null control - a graph check over the imports" ^0
+"  cycles the per-module build reports : " ^0
+"    " + str(nc_cycles_the_per_module_build_reports) ^0
+"  cycles the graph check reports : " ^0
+"    " + str(nc_cycles_the_graph_check_reports) ^0
+"  modules it would name : " + str(nc_modules_it_would_name) ^0
+"  no module and no import changed; the check moved from" ^0
+"  one module at a time to the graph they form" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a clean per-module build guarantees" ^0
+"  each module compiles against its declared imports :" ^0
+"    exactly, all " + str(modules) + ", the compiler errors on a missing name" ^0
+"  the program is well-formed : not addressed; each module" ^0
+"    compiles alone, and compiling alone does not see the" ^0
+"    import graph - " + str(modules_in_the_cycle) + " modules form a cycle, and one observes" ^0
+"    another half-initialized at startup" ^0
+"" ^0
+
+"a property of each node is not a property of the graph; compilation ranges over" ^0
+"a module and its edges, and a cycle is a fact about the whole graph that no" ^0
+"single module's compile can hold" ^0
+"" ^0
+
+"Every module compiles alone against its declared imports, the compiler errors" ^0
+"on a missing name - the build is clean. Three modules import each other in a" ^0
+"cycle, which no single compile sees, so initialization has no valid order and " ^0
+"" + str(startups_that_read_a_half_initialized_module) + " startup reads a half-initialized module, under " + str(builds_that_failed) + " build failures." ^0
