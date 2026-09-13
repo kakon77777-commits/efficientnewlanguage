@@ -41,6 +41,18 @@ const ledger = join(here, '..', 'scripts', 'semantic-monitor.jsonl');
 /** Disposable. Every spawn in this file writes here instead of the ledger. */
 const drillLedger = join(here, '..', 'scripts', '.monitor-test-ledger.jsonl');
 
+/** The committed baseline, and a disposable one for the accept drill.
+ *
+ *  The drill has to run `--accept` against a baseline it has doctored. It used
+ *  to doctor THIS file and restore it in a `finally`, which is a live-state
+ *  mutation that holds only while the process survives. Measured on 2026-09-09
+ *  by killing the suite mid-drill: the file left on disk carried a fabricated
+ *  hash for packages/interp/src/values.ts and `git status` showed it modified.
+ *  The drill now writes a file of its own and the committed one is never
+ *  opened for writing, so there is nothing for an interruption to leave. */
+const baselineFile = join(here, '..', 'scripts', 'semantic-monitor.baseline.json');
+const drillBaseline = join(here, '..', 'scripts', '.monitor-test-baseline.json');
+
 /**
  * Read once, at module load, before any test in this file has run. The last
  * test compares against it. Without this the isolation is a convention: a
@@ -49,11 +61,27 @@ const drillLedger = join(here, '..', 'scripts', '.monitor-test-ledger.jsonl');
  * test here would still be green.
  */
 const committedLedgerAtLoad = readFileSync(ledger, 'utf8');
+const committedBaselineAtLoad = readFileSync(baselineFile, 'utf8');
 
 /** Spawn the monitor with the ledger redirected. There is no overload that
  *  forgets the flag: a test that wants to run the monitor calls this. */
 function runMonitor(...args: string[]) {
   return spawnSync(process.execPath, [monitor, '--ledger', drillLedger, ...args], { encoding: 'utf8' });
+}
+
+/** Spawn with BOTH records redirected. Used by anything that writes a baseline.
+ *
+ *  runMonitor is deliberately still available and still reads the committed
+ *  baseline: the drift check is only meaningful against the real one, and it
+ *  never writes. What must not happen is a WRITE to the committed baseline,
+ *  and that is what the gate at the bottom of this file measures — on the file,
+ *  not on the arguments, so it catches such a write however it arrives. */
+function runDrill(...args: string[]) {
+  return spawnSync(
+    process.execPath,
+    [monitor, '--ledger', drillLedger, '--baseline', drillBaseline, ...args],
+    { encoding: 'utf8' },
+  );
 }
 
 function drillEvents(): Array<Record<string, unknown>> {
@@ -65,8 +93,23 @@ function drillEvents(): Array<Record<string, unknown>> {
     .map((l) => JSON.parse(l) as Record<string, unknown>);
 }
 
+/** Remove a disposable file, and refuse to remove a committed one.
+ *
+ *  Found by the mutation battery rather than by review: pointing `drillBaseline`
+ *  at the committed path makes the guard-the-guard assertion fail, but `afterAll`
+ *  still runs — and an unguarded rmSync then DELETED the committed baseline
+ *  outright. A red gate beside a destroyed artifact is not a caught mutation.
+ *  The same shape applies to the ledger, which had it too. */
+function discard(path: string) {
+  if (path === ledger || path === baselineFile) {
+    throw new Error(`refusing to delete a committed artifact: ${path}`);
+  }
+  if (existsSync(path)) rmSync(path);
+}
+
 afterAll(() => {
-  if (existsSync(drillLedger)) rmSync(drillLedger);
+  discard(drillLedger);
+  discard(drillBaseline);
 });
 
 describe('semantic drift monitor', () => {
@@ -134,57 +177,171 @@ describe('accepting an open alert requires a stated reason', () => {
    * for when one should be looking harder, a silent accept was the weakest
    * point in the design.
    *
-   * The committed baseline is doctored here and restored in `finally`. That is
-   * a live-state mutation with a guard rather than a copy, and it is stated as
-   * such: an earlier comment on this block claimed the drill ran against a
-   * copy, while `tmp` was written and never read. The claim is removed rather
-   * than the behaviour changed, because changing it is a separate finding.
+   * The drill runs against a baseline of its own. It used to doctor the
+   * COMMITTED baseline and restore it in a `finally` — a live-state mutation
+   * guarded by the process surviving long enough to undo it. That guard was
+   * measured on 2026-09-09 rather than argued about: the suite was killed
+   * mid-drill and the committed baseline left on disk carried a fabricated hash
+   * (0000000000000000 against packages/interp/src/values.ts), with `git status`
+   * reporting it modified. There is now nothing to restore, so there is nothing
+   * an interruption can leave behind.
    */
   it('refuses --accept without --why when alerts are open, and does not write', () => {
-    const tmp = join(here, '..', 'scripts', '.monitor-drill-baseline.json');
-    const real = join(here, '..', 'scripts', 'semantic-monitor.baseline.json');
-    const original = readFileSync(real, 'utf8');
+    // Start from a baseline that matches the working tree EXACTLY, then doctor
+    // one entry. Seeding rather than copying the committed file is what keeps
+    // this drill independent of the rest of the tree: on a day when the
+    // conformance tests had genuinely been edited, a doctored copy of the real
+    // baseline made the monitor see "source changed AND its test changed",
+    // report a note rather than an alert, and accept — so the drill failed for
+    // a reason that had nothing to do with the refusal it exists to check.
+    const seeded = runDrill('--accept', '--why', 'drill setup');
+    expect(seeded.status, 'seeding a matching baseline must succeed').toBe(0);
+    expect(existsSync(drillBaseline), 'the seed must land in the drill baseline').toBe(true);
+
+    // A baseline claiming a different hash for a real semantics file now
+    // produces exactly the "changed without its test" alert, and it is the
+    // ONLY thing that differs — no source file is touched.
+    const doctored = JSON.parse(readFileSync(drillBaseline, 'utf8'));
+    doctored.hashes['packages/interp/src/values.ts'] = '0000000000000000';
+    const doctoredText = JSON.stringify(doctored, null, 2) + '\n';
+    writeFileSync(drillBaseline, doctoredText, 'utf8');
+
+    const refused = runDrill('--accept');
+    expect(refused.status, 'must refuse').toBe(1);
+    expect(refused.stdout).toContain('without a reason');
+    expect(readFileSync(drillBaseline, 'utf8'), 'a refusal must not move the baseline').toBe(doctoredText);
+
+    const accepted = runDrill('--accept', '--why', 'drill');
+    expect(accepted.status, 'must accept once a reason is given').toBe(0);
+    expect(readFileSync(drillBaseline, 'utf8'), 'accepting DOES move the baseline').not.toBe(doctoredText);
+
+    // The redirect must not have cost the drill its evidence. Both outcomes
+    // this block exists to distinguish have to be in the record, or the
+    // isolation has turned a real drill into a pair of exit codes.
+    const types = drillEvents().map((e) => e.type);
+    expect(types, 'the refusal must be recorded').toContain('monitor:accept-refused');
+    expect(types, 'the acceptance must be recorded').toContain('monitor:accept');
+  });
+
+  it('the two redirects are independent of each other', () => {
+    // Neither flag may imply the other. If --ledger quietly moved the baseline
+    // too, or --baseline the ledger, the drill would appear isolated while one
+    // committed artifact was still being written.
+    const onlyLedger = join(here, '..', 'scripts', '.monitor-test-only-ledger.jsonl');
+    const onlyBaseline = join(here, '..', 'scripts', '.monitor-test-only-baseline.json');
     try {
-      // Start from a baseline that matches the working tree EXACTLY, then
-      // doctor one entry. Doctoring the COMMITTED baseline instead made this
-      // drill depend on the rest of the tree being clean: on a day when the
-      // conformance tests had genuinely been edited, the monitor saw "source
-      // changed AND its test changed", reported a note rather than an alert,
-      // and `--accept` succeeded — so the drill failed for a reason that had
-      // nothing to do with the refusal it exists to check.
-      const seeded = runMonitor('--accept', '--why', 'drill setup');
-      expect(seeded.status, 'seeding a matching baseline must succeed').toBe(0);
+      // --ledger alone: writes that ledger, reads the committed baseline, and
+      // creates no baseline of its own.
+      const l = spawnSync(process.execPath, [monitor, '--ledger', onlyLedger], { encoding: 'utf8' });
+      // Deliberately NOT an assertion on the exit code. What this test is about
+      // is which FILES a flag touches; the exit code is about whether the tree
+      // currently drifts from the baseline, a different question and not this
+      // test's to answer. Once the edited-branch STALE BASELINE guard is live,
+      // a --ledger-only run against the committed baseline exits 1 whenever that
+      // baseline is stale for a semantics file — so asserting status 0 here
+      // would measure the repo's drift state under the name of flag independence.
+      expect(l.error, '--ledger alone must run').toBeUndefined();
+      expect(existsSync(onlyLedger), '--ledger alone must write its ledger').toBe(true);
+      expect(existsSync(onlyBaseline), '--ledger must not invent a baseline').toBe(false);
 
-      // A baseline claiming a different hash for a real semantics file now
-      // produces exactly the "changed without its test" alert, and it is the
-      // ONLY thing that differs — no source file is touched.
-      const doctored = JSON.parse(readFileSync(real, 'utf8'));
-      doctored.hashes['packages/interp/src/values.ts'] = '0000000000000000';
-      writeFileSync(tmp, JSON.stringify(doctored, null, 2) + '\n', 'utf8');
-      writeFileSync(real, JSON.stringify(doctored, null, 2) + '\n', 'utf8');
-      const refused = runMonitor('--accept');
-      expect(refused.status, 'must refuse').toBe(1);
-      expect(refused.stdout).toContain('without a reason');
-      expect(readFileSync(real, 'utf8'), 'a refusal must not move the baseline').toBe(
-        JSON.stringify(doctored, null, 2) + '\n',
+      // --baseline alone, with --accept, writes that baseline and nothing else.
+      const b = spawnSync(
+        process.execPath,
+        [monitor, '--ledger', drillLedger, '--baseline', onlyBaseline, '--accept', '--why', 'independence drill'],
+        { encoding: 'utf8' },
       );
-
-      const accepted = runMonitor('--accept', '--why', 'drill');
-      expect(accepted.status, 'must accept once a reason is given').toBe(0);
-      expect(readFileSync(real, 'utf8'), 'accepting DOES move the baseline').not.toBe(
-        JSON.stringify(doctored, null, 2) + '\n',
-      );
-
-      // The redirect must not have cost the drill its evidence. Both outcomes
-      // this block exists to distinguish have to be in the record, or the
-      // isolation has turned a real drill into a pair of exit codes.
-      const types = drillEvents().map((e) => e.type);
-      expect(types, 'the refusal must be recorded').toContain('monitor:accept-refused');
-      expect(types, 'the acceptance must be recorded').toContain('monitor:accept');
+      expect(b.status, '--baseline alone must accept into that file').toBe(0);
+      expect(existsSync(onlyBaseline), '--baseline must write where it was pointed').toBe(true);
     } finally {
-      writeFileSync(real, original, 'utf8'); // always restore the committed baseline
-      if (existsSync(tmp)) rmSync(tmp);
+      if (existsSync(onlyLedger)) rmSync(onlyLedger);
+      if (existsSync(onlyBaseline)) rmSync(onlyBaseline);
     }
+  });
+});
+
+describe('a stale baseline says so, whichever branch excuses the change', () => {
+  /**
+   * `edited` — a conformance test differs from the baseline — used to excuse a
+   * semantics change with a note and nothing else. But it is a fact about the
+   * BASELINE being unaccepted, not about the change being looked at, so once it
+   * is true it stays true and every later change to the paired source file is
+   * excused by it.
+   *
+   * Measured on product d2c2a0d with the baseline at its pre-006 entries: a
+   * real semantics change to the interpreter, with no conformance test touched
+   * at all, produced "changed, and so did its conformance test — reviewed" and
+   * exit 0. The `unseen` branch was given exactly this treatment in 2026-08-09;
+   * this is the twin getting the same thing.
+   */
+  it('an edited-conformance-test excuse raises STALE BASELINE, not just a note', () => {
+    const seeded = runDrill('--accept', '--why', 'stale-branch drill setup');
+    expect(seeded.status, 'seeding a matching baseline must succeed').toBe(0);
+
+    // Move a semantics file AND one of its conformance tests away from the
+    // baseline — the state a landing leaves behind before an accept.
+    const doctored = JSON.parse(readFileSync(drillBaseline, 'utf8'));
+    doctored.hashes['packages/interp/src/values.ts'] = '1111111111111111';
+    doctored.hashes['tests/percent-format.test.ts'] = '2222222222222222';
+    writeFileSync(drillBaseline, JSON.stringify(doctored, null, 2) + '\n', 'utf8');
+
+    const r = runDrill();
+    expect(r.stdout, 'the excuse must be stated, not left as a bare note').toContain('STALE BASELINE');
+    expect(r.stdout, 'and it must name what is doing the excusing').toContain('tests/percent-format.test.ts');
+    // A superset satisfies "contains", so name what must NOT appear. Found by
+    // the mutation battery: listing every conformance test rather than the ones
+    // that actually differ passed the assertion above while saying something
+    // false.
+    expect(
+      r.stdout,
+      'only the tests that actually differ are doing the excusing',
+    ).not.toContain('tests/operator-matrix.test.ts');
+    expect(r.status, 'an open alert exits non-zero').toBe(1);
+    // The alert must reach the record, not only the console. Also found by the
+    // battery: removing the record() call left every assertion above green.
+    const stale = drillEvents().filter(
+      (e) => e.type === 'monitor:alert' && (e as { kind?: string }).kind === 'stale-baseline',
+    );
+    expect(stale.length, 'the stale finding must be recorded, not only printed').toBeGreaterThan(0);
+    expect(
+      (stale[stale.length - 1] as { edited?: unknown }).edited,
+      'the record names the edited test, not the unseen field',
+    ).toEqual(['tests/percent-format.test.ts']);
+
+    // And it must expire: accepting clears it rather than leaving it standing.
+    const accepted = runDrill('--accept', '--why', 'stale-branch drill');
+    expect(accepted.status).toBe(0);
+    const after = runDrill();
+    expect(after.stdout, 'the excuse expires at the next accept').not.toContain('STALE BASELINE');
+    expect(after.status).toBe(0);
+  });
+
+  it('the unseen-branch excuse also reaches the record, not only the console', () => {
+    // The twin assertion, for the branch that has carried a STALE BASELINE alert
+    // since 2026-08-09 but whose record('monitor:alert', …) no test checked —
+    // raised at relays 0108, 0115 and 0116 and folded in here rather than a
+    // fourth time. A test whose PATH the baseline has never seen puts the change
+    // in the `unseen` branch; the alert and its ledger event must both appear.
+    const seeded = runDrill('--accept', '--why', 'unseen-branch drill setup');
+    expect(seeded.status, 'seeding a matching baseline must succeed').toBe(0);
+
+    // Drop a conformance test's entry entirely (baseline has never seen it) and
+    // move its paired source file, so the change lands in the `unseen` branch.
+    const doctored = JSON.parse(readFileSync(drillBaseline, 'utf8'));
+    doctored.hashes['packages/interp/src/values.ts'] = '3333333333333333';
+    delete doctored.hashes['tests/percent-format.test.ts'];
+    writeFileSync(drillBaseline, JSON.stringify(doctored, null, 2) + '\n', 'utf8');
+
+    const r = runDrill();
+    expect(r.stdout, 'the unseen excuse must be stated as an alert').toContain('STALE BASELINE');
+    expect(r.status, 'an open alert exits non-zero').toBe(1);
+    const stale = drillEvents().filter(
+      (e) => e.type === 'monitor:alert' && (e as { kind?: string }).kind === 'stale-baseline',
+    );
+    expect(stale.length, 'the unseen stale finding must be recorded, not only printed').toBeGreaterThan(0);
+    expect(
+      (stale[stale.length - 1] as { unseen?: unknown }).unseen,
+      'the record names the unseen test',
+    ).toContain('tests/percent-format.test.ts');
   });
 });
 
@@ -206,5 +363,24 @@ describe('the drill does not write the record of what happened', () => {
     // Guards the guard. Pointing --ledger at the committed path would satisfy
     // every assertion above and none of the point.
     expect(drillLedger).not.toBe(ledger);
+  });
+
+  it('the committed baseline is byte-for-byte what it was at module load', () => {
+    // The same gate, for the other committed artifact. It is deliberately a
+    // check on the FILE rather than on the arguments of each spawn: a write
+    // that arrives some other way — a direct spawnSync, a writeFileSync in a
+    // future drill, a flag dropped from runDrill — is caught just the same.
+    // Before 2026-09-09 this assertion did not exist and the accept drill wrote
+    // this file four times per suite run, restoring it in a `finally`.
+    expect(
+      readFileSync(baselineFile, 'utf8'),
+      'something in this file wrote the committed baseline; use runDrill, which passes --baseline',
+    ).toBe(committedBaselineAtLoad);
+  });
+
+  it('the drill baseline is a different file from the committed one', () => {
+    // Guards that guard. Pointing --baseline at the committed path would
+    // satisfy every assertion above and none of the point.
+    expect(drillBaseline).not.toBe(baselineFile);
   });
 });

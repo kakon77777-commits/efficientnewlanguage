@@ -23,6 +23,14 @@
  *   node scripts/semantic-monitor.mjs                    # report; exit 1 on a regression
  *   node scripts/semantic-monitor.mjs --accept           # record the current state
  *   node scripts/semantic-monitor.mjs --accept --why "…" # …required if alerts are open
+ *   node scripts/semantic-monitor.mjs --ledger <path>    # append elsewhere than the committed record
+ *   node scripts/semantic-monitor.mjs --baseline <path>  # read/write elsewhere than the committed baseline
+ *
+ * Every value-taking flag REQUIRES its value. Given without one — or followed
+ * by another flag, or an empty string, or given twice — the run stops with
+ * exit 2, touches neither committed artifact and records nothing. That includes
+ * `--why`: a reason that is really the next flag on the line is how an open
+ * alert gets accepted with nobody's reason attached. See the notes above each.
  *
  * ── The ledger ────────────────────────────────────────────────────────────
  *
@@ -70,7 +78,6 @@ import { dirname, join, relative } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
-const BASELINE = join(here, 'semantic-monitor.baseline.json');
 // `--ledger <path>` redirects the append-only record. The default is the
 // committed ledger and nothing but an explicit flag changes it: a flag is
 // visible in the invocation and in a process list, where an environment
@@ -79,11 +86,190 @@ const BASELINE = join(here, 'semantic-monitor.baseline.json');
 // script for real - run, accept-refused, accept - and a drill that writes
 // the real ledger puts eleven lines of rehearsal into the record of what
 // actually happened, on every suite run.
-const ledgerIndex = process.argv.indexOf('--ledger');
-const LEDGER =
-  ledgerIndex !== -1 && process.argv[ledgerIndex + 1]
-    ? process.argv[ledgerIndex + 1]
-    : join(here, 'semantic-monitor.jsonl');
+//
+// `--baseline <path>` redirects the recorded expectation, for the same reason
+// and in the same shape as `--ledger` above. The two are independent: either
+// can be given without the other, and neither implies the other, so a caller
+// cannot get one redirect by asking for the other.
+//
+// It exists because the accept drill in tests/semantic-monitor.test.ts has to
+// run --accept against a baseline it has doctored, and until now it doctored
+// the COMMITTED one and put it back in a `finally`. That is a live-state
+// mutation guarded by the process surviving: measured on 2026-09-09 by killing
+// the suite mid-drill, the file left on disk carried a fabricated hash
+// (0000000000000000 against packages/interp/src/values.ts) and `git status`
+// showed it modified. A `finally` is not a guarantee; it is a plan that holds
+// while nothing interrupts, and the record of what the monitor expects is not
+// a thing to leave under that condition.
+//
+// BOTH FLAGS ARE RESOLVED BY ONE FUNCTION, AND A FLAG THAT CANNOT BE RESOLVED
+// STOPS THE RUN. The first version of each of them read
+//
+//   index !== -1 && process.argv[index + 1] ? process.argv[index + 1] : COMMITTED
+//
+// which collapses "the flag was not given" and "the flag was given without its
+// path" into one branch and answers both with the committed artifact. Measured
+// on 2026-09-10 against that exact code, in an isolated worktree, exit codes
+// read from $? rather than through a pipe:
+//
+//   --ledger .drill.jsonl --accept --why probe --baseline
+//       exit 0, and the COMMITTED BASELINE was rewritten: 3336 -> 3260 bytes,
+//       git blob ada0ea9b -> a2b2aa6c, `git status M`
+//   --ledger
+//       exit 0, and the COMMITTED LEDGER was appended: 232770 -> 232946 bytes,
+//       `git status M`. This one reproduces on the SHIPPED product monitor
+//       (blob 999b384b) too, where `--ledger` has had this shape since it
+//       landed; the candidate did not invent it, it copied it onto --baseline,
+//       where the flag governs --accept and so writes an expectation rather
+//       than a log line.
+//   --baseline --ledger .drill.jsonl
+//       exit 0, and the baseline path became the literal string "--ledger", so
+//       the run found no baseline, compared against nothing, and said so in a
+//       note that reads like a fresh checkout.
+//
+// Each is a caller who ASKED for the redirect and got the committed file. The
+// third is the worst: it writes nothing and silently turns the drift check off.
+//
+// So resolution is strict, it is the same function for both flags because they
+// are the same promise, and it happens HERE — above nextSeq(), which reads the
+// ledger — so a run that cannot resolve its paths has touched neither artifact,
+// for writing or for reading.
+//
+// A failure here exits 2, not 1. Exit 1 means the monitor checked and the tree
+// needs looking at; exit 2 means the monitor did not check. The daily flow
+// reads this exit code, and a caller that treats every non-zero as drift would
+// otherwise read a typo as a regression.
+//
+// The failure is NOT recorded. Recording needs a resolved ledger path, which is
+// the thing just refused, and appending to the committed one would be exactly
+// the write the flag was asking to send elsewhere.
+
+/** Resolve one `--flag <path>`. Absent: the committed default. Present: the
+ *  next argument must exist, be non-empty, and not itself be a flag. */
+function pathFlag(flag, committedDefault) {
+  const at = [];
+  for (let i = 2; i < process.argv.length; i++) {
+    if (process.argv[i] === flag) at.push(i);
+  }
+  if (at.length === 0) return committedDefault;
+  if (at.length > 1) {
+    refuse(`${flag} was given ${at.length} times; which path is meant is ambiguous`);
+  }
+  const value = process.argv[at[0] + 1];
+  if (value === undefined) refuse(`${flag} needs a path, and is the last argument`);
+  if (value.trim() === '') refuse(`${flag} was given an empty path`);
+  if (value.startsWith('--')) {
+    refuse(`${flag} was followed by ${value}, which is another flag rather than a path`);
+  }
+  return value;
+}
+
+/** Stop before anything is read or written. See above for why the code is 2. */
+const PATH_DETAIL = [
+  '  A path flag that cannot be resolved does not fall back to the',
+  '  committed artifact: sparing that artifact is what the redirect',
+  '  exists for. Nothing was read and nothing was written.',
+];
+
+/** The second argument exists because `--why` refuses for a different reason
+ *  than `--ledger`/`--baseline` do, and a message that explains the wrong one
+ *  sends the reader to the wrong part of the invocation. The default keeps the
+ *  path-flag text exactly as it was. */
+function refuse(problem, detail = PATH_DETAIL) {
+  console.error(`semantic-monitor: ${problem}`);
+  for (const line of detail) console.error(line);
+  process.exit(2);
+}
+
+const LEDGER = pathFlag('--ledger', join(here, 'semantic-monitor.jsonl'));
+const BASELINE = pathFlag('--baseline', join(here, 'semantic-monitor.baseline.json'));
+
+// `--why "<reason>"` — the justification recorded alongside an acceptance, and
+// REQUIRED whenever alerts are open. Parsed here, with the path flags, for the
+// same reason they are: an argument that cannot be resolved must not reach the
+// point where something can be done with it.
+//
+// It used to read
+//
+//   const why = whyIndex !== -1 ? (process.argv[whyIndex + 1] ?? '') : '';
+//
+// which makes THE NEXT FLAG the reason. Measured by the auditor on the shipped
+// product at 2019d50 and reproduced here on 2026-09-10, against a real open
+// alert (one comment appended to packages/parser/src/parser.ts, neither of its
+// conformance tests touched):
+//
+//   node scripts/semantic-monitor.mjs --accept --why --ledger <temp>
+//     ALERT: SEMANTICS CHANGED packages/parser/src/parser.ts changed but none
+//            of its conformance tests did
+//            ... re-run with --accept --why "reason".
+//     semantic-monitor: baseline recorded (786 corpus programs)
+//       accepted 1 alert(s): --ledger
+//     exit 0, committed baseline ada0ea9b -> 52ad6276, git status M
+//     ledger: {"type":"monitor:accept","alertsAccepted":1,"why":"--ledger"}
+//
+// "--ledger" is not empty, so `why.trim() === ''` is false, so the refusal that
+// exists to keep an accept from being unauditable never fires. The baseline
+// moved and the record says the reason was "--ledger". That is precisely the
+// failure the ledger was built to prevent, reached by a typo — and the alert
+// text that scrolled past a second earlier was asking for a reason.
+//
+// A reason is free text, so unlike a path it may legitimately begin with a
+// dash: `--why "--accept was already agreed in review"` is a sentence, not a
+// flag. What a reason may never BE is one of this script's own flags, and the
+// set is derived from one place so that adding a flag later extends the guard
+// without anyone remembering to.
+const KNOWN_FLAGS = ['--accept', '--why', '--ledger', '--baseline'];
+
+const REASON_DETAIL = [
+  '  An acceptance is only auditable if the reason in the record was written',
+  '  by someone. Nothing was read, nothing was written, and no accept or',
+  '  refusal was recorded: there is no judgement here to keep.',
+];
+
+/** Resolve `--why <reason>`. Absent: the empty string, which is what the open-
+ *  alert refusal below is for — "no reason offered" is a real answer about the
+ *  tree. Present: the next argument must exist, be non-blank, and not be one of
+ *  this script's flags.
+ *
+ *  WHY A MALFORMED --why EXITS 2 AND THE MISSING ONE EXITS 1. They are
+ *  different events and the ledger has to be able to tell them apart:
+ *
+ *    open alert, no --why at all   exit 1   records monitor:accept-refused
+ *                                           baseline unmoved. The monitor
+ *                                           checked; a person declined to give
+ *                                           a reason, and that is worth keeping.
+ *    --why malformed               exit 2   records NOTHING, baseline unmoved.
+ *                                           The invocation is not well formed,
+ *                                           so nothing was checked and there is
+ *                                           no judgement to record. Writing an
+ *                                           accept-refused here would put a
+ *                                           statement about the tree into the
+ *                                           record on the strength of a typo.
+ *    open alert, real reason       exit 0   records monitor:accept, and moves
+ *                                           the baseline.
+ */
+function reasonFlag(flag) {
+  const at = [];
+  for (let i = 2; i < process.argv.length; i++) {
+    if (process.argv[i] === flag) at.push(i);
+  }
+  if (at.length === 0) return '';
+  if (at.length > 1) {
+    refuse(`${flag} was given ${at.length} times; which reason is meant is ambiguous`, REASON_DETAIL);
+  }
+  const value = process.argv[at[0] + 1];
+  if (value === undefined) refuse(`${flag} needs a reason, and is the last argument`, REASON_DETAIL);
+  if (value.trim() === '') refuse(`${flag} was given an empty reason`, REASON_DETAIL);
+  if (KNOWN_FLAGS.includes(value)) {
+    refuse(
+      `${flag} was followed by ${value}, which is one of this script's own flags rather than a reason`,
+      REASON_DETAIL,
+    );
+  }
+  return value;
+}
+
+const why = reasonFlag('--why');
 
 /** EML's own protocol id. Not borrowed from anywhere — see the header note. */
 const LEDGER_PROTO = 'eml-monitor-v1';
@@ -432,9 +618,7 @@ function measureHashes() {
 /* ── 3. Report ────────────────────────────────────────────────────────────── */
 
 const accept = process.argv.includes('--accept');
-/** `--why "reason"` — the justification recorded alongside an acceptance. */
-const whyIndex = process.argv.indexOf('--why');
-const why = whyIndex !== -1 ? (process.argv[whyIndex + 1] ?? '') : '';
+// `why` is resolved with the path flags, above, and for the same reason.
 
 const coverage = measureCoverage();
 const hashes = measureHashes();
@@ -495,11 +679,37 @@ if (baseline?.hashes) {
     // BASELINE IS STALE, and it still excuses the change (the earlier fix's
     // reasoning holds) but says so out loud, so the excuse expires at the next
     // accept instead of standing forever.
+    //
+    // 2026-09-12: the `edited` branch below had the `unseen` branch's property
+    // and none of its alerting, and the twin gets the same treatment now.
+    // `edited` asks whether a paired test differs FROM THE BASELINE — a fact
+    // about the baseline being unaccepted, not about the change under review.
+    // Right after a landing that moved a semantics file and its test together,
+    // it is true on every run, so every LATER change to that source file is
+    // excused by it. MEASURED on product d2c2a0d with the baseline at its
+    // pre-006 entries: a real semantics change to the interpreter — abs() of a
+    // negative float stops taking the absolute value — with no conformance test
+    // touched produced "changed, and so did its conformance test — reviewed"
+    // and exit 0. The builtin gate caught that one because an abs test happens
+    // to exist; the monitor is the backstop for changes no test covers, and the
+    // backstop was off. Same treatment as the twin: the excuse still stands but
+    // says so, so it expires at the next accept rather than standing forever.
     const seenInBaseline = (t) => baseline.hashes[t] !== undefined;
-    const edited = tests.some((t) => hashes[t] !== null && seenInBaseline(t) && baseline.hashes[t] !== hashes[t]);
+    const editedTests = tests.filter(
+      (t) => hashes[t] !== null && seenInBaseline(t) && baseline.hashes[t] !== hashes[t],
+    );
+    const edited = editedTests.length > 0;
     const unseen = tests.filter((t) => hashes[t] !== null && !seenInBaseline(t));
     if (edited) {
       notes.push(`${file} changed, and so did its conformance test — reviewed`);
+      alerts.push(
+        `STALE BASELINE    ${file} changed, and what excuses it is ${editedTests.join(', ')}\n` +
+          `                  differing from the baseline — a fact about the baseline being\n` +
+          `                  unaccepted, not about this change. Until the baseline is accepted,\n` +
+          `                  EVERY future change to this file is excused by that same difference —\n` +
+          `                  the drift check for it cannot fail. Run: pnpm monitor:accept -- --why "..."`,
+      );
+      record('monitor:alert', { kind: 'stale-baseline', file, edited: editedTests });
     } else if (unseen.length > 0) {
       notes.push(`${file} changed; excused by test(s) the baseline has never seen — see the STALE BASELINE alert`);
       alerts.push(
