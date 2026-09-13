@@ -1,0 +1,109 @@
+# Self-authored for the EML case corpus (no external origin). The lookup service
+# served every request from cache with a 300-second freshness window, and every
+# value it served was within that window. What a failed fetch stored is computed
+# below.
+#
+# The cache is disciplined. It stores only what a fetch returned, never a
+# fabricated value; every entry carries a TTL and is refetched on expiry; the
+# hit rate and latency are on a dashboard; and a stored value is exactly the
+# bytes the backend sent.
+#
+# One backend fetch timed out and returned an empty list, and the empty list was
+# cached like any other answer.
+
+300 => cache_ttl_seconds
+40000 => reads_in_the_window
+1 => backend_fetches_that_timed_out
+1200 => rows_that_actually_existed
+0 => errors_surfaced_to_callers
+
+reads_in_the_window - backend_fetches_that_timed_out => reads_served_from_the_cached_empty
+int(reads_served_from_the_cached_empty * 10000 / reads_in_the_window) => reads_given_a_false_none_per_myriad
+
+"cache TTL                       : " + str(cache_ttl_seconds) + " seconds" ^0
+"reads in the window             : " + str(reads_in_the_window) ^0
+"  backend fetches that timed out: " + str(backend_fetches_that_timed_out) ^0
+"  served from the cached empty  : " + str(reads_served_from_the_cached_empty) ^0
+"rows that actually existed      : " + str(rows_that_actually_existed) ^0
+"errors surfaced to callers      : " + str(errors_surfaced_to_callers) ^0
+"reads given a false 'none'      : " + str(reads_given_a_false_none_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the cache verified ----
+
+"the cache" ^0
+"  stores : only what a fetch returned" ^0
+"  TTL : on every entry, refetched on expiry" ^0
+"  hit rate and latency : on a dashboard" ^0
+"  a stored value : exactly the backend's bytes" ^0
+"  fabricated values stored : 0" ^0
+"  verdict : SERVING FRESH" ^0
+"" ^0
+"  never storing a fabricated value is the part done right" ^0
+"  here, and it is why a cached answer is trusted to be a" ^0
+"  real answer" ^0
+"" ^0
+
+# ---- what a failed fetch returned ----
+
+"the timed-out fetch" ^0
+"  what the backend sent on timeout : an empty list" ^0
+"  what an empty list is, to the cache : a value, like" ^0
+"    any other" ^0
+"  stored with : the normal 300-second TTL" ^0
+"  what it means : 'no rows', authoritatively, for five" ^0
+"    minutes" ^0
+"  what it should have meant : the fetch failed, do not" ^0
+"    cache" ^0
+"" ^0
+
+# ---- what the callers got ----
+
+"the callers during the window" ^0
+"  reads served the cached empty : " ^0
+"    " + str(reads_served_from_the_cached_empty) ^0
+"  rows they should have seen : " + str(rows_that_actually_existed) ^0
+"  what they got : none, and no error" ^0
+"  is the cache serving stale data : no; the empty is" ^0
+"    inside its TTL" ^0
+"  is empty the answer : no; it is the shape of a failure" ^0
+"    that looks like an answer" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same window, with a failed fetch left uncached so the next read retries
+# the backend instead of being served a stored emptiness.
+40000 => nc_reads_in_the_window
+0 => nc_false_none_when_failures_are_not_cached
+39999 => nc_reads_that_would_have_retried
+
+"null control - do not cache a failed fetch" ^0
+"  reads in the window : " + str(nc_reads_in_the_window) + ", unchanged" ^0
+"  false 'none' served : " + str(nc_false_none_when_failures_are_not_cached) ^0
+"  reads that would have retried the backend : " ^0
+"    " + str(nc_reads_that_would_have_retried) ^0
+"  no row and no TTL changed; a failure stopped being" ^0
+"  stored as though it were a result" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a fresh cache guarantees" ^0
+"  every value served is within its TTL and is what a" ^0
+"    fetch returned : exactly, no fabricated values" ^0
+"  the result set is current : not addressed; a failed" ^0
+"    fetch returned empty and the empty was cached like any" ^0
+"    answer - " + str(reads_served_from_the_cached_empty) + " reads got an authoritative 'none'" ^0
+"    while " + str(rows_that_actually_existed) + " rows existed, and " + str(errors_surfaced_to_callers) + " errors surfaced" ^0
+"" ^0
+
+"an empty result and a failed fetch have the same shape and opposite meanings;" ^0
+"a cache that cannot tell them apart preserves a failure as fact and serves it," ^0
+"fresh and wrong, until it expires" ^0
+"" ^0
+
+"It caches only real fetch bytes with a TTL and never fabricates - every value" ^0
+"fresh. A timed-out fetch returned empty and the empty was cached, so " ^0
+"" + str(reads_served_from_the_cached_empty) + " reads got an authoritative none over " + str(rows_that_actually_existed) + " real rows, " ^0
+"" + str(reads_given_a_false_none_per_myriad) + " per ten thousand of the window, under " + str(errors_surfaced_to_callers) + " errors." ^0

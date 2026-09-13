@@ -1,0 +1,108 @@
+# Self-authored for the EML case corpus (no external origin). Every distinct
+# alert fingerprint paged on-call this shift, and the dedup that suppressed the
+# rest removed only exact repeats. What a fingerprint groups together is
+# computed below.
+#
+# The deduplication is sensible. It groups alerts by a fingerprint so a flapping
+# check does not page a hundred times; it holds the group open only while the
+# condition persists; it pages once per new fingerprint; and it is why on-call
+# is not drowned in noise.
+#
+# The fingerprint is the service plus the error class, and two different
+# incidents shared one.
+
+4 => dedup_window_hours
+2 => distinct_incidents_in_the_window
+1 => alerts_paged
+1 => incidents_suppressed_as_duplicates
+140 => minutes_the_second_incident_went_unpaged
+
+distinct_incidents_in_the_window - alerts_paged => incidents_that_reached_nobody
+int(incidents_that_reached_nobody * 10000 / distinct_incidents_in_the_window) => incidents_lost_per_myriad
+
+"dedup window                    : " + str(dedup_window_hours) + " hours" ^0
+"distinct incidents              : " + str(distinct_incidents_in_the_window) ^0
+"  alerts paged                  : " + str(alerts_paged) ^0
+"  suppressed as duplicates      : " + str(incidents_suppressed_as_duplicates) ^0
+"  reached nobody                : " + str(incidents_that_reached_nobody) ^0
+"second incident went unpaged for: " + str(minutes_the_second_incident_went_unpaged) + " minutes" ^0
+"incidents lost                  : " + str(incidents_lost_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the dedup verified ----
+
+"the alert dedup" ^0
+"  groups by : a fingerprint" ^0
+"  holds a group open : while the condition persists" ^0
+"  pages : once per new fingerprint" ^0
+"  purpose : a flapping check does not page a hundred times" ^0
+"  exact repeats suppressed : as designed" ^0
+"  verdict : NOISE CONTROLLED" ^0
+"" ^0
+"  holding one page for a persisting condition is the part" ^0
+"  done right here, and it is why on-call is not drowned" ^0
+"" ^0
+
+# ---- what the fingerprint groups ----
+
+"the fingerprint" ^0
+"  what it is : the service plus the error class" ^0
+"  what it assumes : the same fingerprint is the same" ^0
+"    incident, recurring" ^0
+"  what happened : two incidents, different root causes," ^0
+"    same service and error class" ^0
+"  so the second : matched the first's open group" ^0
+"  and was treated as : a repeat of an incident already" ^0
+"    being handled" ^0
+"" ^0
+
+# ---- what on-call never saw ----
+
+"the second incident" ^0
+"  its own root cause : different from the first" ^0
+"  the page it generated : suppressed as a duplicate" ^0
+"  minutes it ran unattended : " + str(minutes_the_second_incident_went_unpaged) ^0
+"  is the dedup rule wrong : no; the fingerprints did" ^0
+"    match" ^0
+"  is a matching fingerprint the same incident : not" ^0
+"    always, and here it was not" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same two incidents, with the dedup keyed on the fingerprint plus a
+# correlation id that differs when the underlying cause differs.
+1 => nc_alerts_when_keyed_on_fingerprint_alone
+2 => nc_alerts_when_keyed_with_correlation
+0 => nc_incidents_lost
+
+"null control - fingerprint plus a correlation id" ^0
+"  alerts, fingerprint alone : " ^0
+"    " + str(nc_alerts_when_keyed_on_fingerprint_alone) ^0
+"  alerts, with a correlation id : " ^0
+"    " + str(nc_alerts_when_keyed_with_correlation) ^0
+"  incidents lost : " + str(nc_incidents_lost) ^0
+"  no alert changed its content; the key stopped collapsing" ^0
+"  two causes that share a surface" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what per-fingerprint dedup guarantees" ^0
+"  every distinct fingerprint pages once : exactly, held" ^0
+"    open while the condition persists" ^0
+"  every incident pages someone : not addressed; alerts" ^0
+"    dedup by fingerprint, and two distinct incidents shared" ^0
+"    one - the second was suppressed as a duplicate and went" ^0
+"    " + str(minutes_the_second_incident_went_unpaged) + " minutes unpaged" ^0
+"" ^0
+
+"a fingerprint is a guess that sameness of surface is sameness of cause, and" ^0
+"dedup acts on the guess; when two causes wear one face, silencing the repeat" ^0
+"silences the second incident" ^0
+"" ^0
+
+"It pages once per fingerprint and holds the group while the condition persists" ^0
+"- noise controlled. The fingerprint is service plus error class, and two" ^0
+"distinct incidents shared it, so the second was suppressed as a duplicate: " ^0
+"" + str(minutes_the_second_incident_went_unpaged) + " minutes unpaged, " + str(incidents_lost_per_myriad) + " per ten thousand of incidents reaching nobody." ^0

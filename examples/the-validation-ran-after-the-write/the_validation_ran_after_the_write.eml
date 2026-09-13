@@ -1,0 +1,104 @@
+# Self-authored for the EML case corpus (no external origin). The validation job
+# flagged every invalid record it was given, and its rules are correct. When it
+# runs relative to the write is computed below.
+#
+# The validation itself is sound. It checks the real schema and business rules,
+# not a subset; it flags every violation without exception; it runs on every
+# record, not a sample; and its findings are logged and actioned.
+#
+# It runs asynchronously, after the record is already written.
+
+500000 => records_written
+1300 => records_that_failed_validation
+15 => validation_lag_minutes
+1300 => records_the_validation_correctly_flagged
+1300 => invalid_records_acted_on_before_the_flag
+
+int(records_that_failed_validation * 10000 / records_written) => invalid_share_per_myriad
+records_that_failed_validation - records_the_validation_correctly_flagged => invalid_records_it_missed
+
+"records written                 : " + str(records_written) ^0
+"records that failed validation  : " + str(records_that_failed_validation) ^0
+"  the validation flagged        : " + str(records_the_validation_correctly_flagged) ^0
+"  it missed                     : " + str(invalid_records_it_missed) ^0
+"validation lag                  : " + str(validation_lag_minutes) + " minutes" ^0
+"invalid records acted on first  : " + str(invalid_records_acted_on_before_the_flag) ^0
+"invalid share                   : " + str(invalid_share_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the validation verified ----
+
+"the validation job" ^0
+"  checks : the real schema and business rules, not a" ^0
+"    subset" ^0
+"  flags : every violation, no exception" ^0
+"  runs on : every record, not a sample" ^0
+"  findings : logged and actioned" ^0
+"  invalid records it failed to flag : " + str(invalid_records_it_missed) ^0
+"  verdict : ALL VIOLATIONS FOUND" ^0
+"" ^0
+"  checking the full ruleset rather than a cheap subset is" ^0
+"  the part done right here, and it is why its flags are" ^0
+"  trusted to be complete" ^0
+"" ^0
+
+# ---- when it runs ----
+
+"the timing of the check" ^0
+"  when the record is written : immediately, on request" ^0
+"  when the validation runs : asynchronously, up to " ^0
+"    " + str(validation_lag_minutes) + " minutes later" ^0
+"  what the record does in between : it is live, readable," ^0
+"    and acted on" ^0
+"  so a flag arrives : after the harm, not before it" ^0
+"  what the check can do : report, not prevent" ^0
+"" ^0
+
+# ---- what the lag let through ----
+
+"the window before the flag" ^0
+"  invalid records written : " + str(records_that_failed_validation) ^0
+"  acted on downstream before validation : " ^0
+"    " + str(invalid_records_acted_on_before_the_flag) ^0
+"  eventually flagged : all of them, correctly" ^0
+"  eventually undone : whatever downstream already did," ^0
+"    only if it can be" ^0
+"  is the validation wrong : no; it is late" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same rules, run synchronously in the write path so a violation is rejected
+# before the record is persisted.
+1300 => nc_records_that_fail_the_rules
+0 => nc_invalid_records_persisted
+0 => nc_invalid_records_acted_on
+
+"null control - validate in the write path" ^0
+"  records that fail the rules : " + str(nc_records_that_fail_the_rules) + ", unchanged" ^0
+"  invalid records persisted : " + str(nc_invalid_records_persisted) ^0
+"  invalid records acted on : " + str(nc_invalid_records_acted_on) ^0
+"  no rule changed; the check moved from after the write to" ^0
+"  in front of it" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a passing validation job guarantees" ^0
+"  every invalid record is eventually flagged : exactly," ^0
+"    full ruleset, every record, no exception" ^0
+"  invalid records are rejected : not addressed; the" ^0
+"    validation runs after the write, so it detects but" ^0
+"    cannot prevent - " + str(invalid_records_acted_on_before_the_flag) + " invalid records were persisted and" ^0
+"    acted on in the " + str(validation_lag_minutes) + "-minute window before the flag" ^0
+"" ^0
+
+"detection and prevention are different guarantees, and a correct check placed" ^0
+"after the effect delivers only the first; the record is already doing whatever" ^0
+"it does by the time the flag catches up with it" ^0
+"" ^0
+
+"It checks the full ruleset on every record and flags every violation - all " ^0
+"" + str(records_that_failed_validation) + " found. It runs " + str(validation_lag_minutes) + " minutes after the write, so those " + str(records_that_failed_validation) + " invalid" ^0
+"records were persisted and acted on before the flag arrived - detected, not" ^0
+"prevented, " + str(invalid_share_per_myriad) + " per ten thousand of the writes." ^0

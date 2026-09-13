@@ -1,0 +1,113 @@
+# Self-authored for the EML case corpus (no external origin). The load alert has
+# not fired in the sixty minutes under review, and every sample it read was
+# under the threshold. What a sample that was not read counts as is computed
+# below.
+#
+# The alerting is set up properly. It reads a real requests-per-second gauge,
+# not a synthetic probe; it checks every minute; it fires the moment a sample
+# exceeds the threshold; and the rule is armed, tested, and paging on-call.
+#
+# A minute with no sample is recorded as zero.
+
+60 => minutes_in_the_window
+42 => minutes_a_sample_arrived
+18 => minutes_the_exporter_was_down
+500 => alert_threshold_rps
+1400 => actual_rps_while_the_exporter_was_down
+0 => rps_recorded_while_the_exporter_was_down
+0 => alerts_that_fired
+
+minutes_in_the_window - minutes_a_sample_arrived => minutes_recorded_as_zero
+int(minutes_the_exporter_was_down * 10000 / minutes_in_the_window) => absence_share_per_myriad
+actual_rps_while_the_exporter_was_down - alert_threshold_rps => how_far_over_the_threshold_it_really_was
+
+"minutes in the window           : " + str(minutes_in_the_window) ^0
+"  a sample arrived              : " + str(minutes_a_sample_arrived) ^0
+"  the exporter was down         : " + str(minutes_the_exporter_was_down) ^0
+"  recorded as zero              : " + str(minutes_recorded_as_zero) ^0
+"alert threshold                 : " + str(alert_threshold_rps) + " rps" ^0
+"alerts that fired               : " + str(alerts_that_fired) ^0
+"" ^0
+"while the exporter was down" ^0
+"  actual load                   : " + str(actual_rps_while_the_exporter_was_down) + " rps" ^0
+"  recorded load                 : " + str(rps_recorded_while_the_exporter_was_down) + " rps" ^0
+"  over the threshold by         : " + str(how_far_over_the_threshold_it_really_was) + " rps" ^0
+"absence, as a share of the window : " + str(absence_share_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the alert verified ----
+
+"the load alert" ^0
+"  reads : a real requests-per-second gauge" ^0
+"  how often : every minute" ^0
+"  fires when : a sample exceeds the threshold" ^0
+"  armed : tested, paging on-call" ^0
+"  samples over the threshold : 0" ^0
+"  verdict : WITHIN LIMITS" ^0
+"" ^0
+"  firing on a single sample rather than a sustained" ^0
+"  average is the part done right here, and it is why a" ^0
+"  real spike would page" ^0
+"" ^0
+
+# ---- what a missing sample became ----
+
+"the eighteen minutes with no sample" ^0
+"  why they are missing : the exporter was down, not the" ^0
+"    service" ^0
+"  what the collector stored for them : zero" ^0
+"  what zero reads as : no load" ^0
+"  what the load actually was : " + str(actual_rps_while_the_exporter_was_down) + " rps" ^0
+"  samples that exceeded the threshold : none, because" ^0
+"    zero never does" ^0
+"" ^0
+
+# ---- what the threshold never saw ----
+
+"the overload that did not page" ^0
+"  minutes at " + str(actual_rps_while_the_exporter_was_down) + " rps : " + str(minutes_the_exporter_was_down) ^0
+"  the threshold : " + str(alert_threshold_rps) + " rps" ^0
+"  over it by : " + str(how_far_over_the_threshold_it_really_was) + " rps, every one of those minutes" ^0
+"  pages sent : " + str(alerts_that_fired) ^0
+"  is the alert rule wrong : no; no sample it saw" ^0
+"    exceeded the threshold" ^0
+"  is the data it saw the data that happened : no" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same window, with a missing sample recorded as absent rather than as zero
+# and the alert firing on a gap as well as on an exceedance.
+0 => nc_alerts_when_absence_is_zero
+1 => nc_alerts_when_absence_is_unknown
+18 => nc_minutes_flagged_as_no_data
+
+"null control - absence recorded as unknown, not zero" ^0
+"  alerts when absence is zero : " + str(nc_alerts_when_absence_is_zero) ^0
+"  alerts when absence is unknown : " + str(nc_alerts_when_absence_is_unknown) ^0
+"  minutes flagged as no-data : " + str(nc_minutes_flagged_as_no_data) ^0
+"  no request and no threshold changed; the gap stopped" ^0
+"  being reported as a low reading and started being" ^0
+"  reported as no reading" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a quiet load alert guarantees" ^0
+"  no sample the collector read exceeded the threshold :" ^0
+"    exactly, every minute, paging armed" ^0
+"  the load stayed within limits : not addressed; a missing" ^0
+"    sample was recorded as zero, and zero reads as no" ^0
+"    load - " + str(minutes_the_exporter_was_down) + " minutes at " + str(actual_rps_while_the_exporter_was_down) + " rps were stored as 0 and" ^0
+"    alerted on nothing" ^0
+"" ^0
+
+"absence and zero are different readings, and a store that cannot tell them" ^0
+"apart turns a blind instrument into a calm one; the lowest possible value is" ^0
+"exactly what a stopped sensor reports" ^0
+"" ^0
+
+"It reads a real gauge every minute and fires on a single exceedance - no sample" ^0
+"over " + str(alert_threshold_rps) + " rps, no page. A missing minute is stored as zero, so " + str(minutes_the_exporter_was_down) + " minutes at" ^0
+"" + str(actual_rps_while_the_exporter_was_down) + " rps read as no load, " + str(absence_share_per_myriad) + " per ten thousand of the window recorded as" ^0
+"calm under " + str(alerts_that_fired) + " alerts." ^0

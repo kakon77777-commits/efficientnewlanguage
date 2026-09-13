@@ -1,0 +1,106 @@
+# Self-authored for the EML case corpus (no external origin). The error rate
+# reads zero per ten thousand and the arithmetic that produced it is exact. What
+# resolution that unit has, against how rare the errors are, is computed below.
+#
+# The rate is computed honestly. It counts real failed requests, not a sample;
+# the denominator is every request, not a subset; the division is integer and
+# deterministic; and the figure is the same one the alert reads and the report
+# prints.
+#
+# The unit is per ten thousand, and thirty-seven errors in nine hundred thousand
+# requests is finer than one part in ten thousand.
+
+37 => errors
+900000 => requests
+1 => alert_fires_at_per_myriad
+
+int(errors * 10000 / requests) => error_rate_per_myriad
+int(errors * 100000000 / requests) => error_rate_per_hundred_million
+int(requests / errors) => one_error_every_n_requests
+0 => alerts_that_fired
+
+"errors                          : " + str(errors) ^0
+"requests                        : " + str(requests) ^0
+"error rate                      : " + str(error_rate_per_myriad) + " per ten thousand" ^0
+"  at a finer scale              : " + str(error_rate_per_hundred_million) + " per hundred million" ^0
+"  which is one error every      : " + str(one_error_every_n_requests) + " requests" ^0
+"alert fires at                  : " + str(alert_fires_at_per_myriad) + " per ten thousand" ^0
+"alerts that fired               : " + str(alerts_that_fired) ^0
+"" ^0
+
+# ---- what the rate verified ----
+
+"the error rate" ^0
+"  counts : real failed requests, not a sample" ^0
+"  denominator : every request" ^0
+"  division : integer, deterministic" ^0
+"  same figure : alert reads it and the report prints it" ^0
+"  errors miscounted : 0" ^0
+"  verdict : ZERO PER TEN THOUSAND" ^0
+"" ^0
+"  one denominator over every request rather than a sampled" ^0
+"  subset is the part done right here, and it is why the" ^0
+"  rate is not a lucky window" ^0
+"" ^0
+
+# ---- what the unit cannot show ----
+
+"the resolution of per-ten-thousand" ^0
+"  one unit of it : one error in ten thousand requests" ^0
+"  the actual rate : one error in " + str(one_error_every_n_requests) + " requests" ^0
+"  finer than the unit by : about a factor of two and a" ^0
+"    half" ^0
+"  so int(errors * 10000 / requests) : truncates to 0" ^0
+"  what 0 per ten thousand reads as : no errors" ^0
+"" ^0
+
+# ---- what zero is standing in for ----
+
+"the errors behind the zero" ^0
+"  errors that happened : " + str(errors) ^0
+"  what the rate says happened : none" ^0
+"  the same errors, per hundred million : " ^0
+"    " + str(error_rate_per_hundred_million) ^0
+"  is the arithmetic wrong : no; the truncation is exact" ^0
+"  is zero the count : no; it is the count divided into a" ^0
+"    unit too coarse to hold it" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same errors, reported at a resolution fine enough to represent them, and
+# alerted on the raw count as well as the rate.
+0 => nc_rate_per_myriad
+4111 => nc_rate_per_hundred_million
+1 => nc_alerts_when_the_count_is_watched
+
+"null control - report a finer unit, alert on the count" ^0
+"  rate per ten thousand : " + str(nc_rate_per_myriad) + ", unchanged" ^0
+"  rate per hundred million : " + str(nc_rate_per_hundred_million) ^0
+"  alerts when the raw count is watched : " ^0
+"    " + str(nc_alerts_when_the_count_is_watched) ^0
+"  no error and no request changed; the reported unit" ^0
+"  stopped being coarser than the thing it reports" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a zero error rate guarantees" ^0
+"  errors divided into ten thousand parts rounds below one" ^0
+"    part : exactly, real count over every request" ^0
+"  there were no errors : not addressed; the rate is" ^0
+"    int(errors * 10000 / requests) and " + str(errors) + " errors over " ^0
+"    " + str(requests) + " truncates to 0 per ten thousand - the " + str(errors) + " errors" ^0
+"    are real; at a finer scale it is " + str(error_rate_per_hundred_million) + " per hundred" ^0
+"    million" ^0
+"" ^0
+
+"a rate is a count divided into a unit, and a unit coarser than the count rounds" ^0
+"it to nothing; zero at ten thousand is not the absence of errors, it is the" ^0
+"presence of fewer than the unit can name" ^0
+"" ^0
+
+"It counts real failures over every request with an exact integer division -" ^0
+"zero per ten thousand. That unit is coarser than one error in " + str(one_error_every_n_requests) + " requests," ^0
+"so " + str(errors) + " real errors truncate to 0 and fire " + str(alerts_that_fired) + " alerts, while the same errors" ^0
+"are " + str(error_rate_per_hundred_million) + " per hundred million." ^0

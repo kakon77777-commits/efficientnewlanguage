@@ -1,0 +1,111 @@
+# Self-authored for the EML case corpus (no external origin). The service status
+# board has shown green for the whole shift, and every status it displayed was
+# the one the service reported. What a stopped report displays as is computed
+# below.
+#
+# The health reporting is built carefully. The service pushes a heartbeat every
+# ten seconds carrying its own self-check; the board shows the last status
+# received; a status of anything but healthy turns the tile red; and the board
+# is on the wall where everyone can see it.
+#
+# The board shows the LAST heartbeat's status, and a stopped heartbeat sends
+# nothing to replace it.
+
+10 => heartbeat_interval_seconds
+47 => minutes_since_the_last_heartbeat
+6 => heartbeats_expected_per_minute
+0 => heartbeats_received_since
+0 => tiles_that_turn_red_on_a_missing_heartbeat
+
+minutes_since_the_last_heartbeat * heartbeats_expected_per_minute => heartbeats_expected_but_absent
+minutes_since_the_last_heartbeat * 60 => seconds_the_status_has_been_stale
+
+"heartbeat interval              : " + str(heartbeat_interval_seconds) + " seconds" ^0
+"minutes since the last beat     : " + str(minutes_since_the_last_heartbeat) ^0
+"  heartbeats expected since     : " + str(heartbeats_expected_but_absent) ^0
+"  heartbeats received since     : " + str(heartbeats_received_since) ^0
+"seconds the status has been stale : " + str(seconds_the_status_has_been_stale) ^0
+"board status                    : green (last received)" ^0
+"tiles that go red on absence    : " + str(tiles_that_turn_red_on_a_missing_heartbeat) ^0
+"" ^0
+
+# ---- what the board verified ----
+
+"the status board" ^0
+"  source : a heartbeat the service pushes every ten" ^0
+"    seconds, carrying its own self-check" ^0
+"  shows : the last status received" ^0
+"  on a non-healthy status : the tile turns red" ^0
+"  visibility : on the wall" ^0
+"  non-healthy statuses received : 0" ^0
+"  verdict : HEALTHY" ^0
+"" ^0
+"  turning red on a reported fault is the part done right" ^0
+"  here, and it is why a sick service that still reports" ^0
+"  would show red" ^0
+"" ^0
+
+# ---- what a stopped heartbeat displays as ----
+
+"the beats that never arrived" ^0
+"  expected in the last 47 minutes : " ^0
+"    " + str(heartbeats_expected_but_absent) ^0
+"  received : " + str(heartbeats_received_since) ^0
+"  what the board does with no new status : keeps the" ^0
+"    last one" ^0
+"  what the last one was : green" ^0
+"  so absence displays as : the last health, held" ^0
+"    indefinitely" ^0
+"" ^0
+
+# ---- what the service was actually doing ----
+
+"the service behind the green tile" ^0
+"  state : dead for " + str(minutes_since_the_last_heartbeat) + " minutes" ^0
+"  what a dead service reports : nothing" ^0
+"  what nothing turns the tile : green, still" ^0
+"  the transition to red on silence : never defined" ^0
+"  is any displayed status wrong : no; each was really" ^0
+"    reported, once" ^0
+"  is the current display a current fact : no" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same board, with a tile that turns red when no heartbeat has arrived for
+# more than three intervals.
+0 => nc_red_tiles_when_absence_holds_green
+1 => nc_red_tiles_when_absence_turns_red
+282 => nc_missing_beats_it_would_notice
+
+"null control - absence turns the tile red" ^0
+"  red tiles, absence holds green : " ^0
+"    " + str(nc_red_tiles_when_absence_holds_green) ^0
+"  red tiles, absence turns red : " ^0
+"    " + str(nc_red_tiles_when_absence_turns_red) ^0
+"  missing beats it would notice : " ^0
+"    " + str(nc_missing_beats_it_would_notice) ^0
+"  no heartbeat changed; the board stopped treating no" ^0
+"  news as good news" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a green status board guarantees" ^0
+"  the last status the service reported was healthy :" ^0
+"    exactly, and a reported fault would turn it red" ^0
+"  the service is healthy : not addressed; the board shows" ^0
+"    the last heartbeat's status, and a stopped heartbeat is" ^0
+"    absence, not health - " + str(heartbeats_expected_but_absent) + " expected beats, 0 received," ^0
+"    still green" ^0
+"" ^0
+
+"a display of the last report is a fact about the past, and health is a fact" ^0
+"about now; the two coincide only while the reports keep coming, and the moment" ^0
+"they stop is the moment the display means the least" ^0
+"" ^0
+
+"The board shows the last pushed status and reddens on a reported fault - green" ^0
+"all shift. It holds the last status when beats stop, so " + str(minutes_since_the_last_heartbeat) + " minutes of silence -" ^0
+"" + str(heartbeats_expected_but_absent) + " expected beats, none received - display as green, under " + str(tiles_that_turn_red_on_a_missing_heartbeat) + " tiles that" ^0
+"redden on absence." ^0

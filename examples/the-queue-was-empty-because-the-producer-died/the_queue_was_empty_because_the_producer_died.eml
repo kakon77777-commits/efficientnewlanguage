@@ -1,0 +1,104 @@
+# Self-authored for the EML case corpus (no external origin). The consumer
+# autoscaler scaled down to its floor when the queue drained, and its rule read
+# the depth correctly. What a depth of zero means is computed below.
+#
+# The autoscaler is well built. It reads the true queue depth, not a proxy; it
+# scales on a sustained reading, not a single dip; it keeps a floor of one
+# consumer; and it logs every scaling decision with the depth that triggered it.
+#
+# A depth of zero can mean the consumers are caught up, or that nothing is
+# arriving. The rule treats it as caught up.
+
+0 => queue_depth
+12 => consumers_before
+1 => consumers_after_scaledown
+25 => minutes_the_producer_was_dead
+800 => messages_that_would_have_arrived_per_minute
+1 => meanings_a_zero_depth_actually_has_beyond_one
+
+minutes_the_producer_was_dead * messages_that_would_have_arrived_per_minute => backlog_waiting_when_the_producer_recovers
+consumers_before - consumers_after_scaledown => consumers_removed
+
+"queue depth                     : " + str(queue_depth) ^0
+"consumers before                : " + str(consumers_before) ^0
+"consumers after scaledown       : " + str(consumers_after_scaledown) ^0
+"  removed                       : " + str(consumers_removed) ^0
+"minutes the producer was dead   : " + str(minutes_the_producer_was_dead) ^0
+"messages per minute that stopped: " + str(messages_that_would_have_arrived_per_minute) ^0
+"backlog waiting on recovery     : " + str(backlog_waiting_when_the_producer_recovers) ^0
+"" ^0
+
+# ---- what the autoscaler verified ----
+
+"the autoscaler" ^0
+"  reads : the true queue depth, not a proxy" ^0
+"  scales on : a sustained reading, not one dip" ^0
+"  floor : one consumer" ^0
+"  logs : every decision with its trigger depth" ^0
+"  the depth it read : " + str(queue_depth) ^0
+"  verdict : CAUGHT UP, SCALE DOWN" ^0
+"" ^0
+"  scaling on a sustained reading rather than a single dip" ^0
+"  is the part done right here, and it is why a brief lull" ^0
+"  does not thrash the fleet" ^0
+"" ^0
+
+# ---- what a zero depth means ----
+
+"the reading of zero" ^0
+"  meaning one : the consumers cleared the backlog" ^0
+"  meaning two : nothing is arriving to clear" ^0
+"  which one held here : two; the producer was dead" ^0
+"  what distinguishes them : the arrival rate, which the" ^0
+"    depth does not carry" ^0
+"  what the rule assumed : meaning one" ^0
+"" ^0
+
+# ---- what the scaledown set up ----
+
+"the recovery that is coming" ^0
+"  minutes the producer was dead : " + str(minutes_the_producer_was_dead) ^0
+"  messages that will arrive at once : " ^0
+"    " + str(backlog_waiting_when_the_producer_recovers) ^0
+"  consumers left to take them : " + str(consumers_after_scaledown) ^0
+"  did the autoscaler misread the depth : no; it was zero" ^0
+"  did it misread what zero meant : yes" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same lull, with the autoscaler reading arrival rate alongside depth and
+# holding capacity when arrivals stop rather than when the backlog clears.
+1 => nc_consumers_after_when_rate_is_read
+25 => nc_minutes_it_would_have_held_capacity
+0 => nc_depth_still_zero
+
+"null control - read arrival rate, not depth alone" ^0
+"  depth still zero : " + str(nc_depth_still_zero) ^0
+"  consumers held when arrivals stop : " ^0
+"    " + str(consumers_before) ^0
+"  minutes it would have held capacity : " ^0
+"    " + str(nc_minutes_it_would_have_held_capacity) ^0
+"  no message and no depth changed; the rule stopped" ^0
+"  reading an empty queue as finished work" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what an empty queue guarantees" ^0
+"  the depth is zero : exactly, read truly, sustained, not" ^0
+"    a single dip" ^0
+"  there is no work to do : not addressed; a depth of zero" ^0
+"    is 'caught up' or 'nothing is arriving', and here the" ^0
+"    producer was dead " + str(minutes_the_producer_was_dead) + " minutes - the autoscaler read" ^0
+"    starvation as completion and scaled " + str(consumers_before) + " to " + str(consumers_after_scaledown) ^0
+"" ^0
+
+"a depth measures the gap between what arrived and what was consumed, and zero" ^0
+"is that gap closed from either side; without the arrival rate beside it, an" ^0
+"idle queue and a starved one are the same number" ^0
+"" ^0
+
+"It reads the true depth on a sustained signal with a floor of one - a correct" ^0
+"read of zero. Zero meant the producer was dead " + str(minutes_the_producer_was_dead) + " minutes, not caught up, so" ^0
+"it cut " + str(consumers_before) + " consumers to " + str(consumers_after_scaledown) + " with " + str(backlog_waiting_when_the_producer_recovers) + " messages about to arrive at once." ^0

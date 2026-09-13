@@ -1,0 +1,109 @@
+# Self-authored for the EML case corpus (no external origin). The reconciliation
+# passed on every pair it compared, and each comparison ran without error. What
+# the comparison treats as equal is computed below.
+#
+# The reconciliation is careful. It compares the two sides pair by pair, not in
+# aggregate; it runs on every pair, no sampling; a difference is meant to fail
+# the pair and halt; and the pairs it passed it really did evaluate as equal.
+#
+# The comparison is == on floating-point dollars, and cents below the float's
+# precision at that magnitude round away before the compare.
+
+90000 => pairs_compared
+37 => pairs_that_differ_by_a_cent
+37 => pairs_equal_as_floats
+0 => pairs_the_reconciliation_failed
+
+pairs_equal_as_floats => hidden_discrepancies
+hidden_discrepancies => discrepancy_cents_total
+int(pairs_that_differ_by_a_cent * 10000 / pairs_compared) => hidden_share_per_myriad
+
+"pairs compared                  : " + str(pairs_compared) ^0
+"  that truly differ by a cent   : " + str(pairs_that_differ_by_a_cent) ^0
+"  equal as floats               : " + str(pairs_equal_as_floats) ^0
+"  the reconciliation failed     : " + str(pairs_the_reconciliation_failed) ^0
+"hidden discrepancies            : " + str(hidden_discrepancies) ^0
+"discrepancy total               : " + str(discrepancy_cents_total) + " cents" ^0
+"hidden share                    : " + str(hidden_share_per_myriad) + " per ten thousand" ^0
+"" ^0
+"one pair, in cents and as floats" ^0
+"  side A : 100000000001 cents" ^0
+"  side B : 100000000000 cents" ^0
+"  differ by : 1 cent" ^0
+"  as float dollars : both nearest the same value, so ==" ^0
+"" ^0
+
+# ---- what the reconciliation verified ----
+
+"the reconciliation" ^0
+"  compares : pair by pair, not in aggregate" ^0
+"  coverage : every pair, no sampling" ^0
+"  on a difference : fails the pair and halts" ^0
+"  pairs it passed : evaluated equal, genuinely" ^0
+"  pairs it failed : " + str(pairs_the_reconciliation_failed) ^0
+"  verdict : RECONCILED" ^0
+"" ^0
+"  comparing pair by pair rather than netting the totals is" ^0
+"  the part done right here, and it is why offsetting errors" ^0
+"  cannot hide" ^0
+"" ^0
+
+# ---- what equal means here ----
+
+"the comparison itself" ^0
+"  operator : == on floating-point dollars" ^0
+"  what a float holds at ten-figure magnitudes : not every" ^0
+"    cent" ^0
+"  a one-cent difference there : rounds to the same" ^0
+"    representable value" ^0
+"  so the two sides : are equal as floats, unequal as cents" ^0
+"  pairs this hid : " + str(pairs_equal_as_floats) ^0
+"" ^0
+
+# ---- what the cent-level truth is ----
+
+"the same pairs, in integer cents" ^0
+"  pairs that differ by a cent : " + str(pairs_that_differ_by_a_cent) ^0
+"  what the reconciliation said about them : equal" ^0
+"  cents unaccounted for : " + str(discrepancy_cents_total) ^0
+"  is the comparison wrong : no; as floats they are equal" ^0
+"  are they equal : no; as cents they differ" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same pairs, compared as integer cents rather than as floating-point
+# dollars.
+0 => nc_hidden_when_compared_as_cents
+37 => nc_pairs_the_cent_compare_fails
+37 => nc_cents_it_would_surface
+
+"null control - compare integer cents" ^0
+"  hidden discrepancies, cent compare : " ^0
+"    " + str(nc_hidden_when_compared_as_cents) ^0
+"  pairs the cent compare fails : " + str(nc_pairs_the_cent_compare_fails) ^0
+"  cents it would surface : " + str(nc_cents_it_would_surface) ^0
+"  no amount changed; the comparison stopped rounding the" ^0
+"  cents away before it looked" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a passed reconciliation guarantees" ^0
+"  every compared pair evaluated equal : exactly, pair by" ^0
+"    pair, no sampling, halt on a difference" ^0
+"  equal amounts reconcile : not addressed; the comparison" ^0
+"    is == on floats and cents beyond the float's precision" ^0
+"    vanish - " + str(pairs_equal_as_floats) + " pairs compared equal while differing by a" ^0
+"    cent, hiding " + str(discrepancy_cents_total) + " cents" ^0
+"" ^0
+
+"equality is only as fine as the type it is tested in, and a float at a large" ^0
+"magnitude cannot hold a cent; two amounts a cent apart are the same number to" ^0
+"it, and the reconciliation asks it, not the ledger" ^0
+"" ^0
+
+"It compares pair by pair with no sampling and halts on a difference - every" ^0
+"pair equal. The compare is == on float dollars, which cannot hold a cent at ten" ^0
+"figures, so " + str(pairs_equal_as_floats) + " pairs a cent apart read as equal, " + str(discrepancy_cents_total) + " cents hidden, " ^0
+"" + str(hidden_share_per_myriad) + " per ten thousand of the pairs, under " + str(pairs_the_reconciliation_failed) + " failures." ^0

@@ -1,0 +1,107 @@
+# Self-authored for the EML case corpus (no external origin). The service stayed
+# healthy through the forty minutes under review, and every health signal it
+# read was real. What health is measured on is computed below.
+#
+# The health check is honest. It measures real served requests, not a synthetic
+# ping; it reads end-to-end latency and error rate from actual traffic; it is
+# evaluated every ten seconds; and it pages the moment either crosses its
+# threshold.
+#
+# Health is measured on reads, and reads are served from a cache that was still
+# fresh while the origin was unreachable.
+
+10000 => cache_hit_rate_per_myriad
+2000000 => reads_served_from_cache
+40 => minutes_the_origin_was_unreachable
+15000 => writes_attempted
+0 => writes_that_succeeded
+0 => alerts_on_origin_reachability
+
+writes_attempted - writes_that_succeeded => writes_that_failed_unseen
+int(writes_that_failed_unseen * 10000 / writes_attempted) => write_failure_per_myriad
+
+"cache hit rate                  : " + str(cache_hit_rate_per_myriad) + " per ten thousand" ^0
+"reads served from cache         : " + str(reads_served_from_cache) ^0
+"minutes the origin was down     : " + str(minutes_the_origin_was_unreachable) ^0
+"writes attempted                : " + str(writes_attempted) ^0
+"  succeeded                     : " + str(writes_that_succeeded) ^0
+"  failed unseen                 : " + str(writes_that_failed_unseen) ^0
+"alerts on origin reachability   : " + str(alerts_on_origin_reachability) ^0
+"write failure rate              : " + str(write_failure_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the health check verified ----
+
+"the health check" ^0
+"  measures : real served requests, not a synthetic ping" ^0
+"  reads : end-to-end latency and error rate from traffic" ^0
+"  evaluated : every ten seconds" ^0
+"  pages when : latency or error rate crosses a threshold" ^0
+"  thresholds crossed : none" ^0
+"  verdict : HEALTHY" ^0
+"" ^0
+"  measuring real traffic rather than a synthetic ping is" ^0
+"  the part done right here, and it is why the green is not" ^0
+"  a fake-healthy prober" ^0
+"" ^0
+
+# ---- what health is measured on ----
+
+"the reads the check reads" ^0
+"  where they are served from : a cache, still within TTL" ^0
+"  what the cache needs from the origin : nothing, while" ^0
+"    its entries are fresh" ^0
+"  so a read : succeeds, fast, correct, origin down or not" ^0
+"  what the check therefore sees : health" ^0
+"  what it does not touch : the write path to the origin" ^0
+"" ^0
+
+# ---- what the read-shaped view missed ----
+
+"the write path, in the same window" ^0
+"  writes attempted : " + str(writes_attempted) ^0
+"  writes that reached the origin : " + str(writes_that_succeeded) ^0
+"  what a failed write showed on the health board : nothing" ^0
+"  is the health signal wrong : no; the reads it measured" ^0
+"    really were healthy" ^0
+"  is a read-shaped signal the whole of health : no; and" ^0
+"    the cache will expire" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same outage, with a health check that also probes origin reachability and
+# the write path, not only cached reads.
+10000 => nc_read_health_per_myriad
+0 => nc_write_health_per_myriad
+1 => nc_alerts_it_would_raise
+
+"null control - probe the write path too" ^0
+"  read health : " + str(nc_read_health_per_myriad) + ", unchanged" ^0
+"  write health : " + str(nc_write_health_per_myriad) + " per ten thousand" ^0
+"  alerts it would raise : " + str(nc_alerts_it_would_raise) ^0
+"  no read and no cache entry changed; health stopped being" ^0
+"  measured only where the cache could answer" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a healthy service guarantees" ^0
+"  served reads are fast and correct : exactly, real" ^0
+"    traffic, every ten seconds, thresholds armed" ^0
+"  the system is healthy : not addressed; health is" ^0
+"    measured on reads and the cache served every read" ^0
+"    through a " + str(minutes_the_origin_was_unreachable) + "-minute origin outage - " + str(writes_that_failed_unseen) + " writes failed" ^0
+"    unseen, and the outage surfaces only when the cache" ^0
+"    expires" ^0
+"" ^0
+
+"a cache in front of an outage is a held breath, and health measured on the" ^0
+"reads it answers is health measured on the breath, not the need for air; the" ^0
+"outage is real the whole time and invisible until the cache lets go" ^0
+"" ^0
+
+"It measures real traffic every ten seconds and pages on a threshold - reads" ^0
+"genuinely healthy. Those reads came from a still-fresh cache through a " ^0
+"" + str(minutes_the_origin_was_unreachable) + "-minute origin outage, so " + str(writes_that_failed_unseen) + " writes failed unseen, " + str(write_failure_per_myriad) + " per ten" ^0
+"thousand, under " + str(alerts_on_origin_reachability) + " reachability alerts." ^0
