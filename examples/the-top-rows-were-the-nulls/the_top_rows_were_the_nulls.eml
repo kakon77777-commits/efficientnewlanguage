@@ -1,0 +1,106 @@
+# Self-authored for the EML case corpus (no external origin). The leaderboard
+# shows the top ten by score, ordered descending, and the ORDER BY is correct.
+# Where a NULL score sorts is computed below.
+#
+# The query is careful. It orders by the real score column; it uses the
+# database's own sort, not a hand-rolled comparator; the descending direction is
+# right for a leaderboard; and LIMIT 10 takes the first ten of that order.
+#
+# NULL sorts before every value under DESC in this database, and 400 items have
+# no score.
+
+8000 => items
+7600 => items_with_a_score
+400 => items_with_a_null_score
+990 => the_highest_real_score
+10 => leaderboard_size
+
+leaderboard_size => top_slots_taken_by_null_scores
+leaderboard_size - top_slots_taken_by_null_scores => top_slots_showing_a_real_top_score
+items_with_a_null_score => rows_before_the_highest_real_score
+
+"items                           : " + str(items) ^0
+"  with a score                  : " + str(items_with_a_score) ^0
+"  with a null score             : " + str(items_with_a_null_score) ^0
+"highest real score              : " + str(the_highest_real_score) ^0
+"leaderboard size                : " + str(leaderboard_size) ^0
+"" ^0
+"top slots taken by null scores  : " + str(top_slots_taken_by_null_scores) ^0
+"  showing a real top score      : " + str(top_slots_showing_a_real_top_score) ^0
+"rows before the highest real one: " + str(rows_before_the_highest_real_score) ^0
+"" ^0
+
+# ---- what the query verified ----
+
+"the leaderboard query" ^0
+"  orders by : the real score column" ^0
+"  sort : the database's own, not a hand-rolled comparator" ^0
+"  direction : descending, right for a leaderboard" ^0
+"  limit : the first ten of that order" ^0
+"  hand-rolled comparators that could differ : 0" ^0
+"  verdict : TOP TEN BY SCORE" ^0
+"" ^0
+"  using the engine's sort rather than a hand comparator is" ^0
+"  the part done right here, and it is why the ordering" ^0
+"  among real scores is exact" ^0
+"" ^0
+
+# ---- where a NULL sorts ----
+
+"NULL under ORDER BY score DESC" ^0
+"  what NULL compares as : not greater, not less, unknown" ^0
+"  where this database puts it under DESC : first" ^0
+"  items with no score : " + str(items_with_a_null_score) ^0
+"  so the first rows of the order : the unscored ones" ^0
+"  the highest real score : below all " + str(items_with_a_null_score) + " of them" ^0
+"" ^0
+
+# ---- what the leaderboard shows ----
+
+"the top ten as rendered" ^0
+"  slots filled by null-score items : " + str(top_slots_taken_by_null_scores) ^0
+"  slots filled by the actual highest : " ^0
+"    " + str(top_slots_showing_a_real_top_score) ^0
+"  the " + str(the_highest_real_score) + "-point leader appears : below the nulls" ^0
+"  is the ORDER BY wrong : no; DESC is correct" ^0
+"  is the sort position of NULL the one the leaderboard" ^0
+"    assumes : no" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same query, with NULLS LAST added (or a WHERE score IS NOT NULL before the
+# order) so unscored items do not occupy the top.
+10 => nc_top_slots_null_when_nulls_first
+0 => nc_top_slots_null_when_nulls_last
+10 => nc_real_top_scores_it_restores
+
+"null control - NULLS LAST (or exclude null scores)" ^0
+"  top slots that are null, NULLS FIRST : " ^0
+"    " + str(nc_top_slots_null_when_nulls_first) ^0
+"  top slots that are null, NULLS LAST : " ^0
+"    " + str(nc_top_slots_null_when_nulls_last) ^0
+"  real top scores it restores : " + str(nc_real_top_scores_it_restores) ^0
+"  no score changed; the sort stopped placing 'unknown' at" ^0
+"  the top of 'highest'" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what ORDER BY score DESC LIMIT 10 guarantees" ^0
+"  the ten rows are the first ten of the sort : exactly," ^0
+"    the engine's own descending order" ^0
+"  the top ten are the highest scored : not addressed;" ^0
+"    NULL sorts before any value under DESC here, and " ^0
+"    " + str(items_with_a_null_score) + " items have no score - the top 10 are unscored" ^0
+"    NULLs, and the highest real score is below all of them" ^0
+"" ^0
+
+"an ordering places NULL somewhere, and 'somewhere' under a descending sort is" ^0
+"often the top; 'highest' and 'unknown' are different, and a LIMIT taken off the" ^0
+"front hands back whichever the sort put there" ^0
+"" ^0
+
+"It orders by the real column with the engine's sort, descending, limit ten -" ^0
+"correct. NULL sorts first under DESC here and " + str(items_with_a_null_score) + " items are unscored, so all" ^0
+"" + str(top_slots_taken_by_null_scores) + " top slots are NULLs and the " + str(the_highest_real_score) + "-point leader sits below them." ^0

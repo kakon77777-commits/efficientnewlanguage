@@ -1,0 +1,103 @@
+# Self-authored for the EML case corpus (no external origin). The deploy picks
+# the latest version by taking the maximum of the version column, and the
+# maximum is computed correctly. What kind of maximum it is is computed below.
+#
+# The selection is careful. It reads the real version column, not a mutable
+# 'latest' pointer; it uses the database's own MAX; it runs over every published
+# version; and picking the greatest is exactly what 'deploy the latest' means.
+#
+# The version column is text, so MAX is the lexicographically greatest string,
+# not the highest version.
+
+47 => published_versions
+910 => lexical_max_encodes_version_1_9
+9100 => intended_max_encodes_version_1_10
+1 => versions_deployed
+0 => releases_between_1_9_and_1_10_that_are_live
+
+intended_max_encodes_version_1_10 - lexical_max_encodes_version_1_9 => versions_the_wrong_pick_is_behind_by_tenths
+1 => deploys_that_shipped_the_older_release
+
+"published versions              : " + str(published_versions) ^0
+"lexical max (as text)           : selects 1.9" ^0
+"intended max (as version)       : 1.10" ^0
+"  1.10 is newer than 1.9 by     : one minor release" ^0
+"deploys that shipped the older  : " + str(deploys_that_shipped_the_older_release) ^0
+"live releases newer than picked : " + str(releases_between_1_9_and_1_10_that_are_live) ^0
+"" ^0
+
+# ---- what the selection verified ----
+
+"the latest-version selection" ^0
+"  reads : the real version column, not a 'latest' pointer" ^0
+"  operator : the database's own MAX" ^0
+"  over : every published version" ^0
+"  intent : deploy the greatest version" ^0
+"  mutable pointers that could be stale : 0" ^0
+"  verdict : DEPLOY THE MAX" ^0
+"" ^0
+"  reading the column rather than a mutable 'latest'" ^0
+"  pointer is the part done right here, and it is why the" ^0
+"  pick is not a stale tag" ^0
+"" ^0
+
+# ---- what kind of maximum ----
+
+"MAX over a text column" ^0
+"  what it compares : strings, character by character" ^0
+"  '1.10' against '1.9' : '1' = '1', '.' = '.', then '1' <" ^0
+"    '9', so '1.10' < '1.9'" ^0
+"  so the text maximum : '1.9'" ^0
+"  the version maximum : 1.10, which is newer" ^0
+"  the two disagree exactly when : a later component has" ^0
+"    more digits" ^0
+"" ^0
+
+# ---- what shipped ----
+
+"the deploy" ^0
+"  version the query picked : 1.9" ^0
+"  newest published version : 1.10" ^0
+"  what shipped : the older release, as 'latest'" ^0
+"  is MAX wrong : no; '1.9' is the greatest string" ^0
+"  is the greatest string the newest version : no, once a" ^0
+"    component crosses ten" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same versions, compared by their numeric components (or as a semantic
+# version type) rather than as text.
+910 => nc_text_pick_encodes_1_9
+9100 => nc_numeric_pick_encodes_1_10
+1 => nc_deploys_that_would_flip
+
+"null control - compare by numeric components" ^0
+"  text comparison picks : 1.9" ^0
+"  component comparison picks : 1.10" ^0
+"  deploys that would flip to the newer : " ^0
+"    " + str(nc_deploys_that_would_flip) ^0
+"  no version and no MAX changed; the comparison stopped" ^0
+"  ranking the digits as characters" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what MAX(version) guarantees" ^0
+"  the selected value is the greatest in the column :" ^0
+"    exactly, the engine's own MAX over every row" ^0
+"  the selected version is the newest : not addressed; the" ^0
+"    column is text, so MAX is the lexicographically" ^0
+"    greatest string - '1.9' beats '1.10', and the deploy" ^0
+"    shipped the older release as latest" ^0
+"" ^0
+
+"a maximum is only as meaningful as the order it maximizes over, and text order" ^0
+"ranks '1.10' below '1.9' because it reads the second digit before the length;" ^0
+"the greatest string is not the greatest number it spells" ^0
+"" ^0
+
+"It reads the real column with the engine's MAX over every version - a correct" ^0
+"string maximum. The column is text, so '1.9' outranks '1.10' character by" ^0
+"character, and the deploy shipped 1.9 as the latest while 1.10 sat newer and" ^0
+"unpicked, under " + str(deploys_that_shipped_the_older_release) + " deploy of the older release." ^0

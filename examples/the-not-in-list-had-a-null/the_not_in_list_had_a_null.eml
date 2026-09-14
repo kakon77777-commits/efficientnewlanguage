@@ -1,0 +1,104 @@
+# Self-authored for the EML case corpus (no external origin). The query returns
+# the accounts that are not on the block list, and the SQL is correct. What one
+# NULL in that list does is computed below.
+#
+# The query is careful. The block list comes from a real column, not a
+# hard-coded array; the NOT IN is the database's own, not a hand-built loop; it
+# runs over every account; and the intent is exactly 'accounts not blocked'.
+#
+# One value in the block list is NULL, and `id NOT IN (..., NULL)` is UNKNOWN for
+# every id.
+
+100000 => accounts
+40 => blocked_ids_that_are_real
+1 => blocked_ids_that_are_null
+
+accounts - blocked_ids_that_are_real => accounts_that_should_be_allowed
+0 => accounts_the_query_returned
+accounts_that_should_be_allowed - accounts_the_query_returned => accounts_wrongly_excluded
+int(accounts_wrongly_excluded * 10000 / accounts_that_should_be_allowed) => wrongly_excluded_per_myriad
+
+"accounts                        : " + str(accounts) ^0
+"blocked ids that are real       : " + str(blocked_ids_that_are_real) ^0
+"blocked ids that are null       : " + str(blocked_ids_that_are_null) ^0
+"" ^0
+"accounts that should be allowed : " + str(accounts_that_should_be_allowed) ^0
+"accounts the query returned     : " + str(accounts_the_query_returned) ^0
+"  wrongly excluded              : " + str(accounts_wrongly_excluded) ^0
+"wrongly excluded                : " + str(wrongly_excluded_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the query verified ----
+
+"the not-blocked query" ^0
+"  block list source : a real column, not a hard-coded" ^0
+"    array" ^0
+"  operator : the database's own NOT IN" ^0
+"  over : every account" ^0
+"  intent : accounts not on the block list" ^0
+"  hand-built loops that could differ : 0" ^0
+"  verdict : returns the allowed accounts" ^0
+"" ^0
+"  using the engine's NOT IN rather than a hand-built loop" ^0
+"  is the part done right here, and it is why a real listed" ^0
+"  id is reliably excluded" ^0
+"" ^0
+
+# ---- what a NULL in the list does ----
+
+"id NOT IN (..., NULL)" ^0
+"  what NOT IN expands to : id <> a AND id <> b AND ... AND" ^0
+"    id <> NULL" ^0
+"  what id <> NULL yields : UNKNOWN" ^0
+"  what TRUE AND UNKNOWN yields : UNKNOWN" ^0
+"  so the whole predicate : UNKNOWN for every id" ^0
+"  rows a WHERE keeps when the predicate is UNKNOWN : none" ^0
+"" ^0
+
+# ---- what the caller got ----
+
+"the result of the not-blocked query" ^0
+"  accounts that should pass : " + str(accounts_that_should_be_allowed) ^0
+"  accounts returned : " + str(accounts_the_query_returned) ^0
+"  the one NULL responsible : a single null id in the list" ^0
+"  is the query wrong : no; NOT IN with a NULL is UNKNOWN" ^0
+"    by the standard" ^0
+"  did a whole feature return empty : yes, from one null" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same list, filtered to non-null ids before the NOT IN (or written as a
+# NOT EXISTS anti-join, which is null-safe).
+0 => nc_returned_with_null_in_list
+99960 => nc_returned_with_null_filtered
+99960 => nc_accounts_it_recovers
+
+"null control - drop the null before NOT IN (or NOT EXISTS)" ^0
+"  returned, null in the list : " + str(nc_returned_with_null_in_list) ^0
+"  returned, null filtered out : " + str(nc_returned_with_null_filtered) ^0
+"  accounts it recovers : " + str(nc_accounts_it_recovers) ^0
+"  no account and no block entry changed; the NULL stopped" ^0
+"  turning every comparison unknown" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a NOT IN block-list query guarantees" ^0
+"  no returned account equals a listed id : exactly, the" ^0
+"    engine's own NOT IN" ^0
+"  the allowed accounts are returned : not addressed; the" ^0
+"    list contains a NULL, and id NOT IN (..., NULL) is" ^0
+"    UNKNOWN for every id, so the query returns 0 of " ^0
+"    " + str(accounts_that_should_be_allowed) + " accounts that should have passed" ^0
+"" ^0
+
+"NOT IN is a chain of not-equals joined by AND, and one not-equal against NULL" ^0
+"makes the whole chain unknown; the list that was meant to exclude a few ends up" ^0
+"excluding everything, from a single missing value in it" ^0
+"" ^0
+
+"It uses the engine's NOT IN over a real block-list column for every account -" ^0
+"correct SQL. One id in the list is NULL, so id NOT IN (..., NULL) is UNKNOWN for" ^0
+"every row and the query returns " + str(accounts_the_query_returned) + " of " + str(accounts_that_should_be_allowed) + " allowed accounts, " ^0
+"" + str(wrongly_excluded_per_myriad) + " per ten thousand wrongly excluded." ^0

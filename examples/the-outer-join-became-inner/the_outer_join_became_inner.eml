@@ -1,0 +1,98 @@
+# Self-authored for the EML case corpus (no external origin). The orders report
+# joins every order to its shipment and the LEFT JOIN is written correctly. What
+# a WHERE on the shipment column does to it is computed below.
+#
+# The join is careful. It is a LEFT JOIN, chosen on purpose so an order with no
+# shipment still appears; it joins on the real foreign key; it runs over every
+# order; and the report is meant to list all orders with their delivery region.
+#
+# A later WHERE clause filters on shipment.region, and shipment.region IS NULL
+# for an order that has no shipment.
+
+50000 => orders
+47000 => orders_with_a_shipment
+3000 => orders_never_shipped
+
+orders_with_a_shipment => orders_the_where_kept
+orders - orders_the_where_kept => orders_dropped_by_the_where
+int(orders_dropped_by_the_where * 10000 / orders) => dropped_share_per_myriad
+
+"orders                          : " + str(orders) ^0
+"  with a shipment               : " + str(orders_with_a_shipment) ^0
+"  never shipped                 : " + str(orders_never_shipped) ^0
+"" ^0
+"orders the LEFT JOIN keeps      : " + str(orders) ^0
+"orders the WHERE then kept      : " + str(orders_the_where_kept) ^0
+"  dropped by the WHERE          : " + str(orders_dropped_by_the_where) ^0
+"dropped share                   : " + str(dropped_share_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the join verified ----
+
+"the LEFT JOIN" ^0
+"  kind : LEFT, chosen so an unshipped order still appears" ^0
+"  joins on : the real foreign key" ^0
+"  over : every order" ^0
+"  intent : all orders, with their delivery region" ^0
+"  orders it keeps before the WHERE : " + str(orders) ^0
+"  verdict : all orders present" ^0
+"" ^0
+
+# ---- what the WHERE does ----
+
+"WHERE shipment.region = 'domestic'" ^0
+"  what an unshipped order's shipment.region is : NULL" ^0
+"  what NULL = 'domestic' yields : UNKNOWN" ^0
+"  what WHERE keeps : rows where the predicate is TRUE" ^0
+"  so the unshipped orders : are dropped by the WHERE" ^0
+"  the LEFT JOIN, effectively : becomes an INNER JOIN" ^0
+"" ^0
+
+# ---- what the report lost ----
+
+"the orders that never shipped" ^0
+"  count : " + str(orders_never_shipped) ^0
+"  present after the LEFT JOIN : yes, as NULL-shipment rows" ^0
+"  present after the WHERE : no" ^0
+"  is the join wrong : no; the LEFT JOIN is correct" ^0
+"  is a WHERE on the right table's column safe on a LEFT" ^0
+"    JOIN : no; it filters out the very rows the LEFT JOIN" ^0
+"    exists to keep" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same query, with the region predicate moved into the JOIN's ON clause (or
+# written region = 'domestic' OR region IS NULL) so unmatched rows survive.
+47000 => nc_kept_with_where_on_right
+50000 => nc_kept_with_predicate_in_on
+3000 => nc_orders_it_recovers
+
+"null control - predicate in ON, not WHERE" ^0
+"  kept, predicate in WHERE : " + str(nc_kept_with_where_on_right) ^0
+"  kept, predicate in ON : " + str(nc_kept_with_predicate_in_on) ^0
+"  orders it recovers : " + str(nc_orders_it_recovers) ^0
+"  no order and no shipment changed; the predicate stopped" ^0
+"  running after the join and started running inside it" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a LEFT JOIN guarantees" ^0
+"  every left row appears, matched or not : exactly, on" ^0
+"    the real key, over every order" ^0
+"  every order appears in the report : not addressed; the" ^0
+"    LEFT JOIN keeps unshipped orders as NULL rows, and a" ^0
+"    WHERE on the shipment's column is UNKNOWN for NULL," ^0
+"    turning the outer join into an inner one - " + str(orders_never_shipped) ^0
+"    unshipped orders vanish" ^0
+"" ^0
+
+"a LEFT JOIN promises the unmatched rows with NULLs on the right, and a WHERE on" ^0
+"a right-side column tests those NULLs and drops them; the outer join survives" ^0
+"only until a later clause asks the missing side a question" ^0
+"" ^0
+
+"The LEFT JOIN keeps all " + str(orders) + " orders on the real key. A WHERE on shipment.region is" ^0
+"UNKNOWN for the " + str(orders_never_shipped) + " unshipped orders, so it drops them and the outer join" ^0
+"becomes inner - the report shows " + str(orders_the_where_kept) + " of " + str(orders) + ", " + str(dropped_share_per_myriad) + " per ten thousand lost." ^0

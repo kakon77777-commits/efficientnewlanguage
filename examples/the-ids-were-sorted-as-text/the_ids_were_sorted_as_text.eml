@@ -1,0 +1,106 @@
+# Self-authored for the EML case corpus (no external origin). The export lists
+# records in ascending id order and the sort is correct. What kind of order it is
+# is computed below.
+#
+# The export is careful. It sorts on the real id, not a display label; it uses
+# the database's own ORDER BY; it includes every record; and ascending id is
+# exactly what the downstream reconciler expects so it can merge by a moving
+# cursor.
+#
+# The id column is stored as text, so the order is lexicographic, not numeric.
+
+12000 => records_exported
+2 => id_two
+10 => id_ten
+100 => id_hundred
+9 => id_nine
+
+id_ten - id_two => places_id_ten_should_be_after_id_two
+0 => records_the_reconciler_saw_out_of_numeric_order_reported
+
+"records exported                : " + str(records_exported) ^0
+"a few ids, numeric order        : 2, 9, 10, 100" ^0
+"the same ids, text order        : 10, 100, 2, 9" ^0
+"" ^0
+"id 10 vs id 2, numeric          : 10 comes after 2" ^0
+"id 10 vs id 2, as text          : '10' comes before '2'" ^0
+"reconciler mis-orderings it flagged : " + str(records_the_reconciler_saw_out_of_numeric_order_reported) ^0
+"" ^0
+
+# ---- what the export verified ----
+
+"the ordered export" ^0
+"  sorts on : the real id, not a display label" ^0
+"  operator : the database's own ORDER BY" ^0
+"  includes : every record" ^0
+"  intent : ascending id for a cursor-based merge" ^0
+"  records omitted : 0" ^0
+"  verdict : ORDERED BY ID ASCENDING" ^0
+"" ^0
+"  sorting on the real id rather than a display label is" ^0
+"  the part done right here, and it is why the order is" ^0
+"  over the true key" ^0
+"" ^0
+
+# ---- what kind of order ----
+
+"ORDER BY over a text id" ^0
+"  what it compares : characters, left to right" ^0
+"  '10' against '2' : '1' < '2', so '10' sorts first" ^0
+"  '100' against '9' : '1' < '9', so '100' sorts before 9" ^0
+"  so the order : 10, 100, 2, 9 - not 2, 9, 10, 100" ^0
+"  numeric and text order agree only : while ids have the" ^0
+"    same number of digits" ^0
+"" ^0
+
+# ---- what the reconciler does with it ----
+
+"the cursor-based reconciler" ^0
+"  what it assumes : ids arrive in increasing numeric" ^0
+"    order" ^0
+"  what it does when an id looks smaller than the cursor :" ^0
+"    treats it as already processed and skips it" ^0
+"  so records after a digit-count change : are skipped as" ^0
+"    'behind the cursor'" ^0
+"  is the ORDER BY wrong : no; it is the correct text order" ^0
+"  is text order the numeric order the reconciler needs :" ^0
+"    no" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same ids, sorted as integers (or zero-padded to a fixed width so text
+# order matches numeric order).
+0 => nc_text_order_matches_numeric
+1 => nc_numeric_order_is_correct
+1 => nc_reconciler_merges_cleanly
+
+"null control - sort as integers (or zero-pad)" ^0
+"  text order matches numeric : " + str(nc_text_order_matches_numeric) ^0
+"  numeric order is correct : " + str(nc_numeric_order_is_correct) ^0
+"  reconciler merges cleanly : " + str(nc_reconciler_merges_cleanly) ^0
+"  no id changed; the comparison stopped ranking the ids by" ^0
+"  their spelling" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what ORDER BY id guarantees" ^0
+"  the rows are in ascending order of the column : exactly," ^0
+"    the engine's own ORDER BY over every record" ^0
+"  the rows are in ascending numeric id order : not" ^0
+"    addressed; the id is text, so the order is" ^0
+"    lexicographic - '10' precedes '2', and a reconciler" ^0
+"    that expects numeric order skips the rows that look" ^0
+"    behind its cursor" ^0
+"" ^0
+
+"an order is over a type, and the id's type is text; the sort is a correct" ^0
+"ordering of strings, and strings rank by their first differing character, not" ^0
+"by the quantity they denote" ^0
+"" ^0
+
+"It sorts the real id with the engine's ORDER BY over every record - a correct" ^0
+"text order. The id is stored as text, so it runs 10, 100, 2, 9, and a" ^0
+"cursor-based reconciler that assumes numeric order skips whatever falls behind" ^0
+"its cursor, under " + str(records_the_reconciler_saw_out_of_numeric_order_reported) + " mis-orderings it flagged." ^0

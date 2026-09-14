@@ -1,0 +1,105 @@
+# Self-authored for the EML case corpus (no external origin). The average rating
+# is 8.00 and the query that produced it is correct SQL. What the denominator
+# counts is computed below.
+#
+# The query is written carefully. It reads the real ratings column, not a cached
+# rollup; it runs over every user row, not a sample; it uses the database's own
+# AVG so the arithmetic is not hand-rolled; and the number is refreshed nightly.
+#
+# AVG(score) and COUNT(score) skip the rows where score IS NULL, and 1200 users
+# left it null.
+
+5000 => users
+3800 => users_who_rated
+1200 => users_whose_score_is_null
+30400 => total_rating_points
+
+int(total_rating_points * 100 / users_who_rated) => reported_average_per_hundred
+int(users_who_rated * 10000 / users) => participation_per_myriad
+users - users_who_rated => users_outside_the_denominator
+int(total_rating_points * 100 / users) => average_if_every_user_counted_per_hundred
+
+"users                           : " + str(users) ^0
+"  who rated                     : " + str(users_who_rated) ^0
+"  whose score is null           : " + str(users_whose_score_is_null) ^0
+"total rating points             : " + str(total_rating_points) ^0
+"" ^0
+"reported average                : " + str(reported_average_per_hundred) + " per hundred" ^0
+"participation                   : " + str(participation_per_myriad) + " per ten thousand" ^0
+"users outside the denominator   : " + str(users_outside_the_denominator) ^0
+"average if every user counted   : " + str(average_if_every_user_counted_per_hundred) + " per hundred" ^0
+"" ^0
+
+# ---- what the query verified ----
+
+"the average query" ^0
+"  reads : the real ratings column, not a rollup" ^0
+"  over : every user row, not a sample" ^0
+"  arithmetic : the database's own AVG" ^0
+"  refreshed : nightly" ^0
+"  rows it averaged : " + str(users_who_rated) ^0
+"  verdict : AVERAGE 8.00" ^0
+"" ^0
+"  using the engine's AVG rather than a hand-rolled sum is" ^0
+"  the part done right here, and it is why the 8.00 over" ^0
+"  those rows is exact" ^0
+"" ^0
+
+# ---- what the denominator is ----
+
+"COUNT(score), the denominator" ^0
+"  what it counts : rows where score is not null" ^0
+"  what it skips : rows where score IS NULL" ^0
+"  users who left it null : " + str(users_whose_score_is_null) ^0
+"  so the denominator : " + str(users_who_rated) + ", not " + str(users) ^0
+"  what AVG is over : the raters, not the users" ^0
+"" ^0
+
+# ---- what the reader hears ----
+
+"the sentence 'our users rate us 8.00'" ^0
+"  the users it is actually about : the " + str(users_who_rated) + " who rated" ^0
+"  the users it seems to be about : all " + str(users) ^0
+"  participation behind the number : " ^0
+"    " + str(participation_per_myriad) + " per ten thousand" ^0
+"  is the average wrong : no; it is exact over its rows" ^0
+"  is its denominator the population the reader assumes :" ^0
+"    no" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same data, with COUNT(*) as the denominator and a null score treated as a
+# non-response the report states rather than drops.
+800 => nc_average_over_raters_per_hundred
+7600 => nc_participation_per_myriad
+1200 => nc_non_responses_now_stated
+
+"null control - COUNT(*) denominator, non-response stated" ^0
+"  average over raters : " + str(nc_average_over_raters_per_hundred) + " per hundred, unchanged" ^0
+"  participation : " + str(nc_participation_per_myriad) + " per ten thousand" ^0
+"  non-responses now stated : " + str(nc_non_responses_now_stated) ^0
+"  no rating changed; the null stopped being dropped from" ^0
+"  the count and started being reported as a non-response" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what an AVG(score) of 8.00 guarantees" ^0
+"  the users who rated average 8.00 : exactly, the" ^0
+"    engine's own AVG over the non-null scores" ^0
+"  the average is over the users : not addressed; COUNT and" ^0
+"    AVG skip the NULLs, so the denominator is the " + str(users_who_rated) ^0
+"    who rated, not the " + str(users) + " users - the " + str(users_whose_score_is_null) + " who did not" ^0
+"    rate are silently outside it" ^0
+"" ^0
+
+"a NULL is not a zero and not a row; the engine's aggregates drop it from the" ^0
+"denominator, so an average over a column is an average over the rows that filled" ^0
+"it, and the ones that did not are counted nowhere" ^0
+"" ^0
+
+"It uses the engine's AVG over the real column, nightly, over every row - 8.00" ^0
+"exactly, over the " + str(users_who_rated) + " who rated. COUNT(score) skips the " + str(users_whose_score_is_null) + " NULLs, so the" ^0
+"denominator is not the " + str(users) + " users the sentence implies - participation behind" ^0
+"the 8.00 is " + str(participation_per_myriad) + " per ten thousand." ^0

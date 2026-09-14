@@ -1,0 +1,111 @@
+# Self-authored for the EML case corpus (no external origin). The data migration
+# passed every post-migration check, and each check is real. How many rows the
+# migration touched is computed below.
+#
+# The checks are careful. Each is a per-row assertion over the migrated rows, not
+# a spot check; every migrated row is verified, not a sample; a single failing
+# row fails the migration; and the checks run in the same transaction as the
+# migration.
+#
+# The migration's WHERE clause matched no rows, and a per-row check over no rows
+# passes trivially.
+
+2000000 => rows_in_the_table
+0 => rows_the_migration_matched
+0 => rows_that_failed_a_check
+100 => reported_checks_passed_per_hundred
+740000 => rows_that_needed_migrating
+
+rows_the_migration_matched => rows_the_checks_ran_over
+rows_that_needed_migrating - rows_the_migration_matched => rows_left_unmigrated
+int(rows_left_unmigrated * 10000 / rows_that_needed_migrating) => unmigrated_share_per_myriad
+
+"rows in the table               : " + str(rows_in_the_table) ^0
+"rows the migration matched      : " + str(rows_the_migration_matched) ^0
+"rows the checks ran over        : " + str(rows_the_checks_ran_over) ^0
+"rows that failed a check        : " + str(rows_that_failed_a_check) ^0
+"reported checks passed          : " + str(reported_checks_passed_per_hundred) + " per hundred" ^0
+"" ^0
+"rows that needed migrating      : " + str(rows_that_needed_migrating) ^0
+"  left unmigrated               : " + str(rows_left_unmigrated) ^0
+"unmigrated share                : " + str(unmigrated_share_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the checks verified ----
+
+"the post-migration checks" ^0
+"  each : a per-row assertion, not a spot check" ^0
+"  over : every migrated row, not a sample" ^0
+"  a failing row : fails the whole migration" ^0
+"  run : in the migration's own transaction" ^0
+"  rows that failed a check : " + str(rows_that_failed_a_check) ^0
+"  verdict : ALL CHECKS PASSED" ^0
+"" ^0
+"  per-row assertions in the same transaction is the part" ^0
+"  done right here, and it is why a genuinely bad migrated" ^0
+"  row would fail the run" ^0
+"" ^0
+
+# ---- what the checks ran over ----
+
+"the migrated rows" ^0
+"  the migration's WHERE matched : " + str(rows_the_migration_matched) ^0
+"  so rows the checks assert over : " + str(rows_the_checks_ran_over) ^0
+"  a per-row check over zero rows : passes, every one of" ^0
+"    none satisfied" ^0
+"  what 'all checks passed' means here : nothing was" ^0
+"    checked" ^0
+"  what it does not mean : that the migration ran" ^0
+"" ^0
+
+# ---- why the migration was empty ----
+
+"the migration's WHERE clause" ^0
+"  what it matched : " + str(rows_the_migration_matched) ^0
+"  why : it filters on a status value the rows no longer" ^0
+"    use after an earlier migration renamed it" ^0
+"  rows that actually needed the change : " ^0
+"    " + str(rows_that_needed_migrating) ^0
+"  did the checks notice they were untouched : no; they" ^0
+"    were never in scope" ^0
+"  is the pass false : no; it is vacuously true" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same run, with the migration asserting a minimum expected row count and the
+# checks refusing to pass over an empty change set.
+100 => nc_checks_pass_over_empty
+0 => nc_checks_pass_when_empty_is_an_error
+740000 => nc_rows_a_count_assertion_would_flag
+
+"null control - assert an expected row count" ^0
+"  checks pass over empty : " + str(nc_checks_pass_over_empty) + " per hundred" ^0
+"  checks pass when empty is an error : " ^0
+"    " + str(nc_checks_pass_when_empty_is_an_error) ^0
+"  rows a count assertion would flag as unmigrated : " ^0
+"    " + str(nc_rows_a_count_assertion_would_flag) ^0
+"  no row changed; an empty change set stopped counting as" ^0
+"  a passed migration" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what all-checks-passed guarantees" ^0
+"  every migrated row satisfies every check : exactly," ^0
+"    per row, in one transaction, none failing" ^0
+"  the migration ran : not addressed; the WHERE matched no" ^0
+"    rows, and a per-row check over no rows passes trivially" ^0
+"    - " + str(rows_that_needed_migrating) + " rows that needed migrating were untouched, and" ^0
+"    every check was green over the empty set" ^0
+"" ^0
+
+"a per-row guarantee is quantified over the rows in scope, and an empty scope" ^0
+"satisfies it completely; 'every migrated row is correct' is most true when no" ^0
+"row was migrated, which is when the migration did nothing" ^0
+"" ^0
+
+"Each check is a per-row assertion over every migrated row in one transaction -" ^0
+"all green. The WHERE matched " + str(rows_the_migration_matched) + " rows, so the checks passed vacuously over" ^0
+"none, while " + str(rows_that_needed_migrating) + " rows that needed the change went untouched, " + str(unmigrated_share_per_myriad) + " per ten" ^0
+"thousand of them." ^0

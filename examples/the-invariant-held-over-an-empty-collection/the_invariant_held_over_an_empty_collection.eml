@@ -1,0 +1,107 @@
+# Self-authored for the EML case corpus (no external origin). The property test
+# asserts that every open position nets to within the risk limit, and it has
+# passed on every run for the quarter. How many positions it quantifies over is
+# computed below.
+#
+# The test is careful. It checks the real position book, not a fixture; the
+# assertion is a genuine universal over every position; a single breach fails
+# the run; and it runs before each trading session.
+#
+# On the runs under review the position book loaded empty, and a universal over
+# an empty collection is true with nothing to check.
+
+62 => sessions_this_quarter
+18 => sessions_the_book_loaded_empty
+0 => positions_that_breached_the_limit
+100 => reported_pass_per_hundred
+9 => breaches_that_occurred_on_the_empty_load_days
+
+sessions_this_quarter - sessions_the_book_loaded_empty => sessions_with_a_real_book
+int(sessions_the_book_loaded_empty * 10000 / sessions_this_quarter) => empty_load_share_per_myriad
+
+"sessions this quarter           : " + str(sessions_this_quarter) ^0
+"  the book loaded empty         : " + str(sessions_the_book_loaded_empty) ^0
+"  with a real book              : " + str(sessions_with_a_real_book) ^0
+"positions that breached (as seen): " + str(positions_that_breached_the_limit) ^0
+"reported pass                   : " + str(reported_pass_per_hundred) + " per hundred" ^0
+"breaches on the empty-load days : " + str(breaches_that_occurred_on_the_empty_load_days) ^0
+"empty-load share                : " + str(empty_load_share_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the test verified ----
+
+"the risk property test" ^0
+"  checks : the real position book, not a fixture" ^0
+"  assertion : every position nets within the limit" ^0
+"  a breach : fails the run" ^0
+"  runs : before each trading session" ^0
+"  positions seen to breach : " + str(positions_that_breached_the_limit) ^0
+"  verdict : PROPERTY HELD" ^0
+"" ^0
+"  a genuine universal over the real book rather than a" ^0
+"  fixture is the part done right here, and it is why a" ^0
+"  real breach in a loaded book would fail" ^0
+"" ^0
+
+# ---- what the universal quantifies over ----
+
+"'every open position is within the limit'" ^0
+"  positions on an empty-load day : 0" ^0
+"  a for-all over zero positions : true, nothing to check" ^0
+"  what 'the property held' means there : the book was" ^0
+"    empty, not that risk was in bounds" ^0
+"  what it does not mean : that the real positions were" ^0
+"    within the limit" ^0
+"" ^0
+
+# ---- why the book was empty ----
+
+"the empty load" ^0
+"  why : the position feed timed out and the loader" ^0
+"    returned an empty book rather than erroring" ^0
+"  sessions affected : " + str(sessions_the_book_loaded_empty) ^0
+"  breaches that actually existed those days : " ^0
+"    " + str(breaches_that_occurred_on_the_empty_load_days) ^0
+"  did the passing test see them : no; they were not in" ^0
+"    the empty collection it quantified over" ^0
+"  is the pass false : no; it is vacuously true" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same sessions, with the test asserting the book is non-empty before
+# checking the universal, and treating an empty load as a failed precondition.
+100 => nc_pass_when_empty_is_vacuous
+0 => nc_pass_when_empty_is_a_failed_precondition
+18 => nc_sessions_a_nonempty_assertion_would_flag
+
+"null control - require a non-empty book first" ^0
+"  pass when empty is vacuous : " + str(nc_pass_when_empty_is_vacuous) ^0
+"  pass when empty is a failed precondition : " ^0
+"    " + str(nc_pass_when_empty_is_a_failed_precondition) ^0
+"  sessions a non-empty assertion would flag : " ^0
+"    " + str(nc_sessions_a_nonempty_assertion_would_flag) ^0
+"  no position changed; an empty book stopped satisfying a" ^0
+"  property about the positions in it" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a passing risk property guarantees" ^0
+"  every position in the book is within the limit :" ^0
+"    exactly, a genuine universal, a breach fails the run" ^0
+"  risk was within the limit : not addressed; the book" ^0
+"    loaded empty, and a for-all over an empty collection is" ^0
+"    true with nothing to check - " + str(breaches_that_occurred_on_the_empty_load_days) + " real breaches on the" ^0
+"    " + str(sessions_the_book_loaded_empty) + " empty-load days were never quantified over" ^0
+"" ^0
+
+"a universal is satisfied by an empty domain, and an empty domain is what a" ^0
+"failed load looks like; 'every position is safe' is true precisely when there" ^0
+"are no positions to be unsafe, which is when the book did not load" ^0
+"" ^0
+
+"It asserts a real universal over the actual book and fails on a breach - held" ^0
+"all quarter. The book loaded empty on " + str(sessions_the_book_loaded_empty) + " sessions, where a for-all is" ^0
+"vacuously true, so " + str(breaches_that_occurred_on_the_empty_load_days) + " real breaches went unseen, " + str(empty_load_share_per_myriad) + " per ten thousand of" ^0
+"sessions checking nothing." ^0

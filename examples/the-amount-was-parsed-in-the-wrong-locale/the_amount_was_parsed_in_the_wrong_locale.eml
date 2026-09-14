@@ -1,0 +1,106 @@
+# Self-authored for the EML case corpus (no external origin). The importer parses
+# every amount in the vendor file and rejects anything unparseable, and the
+# parser is correct. What locale it parses in is computed below.
+#
+# The importer is careful. It parses the real amount field, not a truncated
+# preview; it rejects a value it cannot parse rather than defaulting it to zero;
+# it processes every row; and the parsed totals reconcile against the row count.
+#
+# The parser uses the server locale, where '.' is the thousands separator and
+# ',' is the decimal, and the vendor file uses the opposite convention.
+
+40000 => rows_in_the_file
+40000 => rows_that_parsed
+0 => rows_rejected_as_unparseable
+1234 => vendor_meant_one_point_two_three_four
+1234000 => server_parsed_as_one_thousand_two_hundred_thirty_four
+
+server_parsed_as_one_thousand_two_hundred_thirty_four - vendor_meant_one_point_two_three_four => overstatement_per_row_thousandths
+int(server_parsed_as_one_thousand_two_hundred_thirty_four * 10000 / vendor_meant_one_point_two_three_four) => parsed_over_intended_per_myriad
+
+"rows in the file                : " + str(rows_in_the_file) ^0
+"  parsed                        : " + str(rows_that_parsed) ^0
+"  rejected as unparseable       : " + str(rows_rejected_as_unparseable) ^0
+"one amount, vendor meant        : 1.234 (one point two three four)" ^0
+"the server parsed it as         : 1234 (one thousand two hundred thirty-four)" ^0
+"  parsed over intended          : " + str(parsed_over_intended_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the importer verified ----
+
+"the amount importer" ^0
+"  parses : the real amount field, not a preview" ^0
+"  on an unparseable value : rejects it, does not default" ^0
+"    to zero" ^0
+"  over : every row" ^0
+"  reconciliation : parsed totals against the row count" ^0
+"  rows rejected : " + str(rows_rejected_as_unparseable) ^0
+"  verdict : ALL ROWS PARSED" ^0
+"" ^0
+"  rejecting rather than defaulting an unparseable value is" ^0
+"  the part done right here, and it is why a garbled row" ^0
+"  would not silently become zero" ^0
+"" ^0
+
+# ---- what locale it parsed in ----
+
+"the parse, in the server locale" ^0
+"  server convention : '.' groups thousands, ',' is the" ^0
+"    decimal" ^0
+"  vendor convention : '.' is the decimal, ',' groups" ^0
+"    thousands" ^0
+"  the token '1.234' under the server locale : the integer" ^0
+"    1234, cleanly, no error" ^0
+"  so it parses : successfully, to the wrong number" ^0
+"  a well-formed value in one locale : is a well-formed" ^0
+"    different value in the other" ^0
+"" ^0
+
+# ---- what reconciliation could not catch ----
+
+"the reconciliation" ^0
+"  what it checks : that every row produced a number" ^0
+"  rows that produced a number : all " + str(rows_that_parsed) ^0
+"  what it does not check : that the number means what the" ^0
+"    vendor wrote" ^0
+"  is the parser wrong : no; '1.234' is a valid server-" ^0
+"    locale integer" ^0
+"  did any row fail : no; that is why the error was silent" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same file, parsed with the vendor's declared locale (or a locale-
+# independent format agreed in the interface contract).
+1234000 => nc_value_under_server_locale
+1234 => nc_value_under_vendor_locale
+40000 => nc_rows_now_correct
+
+"null control - parse in the vendor's locale" ^0
+"  value under the server locale : " + str(nc_value_under_server_locale) + " (x1000)" ^0
+"  value under the vendor locale : " + str(nc_value_under_vendor_locale) ^0
+"  rows now correct : " + str(nc_rows_now_correct) ^0
+"  no byte in the file changed; the separators stopped" ^0
+"  being read by the wrong convention" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what an all-rows-parsed import guarantees" ^0
+"  every amount parsed to a number and none was rejected :" ^0
+"    exactly, real field, reject-not-default, reconciled" ^0
+"  every amount means what the vendor wrote : not" ^0
+"    addressed; the parser uses the server locale where '.'" ^0
+"    groups thousands, so '1.234' parsed cleanly as 1234" ^0
+"    instead of 1.234 - a silent 1000x on every such value" ^0
+"" ^0
+
+"a number's text is meaningless without the locale that reads it, and two" ^0
+"locales read the same separators oppositely; a value that parses without error" ^0
+"in the wrong locale is not a parse failure, it is a wrong number" ^0
+"" ^0
+
+"It parses the real field, rejects the unparseable, and reconciles the count -" ^0
+"all rows parsed. It parses in the server locale, where '.' groups thousands, so" ^0
+"the vendor's '1.234' became 1234 - " + str(parsed_over_intended_per_myriad) + " per ten thousand of intended - with" ^0
+"" + str(rows_rejected_as_unparseable) + " rejections, because a wrong-locale amount is well-formed, not an error." ^0
