@@ -1,0 +1,104 @@
+# Self-authored for the EML case corpus (no external origin). A parser extracts
+# the first quoted field from each record, and it uses the regex engine correctly
+# on every record. What the quantifier does at the delimiter is computed below.
+#
+# The parse is careful. It reads the real record line, not a preview; it uses the
+# engine's own regex, not a hand-split; it runs on every record; and the intent is
+# exactly 'capture the first quoted field'.
+#
+# The pattern is "(.*)", and .* is greedy, so it matches as much as it can and
+# runs to the last quote on the line, swallowing every delimiter in between.
+
+500000 => records
+100000 => records_with_one_quoted_field
+400000 => records_with_several_quoted_fields
+
+records_with_one_quoted_field => first_field_correct_greedy
+records => first_field_correct_lazy
+first_field_correct_lazy - first_field_correct_greedy => wrongly_captured
+int(wrongly_captured * 10000 / records) => wrongly_captured_share_per_myriad
+
+"records                         : " + str(records) ^0
+"  with one quoted field         : " + str(records_with_one_quoted_field) ^0
+"  with several quoted fields    : " + str(records_with_several_quoted_fields) ^0
+"" ^0
+"first field correct, greedy .*  : " + str(first_field_correct_greedy) ^0
+"first field correct, lazy .*?   : " + str(first_field_correct_lazy) ^0
+"wrongly captured                : " + str(wrongly_captured) ^0
+"wrongly captured                : " + str(wrongly_captured_share_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the parse verified ----
+
+"the field extractor" ^0
+"  reads : the real record line, not a preview" ^0
+"  uses : the engine's own regex, not a hand-split" ^0
+"  runs on : every record" ^0
+"  intent : capture the first quoted field" ^0
+"  records skipped : 0" ^0
+"  verdict : EVERY RECORD PRODUCED A CAPTURE" ^0
+"" ^0
+"  using the engine's regex over every real record is the" ^0
+"  part done right here, and it is why a single-field record" ^0
+"  is captured exactly" ^0
+"" ^0
+
+# ---- what the quantifier does ----
+
+"the capture \"(.*)\"" ^0
+"  what .* is : greedy, matches as much as possible" ^0
+"  where it stops : at the last quote on the line, not the" ^0
+"    first closing one" ^0
+"  a line like \"alice\",\"bob\" : the capture is alice\",\"bob" ^0
+"  so on one field : correct; on several : spans them all" ^0
+"  did it fail to match : no; it matched too much" ^0
+"" ^0
+
+# ---- what the caller got ----
+
+"the result of the extraction" ^0
+"  records where greedy equals intended : " + str(first_field_correct_greedy) + ", the single-" ^0
+"    field ones" ^0
+"  records where it over-captured : " + str(wrongly_captured) ^0
+"  is the pattern wrong : no; .* legitimately matches quotes" ^0
+"    and commas too" ^0
+"  did any record error : no; every one produced a capture," ^0
+"    which is why the over-capture was silent" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same pattern, made lazy ("(.*?)") or given a negated class ("([^"]*)"), so
+# the capture stops at the first closing quote.
+400000 => nc_over_captured_greedy
+0 => nc_over_captured_lazy
+400000 => nc_records_the_lazy_form_fixes
+
+"null control - make the quantifier lazy, \"(.*?)\"" ^0
+"  over-captured, greedy : " + str(nc_over_captured_greedy) ^0
+"  over-captured, lazy : " + str(nc_over_captured_lazy) ^0
+"  records the lazy form fixes : " + str(nc_records_the_lazy_form_fixes) ^0
+"  no record and no pattern anchor changed; the match" ^0
+"  stopped running to the last quote and stopped at the" ^0
+"  first closing one" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a \"(.*)\" capture guarantees" ^0
+"  it captures text between a quote and a later quote :" ^0
+"    exactly, the engine's own match over every record" ^0
+"  it captures the first quoted field : not addressed; .* is" ^0
+"    greedy and runs to the last quote, so on the " + str(records_with_several_quoted_fields) ^0
+"    multi-field records the capture spans every field" ^0
+"" ^0
+
+"a greedy quantifier takes the longest match its pattern still allows, and a" ^0
+"delimiter it is not told to avoid is just more that it can take; the field" ^0
+"boundary is invisible to a match that was never asked to stop at it" ^0
+"" ^0
+
+"It runs the engine's regex over every record - a single-field line is captured" ^0
+"exactly. But .* is greedy and runs to the last quote, so on " + str(records_with_several_quoted_fields) ^0
+"multi-field records the first capture spans them all; " + str(wrongly_captured) + " were over-captured," ^0
+"" + str(wrongly_captured_share_per_myriad) + " per ten thousand, until the quantifier was made lazy." ^0

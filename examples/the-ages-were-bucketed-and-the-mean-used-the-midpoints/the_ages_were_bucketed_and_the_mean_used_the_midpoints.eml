@@ -1,0 +1,105 @@
+# Self-authored for the EML case corpus (no external origin). A survey reports the
+# average age, computed as the weighted mean of the age-bucket midpoints, and the
+# arithmetic is correct over every respondent. What a bucket midpoint stands in
+# for is computed below.
+#
+# The measurement is careful. It reads the real recorded bucket for each
+# respondent, not a guess; it covers every respondent; the weighted mean of the
+# midpoints is honest; and the intent is exactly 'the average age'.
+#
+# Only the bucket is recorded, never the age, so each respondent is placed at the
+# center of the bucket - which is the true average only if ages sit symmetrically
+# in every bucket, and the top bucket is open-ended with a chosen midpoint.
+
+100000 => respondents
+42 => mean_from_bucket_midpoints
+47 => mean_from_raw_ages
+
+mean_from_raw_ages - mean_from_bucket_midpoints => years_the_bucketing_hid
+int(years_the_bucketing_hid * 10000 / mean_from_raw_ages) => understated_share_per_myriad
+
+"respondents                     : " + str(respondents) ^0
+"mean from bucket midpoints      : " + str(mean_from_bucket_midpoints) ^0
+"mean from the raw ages          : " + str(mean_from_raw_ages) ^0
+"years the bucketing hid         : " + str(years_the_bucketing_hid) ^0
+"understated share of the truth  : " + str(understated_share_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the measurement verified ----
+
+"the average-age computation" ^0
+"  reads : the real recorded bucket for each respondent" ^0
+"  covers : every respondent" ^0
+"  mean : the honest weighted mean of the midpoints" ^0
+"  intent : the average age" ^0
+"  respondents omitted : 0" ^0
+"  verdict : MIDPOINT MEAN IS 42, COMPUTED CORRECTLY" ^0
+"" ^0
+"  taking the honest weighted mean of the midpoints over" ^0
+"  every respondent is the part done right here, and it is" ^0
+"  why 42 is the correct mean of the midpoints" ^0
+"" ^0
+
+# ---- what a midpoint stands in for ----
+
+"the midpoint substitution" ^0
+"  what is recorded : the bucket, never the age" ^0
+"  what the midpoint assumes : the age sits at the bucket's" ^0
+"    center" ^0
+"  when that holds : only if ages are symmetric within each" ^0
+"    bucket" ^0
+"  the real distribution : skews old, and the top bucket is" ^0
+"    open-ended with a guessed center" ^0
+"  so the midpoint mean : is the mean of the assumption, not" ^0
+"    of the ages" ^0
+"" ^0
+
+# ---- what the caller got ----
+
+"the result of the survey" ^0
+"  reported average age : " + str(mean_from_bucket_midpoints) ^0
+"  average from the raw ages : " + str(mean_from_raw_ages) ^0
+"  years hidden by the bucketing : " + str(years_the_bucketing_hid) ^0
+"  is the midpoint mean miscomputed : no; 42 is exact for" ^0
+"    the midpoints" ^0
+"  is 42 the average age : no; interval censoring replaced" ^0
+"    each age with a center it need not sit at" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same respondents, with the raw age recorded instead of only the bucket (or a
+# within-bucket distribution estimated rather than assumed uniform).
+42 => nc_mean_from_midpoints
+47 => nc_mean_from_raw_ages
+5 => nc_years_the_raw_value_recovers
+
+"null control - record the raw age, not only the bucket" ^0
+"  mean from midpoints : " + str(nc_mean_from_midpoints) ^0
+"  mean from raw ages : " + str(nc_mean_from_raw_ages) ^0
+"  years the raw value recovers : " + str(nc_years_the_raw_value_recovers) ^0
+"  no respondent and no bucket boundary changed; each age" ^0
+"  stopped being read as its bucket's center and started" ^0
+"  being read as itself" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a mean of bucket midpoints guarantees" ^0
+"  it is the correct mean of the midpoints : exactly, real" ^0
+"    buckets, every respondent, honest weighting" ^0
+"  it is the mean of the ages : not addressed; only the" ^0
+"    bucket is recorded, so each age becomes its bucket's" ^0
+"    center, and a skewed distribution plus an open top" ^0
+"    bucket moves the true mean to " + str(mean_from_raw_ages) ^0
+"" ^0
+
+"a bucket keeps which interval a value fell in and forgets where inside it; the" ^0
+"midpoint puts it back at the center, which is a fact about the interval, not the" ^0
+"value, and a skew within the bucket is invisible to a mean of centers" ^0
+"" ^0
+
+"It takes the honest weighted mean of the midpoints over every respondent - 42 is" ^0
+"the exact midpoint mean. But only the bucket was recorded, so each age is read as" ^0
+"its center; with a skewed distribution and an open top bucket the true mean is " + str(mean_from_raw_ages) + "," ^0
+"" + str(understated_share_per_myriad) + " per ten thousand understated, until the raw age is recorded." ^0

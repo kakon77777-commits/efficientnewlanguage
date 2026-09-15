@@ -1,0 +1,105 @@
+# Self-authored for the EML case corpus (no external origin). A water-quality
+# report gives the average contaminant level, and it averages the real recorded
+# readings of every sample correctly. What a recorded zero means is computed
+# below.
+#
+# The measurement is careful. It reads the real assay values, not estimates; it
+# covers every sample; the mean is the honest average of the recorded levels; and
+# the intent is exactly 'the average contaminant concentration'.
+#
+# The assay cannot quantify below 5 units, so every below-limit reading is stored
+# as 0 - and a stored 0 means 'below the limit', not 'none present'.
+
+40000 => samples
+10000 => readings_above_the_limit
+30000 => readings_below_the_limit_stored_zero
+8 => mean_with_below_limit_as_zero
+10 => mean_with_below_limit_at_half_the_limit
+
+mean_with_below_limit_at_half_the_limit - mean_with_below_limit_as_zero => level_the_floor_hid
+int(level_the_floor_hid * 10000 / mean_with_below_limit_at_half_the_limit) => understated_share_per_myriad
+
+"samples                         : " + str(samples) ^0
+"  above the detection limit     : " + str(readings_above_the_limit) ^0
+"  below the limit, stored as 0  : " + str(readings_below_the_limit_stored_zero) ^0
+"" ^0
+"mean, below-limit read as zero  : " + str(mean_with_below_limit_as_zero) ^0
+"mean, below-limit at half-limit : " + str(mean_with_below_limit_at_half_the_limit) ^0
+"level the floor hid             : " + str(level_the_floor_hid) ^0
+"understated share of the truth  : " + str(understated_share_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the measurement verified ----
+
+"the contaminant average" ^0
+"  reads : the real assay values, not estimates" ^0
+"  covers : every sample" ^0
+"  mean : the honest average of the recorded levels" ^0
+"  intent : the average contaminant concentration" ^0
+"  samples omitted : 0" ^0
+"  verdict : RECORDED MEAN IS 8, COMPUTED CORRECTLY" ^0
+"" ^0
+"  averaging the real recorded values over every sample is" ^0
+"  the part done right here, and it is why 8 is the correct" ^0
+"  mean of what was stored" ^0
+"" ^0
+
+# ---- what a recorded zero means ----
+
+"the stored zero" ^0
+"  the assay's limit : it cannot quantify below 5 units" ^0
+"  what a below-limit reading becomes : 0" ^0
+"  what that 0 means : below the limit, somewhere in 0 to 5" ^0
+"  what it is read as : none present, exactly zero" ^0
+"  so the mean : treats a floor as a true absence, on 30000" ^0
+"    of the 40000 samples" ^0
+"" ^0
+
+# ---- what the caller got ----
+
+"the result of the report" ^0
+"  reported average : " + str(mean_with_below_limit_as_zero) ^0
+"  average if below-limit is half the limit : " + str(mean_with_below_limit_at_half_the_limit) ^0
+"  concentration hidden by the floor : " + str(level_the_floor_hid) ^0
+"  is the recorded mean wrong : no; 8 is exact for the" ^0
+"    stored values" ^0
+"  is a stored 0 an absence : no; it is a value censored at" ^0
+"    the detection limit and read as zero" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same samples, with below-limit readings set to half the detection limit (or
+# a censored-data estimator), instead of a hard zero.
+8 => nc_mean_with_hard_zero
+10 => nc_mean_with_half_limit_substitution
+30000 => nc_readings_no_longer_read_as_absent
+
+"null control - substitute half the limit for below-limit readings" ^0
+"  mean with a hard zero : " + str(nc_mean_with_hard_zero) ^0
+"  mean with half-limit substitution : " + str(nc_mean_with_half_limit_substitution) ^0
+"  readings no longer read as absent : " + str(nc_readings_no_longer_read_as_absent) ^0
+"  no sample and no assay reading changed; the below-limit" ^0
+"  values stopped being read as zero and started being read" ^0
+"  as somewhere under the limit" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what an average of the recorded readings guarantees" ^0
+"  it is the correct mean of what was stored : exactly, real" ^0
+"    values, every sample, honest average" ^0
+"  it is the average concentration present : not addressed;" ^0
+"    the assay floors sub-limit readings to 0 and a 0 is read" ^0
+"    as absence, so the " + str(readings_below_the_limit_stored_zero) + " censored samples pull the mean to 8" ^0
+"" ^0
+
+"a detection limit is a floor on what can be seen, not on what is there; storing" ^0
+"the unseen as zero turns 'too small to measure' into 'measured as nothing', and" ^0
+"an average built on that reads a limit of the instrument as a value of the world" ^0
+"" ^0
+
+"It averages the real recorded values over every sample - 8 is the exact recorded" ^0
+"mean. But the assay stores every below-limit reading as 0 and a 0 is read as" ^0
+"absent; the " + str(readings_below_the_limit_stored_zero) + " censored samples give a true mean nearer " + str(mean_with_below_limit_at_half_the_limit) + ", " + str(understated_share_per_myriad) ^0
+"per ten thousand understated, until the floor is estimated instead of zeroed." ^0

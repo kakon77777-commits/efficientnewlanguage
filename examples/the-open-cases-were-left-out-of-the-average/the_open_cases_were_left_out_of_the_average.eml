@@ -1,0 +1,108 @@
+# Self-authored for the EML case corpus (no external origin). A report gives the
+# average time to resolve a ticket, and it averages the real resolution times of
+# every resolved ticket correctly. Which tickets can be in the average is computed
+# below.
+#
+# The measurement is careful. It reads the real close timestamps, not estimates;
+# it covers every ticket that has a resolution time; the mean is the honest
+# average of days-to-close; and the intent is exactly 'how long does a ticket take
+# to resolve'.
+#
+# A ticket contributes a resolution time only once it is closed, and the slowest
+# tickets are the ones still open, so they are absent from the average by virtue of
+# not being done.
+
+100000 => tickets_opened
+70000 => tickets_resolved
+30000 => tickets_still_open
+5 => avg_days_over_resolved
+12 => estimate_including_the_open_tail
+20 => days_the_open_ones_have_already_waited
+
+estimate_including_the_open_tail - avg_days_over_resolved => days_the_censoring_hid
+int(days_the_censoring_hid * 10000 / estimate_including_the_open_tail) => understated_share_per_myriad
+
+"tickets opened                  : " + str(tickets_opened) ^0
+"  resolved (have a close time)  : " + str(tickets_resolved) ^0
+"  still open (no close time yet) : " + str(tickets_still_open) ^0
+"" ^0
+"average days over resolved      : " + str(avg_days_over_resolved) ^0
+"open ones already waited (min)  : " + str(days_the_open_ones_have_already_waited) ^0
+"estimate including the open tail : " + str(estimate_including_the_open_tail) ^0
+"understated share of the truth  : " + str(understated_share_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the measurement verified ----
+
+"the resolution-time average" ^0
+"  reads : the real close timestamps, not estimates" ^0
+"  covers : every ticket that has a resolution time" ^0
+"  mean : the honest average of days-to-close" ^0
+"  intent : how long does a ticket take to resolve" ^0
+"  resolved tickets omitted : 0" ^0
+"  verdict : RESOLVED TICKETS AVERAGE 5 DAYS" ^0
+"" ^0
+"  averaging real close times over every resolved ticket is" ^0
+"  the part done right here, and it is why the 5 days is a" ^0
+"  true statement about the tickets that closed" ^0
+"" ^0
+
+# ---- which tickets can be in the average ----
+
+"who contributes a resolution time" ^0
+"  requirement : the ticket must be closed" ^0
+"  which tickets are still open : the 30000 slowest" ^0
+"  how long they have already waited : at least 20 days, and" ^0
+"    counting" ^0
+"  so the tail longer than the mean : is entirely excluded" ^0
+"  what the average therefore measures : the ones fast" ^0
+"    enough to have finished" ^0
+"" ^0
+
+# ---- what the caller got ----
+
+"the result of the report" ^0
+"  reported average : " + str(avg_days_over_resolved) + " days" ^0
+"  the open tickets already exceed : " + str(days_the_open_ones_have_already_waited) + " days each" ^0
+"  estimate that counts the open ones : " + str(estimate_including_the_open_tail) + " days" ^0
+"  is the mean over resolved wrong : no; it is exact for them" ^0
+"  is it the time a ticket takes : no; the slow half is" ^0
+"    right-censored, invisible until it closes" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same tickets, with a survival estimate that counts the open tickets'
+# elapsed time as a lower bound instead of dropping them.
+5 => nc_mean_over_resolved_only
+12 => nc_estimate_with_censored_included
+30000 => nc_open_tickets_the_estimate_stops_dropping
+
+"null control - include the open tickets' elapsed time" ^0
+"  mean over resolved only : " + str(nc_mean_over_resolved_only) ^0
+"  estimate with the censored included : " + str(nc_estimate_with_censored_included) ^0
+"  open tickets the estimate stops dropping : " + str(nc_open_tickets_the_estimate_stops_dropping) ^0
+"  no ticket and no timestamp changed; the slow tail stopped" ^0
+"  being excluded for not being finished and started" ^0
+"  counting as at-least-this-long" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what an average over resolved tickets guarantees" ^0
+"  the resolved tickets took that long on average : exactly," ^0
+"    real close times, every resolved ticket, honest mean" ^0
+"  a ticket takes that long to resolve : not addressed; a" ^0
+"    ticket enters the average only by closing, so the " + str(tickets_still_open) ^0
+"    slowest are censored out and the mean sees the fast ones" ^0
+"" ^0
+
+"an average of the finished is an average of the fast; whatever is still running" ^0
+"is exactly the part that runs long, and leaving it out because it has no end time" ^0
+"yet removes the tail that the question was about" ^0
+"" ^0
+
+"It averages real close times over every resolved ticket - the 5 days is true for" ^0
+"them. But a ticket enters the average only by closing, and the " + str(tickets_still_open) + " still open" ^0
+"are the slow tail; an estimate that counts their elapsed time gives " + str(estimate_including_the_open_tail) + " days," ^0
+"" + str(understated_share_per_myriad) + " per ten thousand understated by the right-censoring." ^0

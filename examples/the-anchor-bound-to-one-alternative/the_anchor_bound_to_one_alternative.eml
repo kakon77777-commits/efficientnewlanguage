@@ -1,0 +1,102 @@
+# Self-authored for the EML case corpus (no external origin). A whitelist accepts
+# a value only if it is exactly "cat" or "dog", and it uses the regex engine
+# correctly on every value. What the anchors bind to is computed below.
+#
+# The check is careful. It applies the pattern to the real value, not a substring;
+# it uses the engine's own regex; it runs on every value; and the intent is
+# exactly 'the whole value is one of the two allowed words'.
+#
+# The pattern is ^cat|dog$, and alternation has the lowest precedence, so it reads
+# as (^cat) or (dog$) - each anchor binds to one branch, not to both words.
+
+100000 => values_tested
+40000 => exactly_cat_or_dog
+500 => starts_with_cat_or_ends_with_dog_not_exact
+
+exactly_cat_or_dog + starts_with_cat_or_ends_with_dog_not_exact => accepted_by_ungrouped
+exactly_cat_or_dog => accepted_by_grouped
+accepted_by_ungrouped - accepted_by_grouped => wrongly_accepted
+int(wrongly_accepted * 10000 / accepted_by_ungrouped) => wrongly_accepted_share_per_myriad
+
+"values tested                   : " + str(values_tested) ^0
+"  exactly cat or dog            : " + str(exactly_cat_or_dog) ^0
+"  start-cat or end-dog, not exact : " + str(starts_with_cat_or_ends_with_dog_not_exact) ^0
+"" ^0
+"accepted by ^cat|dog$           : " + str(accepted_by_ungrouped) ^0
+"accepted by ^(cat|dog)$         : " + str(accepted_by_grouped) ^0
+"wrongly accepted                : " + str(wrongly_accepted) ^0
+"share of accepted that is neither word : " + str(wrongly_accepted_share_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the check verified ----
+
+"the whitelist" ^0
+"  applies to : the real value, not a substring" ^0
+"  uses : the engine's own regex" ^0
+"  runs on : every value" ^0
+"  intent : the whole value is exactly cat or dog" ^0
+"  values skipped : 0" ^0
+"  verdict : EVERY ACCEPTED VALUE MATCHES THE PATTERN" ^0
+"" ^0
+"  using the engine's regex over every value is the part" ^0
+"  done right here, and it is why a real cat or dog is" ^0
+"  always accepted" ^0
+"" ^0
+
+# ---- what the anchors bind to ----
+
+"^cat|dog$" ^0
+"  precedence of alternation : the lowest of all" ^0
+"  so the pattern groups as : (^cat) or (dog$)" ^0
+"  what the left branch requires : starts with cat, end free" ^0
+"  what the right branch requires : ends with dog, start free" ^0
+"  so catfish and hotdog : both match, one per branch" ^0
+"" ^0
+
+# ---- what the caller got ----
+
+"the result of the whitelist" ^0
+"  values it should accept : the " + str(exactly_cat_or_dog) + " exact words" ^0
+"  values it accepted : " + str(accepted_by_ungrouped) + ", prefixes and suffixes too" ^0
+"  neither-word values wrongly accepted : " + str(wrongly_accepted) ^0
+"  is the pattern malformed : no; it compiles and runs" ^0
+"  did the anchors cover both words : no; each bound to one" ^0
+"    branch, and the fixtures only used the exact words" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same alternation, grouped so the anchors apply to the whole choice:
+# ^(cat|dog)$ instead of ^cat|dog$.
+500 => nc_neither_word_accepted_ungrouped
+0 => nc_neither_word_accepted_grouped
+500 => nc_values_the_grouping_rejects
+
+"null control - group the alternation, ^(cat|dog)$" ^0
+"  neither-word accepted, ungrouped : " + str(nc_neither_word_accepted_ungrouped) ^0
+"  neither-word accepted, grouped : " + str(nc_neither_word_accepted_grouped) ^0
+"  values the grouping now rejects : " + str(nc_values_the_grouping_rejects) ^0
+"  no value and no alternative changed; the anchors stopped" ^0
+"  binding to one branch and started binding to the choice" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a ^cat|dog$ whitelist guarantees" ^0
+"  the value matches one of the branches : exactly, the" ^0
+"    engine's own match over every value" ^0
+"  the value is exactly cat or dog : not addressed;" ^0
+"    alternation binds looser than the anchors, so the" ^0
+"    pattern is (^cat) or (dog$) and accepts catfish and" ^0
+"    hotdog - " + str(wrongly_accepted) + " values that are neither word" ^0
+"" ^0
+
+"an anchor attaches to the branch beside it, not to the alternation as a whole;" ^0
+"without a group the choice reaches past the anchors, and a whitelist meant to" ^0
+"name two exact words instead names two open-ended halves" ^0
+"" ^0
+
+"It runs the engine's regex over every value - a real cat or dog always matches." ^0
+"But ^cat|dog$ parses as (^cat) or (dog$), so catfish and hotdog pass; " + str(wrongly_accepted) ^0
+"neither-word values were accepted, " + str(wrongly_accepted_share_per_myriad) + " per ten thousand of the accepted set," ^0
+"until the alternation was grouped." ^0

@@ -1,0 +1,105 @@
+# Self-authored for the EML case corpus (no external origin). A validator checks
+# that a field is digits and nothing else, and it uses the regex engine correctly
+# on every submission. What the end-anchor matches is computed below.
+#
+# The check is careful. It applies the pattern to the real submitted bytes, not a
+# stripped copy; it uses the engine's own regex; it runs on every submission; and
+# the intent is exactly 'the value is digits, nothing else'.
+#
+# The pattern is ^\d+$, and in default mode $ matches at the end of the string OR
+# just before a trailing newline, so a value of digits followed by a line feed
+# still matches.
+
+2000000 => submissions
+1999000 => digits_only
+1000 => digits_then_a_trailing_newline
+
+digits_only + digits_then_a_trailing_newline => accepted_by_dollar
+digits_only => accepted_by_end_of_string_anchor
+accepted_by_dollar - accepted_by_end_of_string_anchor => wrongly_accepted
+int(digits_then_a_trailing_newline * 10000 / digits_then_a_trailing_newline) => trailing_newline_accepted_per_myriad
+
+"submissions                     : " + str(submissions) ^0
+"  digits only                   : " + str(digits_only) ^0
+"  digits then a trailing newline : " + str(digits_then_a_trailing_newline) ^0
+"" ^0
+"accepted by ^\d+$               : " + str(accepted_by_dollar) ^0
+"accepted by \A\d+\Z             : " + str(accepted_by_end_of_string_anchor) ^0
+"wrongly accepted                : " + str(wrongly_accepted) ^0
+"of the newline-bearing, accepted : " + str(trailing_newline_accepted_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the check verified ----
+
+"the digits-only validator" ^0
+"  applies to : the real submitted bytes, not a stripped copy" ^0
+"  uses : the engine's own regex" ^0
+"  runs on : every submission" ^0
+"  intent : the value is digits, nothing else" ^0
+"  submissions skipped : 0" ^0
+"  verdict : EVERY VALUE IS DIGITS FROM START TO $" ^0
+"" ^0
+"  using the engine's regex over the real bytes of every" ^0
+"  submission is the part done right here, and it is why a" ^0
+"  genuinely digits-only value always matches" ^0
+"" ^0
+
+# ---- what the end-anchor matches ----
+
+"the anchor $ in default mode" ^0
+"  where $ matches : the end of the string, OR just before" ^0
+"    a newline at the end of it" ^0
+"  so ^\d+$ against 123456 then a line feed : matches, the $" ^0
+"    lands before the newline" ^0
+"  what the value actually is : digits plus a line feed" ^0
+"  did the pattern fail : no; it matched, leniently" ^0
+"  what rides through : a newline certified as digits-only" ^0
+"" ^0
+
+# ---- what the caller got ----
+
+"the result of the digits check" ^0
+"  values that should pass : the " + str(digits_only) + " digits-only values" ^0
+"  values that passed : all " + str(accepted_by_dollar) + ", newline-bearing included" ^0
+"  newline-bearing values wrongly accepted : " + str(wrongly_accepted) ^0
+"  is the pattern wrong : no; $ behaves as specified" ^0
+"  is a trailing newline 'nothing else' : no; and the" ^0
+"    fixtures had no trailing newline, so it never showed" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same pattern, anchored to the very end of the string with \Z (\A\d+\Z, or
+# a fullmatch that does not treat a trailing newline as the end).
+1000 => nc_newline_bearing_accepted_by_dollar
+0 => nc_newline_bearing_accepted_by_Z
+1000 => nc_values_the_end_of_string_anchor_rejects
+
+"null control - anchor to the very end with \Z" ^0
+"  newline-bearing accepted, $ : " + str(nc_newline_bearing_accepted_by_dollar) ^0
+"  newline-bearing accepted, \Z : " + str(nc_newline_bearing_accepted_by_Z) ^0
+"  values the end-of-string anchor rejects : " + str(nc_values_the_end_of_string_anchor_rejects) ^0
+"  no submission and no pattern body changed; the anchor" ^0
+"  stopped matching before a trailing newline and started" ^0
+"  matching only the true end" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a ^\d+$ check guarantees" ^0
+"  the value is digits up to a line boundary : exactly, the" ^0
+"    engine's own match over every submission" ^0
+"  the value is digits and nothing else : not addressed; $" ^0
+"    also matches before a trailing newline, so a digits-" ^0
+"    then-newline value passes - all " + str(wrongly_accepted) + " of them did" ^0
+"" ^0
+
+"the end of a line is not the end of a string; an anchor that stops before a final" ^0
+"newline certifies everything up to the break and says nothing about the break" ^0
+"itself, so the one character that turns a value into two lines rides through" ^0
+"" ^0
+
+"It runs the engine's regex over the real bytes of every submission - a digits-" ^0
+"only value always matches. But $ also matches before a trailing newline, so a" ^0
+"digits-then-newline value passes ^\d+$; all " + str(wrongly_accepted) + " were accepted, " + str(trailing_newline_accepted_per_myriad) ^0
+"per ten thousand of the newline-bearing values, until the anchor was \Z." ^0

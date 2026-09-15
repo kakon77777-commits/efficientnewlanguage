@@ -1,0 +1,105 @@
+# Self-authored for the EML case corpus (no external origin). A validator checks
+# that a submitted code is a six-digit number, and it uses the regex engine
+# correctly on every submission. What the pattern is anchored to is computed
+# below.
+#
+# The check is careful. It applies the pattern to the real submitted string, not
+# a trimmed copy; it uses the engine's own regex, not a hand-rolled scan; it runs
+# on every submission; and the intent is exactly 'the whole value is a six-digit
+# code'.
+#
+# The pattern is re.match(r"\d{6}"), which anchors the start but not the end, so
+# it confirms a six-digit prefix and ignores whatever follows.
+
+2000000 => submissions
+1999000 => well_formed_codes
+1000 => valid_prefix_then_junk
+
+well_formed_codes + valid_prefix_then_junk => accepted_by_prefix_match
+well_formed_codes => accepted_by_fullmatch
+accepted_by_prefix_match - accepted_by_fullmatch => wrongly_accepted
+int(valid_prefix_then_junk * 10000 / valid_prefix_then_junk) => invalid_accepted_share_per_myriad
+
+"submissions                     : " + str(submissions) ^0
+"  well-formed six-digit codes   : " + str(well_formed_codes) ^0
+"  six-digit prefix then junk    : " + str(valid_prefix_then_junk) ^0
+"" ^0
+"accepted by re.match(\d{6})      : " + str(accepted_by_prefix_match) ^0
+"accepted by re.fullmatch(\d{6})  : " + str(accepted_by_fullmatch) ^0
+"wrongly accepted                : " + str(wrongly_accepted) ^0
+"of the junk-suffixed, accepted  : " + str(invalid_accepted_share_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the check verified ----
+
+"the code validator" ^0
+"  applies to : the real submitted string, not a trimmed copy" ^0
+"  uses : the engine's own regex, not a hand-rolled scan" ^0
+"  runs on : every submission" ^0
+"  intent : the whole value is a six-digit code" ^0
+"  submissions skipped : 0" ^0
+"  verdict : EVERY VALUE HAS A SIX-DIGIT PREFIX" ^0
+"" ^0
+"  using the engine's regex over every real submission is" ^0
+"  the part done right here, and it is why a genuine six-" ^0
+"  digit prefix is reliably found" ^0
+"" ^0
+
+# ---- what the pattern is anchored to ----
+
+"re.match(r\"\d{6}\")" ^0
+"  what re.match anchors : the start of the string" ^0
+"  what it does not anchor : the end" ^0
+"  what \d{6} then matches : the first six digits, and stops" ^0
+"  what happens to the rest : it is never looked at" ^0
+"  so a value like 482913-then-anything : matches, because" ^0
+"    its prefix is six digits" ^0
+"" ^0
+
+# ---- what the caller got ----
+
+"the result of the code check" ^0
+"  values that should pass : the " + str(well_formed_codes) + " exact codes" ^0
+"  values that passed : all " + str(accepted_by_prefix_match) + ", junk included" ^0
+"  junk-suffixed values wrongly accepted : " + str(wrongly_accepted) ^0
+"  is the pattern wrong : no; \d{6} does match six digits" ^0
+"  did the tail get validated : no; the fixtures were all" ^0
+"    clean, so the missing end-anchor never showed" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same pattern, applied with re.fullmatch (or with an end-anchor added), so
+# the match must cover the whole string, not a prefix.
+1000 => nc_junk_suffixed_accepted_by_prefix_match
+0 => nc_junk_suffixed_accepted_by_fullmatch
+1000 => nc_values_the_end_anchor_rejects
+
+"null control - anchor the end (re.fullmatch)" ^0
+"  junk-suffixed accepted, prefix match : " + str(nc_junk_suffixed_accepted_by_prefix_match) ^0
+"  junk-suffixed accepted, fullmatch : " + str(nc_junk_suffixed_accepted_by_fullmatch) ^0
+"  values the end-anchor now rejects : " + str(nc_values_the_end_anchor_rejects) ^0
+"  no submission and no pattern body changed; the match" ^0
+"  stopped covering a prefix and started covering the whole" ^0
+"  string" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a re.match(\d{6}) check guarantees" ^0
+"  the value begins with six digits : exactly, the engine's" ^0
+"    own match over every submission" ^0
+"  the value is a six-digit code : not addressed; re.match" ^0
+"    anchors only the start, so \d{6} matches a prefix and" ^0
+"    ignores the tail - all " + str(wrongly_accepted) + " junk-suffixed values passed" ^0
+"" ^0
+
+"an anchor is half a fence; a start-anchored pattern says where a match begins and" ^0
+"nothing about where the string ends, so it certifies a prefix and lets the" ^0
+"remainder through, and the remainder is exactly where an unexpected value hides" ^0
+"" ^0
+
+"It applies the engine's own regex to every real submission - a genuine six-digit" ^0
+"prefix is always found. But re.match anchors only the start, so \d{6} passes any" ^0
+"value whose first six characters are digits; all " + str(wrongly_accepted) + " junk-suffixed values were" ^0
+"accepted, " + str(invalid_accepted_share_per_myriad) + " per ten thousand of them, until the end was anchored." ^0

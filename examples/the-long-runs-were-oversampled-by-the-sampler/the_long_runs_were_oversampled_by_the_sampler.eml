@@ -1,0 +1,108 @@
+# Self-authored for the EML case corpus (no external origin). A profiler estimates
+# the average request latency by sampling the currently-running request at random
+# instants, and it averages the samples correctly. How a request comes to be
+# sampled is computed below.
+#
+# The measurement is careful. It reads the real latency of each sampled request,
+# not an estimate; it counts every sample; the mean is the honest average of the
+# samples; and the intent is exactly 'the average request latency'.
+#
+# A request is sampled when the clock ticks while it is running, so a request is
+# selected with probability proportional to its duration - the long ones span more
+# ticks and are over-represented.
+
+100000 => requests
+20 => true_mean_latency_per_request
+50 => sampled_mean_latency
+200 => long_share_of_traffic_per_myriad
+2000 => long_share_of_samples_per_myriad
+
+sampled_mean_latency - true_mean_latency_per_request => ms_the_length_bias_added
+int(ms_the_length_bias_added * 10000 / sampled_mean_latency) => overstated_share_per_myriad
+
+"requests                        : " + str(requests) ^0
+"true mean latency per request   : " + str(true_mean_latency_per_request) + " ms" ^0
+"sampled mean latency            : " + str(sampled_mean_latency) + " ms" ^0
+"long requests, share of traffic : " + str(long_share_of_traffic_per_myriad) + " per myriad" ^0
+"long requests, share of samples : " + str(long_share_of_samples_per_myriad) + " per myriad" ^0
+"ms the length-bias added        : " + str(ms_the_length_bias_added) ^0
+"overstated share of the mean    : " + str(overstated_share_per_myriad) + " per ten thousand" ^0
+"" ^0
+
+# ---- what the measurement verified ----
+
+"the latency estimate" ^0
+"  reads : the real latency of each sampled request" ^0
+"  counts : every sample taken" ^0
+"  mean : the honest average of the samples" ^0
+"  intent : the average request latency" ^0
+"  samples omitted : 0" ^0
+"  verdict : SAMPLED MEAN IS 50 MS, COMPUTED CORRECTLY" ^0
+"" ^0
+"  averaging the real latency over every sample is the part" ^0
+"  done right here, and it is why 50 ms is the correct mean" ^0
+"  of the samples that were taken" ^0
+"" ^0
+
+# ---- how a request comes to be sampled ----
+
+"the sampling rule" ^0
+"  when a request is sampled : a clock tick lands while it" ^0
+"    is running" ^0
+"  so its chance of being sampled : is proportional to its" ^0
+"    duration" ^0
+"  a request twice as long : is twice as likely to be caught" ^0
+"  long requests, 2 percent of traffic : are 20 percent of" ^0
+"    the samples" ^0
+"  so the sample : is weighted by length, not one-per-request" ^0
+"" ^0
+
+# ---- what the caller got ----
+
+"the result of the profiler" ^0
+"  reported average latency : " + str(sampled_mean_latency) + " ms" ^0
+"  true per-request average : " + str(true_mean_latency_per_request) + " ms" ^0
+"  milliseconds added by the length-bias : " + str(ms_the_length_bias_added) ^0
+"  is the sample mean miscomputed : no; 50 is exact for the" ^0
+"    samples" ^0
+"  is 50 the per-request average : no; sampling by time" ^0
+"    over-weights the long requests" ^0
+"" ^0
+
+# ---- null control ----
+
+# The same requests, sampled once per completed request (weight one each) instead
+# of by the clock (weight proportional to duration).
+50 => nc_mean_sampled_by_time
+20 => nc_mean_sampled_by_request
+2000 => nc_long_over_representation_per_myriad_removed
+
+"null control - sample once per request, not per clock tick" ^0
+"  mean sampled by time : " + str(nc_mean_sampled_by_time) + " ms" ^0
+"  mean sampled by request : " + str(nc_mean_sampled_by_request) + " ms" ^0
+"  long-request over-weight removed : " + str(nc_long_over_representation_per_myriad_removed) + " per myriad" ^0
+"  no request and no latency changed; each request stopped" ^0
+"  being weighted by how long it ran and started counting" ^0
+"  once" ^0
+"" ^0
+
+# ---- the rule ----
+
+"what a mean of time-sampled latencies guarantees" ^0
+"  it is the correct mean of the samples : exactly, real" ^0
+"    latencies, every sample, honest average" ^0
+"  it is the average request latency : not addressed;" ^0
+"    sampling on a clock tick selects a request in proportion" ^0
+"    to its duration, so the long ones are over-represented" ^0
+"    and the mean rises from " + str(true_mean_latency_per_request) + " to " + str(sampled_mean_latency) ^0
+"" ^0
+
+"sampling by the moment favors whatever lasts longer, because a longer thing is in" ^0
+"more moments; the average that results is weighted by duration, and a per-item" ^0
+"question answered by a per-instant sample counts the big items more than once" ^0
+"" ^0
+
+"It averages the real latency over every sample - 50 ms is the exact sample mean." ^0
+"But a request is sampled in proportion to how long it runs, so the long ones are" ^0
+"over-represented; sampling once per request gives " + str(true_mean_latency_per_request) + " ms, the length-bias" ^0
+"adding " + str(overstated_share_per_myriad) + " per ten thousand, until the sample is taken per request." ^0
